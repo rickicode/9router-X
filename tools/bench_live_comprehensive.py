@@ -165,11 +165,12 @@ def query_chat(model, prompt, tools=None, max_tokens=1000, timeout=40):
             err_body = e.read().decode("utf-8", "replace")[:300]
         except:
             pass
-        return {"ok": False, "status": e.code, "dur": round(dur, 3), "content": "", "tool_calls": [], "tokens": 0, "tps": 0, "error": f"HTTP {e.code}: {err_body}"}
+        is_429 = (e.code == 429) or ("rate" in err_body.lower() and "limit" in err_body.lower())
+        tag = " [RATE_LIMITED_429_SKIP]" if is_429 else ""
+        return {"ok": False, "status": e.code, "is_429": is_429, "dur": round(dur, 3), "content": "", "tool_calls": [], "tokens": 0, "tps": 0, "error": f"HTTP {e.code}{tag}: {err_body}"}
     except Exception as e:
         dur = time.time() - t0
-        return {"ok": False, "status": 0, "dur": round(dur, 3), "content": "", "tool_calls": [], "tokens": 0, "tps": 0, "error": str(e)[:200]}
-
+        return {"ok": False, "status": 0, "is_429": False, "dur": round(dur, 3), "content": "", "tool_calls": [], "tokens": 0, "tps": 0, "error": str(e)[:200]}
 def init_db(path):
     conn = sqlite3.connect(path)
     c = conn.cursor()
