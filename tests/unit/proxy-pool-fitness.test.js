@@ -50,6 +50,7 @@ describe("proxy pool fitness registry", () => {
       "freebuff",
       { scope: "freebuff::openai/gpt-5.6-luna" },
     )).toBeNull();
+<<<<<<< HEAD
 
     // Also when connectionId (UUID) is passed instead of "freebuff":
     expect(pickProxyPoolId(
@@ -61,6 +62,11 @@ describe("proxy pool fitness registry", () => {
   });
 
   it("returns null (fail fast) for non-Freebuff providers when all pools unfit — resolver falls back to direct egress", () => {
+=======
+  });
+
+  it("preserves fail-open smart fallback for non-Freebuff providers", () => {
+>>>>>>> df8c4ccb (fix: improve provider routing and assignments)
     markPoolUnfit("p1", "opencode::sonnet-4.6", Date.now() + 60_000, "ip-limit");
     markPoolUnfit("p2", "opencode::sonnet-4.6", Date.now() + 60_000, "ip-limit");
 
@@ -69,7 +75,11 @@ describe("proxy pool fitness registry", () => {
       "smart",
       "opencode",
       { scope: "opencode::sonnet-4.6" },
+<<<<<<< HEAD
     )).toBeNull();
+=======
+    )).toBe("p1");
+>>>>>>> df8c4ccb (fix: improve provider routing and assignments)
   });
 
   it("clear per scope, clear-all per provider, clear-all global, pruneExpired", () => {
