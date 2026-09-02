@@ -22,6 +22,7 @@ function colorLine(line) {
 export default function ConsoleLogClient() {
   const [logs, setLogs] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [paused, setPaused] = useState(false);
   const logRef = useRef(null);
 
   const handleClear = async () => {
@@ -34,6 +35,11 @@ export default function ConsoleLogClient() {
   };
 
   useEffect(() => {
+    if (paused) {
+      setConnected(false);
+      return undefined;
+    }
+
     const es = new EventSource("/api/translator/console-logs/stream");
 
     es.onopen = () => setConnected(true);
@@ -60,7 +66,7 @@ export default function ConsoleLogClient() {
     es.onerror = () => setConnected(false);
 
     return () => es.close();
-  }, []);
+  }, [paused]);
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {
@@ -71,7 +77,15 @@ export default function ConsoleLogClient() {
   return (
     <div className="">
       <Card>
-        <div className="flex items-center justify-end px-4 pt-3 pb-2">
+        <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-2">
+          <Button
+            size="sm"
+            variant="outline"
+            icon={paused ? "play_arrow" : "pause"}
+            onClick={() => setPaused((value) => !value)}
+          >
+            {paused ? "Resume" : "Pause"}
+          </Button>
           <Button size="sm" variant="outline" icon="delete" onClick={handleClear}>
             Clear
           </Button>

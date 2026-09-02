@@ -1,0 +1,13 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Review repository for concrete bugs and security vulnerabilities",
+      "status": "completed",
+      "description": "Inspect diff and relevant source paths, trace auth/routing/exec/filesystem/network/persistence/update paths, validate findings with tests or call sites, and report actionable issues with exact line citations. Ignore generated memory/setup files.",
+      "activeForm": "Reviewing repository security and correctness"
+    }
+  ],
+  "nextId": 2,
+  "lastUpdated": "2026-08-08T15:39:22.970Z"
+}

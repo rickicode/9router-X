@@ -288,7 +288,6 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
              <select
                value={connection.providerSpecificData?.assignedModel || connection.providerSpecificData?.freebuffModel || ""}
               onChange={(e) => onModelAssignmentChange(e.target.value)}
-              disabled={!strictModelAssignment}
                className="mt-2 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-text-main"
                title="Model assignment"
              >

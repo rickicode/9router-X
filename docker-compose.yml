@@ -1,6 +1,9 @@
 services:
   9router:
-    image: mhiqrambhrng/9router-mibp-version:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 9router-x:latest
     container_name: 9router
     restart: always
     ports:

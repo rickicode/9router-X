@@ -1,0 +1,522 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - complementary [ref=f2e4]:
+      - link "hub 9Router Proxy v0.5.50" [ref=f2e10] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=f2e11]: hub
+        - generic [ref=f2e13]:
+          - heading "9Router Proxy" [level=1] [ref=f2e14]
+          - generic [ref=f2e15]: v0.5.50
+      - navigation [ref=f2e16]:
+        - link "api Endpoint & Key" [ref=f2e17] [cursor=pointer]:
+          - /url: /dashboard/endpoint
+          - generic [ref=f2e18]: api
+          - generic [ref=f2e19]: Endpoint & Key
+        - link "dns Providers" [ref=f2e20] [cursor=pointer]:
+          - /url: /dashboard/providers
+          - generic [ref=f2e21]: dns
+          - generic [ref=f2e22]: Providers
+        - link "layers Combo & Vision Adapter" [ref=f2e23] [cursor=pointer]:
+          - /url: /dashboard/combos
+          - generic [ref=f2e24]: layers
+          - generic [ref=f2e25]: Combo & Vision Adapter
+        - link "bar_chart Usage" [ref=f2e26] [cursor=pointer]:
+          - /url: /dashboard/usage
+          - generic [ref=f2e27]: bar_chart
+          - generic [ref=f2e28]: Usage
+        - link "data_usage Quota Tracker" [ref=f2e29] [cursor=pointer]:
+          - /url: /dashboard/quota
+          - generic [ref=f2e30]: data_usage
+          - generic [ref=f2e31]: Quota Tracker
+        - link "savings Token Saver" [ref=f2e32] [cursor=pointer]:
+          - /url: /dashboard/token-saver
+          - generic [ref=f2e33]: savings
+          - generic [ref=f2e34]: Token Saver
+        - link "network_check Proxy Fitness" [ref=f2e35] [cursor=pointer]:
+          - /url: /dashboard/proxy-fitness
+          - generic [ref=f2e36]: network_check
+          - generic [ref=f2e37]: Proxy Fitness
+        - link "terminal CLI Tools" [ref=f2e38] [cursor=pointer]:
+          - /url: /dashboard/cli-tools
+          - generic [ref=f2e39]: terminal
+          - generic [ref=f2e40]: CLI Tools
+        - generic [ref=f2e41]:
+          - paragraph [ref=f2e42]: System
+          - button "perm_media Media Providers expand_more" [ref=f2e43] [cursor=pointer]:
+            - generic [ref=f2e44]: perm_media
+            - generic [ref=f2e45]: Media Providers
+            - generic [ref=f2e46]: expand_more
+          - link "lan Proxy Pools" [ref=f2e47] [cursor=pointer]:
+            - /url: /dashboard/proxy-pools
+            - generic [ref=f2e48]: lan
+            - generic [ref=f2e49]: Proxy Pools
+          - link "extension Skills" [ref=f2e50] [cursor=pointer]:
+            - /url: /dashboard/skills
+            - generic [ref=f2e51]: extension
+            - generic [ref=f2e52]: Skills
+          - link "terminal Console Log" [ref=f2e53] [cursor=pointer]:
+            - /url: /dashboard/console-log
+            - generic [ref=f2e54]: terminal
+            - generic [ref=f2e55]: Console Log
+          - button "computer 9Remote" [ref=f2e56] [cursor=pointer]:
+            - generic [ref=f2e57]: computer
+            - generic [ref=f2e58]: 9Remote
+          - link "translate 9English" [ref=f2e59] [cursor=pointer]:
+            - /url: https://9english.net/
+            - generic [ref=f2e60]: translate
+            - generic [ref=f2e61]: 9English
+          - link "settings Settings" [ref=f2e62] [cursor=pointer]:
+            - /url: /dashboard/profile
+            - generic [ref=f2e63]: settings
+            - generic [ref=f2e64]: Settings
+      - link "MIBP Edition · GitHub" [ref=f2e66] [cursor=pointer]:
+        - /url: https://github.com/mhiqrambg/9router-mibp-version
+    - main [ref=f2e67]:
+      - generic [ref=f2e664]:
+        - button "menu" [ref=f2e666] [cursor=pointer]
+        - generic [ref=f2e670]:
+          - generic [ref=f2e671]: dns
+          - heading "Providers" [level=1] [ref=f2e672]
+        - generic [ref=f2e673]:
+          - link "MIBP Edition" [ref=f2e674] [cursor=pointer]:
+            - /url: https://github.com/mhiqrambg/9router-mibp-version
+            - generic [ref=f2e675]: code
+          - button "Switch to dark mode" [ref=f2e676] [cursor=pointer]:
+            - generic [ref=f2e677]: dark_mode
+          - button "🇺🇸" [ref=f2e678] [cursor=pointer]
+          - button "grid_view" [ref=f2e681] [cursor=pointer]
+      - generic [ref=f2e683]:
+        - generic [ref=f2e684]:
+          - link "arrow_back Back to Providers" [ref=f2e685] [cursor=pointer]:
+            - /url: /dashboard/providers
+            - generic [ref=f2e686]: arrow_back
+            - text: Back to Providers
+          - generic [ref=f2e687]:
+            - img "Freebuff" [ref=f2e689]
+            - generic [ref=f2e690]:
+              - generic [ref=f2e691]:
+                - heading "Freebuff" [level=1] [ref=f2e692]
+                - link "open_in_new Sign up / Learn more" [ref=f2e693] [cursor=pointer]:
+                  - /url: https://freebuff.com
+                  - generic [ref=f2e694]: open_in_new
+                  - text: Sign up / Learn more
+              - paragraph [ref=f2e695]: 3 connections
+        - generic [ref=f2e696]:
+          - generic [ref=f2e697]: info
+          - paragraph [ref=f2e698]: "Free ad-supported coding agent by Codebuff. Sign in with your Freebuff/Codebuff account via browser login. Free tier is ad-supported and limited in some regions (limited mode: 6 x 1-hour sessions/day); full mode runs in select countries. ⚠️ One account has ONE active session locked to ONE model — requesting a different model while a session is active returns 'model_locked' (409); use a separate account per model, or wait for the session to expire."
+        - generic [ref=f2e699]:
+          - generic [ref=f2e700]:
+            - heading "Connections" [level=2] [ref=f2e701]
+            - generic [ref=f2e702]:
+              - button "lan Apply Proxy" [active] [ref=f2e703] [cursor=pointer]:
+                - generic [ref=f2e704]: lan
+                - text: Apply Proxy
+              - button "delete Delete Selected (3)" [ref=f2e943] [cursor=pointer]:
+                - generic [ref=f2e944]: delete
+                - text: Delete Selected (3)
+              - button "sync Test Connection One-by-One" [ref=f2e705] [cursor=pointer]:
+                - generic [ref=f2e706]: sync
+                - text: Test Connection One-by-One
+              - generic [ref=f2e707]:
+                - generic [ref=f2e708]: Round Robin
+                - switch [checked] [ref=f2e710] [cursor=pointer]
+                - generic [ref=f2e711]:
+                  - generic [ref=f2e712]: "Sticky:"
+                  - spinbutton "1" [ref=f2e713]
+          - generic [ref=f2e715] [cursor=pointer]:
+            - checkbox "Select All" [checked] [ref=f2e716]
+            - text: Select All
+          - generic [ref=f2e717]:
+            - generic [ref=f2e718]:
+              - checkbox [checked] [ref=f2e720]
+              - generic [ref=f2e722]:
+                - generic [ref=f2e723]:
+                  - generic [ref=f2e724]:
+                    - button "keyboard_arrow_up" [disabled] [ref=f2e725]
+                    - button "keyboard_arrow_down" [ref=f2e727] [cursor=pointer]
+                  - generic [ref=f2e729]: lock
+                  - generic [ref=f2e730]:
+                    - paragraph [ref=f2e731]: albiansyakil1@gmail.com
+                    - paragraph [ref=f2e732]: Albian
+                    - generic [ref=f2e733]:
+                      - generic [ref=f2e734]: active
+                      - generic [ref=f2e736]: OAuth
+                      - generic [ref=f2e737]: Proxy
+                      - 'generic "[429]: {\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day-high-balance. \",\"code\":429,\"typ" [ref=f2e738]'
+                      - generic [ref=f2e739]: "#1"
+                    - generic [ref=f2e740]:
+                      - generic "54 pools (Smart)" [ref=f2e741]
+                      - code [ref=f2e742]: https://routerx.leemasato84541.workers.dev (+53 more)
+                - generic [ref=f2e743]:
+                  - generic [ref=f2e744]:
+                    - button "lan Proxy" [ref=f2e746] [cursor=pointer]:
+                      - generic [ref=f2e747]: lan
+                      - generic [ref=f2e748]: Proxy
+                    - button "edit Edit" [ref=f2e749] [cursor=pointer]:
+                      - generic [ref=f2e750]: edit
+                      - generic [ref=f2e751]: Edit
+                    - button "delete Delete" [ref=f2e752] [cursor=pointer]:
+                      - generic [ref=f2e753]: delete
+                      - generic [ref=f2e754]: Delete
+                  - switch [checked] [ref=f2e756] [cursor=pointer]
+            - generic [ref=f2e757]:
+              - checkbox [checked] [ref=f2e759]
+              - generic [ref=f2e761]:
+                - generic [ref=f2e762]:
+                  - generic [ref=f2e763]:
+                    - button "keyboard_arrow_up" [ref=f2e764] [cursor=pointer]
+                    - button "keyboard_arrow_down" [ref=f2e766] [cursor=pointer]
+                  - generic [ref=f2e768]: lock
+                  - generic [ref=f2e769]:
+                    - paragraph [ref=f2e770]: marshaafrizalfebriani@hicycle.online
+                    - paragraph [ref=f2e771]: MarshaAfrizalFebriani dans
+                    - generic [ref=f2e772]:
+                      - generic [ref=f2e773]: active
+                      - generic [ref=f2e775]: OAuth
+                      - generic [ref=f2e776]: Proxy
+                      - 'generic "[429]: {\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day-high-balance. \",\"code\":429,\"typ" [ref=f2e777]'
+                      - generic [ref=f2e778]: "#2"
+                    - generic [ref=f2e779]:
+                      - generic "54 pools (Smart)" [ref=f2e780]
+                      - code [ref=f2e781]: https://routerx.leemasato84541.workers.dev (+53 more)
+                - generic [ref=f2e782]:
+                  - generic [ref=f2e783]:
+                    - button "lan Proxy" [ref=f2e785] [cursor=pointer]:
+                      - generic [ref=f2e786]: lan
+                      - generic [ref=f2e787]: Proxy
+                    - button "edit Edit" [ref=f2e788] [cursor=pointer]:
+                      - generic [ref=f2e789]: edit
+                      - generic [ref=f2e790]: Edit
+                    - button "delete Delete" [ref=f2e791] [cursor=pointer]:
+                      - generic [ref=f2e792]: delete
+                      - generic [ref=f2e793]: Delete
+                  - switch [checked] [ref=f2e795] [cursor=pointer]
+            - generic [ref=f2e796]:
+              - checkbox [checked] [ref=f2e798]
+              - generic [ref=f2e800]:
+                - generic [ref=f2e801]:
+                  - generic [ref=f2e802]:
+                    - button "keyboard_arrow_up" [ref=f2e803] [cursor=pointer]
+                    - button "keyboard_arrow_down" [disabled] [ref=f2e805]
+                  - generic [ref=f2e807]: lock
+                  - generic [ref=f2e808]:
+                    - paragraph [ref=f2e809]: azzahraaninditaaryawangsa@hicycle.online
+                    - paragraph [ref=f2e810]: AzzahraAninditaAryawangsa dans
+                    - generic [ref=f2e811]:
+                      - generic [ref=f2e812]: active
+                      - generic [ref=f2e814]: OAuth
+                      - generic [ref=f2e815]: Proxy
+                      - 'generic "[502]: Freebuff session is locked to \"openai/gpt-5.6-luna\" — it cannot serve deepseek/deepseek-v4-fl" [ref=f2e816]'
+                      - generic [ref=f2e817]: "#3"
+                    - generic [ref=f2e818]:
+                      - generic "54 pools (Smart)" [ref=f2e819]
+                      - code [ref=f2e820]: https://routerx.leemasato84541.workers.dev (+53 more)
+                - generic [ref=f2e821]:
+                  - generic [ref=f2e822]:
+                    - button "lan Proxy" [ref=f2e824] [cursor=pointer]:
+                      - generic [ref=f2e825]: lan
+                      - generic [ref=f2e826]: Proxy
+                    - button "edit Edit" [ref=f2e827] [cursor=pointer]:
+                      - generic [ref=f2e828]: edit
+                      - generic [ref=f2e829]: Edit
+                    - button "delete Delete" [ref=f2e830] [cursor=pointer]:
+                      - generic [ref=f2e831]: delete
+                      - generic [ref=f2e832]: Delete
+                  - switch [checked] [ref=f2e834] [cursor=pointer]
+          - button "add Add" [ref=f2e836] [cursor=pointer]:
+            - generic [ref=f2e837]: add
+            - text: Add
+        - generic [ref=f2e838]:
+          - generic [ref=f2e839]:
+            - generic [ref=f2e840]:
+              - heading "Available Models" [level=2] [ref=f2e841]
+              - combobox "Appends (level) suffix to copied model names" [ref=f2e842] [cursor=pointer]:
+                - 'option "Thinking: Auto" [selected]'
+                - 'option "Thinking: High"'
+                - 'option "Thinking: Max"'
+                - 'option "Thinking: Thinking"'
+                - 'option "Thinking: Minimal"'
+                - 'option "Thinking: Low"'
+                - 'option "Thinking: Medium"'
+                - 'option "Thinking: Xhigh"'
+            - button "block Disable All" [ref=f2e844] [cursor=pointer]:
+              - generic [ref=f2e845]: block
+              - text: Disable All
+          - generic [ref=f2e846]:
+            - generic [ref=f2e848]:
+              - generic [ref=f2e849]: smart_toy
+              - generic [ref=f2e850]:
+                - code [ref=f2e851]: fb/deepseek/deepseek-v4-flash
+                - generic [ref=f2e852]:
+                  - generic [ref=f2e853]: DeepSeek V4 Flash
+                  - generic [ref=f2e855]:
+                    - generic [ref=f2e856]: neurology
+                    - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e857]:
+                - button "science" [ref=f2e858] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e860]:
+                - button "content_copy" [ref=f2e861] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e863] [cursor=pointer]
+            - generic [ref=f2e866]:
+              - generic [ref=f2e867]: smart_toy
+              - generic [ref=f2e868]:
+                - code [ref=f2e869]: fb/deepseek/deepseek-v4-pro
+                - generic [ref=f2e870]:
+                  - generic [ref=f2e871]: DeepSeek V4 Pro
+                  - generic [ref=f2e873]:
+                    - generic [ref=f2e874]: neurology
+                    - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e875]:
+                - button "science" [ref=f2e876] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e878]:
+                - button "content_copy" [ref=f2e879] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e881] [cursor=pointer]
+            - generic [ref=f2e884]:
+              - generic [ref=f2e885]: smart_toy
+              - generic [ref=f2e886]:
+                - code [ref=f2e887]: fb/mimo/mimo-v2.5
+                - generic [ref=f2e888]:
+                  - generic [ref=f2e889]: MiMo 2.5
+                  - generic [ref=f2e891]:
+                    - generic [ref=f2e892]: visibility
+                    - generic: Vision — Supports image input
+              - generic [ref=f2e893]:
+                - button "science" [ref=f2e894] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e896]:
+                - button "content_copy" [ref=f2e897] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e899] [cursor=pointer]
+            - generic [ref=f2e902]:
+              - generic [ref=f2e903]: smart_toy
+              - generic [ref=f2e904]:
+                - code [ref=f2e905]: fb/minimax/minimax-m3
+                - generic [ref=f2e906]:
+                  - generic [ref=f2e907]: MiniMax M3
+                  - generic [ref=f2e908]:
+                    - generic [ref=f2e909]:
+                      - generic [ref=f2e910]: visibility
+                      - generic: Vision — Supports image input
+                    - generic [ref=f2e911]:
+                      - generic [ref=f2e912]: neurology
+                      - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e913]:
+                - button "science" [ref=f2e914] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e916]:
+                - button "content_copy" [ref=f2e917] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e919] [cursor=pointer]
+            - generic [ref=f2e922]:
+              - generic [ref=f2e923]: smart_toy
+              - generic [ref=f2e924]:
+                - code [ref=f2e925]: fb/openai/gpt-5.6-luna
+                - generic [ref=f2e926]:
+                  - generic [ref=f2e927]: GPT-5.6 Luna
+                  - generic [ref=f2e928]:
+                    - generic [ref=f2e929]:
+                      - generic [ref=f2e930]: visibility
+                      - generic: Vision — Supports image input
+                    - generic [ref=f2e931]:
+                      - generic [ref=f2e932]: neurology
+                      - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e933]:
+                - button "science" [ref=f2e934] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e936]:
+                - button "content_copy" [ref=f2e937] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e939] [cursor=pointer]
+            - button "add Add Model" [ref=f2e941] [cursor=pointer]:
+              - generic [ref=f2e942]: add
+              - text: Add Model
+        - generic [ref=f2e947]:
+          - generic [ref=f2e948]:
+            - heading "Apply Proxy (3 connections)" [level=2] [ref=f2e950]
+            - button "Close" [ref=f2e951] [cursor=pointer]:
+              - generic [ref=f2e952]: close
+          - generic [ref=f2e954]:
+            - generic [ref=f2e955]:
+              - button "sync_alt One-to-one (rotate)" [ref=f2e956] [cursor=pointer]:
+                - generic [ref=f2e957]: sync_alt
+                - generic [ref=f2e958]: One-to-one (rotate)
+              - button "link_off None (unbind all)" [ref=f2e959] [cursor=pointer]:
+                - generic [ref=f2e960]: link_off
+                - generic [ref=f2e961]: None (unbind all)
+              - button "lan leemasato84541@digitalcorehub.site" [ref=f2e962] [cursor=pointer]:
+                - generic [ref=f2e963]: lan
+                - generic [ref=f2e964]: leemasato84541@digitalcorehub.site
+              - button "lan okamotoroman9135@mailnet.biz.id" [ref=f2e965] [cursor=pointer]:
+                - generic [ref=f2e966]: lan
+                - generic [ref=f2e967]: okamotoroman9135@mailnet.biz.id
+              - button "lan youngviolet689@mailnet.biz.id" [ref=f2e968] [cursor=pointer]:
+                - generic [ref=f2e969]: lan
+                - generic [ref=f2e970]: youngviolet689@mailnet.biz.id
+              - button "lan hyuzuki256@digitalcorehub.site" [ref=f2e971] [cursor=pointer]:
+                - generic [ref=f2e972]: lan
+                - generic [ref=f2e973]: hyuzuki256@digitalcorehub.site
+              - button "lan kbrown212@one.networx.web.id" [ref=f2e974] [cursor=pointer]:
+                - generic [ref=f2e975]: lan
+                - generic [ref=f2e976]: kbrown212@one.networx.web.id
+              - button "lan robinsonryohei7731@one.networx.web.id" [ref=f2e977] [cursor=pointer]:
+                - generic [ref=f2e978]: lan
+                - generic [ref=f2e979]: robinsonryohei7731@one.networx.web.id
+              - button "lan miobianchi577@digitalcorehub.site" [ref=f2e980] [cursor=pointer]:
+                - generic [ref=f2e981]: lan
+                - generic [ref=f2e982]: miobianchi577@digitalcorehub.site
+              - button "lan matsumotooliver42887@one.networx.web.id" [ref=f2e983] [cursor=pointer]:
+                - generic [ref=f2e984]: lan
+                - generic [ref=f2e985]: matsumotooliver42887@one.networx.web.id
+              - button "lan tamuraryusei85@digitalcorehub.site" [ref=f2e986] [cursor=pointer]:
+                - generic [ref=f2e987]: lan
+                - generic [ref=f2e988]: tamuraryusei85@digitalcorehub.site
+              - button "lan hasegawariley2896@digitalcorehub.site" [ref=f2e989] [cursor=pointer]:
+                - generic [ref=f2e990]: lan
+                - generic [ref=f2e991]: hasegawariley2896@digitalcorehub.site
+              - button "lan leahnishi46955@digitalcorehub.site" [ref=f2e992] [cursor=pointer]:
+                - generic [ref=f2e993]: lan
+                - generic [ref=f2e994]: leahnishi46955@digitalcorehub.site
+              - button "lan norahoffmann47049@to.mailnet.biz.id" [ref=f2e995] [cursor=pointer]:
+                - generic [ref=f2e996]: lan
+                - generic [ref=f2e997]: norahoffmann47049@to.mailnet.biz.id
+              - button "lan millermizuki79805@to.mailnet.biz.id" [ref=f2e998] [cursor=pointer]:
+                - generic [ref=f2e999]: lan
+                - generic [ref=f2e1000]: millermizuki79805@to.mailnet.biz.id
+              - button "lan kanataschneider88@one.mailnet.biz.id" [ref=f2e1001] [cursor=pointer]:
+                - generic [ref=f2e1002]: lan
+                - generic [ref=f2e1003]: kanataschneider88@one.mailnet.biz.id
+              - button "lan nelsonnora54932@to.mailnet.biz.id" [ref=f2e1004] [cursor=pointer]:
+                - generic [ref=f2e1005]: lan
+                - generic [ref=f2e1006]: nelsonnora54932@to.mailnet.biz.id
+              - button "lan hasegawalucas1294@one.networx.web.id" [ref=f2e1007] [cursor=pointer]:
+                - generic [ref=f2e1008]: lan
+                - generic [ref=f2e1009]: hasegawalucas1294@one.networx.web.id
+              - button "lan miotakahashi2264@one.mailnet.biz.id" [ref=f2e1010] [cursor=pointer]:
+                - generic [ref=f2e1011]: lan
+                - generic [ref=f2e1012]: miotakahashi2264@one.mailnet.biz.id
+              - button "lan watanabeethan72129@one.networx.web.id" [ref=f2e1013] [cursor=pointer]:
+                - generic [ref=f2e1014]: lan
+                - generic [ref=f2e1015]: watanabeethan72129@one.networx.web.id
+              - button "lan yuzukinomura98850@mailnet.biz.id" [ref=f2e1016] [cursor=pointer]:
+                - generic [ref=f2e1017]: lan
+                - generic [ref=f2e1018]: yuzukinomura98850@mailnet.biz.id
+              - button "lan wyattwagner6394@digitalcorehub.site" [ref=f2e1019] [cursor=pointer]:
+                - generic [ref=f2e1020]: lan
+                - generic [ref=f2e1021]: wyattwagner6394@digitalcorehub.site
+              - button "lan mshiori367@mailnet.biz.id" [ref=f2e1022] [cursor=pointer]:
+                - generic [ref=f2e1023]: lan
+                - generic [ref=f2e1024]: mshiori367@mailnet.biz.id
+              - button "lan okadarin73813@one.mailnet.biz.id" [ref=f2e1025] [cursor=pointer]:
+                - generic [ref=f2e1026]: lan
+                - generic [ref=f2e1027]: okadarin73813@one.mailnet.biz.id
+              - button "lan ikedakana8422@to.mailnet.biz.id" [ref=f2e1028] [cursor=pointer]:
+                - generic [ref=f2e1029]: lan
+                - generic [ref=f2e1030]: ikedakana8422@to.mailnet.biz.id
+              - button "lan tsubasalee53220@to.mailnet.biz.id" [ref=f2e1031] [cursor=pointer]:
+                - generic [ref=f2e1032]: lan
+                - generic [ref=f2e1033]: tsubasalee53220@to.mailnet.biz.id
+              - button "lan ethanclark8487@to.mailnet.biz.id" [ref=f2e1034] [cursor=pointer]:
+                - generic [ref=f2e1035]: lan
+                - generic [ref=f2e1036]: ethanclark8487@to.mailnet.biz.id
+              - button "lan yokoyamalily83@one.mailnet.biz.id" [ref=f2e1037] [cursor=pointer]:
+                - generic [ref=f2e1038]: lan
+                - generic [ref=f2e1039]: yokoyamalily83@one.mailnet.biz.id
+              - button "lan kanekosavannah517@mailnet.biz.id" [ref=f2e1040] [cursor=pointer]:
+                - generic [ref=f2e1041]: lan
+                - generic [ref=f2e1042]: kanekosavannah517@mailnet.biz.id
+              - button "lan mooremao76@mailnet.biz.id" [ref=f2e1043] [cursor=pointer]:
+                - generic [ref=f2e1044]: lan
+                - generic [ref=f2e1045]: mooremao76@mailnet.biz.id
+              - button "lan hnakamura870@one.mailnet.biz.id" [ref=f2e1046] [cursor=pointer]:
+                - generic [ref=f2e1047]: lan
+                - generic [ref=f2e1048]: hnakamura870@one.mailnet.biz.id
+              - button "lan rokamoto488@digitalcorehub.site" [ref=f2e1049] [cursor=pointer]:
+                - generic [ref=f2e1050]: lan
+                - generic [ref=f2e1051]: rokamoto488@digitalcorehub.site
+              - button "lan liuasahi25880@one.networx.web.id" [ref=f2e1052] [cursor=pointer]:
+                - generic [ref=f2e1053]: lan
+                - generic [ref=f2e1054]: liuasahi25880@one.networx.web.id
+              - button "lan taylormai9416@one.networx.web.id" [ref=f2e1055] [cursor=pointer]:
+                - generic [ref=f2e1056]: lan
+                - generic [ref=f2e1057]: taylormai9416@one.networx.web.id
+              - button "lan rcarter723@one.networx.web.id" [ref=f2e1058] [cursor=pointer]:
+                - generic [ref=f2e1059]: lan
+                - generic [ref=f2e1060]: rcarter723@one.networx.web.id
+              - button "lan swhite146@digitalcorehub.site" [ref=f2e1061] [cursor=pointer]:
+                - generic [ref=f2e1062]: lan
+                - generic [ref=f2e1063]: swhite146@digitalcorehub.site
+              - button "lan schen473@to.mailnet.biz.id" [ref=f2e1064] [cursor=pointer]:
+                - generic [ref=f2e1065]: lan
+                - generic [ref=f2e1066]: schen473@to.mailnet.biz.id
+              - button "lan itofelix52@mailnet.biz.id" [ref=f2e1067] [cursor=pointer]:
+                - generic [ref=f2e1068]: lan
+                - generic [ref=f2e1069]: itofelix52@mailnet.biz.id
+              - button "lan skylarnomura46@one.networx.web.id" [ref=f2e1070] [cursor=pointer]:
+                - generic [ref=f2e1071]: lan
+                - generic [ref=f2e1072]: skylarnomura46@one.networx.web.id
+              - button "lan ethanfischer4553@to.mailnet.biz.id" [ref=f2e1073] [cursor=pointer]:
+                - generic [ref=f2e1074]: lan
+                - generic [ref=f2e1075]: ethanfischer4553@to.mailnet.biz.id
+              - button "lan evansmai77359@digitalcorehub.site" [ref=f2e1076] [cursor=pointer]:
+                - generic [ref=f2e1077]: lan
+                - generic [ref=f2e1078]: evansmai77359@digitalcorehub.site
+              - button "lan michelbrooklyn176@mailnet.biz.id" [ref=f2e1079] [cursor=pointer]:
+                - generic [ref=f2e1080]: lan
+                - generic [ref=f2e1081]: michelbrooklyn176@mailnet.biz.id
+              - button "lan akarilaurent3325@one.mailnet.biz.id" [ref=f2e1082] [cursor=pointer]:
+                - generic [ref=f2e1083]: lan
+                - generic [ref=f2e1084]: akarilaurent3325@one.mailnet.biz.id
+              - button "lan endodavid66134@one.mailnet.biz.id" [ref=f2e1085] [cursor=pointer]:
+                - generic [ref=f2e1086]: lan
+                - generic [ref=f2e1087]: endodavid66134@one.mailnet.biz.id
+              - button "lan chloebrown99@to.mailnet.biz.id" [ref=f2e1088] [cursor=pointer]:
+                - generic [ref=f2e1089]: lan
+                - generic [ref=f2e1090]: chloebrown99@to.mailnet.biz.id
+              - button "lan isaacimai917@to.mailnet.biz.id" [ref=f2e1091] [cursor=pointer]:
+                - generic [ref=f2e1092]: lan
+                - generic [ref=f2e1093]: isaacimai917@to.mailnet.biz.id
+              - button "lan araikeisuke1466@to.mailnet.biz.id" [ref=f2e1094] [cursor=pointer]:
+                - generic [ref=f2e1095]: lan
+                - generic [ref=f2e1096]: araikeisuke1466@to.mailnet.biz.id
+              - button "lan ikedaai3761@to.mailnet.biz.id" [ref=f2e1097] [cursor=pointer]:
+                - generic [ref=f2e1098]: lan
+                - generic [ref=f2e1099]: ikedaai3761@to.mailnet.biz.id
+              - button "lan ishiiisabella31525@one.mailnet.biz.id" [ref=f2e1100] [cursor=pointer]:
+                - generic [ref=f2e1101]: lan
+                - generic [ref=f2e1102]: ishiiisabella31525@one.mailnet.biz.id
+              - button "lan charlotteevans2778@mailnet.biz.id" [ref=f2e1103] [cursor=pointer]:
+                - generic [ref=f2e1104]: lan
+                - generic [ref=f2e1105]: charlotteevans2778@mailnet.biz.id
+              - button "lan aharris282@one.mailnet.biz.id" [ref=f2e1106] [cursor=pointer]:
+                - generic [ref=f2e1107]: lan
+                - generic [ref=f2e1108]: aharris282@one.mailnet.biz.id
+              - button "lan Imported gw.dataimpulse.com:10004" [ref=f2e1109] [cursor=pointer]:
+                - generic [ref=f2e1110]: lan
+                - generic [ref=f2e1111]: Imported gw.dataimpulse.com:10004
+              - button "lan Imported gw.dataimpulse.com:10003" [ref=f2e1112] [cursor=pointer]:
+                - generic [ref=f2e1113]: lan
+                - generic [ref=f2e1114]: Imported gw.dataimpulse.com:10003
+              - button "lan Imported gw.dataimpulse.com:10002" [ref=f2e1115] [cursor=pointer]:
+                - generic [ref=f2e1116]: lan
+                - generic [ref=f2e1117]: Imported gw.dataimpulse.com:10002
+              - button "lan Imported gw.dataimpulse.com:10001" [ref=f2e1118] [cursor=pointer]:
+                - generic [ref=f2e1119]: lan
+                - generic [ref=f2e1120]: Imported gw.dataimpulse.com:10001
+              - button "lan Imported gw.dataimpulse.com:10000" [ref=f2e1121] [cursor=pointer]:
+                - generic [ref=f2e1122]: lan
+                - generic [ref=f2e1123]: Imported gw.dataimpulse.com:10000
+            - generic [ref=f2e1124]:
+              - generic [ref=f2e1125]: Rotation Strategy
+              - combobox [ref=f2e1126] [cursor=pointer]:
+                - option "None (single proxy)"
+                - option "Round Robin"
+                - option "Failover"
+                - option "Random"
+                - option "Smart (region-aware)" [selected]
+              - paragraph [ref=f2e1127]: Skip pools whose egress IP is blocked for this provider/model. See Proxy Fitness to monitor.
+            - button "Cancel" [ref=f2e1128] [cursor=pointer]
+  - alert [ref=f2e105]: 9Router Proxy

@@ -38,11 +38,12 @@ export const BACKOFF_CONFIG = {
 // Default cooldown for transient/unknown errors
 export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 
-// Hard cap for provider-reported rate limit cooldown (e.g. codex resets_at can be 5-6h)
-export const MAX_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
+// Hard cap for provider-reported rate limit cooldown (defaults to 7 days for long upstream reset windows)
+export const MAX_RATE_LIMIT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Cooldown durations (ms)
 const COOLDOWN = {
+  permanentAuth: 30 * 60 * 1000, // 30 mins for auth/permission/ineligible errors
   long: 2 * 60 * 1000,
   short: 5 * 1000,
 };
@@ -50,27 +51,37 @@ const COOLDOWN = {
 /**
  * Unified error classification rules.
  * Checked top-to-bottom: text rules first (by order), then status rules.
- * Each rule: { text?, status?, cooldownMs?, backoff? }
+ * Each rule: { text?, status?, cooldownMs?, backoff?, lockAll? }
  *   - text: substring match (case-insensitive) on error message
  *   - status: HTTP status code match
  *   - cooldownMs: fixed cooldown duration
  *   - backoff: true = use exponential backoff (rate limit)
+ *   - lockAll: true = account-level lock (all models on this account locked)
  */
 export const ERROR_RULES = [
   // --- Text-based rules (checked first, order = priority) ---
-  { text: "no credentials",           cooldownMs: COOLDOWN.long },
-  { text: "request not allowed",      cooldownMs: COOLDOWN.short },
-  { text: "improperly formed request", cooldownMs: COOLDOWN.long },
-  { text: "rate limit",               backoff: true },
-  { text: "too many requests",        backoff: true },
-  { text: "quota exceeded",           backoff: true },
-  { text: "capacity",                 backoff: true },
-  { text: "overloaded",               backoff: true },
+  { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "permission_denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "permission denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "unauthenticated",           cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "unauthorized",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "invalid_api_key",           cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "invalid api key",           cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "no credentials",            cooldownMs: COOLDOWN.long },
+  { text: "request not allowed",       cooldownMs: COOLDOWN.short },
+  { text: "improperly formed request",  cooldownMs: COOLDOWN.long },
+  { text: "rate limit",                backoff: true },
+  { text: "too many requests",         backoff: true },
+  { text: "quota exceeded",            backoff: true },
+  { text: "quota_exhausted",           backoff: true },
+  { text: "resource_exhausted",        backoff: true },
+  { text: "capacity",                  backoff: true },
+  { text: "overloaded",                backoff: true },
 
   // --- Status-based rules (fallback when text doesn't match) ---
-  { status: 401, cooldownMs: COOLDOWN.long },
+  { status: 401, cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { status: 402, cooldownMs: COOLDOWN.long },
-  { status: 403, cooldownMs: COOLDOWN.long },
+  { status: 403, cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { status: 404, cooldownMs: COOLDOWN.long },
   { status: 429, backoff: true },
 ];

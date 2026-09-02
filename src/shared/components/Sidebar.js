@@ -349,12 +349,12 @@ export default function Sidebar({ onClose }) {
 
         <div className="border-t border-border-subtle px-6 py-3 text-center">
           <a
-            href="https://github.com/mhiqrambg/9router-mibp-version"
+            href="https://github.com/rickicode/9router-X"
             target="_blank"
             rel="noreferrer"
             className="text-[10px] text-text-muted/60 hover:text-text-muted transition-colors"
           >
-            MIBP Edition · GitHub
+            X Edition · GitHub
           </a>
         </div>
 

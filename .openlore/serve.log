@@ -1,0 +1,80 @@
+[warn] [serve] No token configured — any local process on this machine can call openlore tools on 127.0.0.1. Pass --token to restrict access.
+[ok] openlore serve listening on http://127.0.0.1:33571 (preset: full)
+[scan] Discovery file: /workspaces/9router-mibp-version/.openlore/serve.json
+[mcp-watcher] watching /workspaces/9router-mibp-version
+[scan] [serve] watching /workspaces/9router-mibp-version — signatures/vector live, call-graph re-analyze debounced
+[scan] [serve] idle shutdown after 15min of inactivity
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped
+[warn] [serve] No token configured — any local process on this machine can call openlore tools on 127.0.0.1. Pass --token to restrict access.
+[ok] openlore serve listening on http://127.0.0.1:42919 (preset: full)
+[scan] Discovery file: /workspaces/9router-mibp-version/.openlore/serve.json
+[mcp-watcher] watching /workspaces/9router-mibp-version
+[scan] [serve] watching /workspaces/9router-mibp-version — signatures/vector live, call-graph re-analyze debounced
+[scan] [serve] idle shutdown after 15min of inactivity
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped
+[warn] [serve] No token configured — any local process on this machine can call openlore tools on 127.0.0.1. Pass --token to restrict access.
+[ok] openlore serve listening on http://127.0.0.1:40537 (preset: full)
+[scan] Discovery file: /workspaces/9router-mibp-version/.openlore/serve.json
+[mcp-watcher] watching /workspaces/9router-mibp-version
+[scan] [serve] watching /workspaces/9router-mibp-version — signatures/vector live, call-graph re-analyze debounced
+[scan] [serve] idle shutdown after 15min of inactivity
+[mcp-watcher] no context at /workspaces/9router-mibp-version/.openlore/analysis/llm-context.json — run analyze first
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped
+[warn] [serve] No token configured — any local process on this machine can call openlore tools on 127.0.0.1. Pass --token to restrict access.
+[ok] openlore serve listening on http://127.0.0.1:44005 (preset: full)
+[scan] Discovery file: /workspaces/9router-mibp-version/.openlore/serve.json
+[mcp-watcher] watching /workspaces/9router-mibp-version
+[scan] [serve] watching /workspaces/9router-mibp-version — signatures/vector live, call-graph re-analyze debounced
+[scan] [serve] idle shutdown after 15min of inactivity
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped
+[mcp-watcher] watching /workspaces/9router-mibp-version
+[scan] [serve] watching /workspaces/9router-mibp-version — signatures/vector live, call-graph re-analyze debounced
+[ok] openlore serve listening on http://127.0.0.1:34637 (preset: full)
+[scan] Discovery file: /workspaces/9router-mibp-version/.openlore/serve.json
+[scan] [serve] idle shutdown after 15min of inactivity
+[ok] Successfully validated directory: /workspaces/9router-mibp-version
+[ok] Successfully validated directory: /workspaces/9router-mibp-version
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped
+[mcp-watcher] watching /workspaces/9router-x
+[scan] [serve] watching /workspaces/9router-x — signatures/vector live, call-graph re-analyze debounced
+[ok] openlore serve listening on http://127.0.0.1:40667 (preset: full)
+[scan] Discovery file: /workspaces/9router-x/.openlore/serve.json
+[scan] [serve] idle shutdown after 15min of inactivity
+[ok] Successfully validated directory: /workspaces/9router-x
+[ok] Successfully validated directory: /workspaces/9router-x
+[mcp-watcher] no context at /workspaces/9router-x/.openlore/analysis/llm-context.json — run analyze first
+[scan] [serve] idle 15min with no requests — shutting down to free memory.
+[mcp-watcher] stopped

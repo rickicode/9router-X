@@ -1,0 +1,384 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - complementary [ref=f2e4]:
+      - link "hub 9Router Proxy v0.5.50" [ref=f2e10] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=f2e11]: hub
+        - generic [ref=f2e13]:
+          - heading "9Router Proxy" [level=1] [ref=f2e14]
+          - generic [ref=f2e15]: v0.5.50
+      - navigation [ref=f2e16]:
+        - link "api Endpoint & Key" [ref=f2e17] [cursor=pointer]:
+          - /url: /dashboard/endpoint
+          - generic [ref=f2e18]: api
+          - generic [ref=f2e19]: Endpoint & Key
+        - link "dns Providers" [ref=f2e20] [cursor=pointer]:
+          - /url: /dashboard/providers
+          - generic [ref=f2e21]: dns
+          - generic [ref=f2e22]: Providers
+        - link "layers Combo & Vision Adapter" [ref=f2e23] [cursor=pointer]:
+          - /url: /dashboard/combos
+          - generic [ref=f2e24]: layers
+          - generic [ref=f2e25]: Combo & Vision Adapter
+        - link "bar_chart Usage" [ref=f2e26] [cursor=pointer]:
+          - /url: /dashboard/usage
+          - generic [ref=f2e27]: bar_chart
+          - generic [ref=f2e28]: Usage
+        - link "data_usage Quota Tracker" [ref=f2e29] [cursor=pointer]:
+          - /url: /dashboard/quota
+          - generic [ref=f2e30]: data_usage
+          - generic [ref=f2e31]: Quota Tracker
+        - link "savings Token Saver" [ref=f2e32] [cursor=pointer]:
+          - /url: /dashboard/token-saver
+          - generic [ref=f2e33]: savings
+          - generic [ref=f2e34]: Token Saver
+        - link "network_check Proxy Fitness" [ref=f2e35] [cursor=pointer]:
+          - /url: /dashboard/proxy-fitness
+          - generic [ref=f2e36]: network_check
+          - generic [ref=f2e37]: Proxy Fitness
+        - link "terminal CLI Tools" [ref=f2e38] [cursor=pointer]:
+          - /url: /dashboard/cli-tools
+          - generic [ref=f2e39]: terminal
+          - generic [ref=f2e40]: CLI Tools
+        - generic [ref=f2e41]:
+          - paragraph [ref=f2e42]: System
+          - button "perm_media Media Providers expand_more" [ref=f2e43] [cursor=pointer]:
+            - generic [ref=f2e44]: perm_media
+            - generic [ref=f2e45]: Media Providers
+            - generic [ref=f2e46]: expand_more
+          - link "lan Proxy Pools" [ref=f2e47] [cursor=pointer]:
+            - /url: /dashboard/proxy-pools
+            - generic [ref=f2e48]: lan
+            - generic [ref=f2e49]: Proxy Pools
+          - link "extension Skills" [ref=f2e50] [cursor=pointer]:
+            - /url: /dashboard/skills
+            - generic [ref=f2e51]: extension
+            - generic [ref=f2e52]: Skills
+          - link "terminal Console Log" [ref=f2e53] [cursor=pointer]:
+            - /url: /dashboard/console-log
+            - generic [ref=f2e54]: terminal
+            - generic [ref=f2e55]: Console Log
+          - button "computer 9Remote" [ref=f2e56] [cursor=pointer]:
+            - generic [ref=f2e57]: computer
+            - generic [ref=f2e58]: 9Remote
+          - link "translate 9English" [ref=f2e59] [cursor=pointer]:
+            - /url: https://9english.net/
+            - generic [ref=f2e60]: translate
+            - generic [ref=f2e61]: 9English
+          - link "settings Settings" [ref=f2e62] [cursor=pointer]:
+            - /url: /dashboard/profile
+            - generic [ref=f2e63]: settings
+            - generic [ref=f2e64]: Settings
+      - link "MIBP Edition · GitHub" [ref=f2e66] [cursor=pointer]:
+        - /url: https://github.com/mhiqrambg/9router-mibp-version
+    - main [ref=f2e67]:
+      - generic [ref=f2e68]:
+        - button "menu" [ref=f2e70] [cursor=pointer]
+        - generic [ref=f2e74]:
+          - generic [ref=f2e75]: dns
+          - heading "Providers" [level=1] [ref=f2e76]
+        - generic [ref=f2e77]:
+          - link "MIBP Edition" [ref=f2e78] [cursor=pointer]:
+            - /url: https://github.com/mhiqrambg/9router-mibp-version
+            - generic [ref=f2e79]: code
+          - button "Switch to dark mode" [ref=f2e81] [cursor=pointer]:
+            - generic [ref=f2e82]: dark_mode
+          - button "🇺🇸" [ref=f2e83] [cursor=pointer]
+          - button "grid_view" [ref=f2e86] [cursor=pointer]
+      - generic [ref=f2e90]:
+        - generic [ref=f2e104]:
+          - link "arrow_back Back to Providers" [ref=f2e105] [cursor=pointer]:
+            - /url: /dashboard/providers
+            - generic [ref=f2e106]: arrow_back
+            - text: Back to Providers
+          - generic [ref=f2e107]:
+            - img "Freebuff" [ref=f2e109]
+            - generic [ref=f2e110]:
+              - generic [ref=f2e111]:
+                - heading "Freebuff" [level=1] [ref=f2e112]
+                - link "open_in_new Sign up / Learn more" [ref=f2e113] [cursor=pointer]:
+                  - /url: https://freebuff.com
+                  - generic [ref=f2e114]: open_in_new
+                  - text: Sign up / Learn more
+              - paragraph [ref=f2e115]: 3 connections
+        - generic [ref=f2e116]:
+          - generic [ref=f2e117]: info
+          - paragraph [ref=f2e118]: "Free ad-supported coding agent by Codebuff. Sign in with your Freebuff/Codebuff account via browser login. Free tier is ad-supported and limited in some regions (limited mode: 6 x 1-hour sessions/day); full mode runs in select countries. ⚠️ One account has ONE active session locked to ONE model — requesting a different model while a session is active returns 'model_locked' (409); use a separate account per model, or wait for the session to expire."
+        - generic [ref=f2e119]:
+          - generic [ref=f2e120]:
+            - heading "Connections" [level=2] [ref=f2e121]
+            - generic [ref=f2e122]:
+              - button "lan Apply Proxy" [active] [ref=f2e123] [cursor=pointer]:
+                - generic [ref=f2e124]: lan
+                - text: Apply Proxy
+              - button "delete Delete Selected (3)" [ref=f2e366] [cursor=pointer]:
+                - generic [ref=f2e367]: delete
+                - text: Delete Selected (3)
+              - button "sync Test Connection One-by-One" [ref=f2e125] [cursor=pointer]:
+                - generic [ref=f2e126]: sync
+                - text: Test Connection One-by-One
+              - generic [ref=f2e127]:
+                - generic [ref=f2e128]: Round Robin
+                - switch [checked] [ref=f2e130] [cursor=pointer]
+                - generic [ref=f2e131]:
+                  - generic [ref=f2e132]: "Sticky:"
+                  - spinbutton "1" [ref=f2e133]
+          - generic [ref=f2e135] [cursor=pointer]:
+            - checkbox "Select All" [checked] [ref=f2e136]
+            - text: Select All
+          - generic [ref=f2e137]:
+            - generic [ref=f2e138]:
+              - checkbox [checked] [ref=f2e140]
+              - generic [ref=f2e142]:
+                - generic [ref=f2e143]:
+                  - generic [ref=f2e144]:
+                    - button "keyboard_arrow_up" [disabled] [ref=f2e145]
+                    - button "keyboard_arrow_down" [ref=f2e147] [cursor=pointer]
+                  - generic [ref=f2e149]: lock
+                  - generic [ref=f2e150]:
+                    - paragraph [ref=f2e151]: albiansyakil1@gmail.com
+                    - paragraph [ref=f2e152]: Albian
+                    - generic [ref=f2e153]:
+                      - generic [ref=f2e154]: unavailable
+                      - generic [ref=f2e156]: OAuth
+                      - generic [ref=f2e157]: Proxy
+                      - generic [ref=f2e158]: ⏱ 53s
+                      - 'generic "[502]: Freebuff session is locked to \"deepseek/deepseek-v4-flash\" — it cannot serve openai/gpt-5.6-l" [ref=f2e159]'
+                      - generic [ref=f2e160]: "#1"
+                    - generic [ref=f2e161]:
+                      - generic "6 pools (Smart)" [ref=f2e162]
+                      - code [ref=f2e163]: http://lite.mymiyel.site:6969 (+5 more)
+                - generic [ref=f2e164]:
+                  - generic [ref=f2e165]:
+                    - button "lan Proxy" [ref=f2e167] [cursor=pointer]:
+                      - generic [ref=f2e168]: lan
+                      - generic [ref=f2e169]: Proxy
+                    - button "edit Edit" [ref=f2e170] [cursor=pointer]:
+                      - generic [ref=f2e171]: edit
+                      - generic [ref=f2e172]: Edit
+                    - button "delete Delete" [ref=f2e173] [cursor=pointer]:
+                      - generic [ref=f2e174]: delete
+                      - generic [ref=f2e175]: Delete
+                  - switch [checked] [ref=f2e177] [cursor=pointer]
+            - generic [ref=f2e178]:
+              - checkbox [checked] [ref=f2e180]
+              - generic [ref=f2e182]:
+                - generic [ref=f2e183]:
+                  - generic [ref=f2e184]:
+                    - button "keyboard_arrow_up" [ref=f2e185] [cursor=pointer]
+                    - button "keyboard_arrow_down" [ref=f2e187] [cursor=pointer]
+                  - generic [ref=f2e189]: lock
+                  - generic [ref=f2e190]:
+                    - paragraph [ref=f2e191]: marshaafrizalfebriani@hicycle.online
+                    - paragraph [ref=f2e192]: MarshaAfrizalFebriani dans
+                    - generic [ref=f2e193]:
+                      - generic [ref=f2e194]: unavailable
+                      - generic [ref=f2e196]: OAuth
+                      - generic [ref=f2e197]: Proxy
+                      - generic [ref=f2e198]: ⏱ 41s
+                      - 'generic "[502]: Freebuff session is locked to \"deepseek/deepseek-v4-flash\" — it cannot serve openai/gpt-5.6-l" [ref=f2e199]'
+                      - generic [ref=f2e200]: "#2"
+                    - generic [ref=f2e201]:
+                      - generic "6 pools (Smart)" [ref=f2e202]
+                      - code [ref=f2e203]: http://lite.mymiyel.site:6969 (+5 more)
+                - generic [ref=f2e204]:
+                  - generic [ref=f2e205]:
+                    - button "lan Proxy" [ref=f2e207] [cursor=pointer]:
+                      - generic [ref=f2e208]: lan
+                      - generic [ref=f2e209]: Proxy
+                    - button "edit Edit" [ref=f2e210] [cursor=pointer]:
+                      - generic [ref=f2e211]: edit
+                      - generic [ref=f2e212]: Edit
+                    - button "delete Delete" [ref=f2e213] [cursor=pointer]:
+                      - generic [ref=f2e214]: delete
+                      - generic [ref=f2e215]: Delete
+                  - switch [checked] [ref=f2e217] [cursor=pointer]
+            - generic [ref=f2e218]:
+              - checkbox [checked] [ref=f2e220]
+              - generic [ref=f2e222]:
+                - generic [ref=f2e223]:
+                  - generic [ref=f2e224]:
+                    - button "keyboard_arrow_up" [ref=f2e225] [cursor=pointer]
+                    - button "keyboard_arrow_down" [disabled] [ref=f2e227]
+                  - generic [ref=f2e229]: lock
+                  - generic [ref=f2e230]:
+                    - paragraph [ref=f2e231]: azzahraaninditaaryawangsa@hicycle.online
+                    - paragraph [ref=f2e232]: AzzahraAninditaAryawangsa dans
+                    - generic [ref=f2e233]:
+                      - generic [ref=f2e234]: unavailable
+                      - generic [ref=f2e236]: OAuth
+                      - generic [ref=f2e237]: Proxy
+                      - 'generic "[502]: [ProxyFetch] Proxy required but failed (strictProxy=true): fetch failed" [ref=f2e239]'
+                      - generic [ref=f2e240]: "#3"
+                    - generic [ref=f2e241]:
+                      - generic "6 pools (Smart)" [ref=f2e242]
+                      - code [ref=f2e243]: http://lite.mymiyel.site:6969 (+5 more)
+                - generic [ref=f2e244]:
+                  - generic [ref=f2e245]:
+                    - button "lan Proxy" [ref=f2e247] [cursor=pointer]:
+                      - generic [ref=f2e248]: lan
+                      - generic [ref=f2e249]: Proxy
+                    - button "edit Edit" [ref=f2e250] [cursor=pointer]:
+                      - generic [ref=f2e251]: edit
+                      - generic [ref=f2e252]: Edit
+                    - button "delete Delete" [ref=f2e253] [cursor=pointer]:
+                      - generic [ref=f2e254]: delete
+                      - generic [ref=f2e255]: Delete
+                  - switch [checked] [ref=f2e257] [cursor=pointer]
+          - button "add Add" [ref=f2e259] [cursor=pointer]:
+            - generic [ref=f2e260]: add
+            - text: Add
+        - generic [ref=f2e261]:
+          - generic [ref=f2e262]:
+            - generic [ref=f2e263]:
+              - heading "Available Models" [level=2] [ref=f2e264]
+              - combobox "Appends (level) suffix to copied model names" [ref=f2e265] [cursor=pointer]:
+                - 'option "Thinking: Auto" [selected]'
+                - 'option "Thinking: High"'
+                - 'option "Thinking: Max"'
+                - 'option "Thinking: Thinking"'
+                - 'option "Thinking: Minimal"'
+                - 'option "Thinking: Low"'
+                - 'option "Thinking: Medium"'
+                - 'option "Thinking: Xhigh"'
+            - button "block Disable All" [ref=f2e267] [cursor=pointer]:
+              - generic [ref=f2e268]: block
+              - text: Disable All
+          - generic [ref=f2e269]:
+            - generic [ref=f2e271]:
+              - generic [ref=f2e272]: smart_toy
+              - generic [ref=f2e273]:
+                - code [ref=f2e274]: fb/deepseek/deepseek-v4-flash
+                - generic [ref=f2e275]:
+                  - generic [ref=f2e276]: DeepSeek V4 Flash
+                  - generic [ref=f2e278]:
+                    - generic [ref=f2e279]: neurology
+                    - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e280]:
+                - button "science" [ref=f2e281] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e283]:
+                - button "content_copy" [ref=f2e284] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e286] [cursor=pointer]
+            - generic [ref=f2e289]:
+              - generic [ref=f2e290]: smart_toy
+              - generic [ref=f2e291]:
+                - code [ref=f2e292]: fb/deepseek/deepseek-v4-pro
+                - generic [ref=f2e293]:
+                  - generic [ref=f2e294]: DeepSeek V4 Pro
+                  - generic [ref=f2e296]:
+                    - generic [ref=f2e297]: neurology
+                    - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e298]:
+                - button "science" [ref=f2e299] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e301]:
+                - button "content_copy" [ref=f2e302] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e304] [cursor=pointer]
+            - generic [ref=f2e307]:
+              - generic [ref=f2e308]: smart_toy
+              - generic [ref=f2e309]:
+                - code [ref=f2e310]: fb/mimo/mimo-v2.5
+                - generic [ref=f2e311]:
+                  - generic [ref=f2e312]: MiMo 2.5
+                  - generic [ref=f2e314]:
+                    - generic [ref=f2e315]: visibility
+                    - generic: Vision — Supports image input
+              - generic [ref=f2e316]:
+                - button "science" [ref=f2e317] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e319]:
+                - button "content_copy" [ref=f2e320] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e322] [cursor=pointer]
+            - generic [ref=f2e325]:
+              - generic [ref=f2e326]: smart_toy
+              - generic [ref=f2e327]:
+                - code [ref=f2e328]: fb/minimax/minimax-m3
+                - generic [ref=f2e329]:
+                  - generic [ref=f2e330]: MiniMax M3
+                  - generic [ref=f2e331]:
+                    - generic [ref=f2e332]:
+                      - generic [ref=f2e333]: visibility
+                      - generic: Vision — Supports image input
+                    - generic [ref=f2e334]:
+                      - generic [ref=f2e335]: neurology
+                      - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e336]:
+                - button "science" [ref=f2e337] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e339]:
+                - button "content_copy" [ref=f2e340] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e342] [cursor=pointer]
+            - generic [ref=f2e345]:
+              - generic [ref=f2e346]: smart_toy
+              - generic [ref=f2e347]:
+                - code [ref=f2e348]: fb/openai/gpt-5.6-luna
+                - generic [ref=f2e349]:
+                  - generic [ref=f2e350]: GPT-5.6 Luna
+                  - generic [ref=f2e351]:
+                    - generic [ref=f2e352]:
+                      - generic [ref=f2e353]: visibility
+                      - generic: Vision — Supports image input
+                    - generic [ref=f2e354]:
+                      - generic [ref=f2e355]: neurology
+                      - generic: Reasoning — Supports reasoning / thinking
+              - generic [ref=f2e356]:
+                - button "science" [ref=f2e357] [cursor=pointer]
+                - generic: Test
+              - generic [ref=f2e359]:
+                - button "content_copy" [ref=f2e360] [cursor=pointer]
+                - generic: Copy
+              - button "close" [ref=f2e362] [cursor=pointer]
+            - button "add Add Model" [ref=f2e364] [cursor=pointer]:
+              - generic [ref=f2e365]: add
+              - text: Add Model
+        - generic [ref=f2e370]:
+          - generic [ref=f2e372]:
+            - generic [ref=f2e374]:
+              - button "Close" [ref=f2e375] [cursor=pointer]:
+                - generic [ref=f2e376]: ✕
+              - generic: Close
+            - heading "Apply Proxy (3 connections)" [level=2] [ref=f2e379]
+          - generic [ref=f2e381]:
+            - generic [ref=f2e382]:
+              - button "sync_alt One-to-one (rotate)" [ref=f2e383] [cursor=pointer]:
+                - generic [ref=f2e384]: sync_alt
+                - generic [ref=f2e385]: One-to-one (rotate)
+              - button "link_off None (unbind all)" [ref=f2e386] [cursor=pointer]:
+                - generic [ref=f2e387]: link_off
+                - generic [ref=f2e388]: None (unbind all)
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e389] [cursor=pointer]:
+                - generic [ref=f2e390]: lan
+                - generic [ref=f2e391]: Imported lite.mymiyel.site:6969
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e392] [cursor=pointer]:
+                - generic [ref=f2e393]: lan
+                - generic [ref=f2e394]: Imported lite.mymiyel.site:6969
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e395] [cursor=pointer]:
+                - generic [ref=f2e396]: lan
+                - generic [ref=f2e397]: Imported lite.mymiyel.site:6969
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e398] [cursor=pointer]:
+                - generic [ref=f2e399]: lan
+                - generic [ref=f2e400]: Imported lite.mymiyel.site:6969
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e401] [cursor=pointer]:
+                - generic [ref=f2e402]: lan
+                - generic [ref=f2e403]: Imported lite.mymiyel.site:6969
+              - button "lan Imported lite.mymiyel.site:6969" [ref=f2e404] [cursor=pointer]:
+                - generic [ref=f2e405]: lan
+                - generic [ref=f2e406]: Imported lite.mymiyel.site:6969
+            - generic [ref=f2e407]:
+              - generic [ref=f2e408]: Rotation Strategy
+              - combobox [ref=f2e409] [cursor=pointer]:
+                - option "None (single proxy)"
+                - option "Round Robin"
+                - option "Failover"
+                - option "Random"
+                - option "Smart (region-aware)" [selected]
+              - paragraph [ref=f2e410]: Skip pools whose egress IP is blocked for this provider/model. See Proxy Fitness to monitor.
+            - generic [ref=f2e411]:
+              - button "Apply" [ref=f2e412] [cursor=pointer]
+              - button "Cancel" [ref=f2e413] [cursor=pointer]
+  - alert [ref=f2e103]

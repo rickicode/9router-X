@@ -10,6 +10,7 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS,
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useNotificationStore } from "@/store/notificationStore";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { translate } from "@/i18n/runtime";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
@@ -25,6 +26,7 @@ import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
+const CONNECTION_PAGE_SIZE = 50;
 
 const AUTO_PING_SETTINGS_KEYS = {
   claude: "claudeAutoPing",
@@ -41,6 +43,8 @@ export default function ProviderDetailPage() {
   const providerId = params.id;
   const { getCaps } = useModelCaps();
   const [connections, setConnections] = useState([]);
+  const [connectionPage, setConnectionPage] = useState(1);
+  const [connectionPagination, setConnectionPagination] = useState({ page: 1, pageSize: CONNECTION_PAGE_SIZE, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [providerNode, setProviderNode] = useState(null);
   const [proxyPools, setProxyPools] = useState([]);
@@ -63,6 +67,7 @@ export default function ProviderDetailPage() {
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
+  const [bulkProxyRotationStrategy, setBulkProxyRotationStrategy] = useState("none");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
   const [providerStrategy, setProviderStrategy] = useState(null);
   const [providerStickyLimit, setProviderStickyLimit] = useState("");
@@ -80,6 +85,7 @@ export default function ProviderDetailPage() {
   const [oneByOneCurrentConnectionId, setOneByOneCurrentConnectionId] = useState(null);
   const [oneByOneResults, setOneByOneResults] = useState({});
   const [oneByOneSummary, setOneByOneSummary] = useState(null);
+  const notify = useNotificationStore();
   const stopOneByOneRef = useRef(false);
   const [importingQoderModels, setImportingQoderModels] = useState(false);
   const { copied, copy } = useCopyToClipboard();
@@ -308,10 +314,11 @@ export default function ProviderDetailPage() {
       .catch(() => {});
   }, [providerId]);
 
-  const fetchConnections = useCallback(async () => {
+  const fetchConnections = useCallback(async (targetPage = connectionPage) => {
     try {
+      const connectionParams = new URLSearchParams({ provider: providerId, page: String(targetPage), pageSize: String(CONNECTION_PAGE_SIZE) });
       const [connectionsRes, nodesRes, proxyPoolsRes, settingsRes] = await Promise.all([
-        fetch("/api/providers", { cache: "no-store" }),
+        fetch(`/api/providers?${connectionParams.toString()}`, { cache: "no-store" }),
         fetch("/api/provider-nodes", { cache: "no-store" }),
         fetch("/api/proxy-pools?isActive=true", { cache: "no-store" }),
         fetch("/api/settings", { cache: "no-store" }),
@@ -321,8 +328,11 @@ export default function ProviderDetailPage() {
       const proxyPoolsData = await proxyPoolsRes.json();
       const settingsData = settingsRes.ok ? await settingsRes.json() : {};
       if (connectionsRes.ok) {
-        const filtered = (connectionsData.connections || []).filter(c => c.provider === providerId);
-        setConnections(filtered);
+        setConnections(connectionsData.connections || []);
+        if (connectionsData.pagination) {
+          setConnectionPagination(connectionsData.pagination);
+          setConnectionPage(connectionsData.pagination.page);
+        }
       }
       if (proxyPoolsRes.ok) {
         setProxyPools(proxyPoolsData.proxyPools || []);
@@ -361,7 +371,7 @@ export default function ProviderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [providerId, isCompatible]);
+  }, [providerId, isCompatible, connectionPage]);
 
   const handleUpdateNode = async (formData) => {
     try {
@@ -951,6 +961,7 @@ export default function ProviderDetailPage() {
     if (selectedConnections.length === 0) return;
     const uniquePoolIds = [...new Set(selectedConnections.map((conn) => conn.providerSpecificData?.proxyPoolId || "__none__"))];
     setBulkProxyPoolId(uniquePoolIds.length === 1 ? uniquePoolIds[0] : "__none__");
+    setBulkProxyRotationStrategy("none");
     setShowBulkProxyModal(true);
   };
 
@@ -959,16 +970,20 @@ export default function ProviderDetailPage() {
     setShowBulkProxyModal(false);
   };
 
-  const applyProxyAssignments = async (assignments) => {
+  const applyProxyAssignments = async (assignments, rotationStrategy = "none") => {
     setBulkUpdatingProxy(true);
     try {
       let failed = 0;
+      const activePoolIds = proxyPools.filter((pool) => pool.isActive === true).map((pool) => pool.id);
       for (const { connectionId, proxyPoolId } of assignments) {
         try {
-          const res = await fetch(`/api/providers/${connectionId}`, {
+          const payload = rotationStrategy === "none"
+            ? { proxyPoolId }
+            : { proxyPoolIds: activePoolIds, proxyRotationStrategy: rotationStrategy };
+          const res = await fetch("/api/providers/" + connectionId, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ proxyPoolId }),
+            body: JSON.stringify(payload),
           });
           if (!res.ok) failed += 1;
         } catch (e) {
@@ -976,7 +991,8 @@ export default function ProviderDetailPage() {
           failed += 1;
         }
       }
-      if (failed > 0) alert(`Updated with ${failed} failed request(s).`);
+      if (failed > 0) notify.error("Updated with " + failed + " failed request(s).");
+      else notify.success("Updated " + assignments.length + " connection(s).");
       await fetchConnections();
       setShowBulkProxyModal(false);
     } finally {
@@ -992,7 +1008,7 @@ export default function ProviderDetailPage() {
   const handleApplyOneToOne = () => {
     const activePools = proxyPools.filter((p) => p.isActive === true);
     if (activePools.length === 0) {
-      alert("No active proxy pools available.");
+      notify.error("No active proxy pools available.");
       return;
     }
     const targets = connections.map((c, i) => ({
@@ -1000,6 +1016,19 @@ export default function ProviderDetailPage() {
       proxyPoolId: activePools[i % activePools.length].id,
     }));
     return applyProxyAssignments(targets);
+  };
+
+  const handleApplyRotationStrategy = () => {
+    if (bulkProxyRotationStrategy === "none") {
+      notify.error("Choose a rotation strategy first.");
+      return;
+    }
+    if (proxyPools.filter((pool) => pool.isActive === true).length === 0) {
+      notify.error("No active proxy pools available.");
+      return;
+    }
+    const targets = connections.map((connection) => ({ connectionId: connection.id }));
+    return applyProxyAssignments(targets, bulkProxyRotationStrategy);
   };
 
 
@@ -1079,8 +1108,8 @@ export default function ProviderDetailPage() {
                 }}
                 onDelete={() => handleDelete(conn.id)}
                 oneByOneStatus={oneByOneResults[conn.id] || null}
-                modelAssignmentOptions={assignmentModels}
-                onModelAssignmentChange={(model) => handleModelAssignment(conn.id, model)}
+                modelAssignmentOptions={providerId === "freebuff" ? assignmentModels : null}
+                onModelAssignmentChange={providerId === "freebuff" ? (model) => handleModelAssignment(conn.id, model) : null}
                 strictModelAssignment={strictModelAssignment}
               />
             </div>
@@ -1098,6 +1127,24 @@ export default function ProviderDetailPage() {
       title={`Apply Proxy (${connections.length} connections)`}
     >
       <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-border bg-bg p-3">
+          <label className="mb-2 block text-xs font-medium text-text-muted">Rotation Strategy</label>
+          <select
+            value={bulkProxyRotationStrategy}
+            onChange={(e) => setBulkProxyRotationStrategy(e.target.value)}
+            className="w-full rounded border border-border bg-bg px-2 py-1.5 text-sm text-text-main focus:border-primary focus:outline-none"
+            disabled={bulkUpdatingProxy}
+          >
+            <option value="none">None (Single Proxy)</option>
+            <option value="random">Random</option>
+            <option value="round-robin">Round Robin</option>
+            <option value="failover">Failover</option>
+            <option value="smart">Smart</option>
+          </select>
+          {bulkProxyRotationStrategy !== "none" && (
+            <p className="mt-1 text-[10px] text-text-muted">All active proxy pools will be assigned to each connection using this strategy.</p>
+          )}
+        </div>
         <div className="flex flex-col">
           <button
             onClick={handleApplyOneToOne}
@@ -1106,6 +1153,14 @@ export default function ProviderDetailPage() {
           >
             <span className="material-symbols-outlined text-text-muted text-[18px]">sync_alt</span>
             <span className="text-sm text-text-main">One-to-one (rotate)</span>
+          </button>
+          <button
+            onClick={handleApplyRotationStrategy}
+            disabled={bulkUpdatingProxy || bulkProxyRotationStrategy === "none" || activePools.length === 0}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-text-muted text-[18px]">sync</span>
+            <span className="text-sm text-text-main">Apply Rotation Strategy</span>
           </button>
           <button
             onClick={() => handleApplySinglePool(null)}
@@ -1579,13 +1634,15 @@ export default function ProviderDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-black/[0.03] pt-2 dark:border-white/[0.03]">
-                <div>
-                  <span className="text-xs text-text-muted font-medium">Strict Model Assignment</span>
-                  <p className="text-[10px] text-text-muted">Only assigned accounts can serve each model for this provider.</p>
+              {providerId === "freebuff" && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-black/[0.03] pt-2 dark:border-white/[0.03]">
+                  <div>
+                    <span className="text-xs text-text-muted font-medium">Strict Model Assignment</span>
+                    <p className="text-[10px] text-text-muted">Only assigned accounts can serve each model for this provider.</p>
+                  </div>
+                  <Toggle checked={strictModelAssignment} onChange={handleStrictAssignmentToggle} />
                 </div>
-                <Toggle checked={strictModelAssignment} onChange={handleStrictAssignmentToggle} />
-              </div>
+              )}
             </div>
           </div>
 
@@ -1674,6 +1731,15 @@ export default function ProviderDetailPage() {
                 </div>
               )}
               {connectionsList}
+              {connectionPagination.totalPages > 1 && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.03] pt-3 text-xs text-text-muted dark:border-white/[0.03]">
+                  <span>Page {connectionPagination.page} of {connectionPagination.totalPages} · {connectionPagination.total} connections</span>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => setConnectionPage((page) => Math.max(1, page - 1))} disabled={connectionPagination.page <= 1}>Previous</Button>
+                    <Button size="sm" variant="secondary" onClick={() => setConnectionPage((page) => Math.min(connectionPagination.totalPages, page + 1))} disabled={connectionPagination.page >= connectionPagination.totalPages}>Next</Button>
+                  </div>
+                </div>
+              )}
               {!isCompatible && (
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:flex">
                   {providerId === "iflow" && (

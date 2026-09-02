@@ -18,7 +18,7 @@ export function getQuotaCooldown(backoffLevel = 0) {
  * @param {number} status - HTTP status code
  * @param {string} errorText - Error message text
  * @param {number} backoffLevel - Current backoff level for exponential backoff
- * @returns {{ shouldFallback: boolean, cooldownMs: number, newBackoffLevel?: number }}
+ * @returns {{ shouldFallback: boolean, cooldownMs: number, newBackoffLevel?: number, lockAll?: boolean }}
  */
 export function checkFallbackError(status, errorText, backoffLevel = 0) {
   const lowerError = errorText
@@ -30,18 +30,18 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     if (rule.text && lowerError && lowerError.includes(rule.text)) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel };
+        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll };
       }
-      return { shouldFallback: true, cooldownMs: rule.cooldownMs };
+      return { shouldFallback: true, cooldownMs: rule.cooldownMs, lockAll: !!rule.lockAll };
     }
 
     // Status-based rule: match HTTP status code
     if (rule.status && rule.status === status) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel };
+        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll };
       }
-      return { shouldFallback: true, cooldownMs: rule.cooldownMs };
+      return { shouldFallback: true, cooldownMs: rule.cooldownMs, lockAll: !!rule.lockAll };
     }
   }
 
@@ -178,11 +178,8 @@ export function filterAvailableAccounts(accounts, excludeId = null) {
 /**
  * Reset account state when request succeeds
  * Clears cooldown and resets backoff level to 0
- * @param {object} account - Account object
- * @returns {object} Updated account with reset state
  */
-export function resetAccountState(account) {
-  if (!account) return account;
+export function clearAccountError(account) {
   return {
     ...account,
     rateLimitedUntil: null,
@@ -193,15 +190,10 @@ export function resetAccountState(account) {
 }
 
 /**
- * Apply error state to account
- * @param {object} account - Account object
- * @param {number} status - HTTP status code
- * @param {string} errorText - Error message
- * @returns {object} Updated account with error state
+ * Update account error state on failure
+ * Calculates exponential backoff and sets rateLimitedUntil
  */
-export function applyErrorState(account, status, errorText) {
-  if (!account) return account;
-
+export function setAccountError(account, status, errorText) {
   const backoffLevel = account.backoffLevel || 0;
   const { cooldownMs, newBackoffLevel } = checkFallbackError(status, errorText, backoffLevel);
 

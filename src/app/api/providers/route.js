@@ -47,9 +47,16 @@ async function normalizeProxyPoolId(proxyPoolId) {
 }
 
 // GET /api/providers - List all connections
-export async function GET() {
+export async function GET(request) {
   try {
-    const connections = await getProviderConnections();
+    const { searchParams } = new URL(request.url);
+    const provider = searchParams.get("provider");
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize");
+    const paginated = provider !== null || pageParam !== null || pageSizeParam !== null;
+    const pageSize = Math.min(Math.max(Number.parseInt(pageSizeParam || "50", 10) || 50, 1), 500);
+    const requestedPage = Math.max(Number.parseInt(pageParam || "1", 10) || 1, 1);
+    const connections = await getProviderConnections(provider ? { provider } : {});
 
     // Build nodeNameMap for compatible providers (id → name)
     let nodeNameMap = {};
@@ -76,7 +83,16 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ connections: safeConnections });
+    if (!paginated) return NextResponse.json({ connections: safeConnections });
+
+    const total = safeConnections.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const offset = (page - 1) * pageSize;
+    return NextResponse.json({
+      connections: safeConnections.slice(offset, offset + pageSize),
+      pagination: { page, pageSize, total, totalPages },
+    });
   } catch (error) {
     console.log("Error fetching providers:", error);
     return NextResponse.json({ error: "Failed to fetch providers" }, { status: 500 });

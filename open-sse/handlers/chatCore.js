@@ -323,40 +323,19 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     log, provider, model, reqTag
   });
 
-  // Build proxy options from the resolved provider-specific data. `strictProxy`
-  // is forced for freebuff so a dead/limited pool can never leak the request
-  // to the caller's real IP (the freebuff session tier is per-egress-IP).
+  // Build proxy options from the resolved provider-specific data. A configured
+  // proxy is used when available, while direct egress remains a valid fallback.
   const buildProxyOptions = (psd = {}) => ({
     connectionProxyEnabled: psd?.connectionProxyEnabled === true,
     connectionProxyUrl: psd?.connectionProxyUrl || "",
     connectionNoProxy: psd?.connectionNoProxy || "",
     vercelRelayUrl: psd?.vercelRelayUrl || "",
-    strictProxy: psd?.strictProxy === true || provider === "freebuff",
+    strictProxy: psd?.strictProxy === true,
     proxyPoolId: psd?.proxyPoolId || psd?.connectionProxyPoolId || null,
   });
 
   const proxyScope = `${provider}::${model}`;
   let proxyOptions = buildProxyOptions(credentials?.providerSpecificData || {});
-
-  if (provider === "freebuff" && credentials?.providerSpecificData?.noFitPool === true) {
-    const error = new Error(`Freebuff has no healthy proxy pool for ${model}; all assigned pools are cooling down after limited-IP errors.`);
-    error.status = 503;
-    error.poolScoped = { poolId: null, scope: proxyScope, reason: "no_fit_pool" };
-    trackPendingRequest(model, provider, connectionId, false, true);
-    return createErrorResult(503, error.message);
-  }
-
-  if (
-    provider === "freebuff" &&
-    !proxyOptions.proxyPoolId &&
-    !proxyOptions.vercelRelayUrl &&
-    !(proxyOptions.connectionProxyEnabled && proxyOptions.connectionProxyUrl)
-  ) {
-    const error = new Error(`Freebuff requires a configured proxy pool for ${model}; direct egress is disabled to prevent limited-IP rate limits.`);
-    error.status = 503;
-    trackPendingRequest(model, provider, connectionId, false, true);
-    return createErrorResult(503, error.message);
-  }
 
   if (proxyOptions.vercelRelayUrl) {
     const connectionName = credentials?.connectionName || credentials?.connectionId || "unknown";

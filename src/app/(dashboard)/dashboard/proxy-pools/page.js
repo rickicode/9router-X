@@ -34,6 +34,7 @@ export default function ProxyPoolsPage() {
   const [showBatchImportModal, setShowBatchImportModal] = useState(false);
   const [showVercelModal, setShowVercelModal] = useState(false);
   const [showCloudflareModal, setShowCloudflareModal] = useState(false);
+  const [showCloudflareBulkModal, setShowCloudflareBulkModal] = useState(false);
   const [showDenoModal, setShowDenoModal] = useState(false);
   const [showRelayMenu, setShowRelayMenu] = useState(false);
   const [editingProxyPool, setEditingProxyPool] = useState(null);
@@ -41,10 +42,13 @@ export default function ProxyPoolsPage() {
   const [batchImportText, setBatchImportText] = useState("");
   const [vercelForm, setVercelForm] = useState({ vercelToken: "", projectName: "vercel-relay" });
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: "", apiToken: "", projectName: "cloudflare-relay" });
+  const [cloudflareBulkText, setCloudflareBulkText] = useState("");
+  const [cloudflareBulkResults, setCloudflareBulkResults] = useState([]);
   const [denoForm, setDenoForm] = useState({ denoToken: "", orgDomain: "", projectName: "" });
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deploying, setDeploying] = useState(false);
+  const [bulkCloudflareDeploying, setBulkCloudflareDeploying] = useState(false);
   const [testingId, setTestingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [healthChecking, setHealthChecking] = useState(false);
@@ -362,6 +366,17 @@ export default function ProxyPoolsPage() {
     setShowCloudflareModal(false);
   };
 
+  const openCloudflareBulkModal = () => {
+    setCloudflareBulkText("");
+    setCloudflareBulkResults([]);
+    setShowCloudflareBulkModal(true);
+  };
+
+  const closeCloudflareBulkModal = () => {
+    if (bulkCloudflareDeploying) return;
+    setShowCloudflareBulkModal(false);
+  };
+
   const openDenoModal = () => {
     setDenoForm({ denoToken: "", orgDomain: "", projectName: "" });
     setShowDenoModal(true);
@@ -419,6 +434,74 @@ export default function ProxyPoolsPage() {
       notify.error("Deploy failed");
     } finally {
       setDeploying(false);
+    }
+  };
+
+  const handleCloudflareBulkDeploy = async () => {
+    const entries = cloudflareBulkText
+      .split(/\r?\n/)
+      .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
+      .filter(({ line }) => line.length > 0)
+      .map(({ line, lineNumber }, index) => {
+        const [label = "", accountId = "", apiToken = "", ...extra] = line.split("|").map((part) => part.trim());
+        const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
+        return {
+          lineNumber,
+          label,
+          accountId,
+          apiToken,
+          projectName: `relay-${slug || `account-${index + 1}`}-${index + 1}`,
+          valid: Boolean(label && accountId && apiToken && !extra.length),
+        };
+      });
+
+    if (!entries.length) return;
+
+    const maskAccountId = (accountId) => accountId.length > 8 ? `${accountId.slice(0, 4)}…${accountId.slice(-4)}` : "••••";
+    setCloudflareBulkResults(entries.map((entry) => ({
+      lineNumber: entry.lineNumber,
+      label: entry.label || `Line ${entry.lineNumber}`,
+      accountId: entry.accountId ? maskAccountId(entry.accountId) : "—",
+      projectName: entry.projectName,
+      status: entry.valid ? "pending" : "failed",
+      error: entry.valid ? "" : "Format harus name/email|accountID|apiToken",
+    })));
+    setBulkCloudflareDeploying(true);
+
+    let successCount = 0;
+    let failedCount = entries.filter((entry) => !entry.valid).length;
+    try {
+      for (const [index, entry] of entries.entries()) {
+        if (!entry.valid) continue;
+        setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
+          resultIndex === index ? { ...result, status: "running" } : result
+        )));
+        try {
+          const res = await fetch("/api/proxy-pools/cloudflare-deploy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountId: entry.accountId, apiToken: entry.apiToken, projectName: entry.projectName }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          successCount += 1;
+          setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
+            resultIndex === index ? { ...result, status: "success", deployUrl: data.deployUrl || "Deployed" } : result
+          )));
+        } catch (error) {
+          failedCount += 1;
+          setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
+            resultIndex === index ? { ...result, status: "failed", error: error.message || "Deploy failed" } : result
+          )));
+        }
+      }
+      await fetchProxyPools();
+      if (failedCount) notify.error(`${successCount} deployed, ${failedCount} failed`);
+      else notify.success(`${successCount} Cloudflare relays deployed`);
+    } catch (error) {
+      notify.error(error.message || "Bulk deploy failed");
+    } finally {
+      setBulkCloudflareDeploying(false);
     }
   };
 
@@ -604,6 +687,16 @@ export default function ProxyPoolsPage() {
                 >
                   <span className="material-symbols-outlined text-[20px] text-orange-500">cloud</span>
                   Cloudflare Relay
+                </button>
+                <button
+                  onClick={() => {
+                    openCloudflareBulkModal();
+                    setShowRelayMenu(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                >
+                  <span className="material-symbols-outlined text-[20px] text-orange-500">playlist_add</span>
+                  CF Bulk
                 </button>
                 <button
                   onClick={() => {
@@ -915,6 +1008,56 @@ export default function ProxyPoolsPage() {
             </Button>
             <Button fullWidth variant="ghost" onClick={closeCloudflareModal} disabled={deploying}>
               Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showCloudflareBulkModal}
+        title="CF Bulk"
+        onClose={closeCloudflareBulkModal}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-orange-500/10 bg-orange-500/5 p-3">
+            <p className="text-sm font-medium text-text-main">One account per line</p>
+            <p className="mt-1 text-xs text-text-muted">Format: name/email|accountID|apiToken. Empty lines are ignored and each Worker gets a unique name.</p>
+          </div>
+          <textarea
+            value={cloudflareBulkText}
+            onChange={(e) => setCloudflareBulkText(e.target.value)}
+            placeholder={"email@example.com|account-id|api-token\nteam-account|account-id|api-token"}
+            spellCheck={false}
+            className="min-h-[220px] w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 font-mono text-xs text-text-main outline-none focus:border-primary dark:border-white/10 dark:bg-zinc-900"
+          />
+          {cloudflareBulkResults.length > 0 && (
+            <div className="max-h-64 overflow-auto rounded-lg border border-black/10 dark:border-white/10">
+              <div className="divide-y divide-black/10 dark:divide-white/10">
+                {cloudflareBulkResults.map((result) => (
+                  <div key={result.lineNumber} className="flex items-start gap-3 px-3 py-2 text-xs">
+                    <span className="w-8 shrink-0 text-text-muted">#{result.lineNumber}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-text-main">{result.label}</span>
+                        <Badge variant={result.status === "success" ? "success" : result.status === "failed" ? "error" : "default"}>
+                          {result.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 font-mono text-text-muted">{result.accountId} · {result.projectName}</p>
+                      {result.deployUrl && <p className="mt-0.5 break-all text-green-600 dark:text-green-400">{result.deployUrl}</p>}
+                      {result.error && <p className="mt-0.5 break-words text-red-600 dark:text-red-400">{result.error}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button fullWidth onClick={handleCloudflareBulkDeploy} disabled={!cloudflareBulkText.trim() || bulkCloudflareDeploying}>
+              {bulkCloudflareDeploying ? "Deploying..." : "Deploy All"}
+            </Button>
+            <Button fullWidth variant="ghost" onClick={closeCloudflareBulkModal} disabled={bulkCloudflareDeploying}>
+              Close
             </Button>
           </div>
         </div>

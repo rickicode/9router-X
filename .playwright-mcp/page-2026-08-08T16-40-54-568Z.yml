@@ -1,0 +1,86 @@
+- generic [ref=f1e2]:
+  - complementary [ref=f1e4]:
+    - link "hub 9Router Proxy v0.5.50" [ref=f1e10] [cursor=pointer]:
+      - /url: /dashboard
+      - generic [ref=f1e11]: hub
+      - generic [ref=f1e13]:
+        - heading "9Router Proxy" [level=1] [ref=f1e14]
+        - generic [ref=f1e15]: v0.5.50
+    - navigation [ref=f1e16]:
+      - link "api Endpoint & Key" [ref=f1e17] [cursor=pointer]:
+        - /url: /dashboard/endpoint
+        - generic [ref=f1e18]: api
+        - generic [ref=f1e19]: Endpoint & Key
+      - link "dns Providers" [ref=f1e20] [cursor=pointer]:
+        - /url: /dashboard/providers
+        - generic [ref=f1e21]: dns
+        - generic [ref=f1e22]: Providers
+      - link "layers Combo & Vision Adapter" [ref=f1e23] [cursor=pointer]:
+        - /url: /dashboard/combos
+        - generic [ref=f1e24]: layers
+        - generic [ref=f1e25]: Combo & Vision Adapter
+      - link "bar_chart Usage" [ref=f1e26] [cursor=pointer]:
+        - /url: /dashboard/usage
+        - generic [ref=f1e27]: bar_chart
+        - generic [ref=f1e28]: Usage
+      - link "data_usage Quota Tracker" [ref=f1e29] [cursor=pointer]:
+        - /url: /dashboard/quota
+        - generic [ref=f1e30]: data_usage
+        - generic [ref=f1e31]: Quota Tracker
+      - link "savings Token Saver" [ref=f1e32] [cursor=pointer]:
+        - /url: /dashboard/token-saver
+        - generic [ref=f1e33]: savings
+        - generic [ref=f1e34]: Token Saver
+      - link "network_check Proxy Fitness" [ref=f1e35] [cursor=pointer]:
+        - /url: /dashboard/proxy-fitness
+        - generic [ref=f1e36]: network_check
+        - generic [ref=f1e37]: Proxy Fitness
+      - link "terminal CLI Tools" [ref=f1e38] [cursor=pointer]:
+        - /url: /dashboard/cli-tools
+        - generic [ref=f1e39]: terminal
+        - generic [ref=f1e40]: CLI Tools
+      - generic [ref=f1e41]:
+        - paragraph [ref=f1e42]: System
+        - button "perm_media Media Providers expand_more" [ref=f1e43] [cursor=pointer]:
+          - generic [ref=f1e44]: perm_media
+          - generic [ref=f1e45]: Media Providers
+          - generic [ref=f1e46]: expand_more
+        - link "lan Proxy Pools" [ref=f1e47] [cursor=pointer]:
+          - /url: /dashboard/proxy-pools
+          - generic [ref=f1e48]: lan
+          - generic [ref=f1e49]: Proxy Pools
+        - link "extension Skills" [ref=f1e50] [cursor=pointer]:
+          - /url: /dashboard/skills
+          - generic [ref=f1e51]: extension
+          - generic [ref=f1e52]: Skills
+        - link "terminal Console Log" [ref=f1e53] [cursor=pointer]:
+          - /url: /dashboard/console-log
+          - generic [ref=f1e54]: terminal
+          - generic [ref=f1e55]: Console Log
+        - button "computer 9Remote" [ref=f1e56] [cursor=pointer]:
+          - generic [ref=f1e57]: computer
+          - generic [ref=f1e58]: 9Remote
+        - link "translate 9English" [ref=f1e59] [cursor=pointer]:
+          - /url: https://9english.net/
+          - generic [ref=f1e60]: translate
+          - generic [ref=f1e61]: 9English
+        - link "settings Settings" [ref=f1e62] [cursor=pointer]:
+          - /url: /dashboard/profile
+          - generic [ref=f1e63]: settings
+          - generic [ref=f1e64]: Settings
+    - link "MIBP Edition · GitHub" [ref=f1e66] [cursor=pointer]:
+      - /url: https://github.com/mhiqrambg/9router-mibp-version
+  - main [ref=f1e67]:
+    - generic [ref=f1e68]:
+      - button "menu" [ref=f1e70] [cursor=pointer]
+      - generic [ref=f1e74]:
+        - generic [ref=f1e75]: api
+        - heading "Endpoint" [level=1] [ref=f1e76]
+      - generic [ref=f1e77]:
+        - link "MIBP Edition" [ref=f1e78] [cursor=pointer]:
+          - /url: https://github.com/mhiqrambg/9router-mibp-version
+          - generic [ref=f1e79]: code
+        - button "Switch to dark mode" [ref=f1e81] [cursor=pointer]:
+          - generic [ref=f1e82]: dark_mode
+        - button "🇺🇸" [ref=f1e83] [cursor=pointer]
+        - button "grid_view" [ref=f1e86] [cursor=pointer]

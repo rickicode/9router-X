@@ -297,6 +297,8 @@ AddApiKeyModal.propTypes = {
 // Self-contained card: fetches, displays and manages all connections for a provider.
 export default function ConnectionsCard({ providerId, isOAuth }) {
   const [connections, setConnections] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 50, total: 0, totalPages: 1 });
   const [proxyPools, setProxyPools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -306,24 +308,31 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
   const [providerStickyLimit, setProviderStickyLimit] = useState("1");
   const [confirmState, setConfirmState] = useState(null);
 
-  const fetch_ = useCallback(async () => {
+  const fetch_ = useCallback(async (targetPage = page) => {
     try {
+      const params = new URLSearchParams({ provider: providerId, page: String(targetPage), pageSize: "50" });
       const [connRes, proxyRes, settingsRes] = await Promise.all([
-        fetch("/api/providers", { cache: "no-store" }),
+        fetch(`/api/providers?${params.toString()}`, { cache: "no-store" }),
         fetch("/api/proxy-pools?isActive=true", { cache: "no-store" }),
         fetch("/api/settings", { cache: "no-store" }),
       ]);
       const connData = await connRes.json();
       const proxyData = await proxyRes.json();
       const settingsData = settingsRes.ok ? await settingsRes.json() : {};
-      if (connRes.ok) setConnections((connData.connections || []).filter((c) => c.provider === providerId));
+      if (connRes.ok) {
+        setConnections(connData.connections || []);
+        if (connData.pagination) {
+          setPagination(connData.pagination);
+          setPage(connData.pagination.page);
+        }
+      }
       if (proxyRes.ok) setProxyPools(proxyData.proxyPools || []);
       const override = (settingsData.providerStrategies || {})[providerId] || {};
       setProviderStrategy(override.fallbackStrategy || null);
       setProviderStickyLimit(override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "1");
     } catch (e) { console.log("ConnectionsCard fetch error:", e); }
     finally { setLoading(false); }
-  }, [providerId]);
+  }, [providerId, page]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
@@ -455,6 +464,15 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
             <div className="mt-4 flex justify-stretch sm:justify-start">
               <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add</Button>
             </div>
+            {pagination.totalPages > 1 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.03] pt-3 text-xs text-text-muted dark:border-white/[0.03]">
+                <span>Page {pagination.page} of {pagination.totalPages} · {pagination.total} connections</span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={pagination.page <= 1}>Previous</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))} disabled={pagination.page >= pagination.totalPages}>Next</Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </Card>

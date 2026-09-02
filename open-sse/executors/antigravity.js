@@ -133,6 +133,12 @@ export class AntigravityExecutor extends BaseExecutor {
     };
   }
 
+
+  parseError(response, bodyText) {
+    const base = super.parseError(response, bodyText);
+    return base;
+  }
+
   transformRequest(model, body, stream, credentials) {
     const projectId = credentials?.projectId || this.generateProjectId();
 
