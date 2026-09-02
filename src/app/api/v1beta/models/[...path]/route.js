@@ -9,6 +9,7 @@ import { getSettings } from "@/lib/localDb";
 import { PROVIDER_MODELS } from "@/shared/constants/models";
 import { GEMINI_NATIVE_TTS_FETCH_TIMEOUT_MS } from "open-sse/config/runtimeConfig.js";
 import { initTranslators } from "open-sse/translator/index.js";
+import { extractQuotaResetMs } from "open-sse/utils/error.js";
 
 let initialized = false;
 const GEMINI_NATIVE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -312,7 +313,8 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
         status,
         errorText,
         "gemini",
-        modelId
+        modelId,
+        extractQuotaResetMs(errorText, null)
       );
 
       if (shouldFallback) {
@@ -346,7 +348,8 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
       upstreamResponse.status,
       errorText,
       "gemini",
-      modelId
+      modelId,
+      extractQuotaResetMs(errorText, upstreamResponse)
     );
 
     if (shouldFallback) {
