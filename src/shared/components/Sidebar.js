@@ -354,7 +354,7 @@ export default function Sidebar({ onClose }) {
             rel="noreferrer"
             className="text-[10px] text-text-muted/60 hover:text-text-muted transition-colors"
           >
-            X Edition · GitHub
+            X Version · GitHub
           </a>
         </div>
 

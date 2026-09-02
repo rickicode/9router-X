@@ -1687,7 +1687,7 @@ export default function ProfilePage() {
             rel="noreferrer"
             className="inline-block mt-1 text-[11px] hover:text-primary transition-colors"
           >
-            X Edition
+            X Version
           </a>
         </div>
       </div>
