@@ -43,7 +43,7 @@ export const MAX_RATE_LIMIT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Cooldown durations (ms)
 const COOLDOWN = {
-  permanentAuth: 30 * 60 * 1000, // 30 mins for auth/permission/ineligible errors
+  permanentAuth: 3 * 24 * 60 * 60 * 1000, // 3 days for auth/permission/ineligible errors
   long: 2 * 60 * 1000,
   short: 5 * 1000,
 };

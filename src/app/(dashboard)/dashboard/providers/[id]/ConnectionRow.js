@@ -179,6 +179,7 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
 
   // Use useState + useEffect for impure Date.now() to avoid calling during render
   const [isCooldown, setIsCooldown] = useState(false);
+  const [activeLocks, setActiveLocks] = useState([]);
 
   // Get earliest model lock timestamp (useEffect handles the Date.now() comparison)
   const modelLockUntil = Object.entries(connection)
@@ -189,12 +190,17 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
 
   useEffect(() => {
     const checkCooldown = () => {
-      const until = Object.entries(connection)
+      const now = Date.now();
+      const locks = Object.entries(connection)
         .filter(([k]) => k.startsWith("modelLock_"))
-        .map(([, v]) => v)
-        .filter(v => v && new Date(v).getTime() > Date.now())
-        .sort()[0] || null;
-      setIsCooldown(!!until);
+        .filter(([, v]) => v && new Date(v).getTime() > now)
+        .map(([k, v]) => ({
+          model: k.slice("modelLock_".length) || "__all",
+          until: v,
+        }))
+        .sort((a, b) => new Date(b.until) - new Date(a.until));
+      setActiveLocks(locks);
+      setIsCooldown(locks.length > 0);
     };
 
     checkCooldown();
@@ -268,7 +274,19 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
                 Proxy
               </Badge>
             )}
-            {isCooldown && connection.isActive !== false && <CooldownTimer until={modelLockUntil} />}
+            {isCooldown && connection.isActive !== false && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="error" size="sm">
+                  exhausted
+                </Badge>
+                {activeLocks.map((lock) => (
+                  <span key={lock.model} className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-xs text-red-500">
+                    <span className="font-medium">{lock.model === "__all" ? "all models" : lock.model}</span>
+                    <CooldownTimer until={lock.until} />
+                  </span>
+                ))}
+              </div>
+            )}
             {connection.lastError && connection.isActive !== false && (
               <span className="max-w-full truncate text-xs text-red-500 sm:max-w-[300px]" title={connection.lastError}>
                 {connection.lastError}

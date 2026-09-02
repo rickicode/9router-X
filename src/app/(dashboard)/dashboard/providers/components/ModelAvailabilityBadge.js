@@ -156,7 +156,14 @@ export default function ModelAvailabilityBadge() {
                               >
                                 {status.icon}
                               </span>
-                              <span className="font-mono text-xs text-text-main truncate">{m.model}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-mono text-xs text-text-main truncate">{m.model}</span>
+                                {m.status === "cooldown" && m.until && (
+                                  <span className="text-[10px] text-text-muted truncate">
+                                    until {new Date(m.until).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {m.status === "cooldown" && (
                               <Button
