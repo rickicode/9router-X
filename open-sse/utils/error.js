@@ -131,6 +131,17 @@ export function extractQuotaResetMs(bodyText, response) {
 
     // 3. Fallback regex on string message (e.g. "Resets in 166h22m46s" or "resets in 2 hours")
     if (!resetsAtMs) {
+      const compoundMatch = String(bodyText).match(/resets?\s+in\s+(\d+)h(?:(\d+)m)?(?:(\d+)s)?/i);
+      if (compoundMatch) {
+        const h = parseInt(compoundMatch[1] || "0", 10);
+        const min = parseInt(compoundMatch[2] || "0", 10);
+        const s = parseInt(compoundMatch[3] || "0", 10);
+        const totalSec = h * 3600 + min * 60 + s;
+        if (totalSec > 0) resetsAtMs = now + totalSec * 1000;
+      }
+    }
+
+    if (!resetsAtMs) {
       const resetInMatch = String(bodyText).match(/resets?\s+in\s+(\d+)\s*(hour|h|min|m|s|second)/i);
       if (resetInMatch) {
         const n = parseInt(resetInMatch[1], 10);
