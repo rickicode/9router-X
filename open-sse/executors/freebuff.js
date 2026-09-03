@@ -275,6 +275,12 @@ async function requestSession(token, model, proxyOptions) {
     throw err;
   }
   if (!response.ok) {
+    const statusText = data?.status || "";
+    if (response.status === 403 || statusText === "banned") {
+      const err = new Error(`Freebuff account banned (403): ${JSON.stringify(data).slice(0, 200)}`);
+      err.status = 403;
+      throw err;
+    }
     const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
     err.status = response.status;
     throw err;

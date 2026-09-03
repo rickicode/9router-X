@@ -71,6 +71,9 @@ export const ERROR_RULES = [
   { text: "model not supported for tier",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
 
   { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "banned",                    cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "account has been banned",   cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "session request failed: 403", cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission_denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "unauthenticated",           cooldownMs: COOLDOWN.permanentAuth, lockAll: true },

@@ -441,7 +441,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
           </div>
         ) : (
           <>
-            <div className={`flex flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] ${connections.length > 5 ? "max-h-[500px] overflow-y-auto pr-1" : "overflow-visible"}`}>
+            <div className="flex flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03]">
               {connections.map((conn, idx) => (
                 <ConnectionRow
                   key={conn.id}
