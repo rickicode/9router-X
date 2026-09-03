@@ -572,9 +572,6 @@ export function parseQuotaData(provider, data) {
             });
           });
         }
-            });
-          });
-        }
         break;
 
       case "ollama":
