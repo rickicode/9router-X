@@ -47,6 +47,11 @@ RUN mkdir -p /app/data && chown -R node:node /app && \
 
 # Fix permissions at runtime (handles mounted volumes)
 RUN apk --no-cache upgrade && apk --no-cache add su-exec && \
+  apk --no-cache add curl tar bash && \
+  curl -fsSL https://static.devin.ai/cli/current/manifest.json | grep -o '"x86_64-unknown-linux"[[:space:]]*:[[:space:]]*{[^}]*}' | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' | xargs curl -fsSL | tar -xz -C /tmp && \
+  mv /tmp/bin/devin /usr/local/bin/devin && \
+  chmod +x /usr/local/bin/devin && \
+  rm -rf /tmp/bin /tmp/share && \
   printf '#!/bin/sh\nchown -R node:node /app/data /app/data-home 2>/dev/null\nexec su-exec node "$@"\n' > /entrypoint.sh && \
   chmod +x /entrypoint.sh
 
