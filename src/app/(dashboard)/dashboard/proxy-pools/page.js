@@ -214,6 +214,28 @@ export default function ProxyPoolsPage() {
     }
   };
 
+  const filteredProxyPools = useMemo(() => {
+    return proxyPools.filter((pool) => {
+      if (typeFilter === "http") {
+        if (pool.type && pool.type !== "http") return false;
+      } else if (typeFilter === "cloudflare") {
+        if (pool.type !== "cloudflare") return false;
+      } else if (typeFilter === "relay") {
+        if (pool.type !== "cloudflare" && pool.type !== "vercel" && pool.type !== "deno") return false;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = (pool.name || "").toLowerCase().includes(q);
+        const matchUrl = (pool.proxyUrl || "").toLowerCase().includes(q);
+        const matchNoProxy = (pool.noProxy || "").toLowerCase().includes(q);
+        return matchName || matchUrl || matchNoProxy;
+      }
+
+      return true;
+    });
+  }, [proxyPools, typeFilter, searchQuery]);
+
   const allSelected = filteredProxyPools.length > 0 && filteredProxyPools.every((p) => selectedIds.includes(p.id));
   const toggleSelect = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   const toggleSelectAll = () => {
@@ -665,27 +687,7 @@ export default function ProxyPoolsPage() {
     [proxyPools]
   );
 
-  const filteredProxyPools = useMemo(() => {
-    return proxyPools.filter((pool) => {
-      if (typeFilter === "http") {
-        if (pool.type && pool.type !== "http") return false;
-      } else if (typeFilter === "cloudflare") {
-        if (pool.type !== "cloudflare") return false;
-      } else if (typeFilter === "relay") {
-        if (pool.type !== "cloudflare" && pool.type !== "vercel" && pool.type !== "deno") return false;
-      }
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchName = (pool.name || "").toLowerCase().includes(q);
-        const matchUrl = (pool.proxyUrl || "").toLowerCase().includes(q);
-        const matchNoProxy = (pool.noProxy || "").toLowerCase().includes(q);
-        return matchName || matchUrl || matchNoProxy;
-      }
-
-      return true;
-    });
-  }, [proxyPools, typeFilter, searchQuery]);
 
   if (loading) {
     return (
