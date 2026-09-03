@@ -51,6 +51,8 @@ export default function ProxyPoolsPage() {
   const [bulkCloudflareDeploying, setBulkCloudflareDeploying] = useState(false);
   const [testingId, setTestingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [healthChecking, setHealthChecking] = useState(false);
   const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -212,9 +214,16 @@ export default function ProxyPoolsPage() {
     }
   };
 
-  const allSelected = proxyPools.length > 0 && selectedIds.length === proxyPools.length;
+  const allSelected = filteredProxyPools.length > 0 && filteredProxyPools.every((p) => selectedIds.includes(p.id));
   const toggleSelect = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const toggleSelectAll = () => setSelectedIds(allSelected ? [] : proxyPools.map((p) => p.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      const filteredSet = new Set(filteredProxyPools.map((p) => p.id));
+      setSelectedIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+    } else {
+      setSelectedIds((prev) => [...new Set([...prev, ...filteredProxyPools.map((p) => p.id)])]);
+    }
+  };
   const clearSelection = () => setSelectedIds([]);
 
   const bulkSetActive = async (isActive) => {
@@ -534,31 +543,41 @@ export default function ProxyPoolsPage() {
     const trimmed = line.trim();
     if (!trimmed) return null;
 
+    let parsedUrl = null;
     if (trimmed.includes("://")) {
-      const parsed = new URL(trimmed);
-      const hostLabel = parsed.port ? `${parsed.hostname}:${parsed.port}` : parsed.hostname;
-      return {
-        proxyUrl: parsed.toString(),
-        name: `Imported ${hostLabel}`,
-      };
-    }
-
-    const parts = trimmed.split(":");
-    if (parts.length === 4) {
-      const [host, port, username, password] = parts;
-      if (!host || !port || !username || !password) {
-        throw new Error("Invalid host:port:user:pass format");
+      parsedUrl = new URL(trimmed);
+    } else if (trimmed.includes("@")) {
+      parsedUrl = new URL(`http://${trimmed}`);
+    } else {
+      const parts = trimmed.split(":");
+      if (parts.length === 4) {
+        const [host, port, username, password] = parts;
+        if (!host || !port || !username || !password) {
+          throw new Error("Invalid host:port:user:pass format");
+        }
+        parsedUrl = new URL(`http://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`);
+      } else if (parts.length === 2) {
+        const [host, port] = parts;
+        if (host && port && !isNaN(port)) {
+          parsedUrl = new URL(`http://${host}:${port}`);
+        }
       }
-
-      const proxyUrl = `http://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
-      const parsed = new URL(proxyUrl);
-      return {
-        proxyUrl: parsed.toString(),
-        name: `Imported ${host}:${port}`,
-      };
     }
 
-    throw new Error("Unsupported format");
+    if (!parsedUrl) {
+      throw new Error("Unsupported format (expected user:pass@host:port, host:port:user:pass, or protocol://...)");
+    }
+
+    const hostLabel = parsedUrl.port ? `${parsedUrl.hostname}:${parsedUrl.port}` : parsedUrl.hostname;
+    let proxyUrl = parsedUrl.toString();
+    if (parsedUrl.pathname === "/" && !parsedUrl.search && !parsedUrl.hash) {
+      proxyUrl = proxyUrl.slice(0, -1);
+    }
+
+    return {
+      proxyUrl,
+      name: `Imported ${hostLabel}`,
+    };
   };
 
   const handleBatchImport = async () => {
@@ -646,6 +665,28 @@ export default function ProxyPoolsPage() {
     [proxyPools]
   );
 
+  const filteredProxyPools = useMemo(() => {
+    return proxyPools.filter((pool) => {
+      if (typeFilter === "http") {
+        if (pool.type && pool.type !== "http") return false;
+      } else if (typeFilter === "cloudflare") {
+        if (pool.type !== "cloudflare") return false;
+      } else if (typeFilter === "relay") {
+        if (pool.type !== "cloudflare" && pool.type !== "vercel" && pool.type !== "deno") return false;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = (pool.name || "").toLowerCase().includes(q);
+        const matchUrl = (pool.proxyUrl || "").toLowerCase().includes(q);
+        const matchNoProxy = (pool.noProxy || "").toLowerCase().includes(q);
+        return matchName || matchUrl || matchNoProxy;
+      }
+
+      return true;
+    });
+  }, [proxyPools, typeFilter, searchQuery]);
+
   if (loading) {
     return (
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-1 sm:gap-6 sm:px-0">
@@ -730,20 +771,70 @@ export default function ProxyPoolsPage() {
       </div>
 
       <Card>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {proxyPools.length > 0 && (
-            <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {filteredProxyPools.length > 0 && (
+              <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="size-4 rounded border-black/20 dark:border-white/20"
+                />
+                {allSelected ? "Unselect all" : "Select all"}
+              </label>
+            )}
+            <Badge variant="default">Total: {proxyPools.length}</Badge>
+            {filteredProxyPools.length !== proxyPools.length && (
+              <Badge variant="default">Filtered: {filteredProxyPools.length}</Badge>
+            )}
+            <Badge variant="success">Active: {activeCount}</Badge>
+          </div>
+
+          {/* Search & Type Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] flex-1 sm:w-64 sm:flex-none">
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+                search
+              </span>
               <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="size-4 rounded border-black/20 dark:border-white/20"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search proxies..."
+                className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-7 text-xs text-text-main focus:border-primary focus:outline-none"
               />
-              {allSelected ? "Unselect all" : "Select all"}
-            </label>
-          )}
-          <Badge variant="default">Total: {proxyPools.length}</Badge>
-          <Badge variant="success">Active: {activeCount}</Badge>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center rounded-md border border-border bg-black/[0.02] p-0.5 dark:bg-white/[0.02]">
+              {[
+                { id: "all", label: "All" },
+                { id: "http", label: "HTTP" },
+                { id: "relay", label: "Relay" },
+                { id: "cloudflare", label: "Cloudflare" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTypeFilter(tab.id)}
+                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                    typeFilter === tab.id
+                      ? "bg-white text-text-main shadow-xs dark:bg-zinc-800"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {(selectedIds.length > 0 || healthChecking) && (
@@ -789,9 +880,19 @@ export default function ProxyPoolsPage() {
             </p>
             <Button icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
           </div>
+        ) : filteredProxyPools.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-text-main font-medium mb-1">No proxies match filter</p>
+            <p className="text-sm text-text-muted mb-4">
+              Try adjusting your search query or type filter.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => { setSearchQuery(""); setTypeFilter("all"); }}>
+              Reset Filter
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
-            {proxyPools.map((pool) => (
+            {filteredProxyPools.map((pool) => (
               <div key={pool.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <input
@@ -882,11 +983,11 @@ export default function ProxyPoolsPage() {
             <textarea
               value={batchImportText}
               onChange={(e) => setBatchImportText(e.target.value)}
-              placeholder={"http://user:pass@127.0.0.1:7897\n127.0.0.1:7897:user:pass"}
+              placeholder={"user:pass@host:port\nhttp://user:pass@127.0.0.1:7897\nhost:port:user:pass\nhost:port"}
               className="w-full min-h-[180px] py-2 px-3 text-sm text-text-main bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md focus:ring-1 focus:ring-primary/30 focus:border-primary/50 focus:outline-none transition-all"
             />
             <p className="text-xs text-text-muted mt-1">
-              Supported formats: protocol://user:pass@host:port, host:port:user:pass
+              Supported formats: user:pass@host:port, protocol://user:pass@host:port, host:port:user:pass, host:port
             </p>
           </div>
 
