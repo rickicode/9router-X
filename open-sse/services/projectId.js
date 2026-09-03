@@ -83,8 +83,9 @@ startCacheCleanup();
  * @param {string} accessToken  - Valid OAuth access token
  * @returns {Promise<string|null>} Real project ID or null
  */
-export async function getProjectIdForConnection(connectionId, accessToken, provider = "gemini-cli") {
+export async function getProjectIdForConnection(connectionId, accessToken, provider = "gemini-cli", accountTag = null) {
     if (!connectionId || !accessToken) return null;
+    const tag = accountTag || connectionId.slice(0, 8);
 
     // Return cached value if still fresh
     const cached = projectIdCache.get(connectionId);
@@ -102,15 +103,15 @@ export async function getProjectIdForConnection(connectionId, accessToken, provi
 
     const promise = (async () => {
         try {
-            const projectId = await fetchProjectId(accessToken, controller.signal, provider);
+            const projectId = await fetchProjectId(accessToken, controller.signal, provider, tag);
             if (projectId) {
                 projectIdCache.set(connectionId, {projectId, fetchedAt: Date.now()});
                 return projectId;
             }
-            console.warn("[ProjectId] could not fetch projectId for connection", connectionId.slice(0, 8));
+            console.warn(`[ProjectId] ACC:${tag} | could not fetch projectId`);
             return null;
         } catch (error) {
-            console.warn(`[ProjectId] Error fetching project ID: ${error.message}`);
+            console.warn(`[ProjectId] ACC:${tag} | Error fetching project ID: ${error.message}`);
             return null;
         } finally {
             pendingFetches.delete(connectionId);
@@ -155,7 +156,7 @@ export function removeConnection(connectionId) {
  * @param {AbortSignal} signal
  * @returns {Promise<string|null>}
  */
-async function fetchProjectId(accessToken, signal, provider) {
+async function fetchProjectId(accessToken, signal, provider, tag = "unknown") {
     const endpoints = CLOUD_CODE_API[provider] || CLOUD_CODE_API["gemini-cli"];
     const headers = provider === "antigravity" ? ANTIGRAVITY_LOAD_CODE_ASSIST_HEADERS : LOAD_CODE_ASSIST_HEADERS;
     const response = await fetch(endpoints.loadCodeAssist, {
@@ -187,7 +188,7 @@ async function fetchProjectId(accessToken, signal, provider) {
         }
     }
 
-    return onboardUser(accessToken, tierID, signal, endpoints, provider);
+    return onboardUser(accessToken, tierID, signal, endpoints, provider, tag);
 }
 
 /**
@@ -198,8 +199,8 @@ async function fetchProjectId(accessToken, signal, provider) {
  * @param {AbortSignal} externalSignal  – propagated from the connection's AbortController
  * @returns {Promise<string|null>}
  */
-async function onboardUser(accessToken, tierID, externalSignal, endpoints, provider) {
-    console.log(`[ProjectId] Onboarding user with tier: ${tierID}`);
+async function onboardUser(accessToken, tierID, externalSignal, endpoints, provider, tag = "unknown") {
+    console.log(`[ProjectId] ACC:${tag} | Onboarding user with tier: ${tierID}`);
 
     const reqBody = { tierId: tierID, metadata: LOAD_CODE_ASSIST_METADATA };
     const headers = provider === "antigravity" ? ANTIGRAVITY_LOAD_CODE_ASSIST_HEADERS : LOAD_CODE_ASSIST_HEADERS;
@@ -235,29 +236,31 @@ async function onboardUser(accessToken, tierID, externalSignal, endpoints, provi
             if (data.done === true) {
                 const projectId = extractProjectIdFromOnboard(data);
                 if (projectId) {
-                    console.log(`[ProjectId] Successfully onboarded, project ID: ${projectId}`);
+                    console.log(`[ProjectId] ACC:${tag} | Successfully onboarded, project ID: ${projectId}`);
                     return projectId;
                 }
-                throw new Error("onboardUser done but no project_id in response");
+                // When Google says done: true without a project ID, the account is not eligible for onboarding
+                console.warn(`[ProjectId] ACC:${tag} | onboard completed without project ID assigned (account ineligible)`);
+                return null;
             }
 
             // Server not done yet – wait and retry
-            console.log(`[ProjectId] Onboard attempt ${attempt}/${MAX_ATTEMPTS}: not done yet, waiting...`);
+            console.log(`[ProjectId] ACC:${tag} | Onboard attempt ${attempt}/${MAX_ATTEMPTS}: pending, waiting...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
 
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === "AbortError") {
-                console.warn(`[ProjectId] onboardUser attempt ${attempt} aborted (timeout or connection removed)`);
+                console.warn(`[ProjectId] ACC:${tag} | onboardUser attempt ${attempt} aborted (timeout or connection removed)`);
                 if (externalSignal?.aborted) return null;   // connection gone – stop retrying
                 continue;
             }
             if (attempt === MAX_ATTEMPTS) {
-                console.warn(`[ProjectId] onboardUser failed after ${MAX_ATTEMPTS} attempts: ${error.message}`);
+                console.warn(`[ProjectId] ACC:${tag} | onboardUser failed after ${MAX_ATTEMPTS} attempts: ${error.message}`);
                 return null;
             }
             // Continue to next attempt instead of throwing (which would skip remaining retries)
-            console.warn(`[ProjectId] onboardUser attempt ${attempt} failed: ${error.message}, retrying...`);
+            console.warn(`[ProjectId] ACC:${tag} | onboardUser attempt ${attempt} failed: ${error.message}, retrying...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
         } finally {
             clearTimeout(timeoutId);
