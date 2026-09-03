@@ -179,6 +179,7 @@ export default function ProvidersPage() {
         ([k, v]) =>
           k.startsWith("modelLock_") && v && new Date(v).getTime() > Date.now(),
       );
+      if (isCooldown) return "unavailable";
       return conn.testStatus === "unavailable" && !isCooldown
         ? "active"
         : conn.testStatus;

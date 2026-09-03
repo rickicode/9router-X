@@ -181,12 +181,7 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
   const [isCooldown, setIsCooldown] = useState(false);
   const [activeLocks, setActiveLocks] = useState([]);
 
-  // Get earliest model lock timestamp (useEffect handles the Date.now() comparison)
-  const modelLockUntil = Object.entries(connection)
-    .filter(([k]) => k.startsWith("modelLock_"))
-    .map(([, v]) => v)
-    .filter(v => !!v)
-    .sort()[0] || null;
+  const hasAnyModelLockKey = Object.keys(connection).some((k) => k.startsWith("modelLock_"));
 
   useEffect(() => {
     const checkCooldown = () => {
@@ -204,11 +199,11 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
     };
 
     checkCooldown();
-    const interval = modelLockUntil ? setInterval(checkCooldown, 1000) : null;
+    const interval = hasAnyModelLockKey ? setInterval(checkCooldown, 1000) : null;
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [connection, modelLockUntil]);
+  }, [connection, hasAnyModelLockKey]);
 
   // Determine effective status (override unavailable if cooldown expired)
   const effectiveStatus = (connection.testStatus === "unavailable" && !isCooldown)

@@ -16,6 +16,7 @@ function getEffectiveStatus(conn) {
   const isCooldown = Object.entries(conn).some(
     ([k, v]) => k.startsWith("modelLock_") && v && new Date(v).getTime() > Date.now()
   );
+  if (isCooldown) return "unavailable";
   return conn.testStatus === "unavailable" && !isCooldown ? "active" : conn.testStatus;
 }
 

@@ -59,9 +59,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   const noProxyText = boundProxyPool?.noProxy || connection.providerSpecificData?.connectionNoProxy || "";
   const proxyBadgeVariant = boundProxyPool?.isActive === true ? "success" : (boundProxyPoolId || hasLegacyProxy) ? "error" : "default";
 
-  const modelLockUntil = Object.entries(connection)
-    .filter(([k]) => k.startsWith("modelLock_"))
-    .map(([, v]) => v).filter(Boolean).sort()[0] || null;
+  const hasAnyModelLock = Object.keys(connection).some((k) => k.startsWith("modelLock_"));
 
   useEffect(() => {
     const check = () => {
@@ -71,9 +69,9 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
       setIsCooldown(!!until);
     };
     check();
-    const t = modelLockUntil ? setInterval(check, 1000) : null;
+    const t = hasAnyModelLock ? setInterval(check, 1000) : null;
     return () => { if (t) clearInterval(t); };
-  }, [modelLockUntil]);
+  }, [connection, hasAnyModelLock]);
 
   useEffect(() => {
     if (!showProxyDropdown) return;
