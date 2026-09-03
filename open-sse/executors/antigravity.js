@@ -136,6 +136,11 @@ export class AntigravityExecutor extends BaseExecutor {
 
   parseError(response, bodyText) {
     const base = super.parseError(response, bodyText);
+    const status = response?.status || 0;
+    const text = String(bodyText || "");
+    if (status === 400 && /user location is not supported/i.test(text)) {
+      base.poolScoped = { reason: "unsupported-region" };
+    }
     return base;
   }
 

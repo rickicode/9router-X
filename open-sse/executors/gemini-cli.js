@@ -37,7 +37,13 @@ export class GeminiCLIExecutor extends BaseExecutor {
   // Parse RetryInfo.retryDelay from Google API 429 body to surface upstream retry hint
   parseError(response, bodyText) {
     const base = super.parseError(response, bodyText);
-    if (response.status !== 429 || !bodyText) return base;
+    const status = response?.status || 0;
+    const text = String(bodyText || "");
+    if (status === 400 && /user location is not supported/i.test(text)) {
+      base.poolScoped = { reason: "unsupported-region" };
+      return base;
+    }
+    if (status !== 429 || !bodyText) return base;
     try {
       const parsed = JSON.parse(bodyText);
       const details = parsed?.error?.details;
