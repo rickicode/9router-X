@@ -8,6 +8,7 @@
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
+!.yarn/sdks
 !.yarn/versions
 
 # testing
@@ -15,18 +16,18 @@
 
 # next.js
 /.next/
-/.next-cli-build/
 /out/
-cli/.build-home/
-product
+
 # production
 /build
-.idea/
 
 # misc
 .DS_Store
 *.pem
-.vscode
+*.key
+*.cert
+*.crt
+*.local
 
 # debug
 npm-debug.log*
@@ -34,9 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-!.env.example
+# env files
+.env*.local
+.env
 
 # vercel
 .vercel
@@ -45,44 +46,26 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.bin/*
+# local persistent database
+/data/
+/data-home/
+/mitm-home/
+mitm-ca.crt
+mitm-ca.key
 data/
-logs/*
-source/*
-.cursor/*
-docs/*
-!docs/ARCHITECTURE.md
-test/*
-open-sse/test/*
-RM.vn.md
-RM.md
-cursor/*
-PUBLIC.md
-Thanks.md
-PUBLIC.en.md
-PR/*
 
-
-#Ignore vscode AI rules
-.github/instructions/codacy.instructions.md
-README1.md
-deploy*.sh
-ecosystem.config.*
-
-scripts/agSniffer/*
-gitbooks/*
-gitbook/README.md
-
-# Refactor backup reference (do not bundle/lint)
-open-sse.old/
-.graphifyignore
-graphify-out/*
-
-# Local-only working dirs (notes, vendored repos, scripts, skills)
+# claude
 .claude/
-.docs/
-.repo/
+.claude.json
+
+# project ai notes
+.playwright-mcp/
+.openlore/
+graphify-out/
 .script/
 .codegraph/
 .PR/
 .next-analyze/*
+
+# Kiro local workspace state
+.kiro/
