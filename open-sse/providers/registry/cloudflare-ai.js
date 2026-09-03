@@ -51,7 +51,10 @@ export default {
     { id: "@cf/runwayml/stable-diffusion-v1-5-img2img", name: "Stable Diffusion v1.5 Img2Img", params: ["size"], capabilities: ["edit"], kind: "image" },
     { id: "@cf/runwayml/stable-diffusion-v1-5-inpainting", name: "Stable Diffusion v1.5 Inpainting", params: ["size"], capabilities: ["edit","mask"], kind: "image" },
     { id: "@cf/stabilityai/stable-diffusion-xl-base-1.0", name: "SDXL Base 1.0", params: ["size"], kind: "image" },
+    { id: "@cf/baai/bge-large-en-v1.5", name: "BGE Large EN v1.5", dimensions: 1024, kind: "embedding" },
+    { id: "@cf/baai/bge-base-en-v1.5", name: "BGE Base EN v1.5", dimensions: 768, kind: "embedding" },
+    { id: "@cf/baai/bge-small-en-v1.5", name: "BGE Small EN v1.5", dimensions: 384, kind: "embedding" },
   ],
-  serviceKinds: ["llm","image"],
+  serviceKinds: ["llm","image","embedding"],
   imageConfig: { baseUrl: "https://api.cloudflare.com/client/v4/accounts" },
 };
