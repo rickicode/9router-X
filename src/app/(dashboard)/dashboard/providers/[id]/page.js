@@ -970,16 +970,18 @@ export default function ProviderDetailPage() {
     setShowBulkProxyModal(false);
   };
 
-  const applyProxyAssignments = async (assignments, rotationStrategy = "none") => {
+  const applyProxyAssignments = async (assignments, rotationStrategy = "none", targetGroup = null) => {
     setBulkUpdatingProxy(true);
     try {
       let failed = 0;
       const activePoolIds = proxyPools.filter((pool) => pool.isActive === true).map((pool) => pool.id);
       for (const { connectionId, proxyPoolId } of assignments) {
         try {
-          const payload = rotationStrategy === "none"
-            ? { proxyPoolId }
-            : { proxyPoolIds: activePoolIds, proxyRotationStrategy: rotationStrategy };
+          const payload = targetGroup
+            ? { proxyGroup: targetGroup, proxyRotationStrategy: rotationStrategy || "round-robin", proxyPoolIds: [] }
+            : (rotationStrategy === "none"
+              ? { proxyPoolId, proxyGroup: null }
+              : { proxyPoolIds: activePoolIds, proxyRotationStrategy: rotationStrategy, proxyGroup: null });
           const res = await fetch("/api/providers/" + connectionId, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -998,6 +1000,14 @@ export default function ProviderDetailPage() {
     } finally {
       setBulkUpdatingProxy(false);
     }
+  };
+
+  const handleApplyGroup = (groupName) => {
+    return applyProxyAssignments(
+      connections.map((c) => ({ connectionId: c.id })),
+      bulkProxyRotationStrategy === "none" ? "round-robin" : bulkProxyRotationStrategy,
+      groupName
+    );
   };
 
   const handleApplySinglePool = (proxyPoolId) => {
@@ -1069,10 +1079,11 @@ export default function ProviderDetailPage() {
                       ? {
                           proxyPoolIds: proxyConfig.proxyPoolIds || [],
                           proxyRotationStrategy: proxyConfig.proxyRotationStrategy || "none",
+                          proxyGroup: proxyConfig.proxyGroup !== undefined ? proxyConfig.proxyGroup : undefined,
                         }
                       : {
-                          // Legacy single-proxy format
                           proxyPoolId: proxyConfig || null,
+                          proxyGroup: null,
                         };
 
                     const res = await fetch(`/api/providers/${conn.id}`, {
@@ -1090,8 +1101,10 @@ export default function ProviderDetailPage() {
                                 ...(updatePayload.proxyPoolIds !== undefined ? {
                                   proxyPoolIds: updatePayload.proxyPoolIds,
                                   proxyRotationStrategy: updatePayload.proxyRotationStrategy,
+                                  proxyGroup: updatePayload.proxyGroup,
                                 } : {
                                   proxyPoolId: updatePayload.proxyPoolId,
+                                  proxyGroup: null,
                                 })
                               } 
                             }
@@ -1170,6 +1183,34 @@ export default function ProviderDetailPage() {
             <span className="material-symbols-outlined text-text-muted text-[18px]">link_off</span>
             <span className="text-sm text-text-main">None (unbind all)</span>
           </button>
+
+          {/* Group Options */}
+          {(() => {
+            const grpSet = new Set();
+            (proxyPools || []).forEach(p => { if (p.group?.trim()) grpSet.add(p.group.trim()); });
+            const groups = [...grpSet].sort();
+            if (groups.length === 0) return null;
+            return (
+              <div className="my-1 border-y border-border py-1">
+                <p className="px-3 py-1 text-[11px] font-medium text-text-muted uppercase">Bind by Group</p>
+                {groups.map(grp => {
+                  const cnt = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === grp.toLowerCase()).length;
+                  return (
+                    <button
+                      key={grp}
+                      onClick={() => handleApplyGroup(grp)}
+                      disabled={bulkUpdatingProxy}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">folder_special</span>
+                      <span className="truncate text-sm font-medium">Group: {grp}</span>
+                      <span className="ml-auto text-xs opacity-75">({cnt} pools)</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {proxyPools.map((pool) => (
             <button
               key={pool.id}

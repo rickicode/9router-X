@@ -1,4 +1,4 @@
-import { getProxyPoolById } from "@/models";
+import { getProxyPoolById, getProxyPools } from "@/models";
 import { ensurePoolFitnessHydrated, fitPoolIds } from "open-sse/services/proxyPoolFitness.js";
 
 // Safely normalize any value into a trimmed string.
@@ -91,9 +91,21 @@ export async function resolveConnectionProxyConfig(
 ) {
   try {
     await ensurePoolFitnessHydrated();
-    // Handle new multi-proxy format
-    const proxyPoolIds = providerSpecificData?.proxyPoolIds || [];
-    const proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
+    // Handle new multi-proxy format & proxy group
+    let proxyPoolIds = providerSpecificData?.proxyPoolIds ? [...providerSpecificData.proxyPoolIds] : [];
+    let proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
+    const proxyGroup = normalizeString(providerSpecificData?.proxyGroup);
+
+    if (proxyGroup) {
+      const allPools = await getProxyPools({ isActive: true });
+      const groupPools = allPools.filter((p) => normalizeString(p.group).toLowerCase() === proxyGroup.toLowerCase());
+      if (groupPools.length > 0) {
+        proxyPoolIds = groupPools.map((p) => p.id);
+        if (proxyRotationStrategy === "none") {
+          proxyRotationStrategy = "round-robin";
+        }
+      }
+    }
     
     // Handle legacy single-proxy format
     const legacyProxyPoolId = normalizeString(providerSpecificData?.proxyPoolId);

@@ -33,6 +33,10 @@ function normalizeProxyPoolUpdate(body = {}) {
     updates.isActive = body?.isActive === true;
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "group")) {
+    updates.group = typeof body?.group === "string" ? body.group.trim() : "";
+  }
+
   if (Object.prototype.hasOwnProperty.call(body, "strictProxy")) {
     updates.strictProxy = body?.strictProxy === true;
   }

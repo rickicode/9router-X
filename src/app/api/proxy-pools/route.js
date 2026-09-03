@@ -15,6 +15,7 @@ function normalizeProxyPoolInput(body = {}) {
   const proxyUrl = typeof body?.proxyUrl === "string" ? body.proxyUrl.trim() : "";
   const noProxy = typeof body?.noProxy === "string" ? body.noProxy.trim() : "";
   const isActive = body?.isActive === undefined ? true : body.isActive === true;
+  const group = typeof body?.group === "string" ? body.group.trim() : "";
   const strictProxy = body?.strictProxy === true;
   const type = VALID_PROXY_TYPES.includes(body?.type) ? body.type : "http";
 
@@ -26,7 +27,7 @@ function normalizeProxyPoolInput(body = {}) {
     return { error: "Proxy URL is required" };
   }
 
-  return { name, proxyUrl, noProxy, isActive, strictProxy, type };
+  return { name, proxyUrl, noProxy, isActive, strictProxy, type, group };
 }
 
 function buildUsageMap(connections = []) {

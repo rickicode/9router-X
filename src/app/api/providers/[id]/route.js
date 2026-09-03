@@ -53,9 +53,19 @@ async function normalizeProxyPoolUpdate(body) {
       hasProxyPoolField: true,
       proxyPoolIds: proxyPoolIds.filter(Boolean),
       proxyRotationStrategy,
+      proxyGroup: typeof body.proxyGroup === "string" ? body.proxyGroup.trim() : (body.proxyGroup === null ? null : undefined),
     };
   }
   
+  // Handle explicit proxyGroup update without proxyPoolIds
+  if (body.proxyGroup !== undefined && body.proxyPoolIds === undefined && body.proxyPoolId === undefined) {
+    return {
+      hasProxyPoolField: true,
+      proxyGroup: typeof body.proxyGroup === "string" ? body.proxyGroup.trim() : null,
+      proxyRotationStrategy: body.proxyRotationStrategy || "round-robin",
+    };
+  }
+
   // Handle legacy single proxy format
   const proxyPoolIdInput = body.proxyPoolId;
   if (proxyPoolIdInput === undefined) {
@@ -171,6 +181,14 @@ export async function PUT(request, { params }) {
       }
 
       if (proxyPoolResult.hasProxyPoolField) {
+        // Handle proxy group
+        if (proxyPoolResult.proxyGroup !== undefined) {
+          if (proxyPoolResult.proxyGroup) {
+            updateData.providerSpecificData.proxyGroup = proxyPoolResult.proxyGroup;
+          } else {
+            delete updateData.providerSpecificData.proxyGroup;
+          }
+        }
         // Handle new multi-proxy format
         if (proxyPoolResult.proxyPoolIds !== undefined) {
           updateData.providerSpecificData.proxyPoolIds = proxyPoolResult.proxyPoolIds;

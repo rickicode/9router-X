@@ -22,6 +22,7 @@ function normalizeFormData(data = {}) {
     name: data.name || "",
     proxyUrl: data.proxyUrl || "",
     noProxy: data.noProxy || "",
+    group: data.group || "",
     isActive: data.isActive !== false,
     strictProxy: data.strictProxy === true,
   };
@@ -40,6 +41,7 @@ export default function ProxyPoolsPage() {
   const [editingProxyPool, setEditingProxyPool] = useState(null);
   const [formData, setFormData] = useState(normalizeFormData());
   const [batchImportText, setBatchImportText] = useState("");
+  const [batchImportGroup, setBatchImportGroup] = useState("");
   const [vercelForm, setVercelForm] = useState({ vercelToken: "", projectName: "vercel-relay" });
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: "", apiToken: "", projectName: "cloudflare-relay" });
   const [cloudflareBulkText, setCloudflareBulkText] = useState("");
@@ -116,6 +118,7 @@ export default function ProxyPoolsPage() {
       name: formData.name.trim(),
       proxyUrl: formData.proxyUrl.trim(),
       noProxy: formData.noProxy.trim(),
+      group: formData.group.trim(),
       isActive: formData.isActive === true,
       strictProxy: formData.strictProxy === true,
     };
@@ -229,7 +232,8 @@ export default function ProxyPoolsPage() {
         const matchName = (pool.name || "").toLowerCase().includes(q);
         const matchUrl = (pool.proxyUrl || "").toLowerCase().includes(q);
         const matchNoProxy = (pool.noProxy || "").toLowerCase().includes(q);
-        return matchName || matchUrl || matchNoProxy;
+        const matchGroup = (pool.group || "").toLowerCase().includes(q);
+        return matchName || matchUrl || matchNoProxy || matchGroup;
       }
 
       return true;
@@ -659,6 +663,7 @@ export default function ProxyPoolsPage() {
             name: entry.name,
             proxyUrl: entry.proxyUrl,
             noProxy: "",
+            group: batchImportGroup.trim(),
             isActive: true,
           }),
         });
@@ -918,6 +923,11 @@ export default function ProxyPoolsPage() {
                     {pool.type === "cloudflare" && (
                       <Badge variant="default" size="sm">cloudflare relay</Badge>
                     )}
+                    {pool.group && (
+                      <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+                        grp: {pool.group}
+                      </span>
+                    )}
                     <Badge variant="default" size="sm">
                       {pool.boundConnectionCount || 0} bound
                     </Badge>
@@ -982,6 +992,16 @@ export default function ProxyPoolsPage() {
         <div className="flex flex-col gap-4">
           <div>
             <label className="text-sm font-medium text-text-main mb-1 block">Paste Proxy List (One per line)</label>
+            <div className="mb-3">
+              <label className="text-xs font-medium text-text-muted mb-1 block">Group Name (Optional)</label>
+              <input
+                type="text"
+                value={batchImportGroup}
+                onChange={(e) => setBatchImportGroup(e.target.value)}
+                placeholder="e.g. indo, us, residential"
+                className="w-full py-1.5 px-3 text-xs text-text-main bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md focus:border-primary focus:outline-none"
+              />
+            </div>
             <textarea
               value={batchImportText}
               onChange={(e) => setBatchImportText(e.target.value)}
@@ -1254,6 +1274,13 @@ export default function ProxyPoolsPage() {
             onChange={(e) => setFormData((prev) => ({ ...prev, noProxy: e.target.value }))}
             placeholder="localhost,127.0.0.1,.internal"
             hint="Comma-separated hosts/domains to bypass proxy"
+          />
+          <Input
+            label="Proxy Group"
+            value={formData.group}
+            onChange={(e) => setFormData((prev) => ({ ...prev, group: e.target.value }))}
+            placeholder="e.g. indo, us, residential, gemini-pool"
+            hint="Assign this proxy to a group. Accounts can route through all proxies in a group."
           />
 
           <div className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 sm:flex-row sm:items-center sm:justify-between">

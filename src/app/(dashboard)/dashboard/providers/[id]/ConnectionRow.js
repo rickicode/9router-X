@@ -11,6 +11,7 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const [selectedProxyIds, setSelectedProxyIds] = useState([]);
   const [rotationStrategy, setRotationStrategy] = useState("none");
+  const [selectedGroup, setSelectedGroup] = useState("");
   const proxyDropdownRef = useRef(null);
 
   // Initialize proxy state from connection
@@ -26,10 +27,18 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
         setSelectedProxyIds(proxyPoolIds);
       }
       setRotationStrategy(connection.providerSpecificData?.proxyRotationStrategy || "none");
+      setSelectedGroup(connection.providerSpecificData?.proxyGroup || "");
     });
   }, [connection]);
 
   const proxyPoolMap = new Map((proxyPools || []).map((pool) => [pool.id, pool]));
+  const availableGroups = useMemo(() => {
+    const s = new Set();
+    (proxyPools || []).forEach(p => {
+      if (p.group && typeof p.group === "string" && p.group.trim()) s.add(p.group.trim());
+    });
+    return [...s].sort();
+  }, [proxyPools]);
   
   // Display logic - support both new (multi-proxy) and legacy (single proxy) formats
   const hasLegacyProxy = connection.providerSpecificData?.connectionProxyEnabled === true && !!connection.providerSpecificData?.connectionProxyUrl;
@@ -41,6 +50,12 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
     if (selectedProxyIds.length === 1) {
       const pool = proxyPoolMap.get(selectedProxyIds[0]);
       return pool ? `Pool: ${pool.name}` : `Pool: ${selectedProxyIds[0]} (inactive/missing)`;
+    }
+    
+    if (selectedGroup) {
+      const grpPools = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === selectedGroup.toLowerCase());
+      const strategyLabel = rotationStrategy === "random" ? "Random" : rotationStrategy === "failover" ? "Failover" : rotationStrategy === "smart" ? "Smart" : "Round Robin";
+      return `Group: ${selectedGroup} (${grpPools.length} pools, ${strategyLabel})`;
     }
     
     if (selectedProxyIds.length > 1) {
@@ -139,8 +154,9 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
     setUpdatingProxy(true);
     try {
       await onUpdateProxy({
-        proxyPoolIds: selectedProxyIds,
+        proxyPoolIds: selectedGroup ? [] : selectedProxyIds,
         proxyRotationStrategy: rotationStrategy,
+        proxyGroup: selectedGroup || null,
       });
       setShowProxyDropdown(false);
     } finally {
@@ -346,6 +362,37 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
               </button>
               {showProxyDropdown && (
                 <div className="absolute left-0 top-full z-50 mt-1 max-w-[calc(100vw-2rem)] min-w-[280px] rounded-lg border border-border bg-bg shadow-lg sm:left-auto sm:right-0">
+                  {/* Group Selector */}
+                  {availableGroups.length > 0 && (
+                    <div className="border-b border-border p-3 bg-black/[0.01] dark:bg-white/[0.01]">
+                      <label className="block text-xs font-medium text-text-muted mb-1.5">Proxy Group</label>
+                      <select
+                        value={selectedGroup}
+                        onChange={(e) => {
+                          const grp = e.target.value;
+                          setSelectedGroup(grp);
+                          if (grp) {
+                            const grpPools = (proxyPools || []).filter(p => p.isActive && p.group && p.group.toLowerCase() === grp.toLowerCase()).map(p => p.id);
+                            setSelectedProxyIds(grpPools);
+                            if (rotationStrategy === "none") setRotationStrategy("round-robin");
+                          }
+                        }}
+                        className="w-full rounded border border-border bg-bg px-2 py-1.5 text-sm text-text-main focus:border-primary focus:outline-none"
+                      >
+                        <option value="">None (Select individual proxies)</option>
+                        {availableGroups.map((grp) => {
+                          const count = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === grp.toLowerCase()).length;
+                          return (
+                            <option key={grp} value={grp}>{grp} ({count} proxies)</option>
+                          );
+                        })}
+                      </select>
+                      {selectedGroup && (
+                        <p className="mt-1 text-[10px] text-primary">Dynamic: All active proxies in group &quot;{selectedGroup}&quot; will be routed automatically.</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Rotation Strategy Selector */}
                   <div className="border-b border-border p-3">
                     <label className="block text-xs font-medium text-text-muted mb-2">Rotation Strategy</label>
