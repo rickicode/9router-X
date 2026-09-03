@@ -41,6 +41,9 @@ export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 // Hard cap for provider-reported rate limit cooldown (defaults to 7 days for long upstream reset windows)
 export const MAX_RATE_LIMIT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
+export const MAX_FALLBACK_ATTEMPTS = 10;
+
 // Cooldown durations (ms)
 const COOLDOWN = {
   permanentAuth: 3 * 24 * 60 * 60 * 1000, // 3 days for auth/permission/ineligible errors
@@ -60,6 +63,13 @@ const COOLDOWN = {
  */
 export const ERROR_RULES = [
   // --- Text-based rules (checked first, order = priority) ---
+  // Model-level restrictions (do NOT lock other models on the same account)
+  { text: "not available on the workers free plan", cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+  { text: "upgrade to access this model",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+  { text: "plan does not include",                 cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+  { text: "not supported for your plan",           cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+  { text: "model not supported for tier",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+
   { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission_denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
