@@ -98,7 +98,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   };
 
   return (
-    <div className={`group flex flex-col gap-3 p-2 rounded-lg sm:flex-row sm:items-center sm:justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors ${connection.isActive === false ? "opacity-60" : ""}`}>
+    <div className={`group flex flex-col gap-3 p-2 rounded-lg sm:flex-row sm:items-center sm:justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors ${connection.isActive === false ? "opacity-60" : ""} ${showProxyDropdown ? "relative z-30" : ""}`}>
       <div className="flex w-full min-w-0 flex-1 items-start gap-3 sm:items-center">
         <div className="flex flex-col">
           <button onClick={onMoveUp} disabled={isFirst} className={`p-0.5 rounded ${isFirst ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-sidebar text-text-muted hover:text-primary"}`}>
@@ -134,7 +134,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
       <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
         <div className="flex flex-wrap gap-1">
           {(proxyPools || []).length > 0 && (
-            <div className="relative" ref={proxyDropdownRef}>
+            <div className={`relative ${showProxyDropdown ? "z-50" : ""}`} ref={proxyDropdownRef}>
               <button
                 onClick={() => setShowProxyDropdown((v) => !v)}
                 className={`flex flex-col items-center px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${hasAnyProxy ? "text-primary" : "text-text-muted hover:text-primary"}`}
@@ -441,7 +441,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
           </div>
         ) : (
           <>
-            <div className="flex flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] max-h-[500px] overflow-y-auto pr-1">
+            <div className={`flex flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] ${connections.length > 5 ? "max-h-[500px] overflow-y-auto pr-1" : "overflow-visible"}`}>
               {connections.map((conn, idx) => (
                 <ConnectionRow
                   key={conn.id}

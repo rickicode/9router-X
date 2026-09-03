@@ -1035,10 +1035,10 @@ export default function ProviderDetailPage() {
   const isSelected = (connectionId) => selectedConnectionIds.includes(connectionId);
 
   const connectionsList = (
-    <div className="flex min-w-0 flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] max-h-[500px] overflow-y-auto pr-1">
+    <div className={`flex min-w-0 flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] ${connections.length > 5 ? "max-h-[500px] overflow-y-auto pr-1" : "overflow-visible"}`}>
       {connections
         .map((conn, index) => (
-          <div key={conn.id} className="flex min-w-0 items-stretch">
+          <div key={conn.id} className="flex min-w-0 items-stretch relative">
             <div className="flex shrink-0 items-center pl-1 sm:pl-2">
               <input
                 type="checkbox"
