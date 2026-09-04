@@ -1,7 +1,10 @@
 services:
   9router-x:
-    image: ghcr.io/rickicode/9router-x:latest
+    image: 9router-x:latest
     container_name: 9router-x
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: always
     ports:
       - "20128:20128"
@@ -13,10 +16,18 @@ services:
       DATA_DIR: /app/data
       PORT: "20128"
       HOSTNAME: "0.0.0.0"
+      TZ: Asia/Jakarta
       NODE_ENV: production
-      HEADROOM_URL: http://host.docker.internal:8787
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      HEADROOM_URL: http://headroom:8787
+    depends_on:
+      - headroom
+
+  headroom:
+    image: ghcr.io/chopratejas/headroom:latest
+    container_name: headroom
+    restart: always
+    ports:
+      - "8787:8787"
 
 volumes:
   9router-data:
