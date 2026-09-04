@@ -302,12 +302,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
   const reason = typeof errorText === "string" ? errorText.slice(0, 100) : "Provider error";
-  const lockTargetModel = (lockAll || githubResetAtMs) ? null : model;
+  const isAccountWideLock = Boolean(lockAll || githubResetAtMs);
+  const lockTargetModel = isAccountWideLock ? null : model;
   const lockUpdate = buildModelLockUpdate(lockTargetModel, cooldownMs);
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
-    testStatus: "unavailable",
+    testStatus: isAccountWideLock ? "unavailable" : (conn?.testStatus || "active"),
     lastError: reason,
     errorCode: status,
     lastErrorAt: new Date().toISOString(),
@@ -360,15 +361,18 @@ export async function clearAccountError(connectionId, currentConnection, model =
 
   const clearObj = Object.fromEntries(keysToClear.map(k => [k, null]));
 
-  // Only reset error state if no active locks remain
-  if (remainingActiveLocks.length === 0) {
-    Object.assign(clearObj, {
-      testStatus: "active",
-      lastError: null,
-      errorCode: null,
-      lastErrorAt: null,
-      backoffLevel: 0
-    });
+  // Reset testStatus to active if no account-wide lock (modelLock___all) is active
+  const hasActiveAccountLock = Boolean(conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now);
+  if (!hasActiveAccountLock) {
+    clearObj.testStatus = "active";
+    if (remainingActiveLocks.length === 0) {
+      Object.assign(clearObj, {
+        lastError: null,
+        errorCode: null,
+        lastErrorAt: null,
+        backoffLevel: 0
+      });
+    }
   }
 
   await updateProviderConnection(connectionId, clearObj);

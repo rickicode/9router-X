@@ -177,14 +177,19 @@ export default function ProvidersPage() {
     );
 
     const getEffectiveStatus = (conn) => {
-      const isCooldown = Object.entries(conn).some(
-        ([k, v]) =>
-          k.startsWith("modelLock_") && v && new Date(v).getTime() > Date.now(),
+      const now = Date.now();
+      const isAccountLock = Boolean(conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now);
+      if (isAccountLock) return "unavailable";
+      if (conn.isActive === false) return "disabled";
+
+      // If testStatus was marked unavailable but only per-model locks exist (e.g. Claude 429 on Antigravity),
+      // the account is still alive and serving other models.
+      const hasFatal = Boolean(
+        conn.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(conn.lastError)
       );
-      if (isCooldown) return "unavailable";
-      return conn.testStatus === "unavailable" && !isCooldown
-        ? "active"
-        : conn.testStatus;
+      if (hasFatal) return "unavailable";
+
+      return "active";
     };
 
     const connected = providerConnections.filter((c) => {
