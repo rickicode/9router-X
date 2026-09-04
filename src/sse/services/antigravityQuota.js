@@ -6,6 +6,8 @@
 
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { getAntigravityUsage } from "open-sse/services/usage/google.js";
+import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
+import { publishEvent } from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
 
 // In-memory cache: connectionId → { [modelId]: { remainingPercentage, resetAt } }
@@ -121,7 +123,40 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
     // Update in-memory cache. Caller logs CACHE_BLOCK only if requested model is exhausted.
     // Strike blocks are re-asserted after every refresh so an optimistic
     // upstream reading cannot resurrect a pair we just circuit-broke.
-    quotaCache.set(connectionId, applyActiveStrikeBlocks(connectionId, usage.quotas));
+    const finalQuotas = applyActiveStrikeBlocks(connectionId, usage.quotas);
+    quotaCache.set(connectionId, finalQuotas);
+
+    // Write-through to PostgreSQL and publish event to Redis (Decision #10 & Phase 3)
+    let minRemaining = null;
+    let earliestReset = null;
+    for (const q of Object.values(finalQuotas)) {
+      if (typeof q?.remainingPercentage === "number") {
+        if (minRemaining === null || q.remainingPercentage < minRemaining) {
+          minRemaining = q.remainingPercentage;
+        }
+      }
+      if (q?.resetAt) {
+        if (!earliestReset || new Date(q.resetAt).getTime() < new Date(earliestReset).getTime()) {
+          earliestReset = q.resetAt;
+        }
+      }
+    }
+
+    upsertUsageSnapshot({
+      connectionId,
+      provider: "antigravity",
+      plan: usage.plan || "free",
+      quotas: finalQuotas,
+      remainingPct: minRemaining,
+      resetAt: earliestReset,
+    }).catch(() => {});
+
+    publishEvent("9router:events", {
+      type: "quota_updated",
+      connectionId,
+      provider: "antigravity",
+      quotas: finalQuotas,
+    }).catch(() => {});
 
     return usage.quotas;
   } catch (e) {

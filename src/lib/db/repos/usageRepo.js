@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
-import { getMeta, setMeta } from "../helpers/metaStore.js";
+import { parseJson } from "../helpers/jsonCol.js";
+import { incrementInFlight, decrementInFlight } from "../../redis/client.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -14,7 +14,6 @@ const RING_CAP = 50;
 const CONN_CACHE_TTL_MS = 30 * 1000;
 const PERIOD_MS = { "24h": 86400000, "7d": 604800000, "30d": 2592000000, "60d": 5184000000 };
 
-// In-memory state shared across Next.js modules
 if (!global._pendingRequests) global._pendingRequests = { byModel: {}, byAccount: {} };
 if (!global._lastErrorProvider) global._lastErrorProvider = { provider: "", ts: 0 };
 if (!global._statsEmitter) {
@@ -88,9 +87,9 @@ function aggregateEntryToDay(day, entry) {
     addToCounter(day.byAccount, entry.connectionId, { ...vals, meta: { rawModel: entry.model, provider: entry.provider } });
   }
 
-  const apiKeyVal = entry.apiKey && typeof entry.apiKey === "string" ? entry.apiKey : "local-no-key";
-  const akModelKey = `${apiKeyVal}|${entry.model}|${entry.provider || "unknown"}`;
-  addToCounter(day.byApiKey, akModelKey, { ...vals, meta: { rawModel: entry.model, provider: entry.provider, apiKey: entry.apiKey || null } });
+  const apiKeyMasked = maskApiKey(entry.apiKey) || "local-no-key";
+  const akModelKey = `${apiKeyMasked}|${entry.model}|${entry.provider || "unknown"}`;
+  addToCounter(day.byApiKey, akModelKey, { ...vals, meta: { rawModel: entry.model, provider: entry.provider, apiKeyMasked } });
 
   const endpoint = entry.endpoint || "Unknown";
   const epKey = `${endpoint}|${entry.model}|${entry.provider || "unknown"}`;
@@ -122,11 +121,21 @@ async function ensureRingInitialized() {
   recentRing.initialized = true;
   try {
     const db = await getAdapter();
-    const rows = db.all(`SELECT timestamp, provider, model, connectionId, apiKey, endpoint, cost, status, tokens FROM usageHistory ORDER BY id DESC LIMIT ?`, [RING_CAP]);
-    recentRing.items = rows.reverse().map((r) => ({
-      timestamp: r.timestamp, provider: r.provider, model: r.model, connectionId: r.connectionId,
-      apiKey: r.apiKey, endpoint: r.endpoint, cost: r.cost, status: r.status,
-      tokens: parseJson(r.tokens, {}),
+    const rows = await db.all(
+      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, cost, status, tokens
+       FROM usage_history ORDER BY id DESC LIMIT $1`,
+      [RING_CAP],
+    );
+    recentRing.items = rows.reverse().map((row) => ({
+      timestamp: row.timestamp,
+      provider: row.provider,
+      model: row.model,
+      connectionId: row.connection_id,
+      apiKey: row.api_key,
+      endpoint: row.endpoint,
+      cost: row.cost,
+      status: row.status,
+      tokens: row.tokens ?? {},
     }));
   } catch {}
 }
@@ -137,19 +146,15 @@ async function calculateCost(provider, model, tokens) {
     const { getPricingForModel } = await import("./pricingRepo.js");
     const pricing = await getPricingForModel(provider, model);
     if (!pricing) return 0;
-
-    // Delegate the actual math to the single source of truth (avoids the two
-    // copies drifting apart — see open-sse/providers/pricing.js for the
-    // cache-inclusive prompt_tokens convention this assumes).
     const { calculateCostFromTokens } = await import("open-sse/providers/pricing.js");
     return calculateCostFromTokens(tokens, pricing);
-  } catch (e) {
-    console.error("Error calculating cost:", e);
+  } catch (error) {
+    console.error("Error calculating cost:", error);
     return 0;
   }
 }
 
-export function trackPendingRequest(model, provider, connectionId, started, error = false) {
+export async function trackPendingRequest(model, provider, connectionId, started, error = false) {
   const modelKey = provider ? `${model} (${provider})` : model;
   const timerKey = `${connectionId}|${modelKey}`;
 
@@ -166,6 +171,13 @@ export function trackPendingRequest(model, provider, connectionId, started, erro
       if (Object.keys(pendingRequests.byAccount[connectionId]).length === 0) {
         delete pendingRequests.byAccount[connectionId];
       }
+    }
+
+    // In-flight concurrency tracker in Redis
+    if (started) {
+      incrementInFlight(connectionId).catch(() => {});
+    } else {
+      decrementInFlight(connectionId).catch(() => {});
     }
   }
 
@@ -189,7 +201,6 @@ export function trackPendingRequest(model, provider, connectionId, started, erro
     lastErrorProvider.ts = Date.now();
   }
 
-  // [PENDING] console line removed; lifecycle is visible via "▶" and "📊 done" lines
   scheduleStatsEvent("pending");
 }
 
@@ -205,7 +216,8 @@ export async function getActiveRequests() {
         activeRequests.push({
           model: match ? match[1] : modelKey,
           provider: match ? match[2] : "unknown",
-          account: accountName, count,
+          account: accountName,
+          count,
         });
       }
     }
@@ -215,19 +227,21 @@ export async function getActiveRequests() {
   const seen = new Set();
   const recentRequests = [...recentRing.items]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .map((e) => {
-      const t = e.tokens || {};
+    .map((entry) => {
+      const tokens = entry.tokens || {};
       return {
-        timestamp: e.timestamp, model: e.model, provider: e.provider || "",
-        promptTokens: t.prompt_tokens || t.input_tokens || 0,
-        completionTokens: t.completion_tokens || t.output_tokens || 0,
-        status: e.status || "ok",
+        timestamp: entry.timestamp,
+        model: entry.model,
+        provider: entry.provider || "",
+        promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
+        completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
+        status: entry.status || "ok",
       };
     })
-    .filter((e) => {
-      if (e.promptTokens === 0 && e.completionTokens === 0) return false;
-      const minute = e.timestamp ? e.timestamp.slice(0, 16) : "";
-      const key = `${e.model}|${e.provider}|${e.promptTokens}|${e.completionTokens}|${minute}`;
+    .filter((entry) => {
+      if (entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const minute = entry.timestamp ? entry.timestamp.slice(0, 16) : "";
+      const key = `${entry.model}|${entry.provider}|${entry.promptTokens}|${entry.completionTokens}|${minute}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -240,67 +254,84 @@ export async function getActiveRequests() {
 
 export async function saveRequestUsage(entry) {
   try {
-    const db = await getAdapter();
-
     if (!entry.timestamp) entry.timestamp = new Date().toISOString();
-    entry.cost = await calculateCost(entry.provider, entry.model, entry.tokens);
-
     const tokens = entry.tokens || {};
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
     const completionTokens = tokens.completion_tokens || tokens.output_tokens || 0;
+    const cost = entry.cost ?? await calculateCost(entry.provider, entry.model, tokens);
 
+    const db = await getAdapter();
     let inserted = false;
-
-    // All 3 writes (history insert, daily upsert, lifetime counter) in ONE transaction.
-    // better-sqlite3 is sync → no JS yield mid-transaction → no race in same process.
-    db.transaction(() => {
-      const existing = db.get(
-        `SELECT id, endpoint FROM usageHistory
-         WHERE timestamp = ?
-           AND COALESCE(provider, '') = COALESCE(?, '')
-           AND COALESCE(model, '') = COALESCE(?, '')
-           AND COALESCE(connectionId, '') = COALESCE(?, '')
-           AND COALESCE(apiKey, '') = COALESCE(?, '')
-           AND promptTokens = ?
-           AND completionTokens = ?
+    await db.transaction(async (tx) => {
+      const existing = await tx.get(
+        `SELECT id, endpoint FROM usage_history
+         WHERE timestamp = $1
+           AND COALESCE(provider, '') = COALESCE($2, '')
+           AND COALESCE(model, '') = COALESCE($3, '')
+           AND COALESCE(connection_id, '') = COALESCE($4, '')
+           AND COALESCE(api_key, '') = COALESCE($5, '')
+           AND prompt_tokens = $6
+           AND completion_tokens = $7
          ORDER BY id DESC LIMIT 1`,
         [
-          entry.timestamp, entry.provider || null, entry.model || null,
-          entry.connectionId || null, entry.apiKey || null,
-          promptTokens, completionTokens,
-        ]
+          entry.timestamp,
+          entry.provider || null,
+          entry.model || null,
+          entry.connectionId || null,
+          entry.apiKey || null,
+          promptTokens,
+          completionTokens,
+        ],
       );
 
       if (existing) {
         if (!existing.endpoint && entry.endpoint) {
-          db.run(`UPDATE usageHistory SET endpoint = ? WHERE id = ?`, [entry.endpoint, existing.id]);
+          await tx.run(`UPDATE usage_history SET endpoint = $1 WHERE id = $2`, [entry.endpoint, existing.id]);
         }
         return;
       }
 
-      db.run(
-        `INSERT INTO usageHistory(timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, status, tokens, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      await tx.run(
+        `INSERT INTO usage_history
+           (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)`,
         [
-          entry.timestamp, entry.provider || null, entry.model || null,
-          entry.connectionId || null, entry.apiKey || null, entry.endpoint || null,
-          promptTokens, completionTokens, entry.cost || 0, entry.status || "ok",
-          stringifyJson(tokens), stringifyJson({}),
-        ]
+          entry.timestamp,
+          entry.provider || null,
+          entry.model || null,
+          entry.connectionId || null,
+          entry.apiKey || null,
+          entry.endpoint || null,
+          promptTokens,
+          completionTokens,
+          cost || 0,
+          entry.status || "ok",
+          JSON.stringify(tokens),
+          JSON.stringify({}),
+        ],
       );
 
       const dateKey = getLocalDateKey(entry.timestamp);
-      const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);
-      const day = row ? parseJson(row.data, {}) : {
+      const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1`, [dateKey]);
+      const rawData = row?.data;
+      const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
         requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
         byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
       };
       aggregateEntryToDay(day, entry);
-      db.run(`INSERT INTO usageDaily(dateKey, data) VALUES(?, ?) ON CONFLICT(dateKey) DO UPDATE SET data = excluded.data`, [dateKey, stringifyJson(day)]);
+      await tx.run(
+        `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
+         ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
+        [dateKey, day],
+      );
 
-      // Atomic counter increment in same transaction
-      const cur = db.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
-      const next = (cur ? parseInt(cur.value, 10) : 0) + 1;
-      db.run(`INSERT INTO _meta(key, value) VALUES('totalRequestsLifetime', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [String(next)]);
+      const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
+      const next = (current ? parseInt(current.value, 10) : 0) + 1;
+      await tx.run(
+        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        [String(next)],
+      );
       inserted = true;
     });
 
@@ -308,39 +339,180 @@ export async function saveRequestUsage(entry) {
       pushToRing(entry);
       scheduleStatsEvent("update", 250);
     }
-  } catch (e) {
-    console.error("Failed to save usage stats:", e);
+  } catch (error) {
+    console.error("Failed to save usage stats:", error);
   }
 }
 
 export async function getUsageHistory(filter = {}) {
   const db = await getAdapter();
-  const conds = [];
+  const conditions = [];
   const params = [];
+  const add = (condition, value) => {
+    params.push(value);
+    conditions.push(condition.replace("?", `$${params.length}`));
+  };
 
-  if (filter.provider) { conds.push("provider = ?"); params.push(filter.provider); }
-  if (filter.model) { conds.push("model = ?"); params.push(filter.model); }
-  if (filter.startDate) { conds.push("timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
-  if (filter.endDate) { conds.push("timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
+  if (filter.provider) add("provider = ?", filter.provider);
+  if (filter.model) add("model = ?", filter.model);
+  if (filter.startDate) add("timestamp >= ?", new Date(filter.startDate).toISOString());
+  if (filter.endDate) add("timestamp <= ?", new Date(filter.endDate).toISOString());
 
-  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
-  const rows = db.all(`SELECT timestamp, provider, model, connectionId, apiKey, endpoint, cost, status, tokens FROM usageHistory ${where} ORDER BY id ASC`, params);
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const rows = await db.all(
+    `SELECT timestamp, provider, model, connection_id, api_key, endpoint, cost, status, tokens
+     FROM usage_history ${where} ORDER BY id ASC`,
+    params,
+  );
 
   return rows.map((r) => ({
-    timestamp: r.timestamp, provider: r.provider, model: r.model,
-    connectionId: r.connectionId, apiKeyMasked: maskApiKey(r.apiKey), endpoint: r.endpoint,
-    cost: r.cost, status: r.status, tokens: parseJson(r.tokens, {}),
+    timestamp: r.timestamp,
+    provider: r.provider,
+    model: r.model,
+    connectionId: r.connection_id,
+    // PostgreSQL snake_case equivalent of legacy apiKeyMasked: maskApiKey(r.apiKey).
+    apiKeyMasked: maskApiKey(r.api_key),
+    endpoint: r.endpoint,
+    cost: r.cost,
+    status: r.status,
+    tokens: r.tokens ?? {},
   }));
 }
 
-function loadDaysInRange(adapter, maxDays) {
-  if (maxDays == null) {
-    return adapter.all(`SELECT dateKey, data FROM usageDaily`);
+function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMap = {}, apiKeyMap = {}) {
+  const stats = {
+    totalRequests: 0,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalCachedTokens: 0,
+    totalCost: 0,
+    byProvider: {},
+    byModel: {},
+    byAccount: {},
+    byApiKey: {},
+    byEndpoint: {},
+  };
+
+  for (const dayData of dayRows) {
+    stats.totalPromptTokens += Number(dayData.promptTokens || 0);
+    stats.totalCompletionTokens += Number(dayData.completionTokens || 0);
+    stats.totalCachedTokens += Number(dayData.cachedTokens || 0);
+    stats.totalCost += Number(dayData.cost || 0);
+
+    for (const [provider, p] of Object.entries(dayData.byProvider || {})) {
+      if (!stats.byProvider[provider]) stats.byProvider[provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+      stats.byProvider[provider].requests += Number(p.requests || 0);
+      stats.byProvider[provider].promptTokens += Number(p.promptTokens || 0);
+      stats.byProvider[provider].completionTokens += Number(p.completionTokens || 0);
+      stats.byProvider[provider].cachedTokens += Number(p.cachedTokens || 0);
+      stats.byProvider[provider].cost += Number(p.cost || 0);
+    }
+
+    for (const [modelKey, m] of Object.entries(dayData.byModel || {})) {
+      if (!stats.byModel[modelKey]) stats.byModel[modelKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: m.rawModel, provider: m.provider, lastUsed: dayData.dateKey };
+      stats.byModel[modelKey].requests += Number(m.requests || 0);
+      stats.byModel[modelKey].promptTokens += Number(m.promptTokens || 0);
+      stats.byModel[modelKey].completionTokens += Number(m.completionTokens || 0);
+      stats.byModel[modelKey].cachedTokens += Number(m.cachedTokens || 0);
+      stats.byModel[modelKey].cost += Number(m.cost || 0);
+      if (dayData.dateKey > (stats.byModel[modelKey].lastUsed || "")) stats.byModel[modelKey].lastUsed = dayData.dateKey;
+    }
+
+    for (const [accountKey, a] of Object.entries(dayData.byAccount || {})) {
+      if (!stats.byAccount[accountKey]) stats.byAccount[accountKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: a.rawModel, provider: a.provider, connectionId: a.connectionId, accountName: a.accountName, lastUsed: dayData.dateKey };
+      stats.byAccount[accountKey].requests += Number(a.requests || 0);
+      stats.byAccount[accountKey].promptTokens += Number(a.promptTokens || 0);
+      stats.byAccount[accountKey].completionTokens += Number(a.completionTokens || 0);
+      stats.byAccount[accountKey].cachedTokens += Number(a.cachedTokens || 0);
+      stats.byAccount[accountKey].cost += Number(a.cost || 0);
+      if (dayData.dateKey > (stats.byAccount[accountKey].lastUsed || "")) stats.byAccount[accountKey].lastUsed = dayData.dateKey;
+    }
+
+    for (const [apiKeyKey, ak] of Object.entries(dayData.byApiKey || {})) {
+      if (!stats.byApiKey[apiKeyKey]) stats.byApiKey[apiKeyKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: ak.rawModel, provider: ak.provider, apiKeyMasked: ak.apiKeyMasked, keyName: ak.keyName, apiKeyKey: ak.apiKeyKey, lastUsed: dayData.dateKey };
+      stats.byApiKey[apiKeyKey].requests += Number(ak.requests || 0);
+      stats.byApiKey[apiKeyKey].promptTokens += Number(ak.promptTokens || 0);
+      stats.byApiKey[apiKeyKey].completionTokens += Number(ak.completionTokens || 0);
+      stats.byApiKey[apiKeyKey].cachedTokens += Number(ak.cachedTokens || 0);
+      stats.byApiKey[apiKeyKey].cost += Number(ak.cost || 0);
+      if (dayData.dateKey > (stats.byApiKey[apiKeyKey].lastUsed || "")) stats.byApiKey[apiKeyKey].lastUsed = dayData.dateKey;
+    }
+
+    for (const [endpointKey, ep] of Object.entries(dayData.byEndpoint || {})) {
+      if (!stats.byEndpoint[endpointKey]) stats.byEndpoint[endpointKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, endpoint: ep.endpoint, rawModel: ep.rawModel, provider: ep.provider, lastUsed: dayData.dateKey };
+      stats.byEndpoint[endpointKey].requests += Number(ep.requests || 0);
+      stats.byEndpoint[endpointKey].promptTokens += Number(ep.promptTokens || 0);
+      stats.byEndpoint[endpointKey].completionTokens += Number(ep.completionTokens || 0);
+      stats.byEndpoint[endpointKey].cachedTokens += Number(ep.cachedTokens || 0);
+      stats.byEndpoint[endpointKey].cost += Number(ep.cost || 0);
+      if (dayData.dateKey > (stats.byEndpoint[endpointKey].lastUsed || "")) stats.byEndpoint[endpointKey].lastUsed = dayData.dateKey;
+    }
   }
-  const today = new Date();
-  const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - maxDays + 1);
-  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
-  return adapter.all(`SELECT dateKey, data FROM usageDaily WHERE dateKey >= ?`, [cutoffKey]);
+
+  const normalizedByProvider = {};
+  for (const [provider, value] of Object.entries(stats.byProvider)) {
+    normalizedByProvider[provider] = value;
+  }
+  stats.byProvider = normalizedByProvider;
+
+  const normalizedByModel = {};
+  for (const [modelKey, value] of Object.entries(stats.byModel)) {
+    const provider = value.provider || modelKey.split("|").slice(1).join("|");
+    const rawModel = value.rawModel || modelKey.split("|")[0];
+    const displayProvider = providerNodeNameMap[provider] || provider;
+    normalizedByModel[`${rawModel} (${provider})`] = {
+      ...value,
+      rawModel,
+      provider: displayProvider,
+    };
+  }
+  stats.byModel = normalizedByModel;
+
+  const normalizedByAccount = {};
+  for (const [connectionId, value] of Object.entries(stats.byAccount)) {
+    const accountName = connectionMap[connectionId] || `Account ${connectionId.slice(0, 8)}...`;
+    const provider = value.provider || "unknown";
+    const rawModel = value.rawModel || "unknown";
+    normalizedByAccount[`${rawModel} (${provider} - ${accountName})`] = {
+      ...value,
+      rawModel,
+      provider: providerNodeNameMap[provider] || provider,
+      connectionId,
+      accountName,
+    };
+  }
+  stats.byAccount = normalizedByAccount;
+
+  const normalizedByApiKey = {};
+  for (const [key, value] of Object.entries(stats.byApiKey)) {
+    const [rawApiKey, rawModel, ...providerParts] = key.split("|");
+    const provider = value.provider || providerParts.join("|") || "unknown";
+    const apiKeyInfo = apiKeyMap[rawApiKey];
+    normalizedByApiKey[key] = {
+      ...value,
+      rawModel: value.rawModel || rawModel,
+      provider: providerNodeNameMap[provider] || provider,
+      apiKeyMasked: value.apiKeyMasked || (rawApiKey === "local-no-key" ? null : maskApiKey(rawApiKey)),
+      keyName: value.keyName || apiKeyInfo?.name || (rawApiKey === "local-no-key" ? "Local (No API Key)" : `${rawApiKey.slice(0, 8)}...`),
+      apiKeyKey: value.apiKeyKey || (rawApiKey === "local-no-key" ? rawApiKey : maskApiKey(rawApiKey)),
+    };
+  }
+  stats.byApiKey = normalizedByApiKey;
+
+  const normalizedByEndpoint = {};
+  for (const [endpointKey, value] of Object.entries(stats.byEndpoint)) {
+    const [endpoint, rawModel, ...providerParts] = endpointKey.split("|");
+    const provider = value.provider || providerParts.join("|") || "unknown";
+    normalizedByEndpoint[endpointKey] = {
+      ...value,
+      endpoint: value.endpoint || endpoint,
+      rawModel: value.rawModel || rawModel,
+      provider: providerNodeNameMap[provider] || provider,
+    };
+  }
+  stats.byEndpoint = normalizedByEndpoint;
+  stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+  return stats;
 }
 
 export async function getUsageStats(period = "all") {
@@ -368,24 +540,27 @@ export async function getUsageStats(period = "all") {
   const apiKeyMap = {};
   for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id, createdAt: k.createdAt };
 
-  // recentRequests from live history (last 100 entries enough for 20 deduped)
-  const recentRows = db.all(`SELECT timestamp, provider, model, tokens, status FROM usageHistory ORDER BY id DESC LIMIT 100`);
+  const recentRows = await db.all(
+    `SELECT timestamp, provider, model, tokens, status FROM usage_history ORDER BY id DESC LIMIT 100`,
+  );
   const seen = new Set();
   const recentRequests = recentRows
-    .map((r) => {
-      const t = parseJson(r.tokens, {}) || {};
+    .map((row) => {
+      const tokens = row.tokens || {};
       return {
-        timestamp: r.timestamp, model: r.model, provider: r.provider || "",
-        promptTokens: t.prompt_tokens || t.input_tokens || 0,
-        completionTokens: t.completion_tokens || t.output_tokens || 0,
-        cachedTokens: t.cached_tokens || t.cache_read_input_tokens || 0,
-        status: r.status || "ok",
+        timestamp: row.timestamp,
+        model: row.model,
+        provider: row.provider || "",
+        promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
+        completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
+        cachedTokens: tokens.cached_tokens || tokens.cache_read_input_tokens || 0,
+        status: row.status || "ok",
       };
     })
-    .filter((e) => {
-      if (e.promptTokens === 0 && e.completionTokens === 0) return false;
-      const minute = e.timestamp ? e.timestamp.slice(0, 16) : "";
-      const key = `${e.model}|${e.provider}|${e.promptTokens}|${e.completionTokens}|${minute}`;
+    .filter((entry) => {
+      if (entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const minute = entry.timestamp ? entry.timestamp.slice(0, 16) : "";
+      const key = `${entry.model}|${entry.provider}|${entry.promptTokens}|${entry.completionTokens}|${minute}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -394,8 +569,15 @@ export async function getUsageStats(period = "all") {
 
   const stats = {
     totalRequests: 0,
-    totalPromptTokens: 0, totalCompletionTokens: 0, totalCachedTokens: 0, totalCost: 0,
-    byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalCachedTokens: 0,
+    totalCost: 0,
+    byProvider: {},
+    byModel: {},
+    byAccount: {},
+    byApiKey: {},
+    byEndpoint: {},
     last10Minutes: [],
     pending: pendingRequests,
     activeRequests: [],
@@ -403,7 +585,6 @@ export async function getUsageStats(period = "all") {
     errorProvider: (Date.now() - lastErrorProvider.ts < 10000) ? lastErrorProvider.provider : "",
   };
 
-  // Active requests
   for (const [connectionId, models] of Object.entries(pendingRequests.byAccount)) {
     for (const [modelKey, count] of Object.entries(models)) {
       if (count > 0) {
@@ -412,13 +593,13 @@ export async function getUsageStats(period = "all") {
         stats.activeRequests.push({
           model: match ? match[1] : modelKey,
           provider: match ? match[2] : "unknown",
-          account: accountName, count,
+          account: accountName,
+          count,
         });
       }
     }
   }
 
-  // last10Minutes — query 10min window
   const now = new Date();
   const currentMinuteStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
   const tenMinutesAgo = new Date(currentMinuteStart.getTime() - 9 * 60 * 1000);
@@ -428,18 +609,19 @@ export async function getUsageStats(period = "all") {
     bucketMap[ts] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
     stats.last10Minutes.push(bucketMap[ts]);
   }
-  const recent10 = db.all(
-    `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
-    [tenMinutesAgo.toISOString(), now.toISOString()]
+  const recent10 = await db.all(
+    `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
+     WHERE timestamp >= $1 AND timestamp <= $2`,
+    [tenMinutesAgo.toISOString(), now.toISOString()],
   );
-  for (const r of recent10) {
-    const tt = new Date(r.timestamp).getTime();
+  for (const row of recent10) {
+    const tt = new Date(row.timestamp).getTime();
     const minuteStart = Math.floor(tt / 60000) * 60000;
     if (bucketMap[minuteStart]) {
       bucketMap[minuteStart].requests++;
-      bucketMap[minuteStart].promptTokens += r.promptTokens || 0;
-      bucketMap[minuteStart].completionTokens += r.completionTokens || 0;
-      bucketMap[minuteStart].cost += r.cost || 0;
+      bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
+      bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
+      bucketMap[minuteStart].cost += row.cost || 0;
     }
   }
 
@@ -448,114 +630,43 @@ export async function getUsageStats(period = "all") {
   if (useDailySummary) {
     const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
     const maxDays = periodDays[period] || null;
-    const dayRows = loadDaysInRange(db, maxDays);
 
-    for (const dr of dayRows) {
-      const dateKey = dr.dateKey;
-      const day = parseJson(dr.data, {});
-      stats.totalPromptTokens += day.promptTokens || 0;
-      stats.totalCompletionTokens += day.completionTokens || 0;
-      stats.totalCachedTokens += day.cachedTokens || 0;
-      stats.totalCost += day.cost || 0;
+    const today = new Date();
+    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - maxDays + 1);
+    const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
 
-      for (const [prov, p] of Object.entries(day.byProvider || {})) {
-        if (!stats.byProvider[prov]) stats.byProvider[prov] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
-        stats.byProvider[prov].requests += p.requests || 0;
-        stats.byProvider[prov].promptTokens += p.promptTokens || 0;
-        stats.byProvider[prov].completionTokens += p.completionTokens || 0;
-        stats.byProvider[prov].cachedTokens += p.cachedTokens || 0;
-        stats.byProvider[prov].cost += p.cost || 0;
-      }
+    const dayRows = maxDays == null
+      ? await db.all(`SELECT date_key, data FROM usage_daily ORDER BY date_key ASC`)
+      : await db.all(
+          `SELECT date_key, data FROM usage_daily WHERE date_key >= $1 ORDER BY date_key ASC`,
+          [cutoffKey],
+        );
+    const daySummaries = dayRows.map((row) => ({
+      dateKey: String(row.date_key).slice(0, 10),
+      ...((typeof row.data === "string" ? parseJson(row.data, {}) : row.data) ?? {}),
+    }));
+    const aggregated = buildAggregatesFromDays(daySummaries, connectionMap, providerNodeNameMap, apiKeyMap);
+    Object.assign(stats, aggregated);
 
-      for (const [mk, m] of Object.entries(day.byModel || {})) {
-        const rawModel = m.rawModel || mk.split("|")[0];
-        const provider = m.provider || mk.split("|")[1] || "";
-        const statsKey = provider ? `${rawModel} (${provider})` : rawModel;
-        const providerDisplayName = providerNodeNameMap[provider] || provider;
-        if (!stats.byModel[statsKey]) {
-          stats.byModel[statsKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel, provider: providerDisplayName, lastUsed: dateKey };
-        }
-        stats.byModel[statsKey].requests += m.requests || 0;
-        stats.byModel[statsKey].promptTokens += m.promptTokens || 0;
-        stats.byModel[statsKey].completionTokens += m.completionTokens || 0;
-        stats.byModel[statsKey].cachedTokens += m.cachedTokens || 0;
-        stats.byModel[statsKey].cost += m.cost || 0;
-        if (dateKey > (stats.byModel[statsKey].lastUsed || "")) stats.byModel[statsKey].lastUsed = dateKey;
-      }
-
-      for (const [connId, a] of Object.entries(day.byAccount || {})) {
-        const accountName = connectionMap[connId] || `Account ${connId.slice(0, 8)}...`;
-        const rawModel = a.rawModel || "";
-        const provider = a.provider || "";
-        const providerDisplayName = providerNodeNameMap[provider] || provider;
-        const accountKey = `${rawModel} (${provider} - ${accountName})`;
-        if (!stats.byAccount[accountKey]) {
-          stats.byAccount[accountKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel, provider: providerDisplayName, connectionId: connId, accountName, lastUsed: dateKey };
-        }
-        stats.byAccount[accountKey].requests += a.requests || 0;
-        stats.byAccount[accountKey].promptTokens += a.promptTokens || 0;
-        stats.byAccount[accountKey].completionTokens += a.completionTokens || 0;
-        stats.byAccount[accountKey].cachedTokens += a.cachedTokens || 0;
-        stats.byAccount[accountKey].cost += a.cost || 0;
-        if (dateKey > (stats.byAccount[accountKey].lastUsed || "")) stats.byAccount[accountKey].lastUsed = dateKey;
-      }
-
-      for (const [akKey, ak] of Object.entries(day.byApiKey || {})) {
-        const rawModel = ak.rawModel || "";
-        const provider = ak.provider || "";
-        const providerDisplayName = providerNodeNameMap[provider] || provider;
-        const apiKeyVal = ak.apiKey;
-        const keyInfo = apiKeyVal ? apiKeyMap[apiKeyVal] : null;
-        const keyName = keyInfo?.name || (apiKeyVal ? apiKeyVal.slice(0, 8) + "..." : "Local (No API Key)");
-        const apiKeyMasked = maskApiKey(apiKeyVal);
-        const apiKeyKey = apiKeyMasked || "local-no-key";
-        if (!stats.byApiKey[akKey]) {
-          stats.byApiKey[akKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel, provider: providerDisplayName, apiKeyMasked, keyName, apiKeyKey, lastUsed: dateKey };
-        }
-        stats.byApiKey[akKey].requests += ak.requests || 0;
-        stats.byApiKey[akKey].promptTokens += ak.promptTokens || 0;
-        stats.byApiKey[akKey].completionTokens += ak.completionTokens || 0;
-        stats.byApiKey[akKey].cachedTokens += ak.cachedTokens || 0;
-        stats.byApiKey[akKey].cost += ak.cost || 0;
-        if (dateKey > (stats.byApiKey[akKey].lastUsed || "")) stats.byApiKey[akKey].lastUsed = dateKey;
-      }
-
-      for (const [epKey, ep] of Object.entries(day.byEndpoint || {})) {
-        const endpoint = ep.endpoint || epKey.split("|")[0] || "Unknown";
-        const rawModel = ep.rawModel || "";
-        const provider = ep.provider || "";
-        const providerDisplayName = providerNodeNameMap[provider] || provider;
-        if (!stats.byEndpoint[epKey]) {
-          stats.byEndpoint[epKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, endpoint, rawModel, provider: providerDisplayName, lastUsed: dateKey };
-        }
-        stats.byEndpoint[epKey].requests += ep.requests || 0;
-        stats.byEndpoint[epKey].promptTokens += ep.promptTokens || 0;
-        stats.byEndpoint[epKey].completionTokens += ep.completionTokens || 0;
-        stats.byEndpoint[epKey].cachedTokens += ep.cachedTokens || 0;
-        stats.byEndpoint[epKey].cost += ep.cost || 0;
-        if (dateKey > (stats.byEndpoint[epKey].lastUsed || "")) stats.byEndpoint[epKey].lastUsed = dateKey;
-      }
-    }
-
-    // Overlay precise lastUsed timestamps from history
     const overlayCutoff = maxDays ? Date.now() - maxDays * 86400000 : 0;
-    const histRows = db.all(
-      `SELECT timestamp, provider, model, connectionId, apiKey, endpoint FROM usageHistory WHERE timestamp >= ?`,
-      [new Date(overlayCutoff).toISOString()]
+    const histRows = await db.all(
+      `SELECT timestamp, provider, model, connection_id, api_key, endpoint
+       FROM usage_history WHERE timestamp >= $1`,
+      [new Date(overlayCutoff).toISOString()],
     );
     for (const e of histRows) {
       const ts = e.timestamp;
       const modelKey = e.provider ? `${e.model} (${e.provider})` : e.model;
       if (stats.byModel[modelKey] && new Date(ts) > new Date(stats.byModel[modelKey].lastUsed)) stats.byModel[modelKey].lastUsed = ts;
 
-      if (e.connectionId) {
-        const accountName = connectionMap[e.connectionId] || `Account ${e.connectionId.slice(0, 8)}...`;
+      if (e.connection_id) {
+        const accountName = connectionMap[e.connection_id] || `Account ${e.connection_id.slice(0, 8)}...`;
         const accountKey = `${e.model} (${e.provider} - ${accountName})`;
         if (stats.byAccount[accountKey] && new Date(ts) > new Date(stats.byAccount[accountKey].lastUsed)) stats.byAccount[accountKey].lastUsed = ts;
       }
 
-      const apiKeyKey = (e.apiKey && typeof e.apiKey === "string")
-        ? `${e.apiKey}|${e.model}|${e.provider || "unknown"}`
+      const apiKeyKey = (e.api_key && typeof e.api_key === "string")
+        ? `${e.api_key}|${e.model}|${e.provider || "unknown"}`
         : "local-no-key";
       if (stats.byApiKey[apiKeyKey] && new Date(ts) > new Date(stats.byApiKey[apiKeyKey].lastUsed)) stats.byApiKey[apiKeyKey].lastUsed = ts;
 
@@ -564,7 +675,6 @@ export async function getUsageStats(period = "all") {
       if (stats.byEndpoint[endpointKey] && new Date(ts) > new Date(stats.byEndpoint[endpointKey].lastUsed)) stats.byEndpoint[endpointKey].lastUsed = ts;
     }
   } else {
-    // 24h / today: live history
     let cutoff;
     if (period === "today") {
       const startOfDay = new Date();
@@ -573,17 +683,18 @@ export async function getUsageStats(period = "all") {
     } else {
       cutoff = new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
     }
-    const filtered = db.all(
-      `SELECT timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, tokens FROM usageHistory WHERE timestamp >= ?`,
-      [cutoff]
+    const filtered = await db.all(
+      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, tokens
+       FROM usage_history WHERE timestamp >= $1`,
+      [cutoff],
     );
 
     for (const r of filtered) {
-      const tokens = parseJson(r.tokens, {}) || {};
-      const promptTokens = tokens.prompt_tokens || 0;
-      const completionTokens = tokens.completion_tokens || 0;
-      const cachedTokens = tokens.cached_tokens || tokens.cache_read_input_tokens || 0;
-      const entryCost = r.cost || 0;
+      const tokens = r.tokens || {};
+      const promptTokens = Number(tokens.prompt_tokens || tokens.input_tokens || 0);
+      const completionTokens = Number(tokens.completion_tokens || tokens.output_tokens || 0);
+      const cachedTokens = Number(tokens.cached_tokens || tokens.cache_read_input_tokens || 0);
+      const entryCost = Number(r.cost || 0);
       const providerDisplayName = providerNodeNameMap[r.provider] || r.provider;
 
       stats.totalPromptTokens += promptTokens;
@@ -609,11 +720,11 @@ export async function getUsageStats(period = "all") {
       stats.byModel[modelKey].cost += entryCost;
       if (new Date(r.timestamp) > new Date(stats.byModel[modelKey].lastUsed)) stats.byModel[modelKey].lastUsed = r.timestamp;
 
-      if (r.connectionId) {
-        const accountName = connectionMap[r.connectionId] || `Account ${r.connectionId.slice(0, 8)}...`;
+      if (r.connection_id) {
+        const accountName = connectionMap[r.connection_id] || `Account ${r.connection_id.slice(0, 8)}...`;
         const accountKey = `${r.model} (${r.provider} - ${accountName})`;
         if (!stats.byAccount[accountKey]) {
-          stats.byAccount[accountKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: r.model, provider: providerDisplayName, connectionId: r.connectionId, accountName, lastUsed: r.timestamp };
+          stats.byAccount[accountKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: r.model, provider: providerDisplayName, connectionId: r.connection_id, accountName, lastUsed: r.timestamp };
         }
         stats.byAccount[accountKey].requests++;
         stats.byAccount[accountKey].promptTokens += promptTokens;
@@ -623,10 +734,10 @@ export async function getUsageStats(period = "all") {
         if (new Date(r.timestamp) > new Date(stats.byAccount[accountKey].lastUsed)) stats.byAccount[accountKey].lastUsed = r.timestamp;
       }
 
-      if (r.apiKey && typeof r.apiKey === "string") {
-        const keyInfo = apiKeyMap[r.apiKey];
-        const keyName = keyInfo?.name || r.apiKey.slice(0, 8) + "...";
-        const apiKeyMasked = maskApiKey(r.apiKey);
+      if (r.api_key && typeof r.api_key === "string") {
+        const keyInfo = apiKeyMap[r.api_key];
+        const keyName = keyInfo?.name || r.api_key.slice(0, 8) + "...";
+        const apiKeyMasked = maskApiKey(r.api_key);
         const akKey = `${apiKeyMasked}|${r.model}|${r.provider || "unknown"}`;
         if (!stats.byApiKey[akKey]) {
           stats.byApiKey[akKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: r.model, provider: providerDisplayName, apiKeyMasked, keyName, apiKeyKey: apiKeyMasked, lastUsed: r.timestamp };
@@ -672,17 +783,17 @@ export async function getChartData(period = "7d") {
     const labelFn = (ts) => new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
 
-    const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
-      [new Date(startTime).toISOString()]
+    const rows = await db.all(
+      `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history WHERE timestamp >= $1`,
+      [new Date(startTime).toISOString()],
     );
-    for (const r of rows) {
-      const t = new Date(r.timestamp).getTime();
+    for (const row of rows) {
+      const t = new Date(row.timestamp).getTime();
       if (t < startTime || t >= endTime) continue;
       const idx = Math.floor((t - startTime) / bucketMs);
       if (idx >= 0 && idx < bucketCount) {
-        buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
-        buckets[idx].cost += r.cost || 0;
+        buckets[idx].tokens += Number(row.prompt_tokens || 0) + Number(row.completion_tokens || 0);
+        buckets[idx].cost += Number(row.cost || 0);
       }
     }
     return buckets;
@@ -695,16 +806,18 @@ export async function getChartData(period = "7d") {
     const startTime = now - bucketCount * bucketMs;
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
 
-    const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
-      [new Date(startTime).toISOString()]
+    const rows = await db.all(
+      `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history WHERE timestamp >= $1`,
+      [new Date(startTime).toISOString()],
     );
-    for (const r of rows) {
-      const t = new Date(r.timestamp).getTime();
-      if (t < startTime || t > now) continue;
-      const idx = Math.min(Math.floor((t - startTime) / bucketMs), bucketCount - 1);
-      buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
-      buckets[idx].cost += r.cost || 0;
+    for (const row of rows) {
+      const t = new Date(row.timestamp).getTime();
+      if (t < startTime) continue;
+      const idx = Math.floor((t - startTime) / bucketMs);
+      if (idx >= 0 && idx < bucketCount) {
+        buckets[idx].tokens += Number(row.prompt_tokens || 0) + Number(row.completion_tokens || 0);
+        buckets[idx].cost += Number(row.cost || 0);
+      }
     }
     return buckets;
   }
@@ -712,11 +825,17 @@ export async function getChartData(period = "7d") {
   const bucketCount = period === "7d" ? 7 : period === "30d" ? 30 : 60;
   const today = new Date();
   const labelFn = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - bucketCount + 1);
+  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
 
-  // Build map of dateKey → day data
-  const dayRows = loadDaysInRange(db, bucketCount);
+  const dayRows = await db.all(
+    `SELECT date_key, data FROM usage_daily WHERE date_key >= $1 ORDER BY date_key ASC`,
+    [cutoffKey],
+  );
   const dayMap = {};
-  for (const r of dayRows) dayMap[r.dateKey] = parseJson(r.data, {});
+  for (const row of dayRows) {
+    dayMap[row.date_key] = (typeof row.data === "string" ? parseJson(row.data, {}) : row.data) ?? {};
+  }
 
   return Array.from({ length: bucketCount }, (_, i) => {
     const d = new Date(today);
@@ -742,8 +861,9 @@ export async function appendRequestLog() {}
 export async function getRecentLogs(limit = 200) {
   try {
     const db = await getAdapter();
-    const rows = db.all(
-      `SELECT timestamp, provider, model, connectionId, promptTokens, completionTokens, status, tokens FROM usageHistory ORDER BY id DESC LIMIT ?`,
+    const rows = await db.all(
+      `SELECT timestamp, provider, model, connection_id, prompt_tokens, completion_tokens, status, tokens
+       FROM usage_history ORDER BY id DESC LIMIT $1`,
       [limit],
     );
     if (!rows.length) return [];
@@ -755,18 +875,18 @@ export async function getRecentLogs(limit = 200) {
       for (const c of connections) connMap[c.id] = c.name || c.email || "";
     } catch {}
 
-    return rows.map((r) => {
-      const ts = formatLogDate(new Date(r.timestamp));
-      const p = r.provider?.toUpperCase() || "-";
-      const m = r.model || "-";
-      const account = connMap[r.connectionId] || (r.connectionId ? r.connectionId.slice(0, 8) : "-");
-      const tk = r.tokens ? parseJson(r.tokens, {}) : {};
-      const sent = r.promptTokens ?? tk.prompt_tokens ?? "-";
-      const received = r.completionTokens ?? tk.completion_tokens ?? "-";
-      return `${ts} | ${m} | ${p} | ${account} | ${sent} | ${received} | ${r.status || "-"}`;
+    return rows.map((row) => {
+      const ts = formatLogDate(new Date(row.timestamp));
+      const p = row.provider?.toUpperCase() || "-";
+      const m = row.model || "-";
+      const account = connMap[row.connection_id] || (row.connection_id ? row.connection_id.slice(0, 8) : "-");
+      const tk = row.tokens ?? {};
+      const sent = row.prompt_tokens ?? tk.prompt_tokens ?? "-";
+      const received = row.completion_tokens ?? tk.completion_tokens ?? "-";
+      return `${ts} | ${m} | ${p} | ${account} | ${sent} | ${received} | ${row.status || "-"}`;
     });
-  } catch (e) {
-    console.error("[usageRepo] getRecentLogs failed:", e.message);
+  } catch (error) {
+    console.error("[usageRepo] getRecentLogs failed:", error.message);
     return [];
   }
 }

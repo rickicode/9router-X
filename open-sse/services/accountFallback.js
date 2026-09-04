@@ -129,8 +129,12 @@ export function getModelLockKey(model) {
  */
 export function isModelLockActive(connection, model) {
   if (!connection) return false;
-  // Permanent lock for banned or revoked accounts
-  if (connection.lastError && /\b(banned|account has been banned)\b/i.test(connection.lastError)) {
+  // Permanent lock for suspended, deleted, banned, or unrecoverable accounts
+  if (connection.providerSpecificData?.refreshBlocked) {
+    return true;
+  }
+  const fatalPattern = /\b(banned|account has been banned|account has been deleted|suspended|account suspended|revoked|token revoked|invalid_grant)\b/i;
+  if (connection.lastError && fatalPattern.test(connection.lastError)) {
     return true;
   }
   const key = getModelLockKey(model);

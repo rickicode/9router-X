@@ -47,6 +47,7 @@ export const MAX_FALLBACK_ATTEMPTS = 10;
 // Cooldown durations (ms)
 const COOLDOWN = {
   permanentAuth: 3 * 24 * 60 * 60 * 1000, // 3 days for auth/permission/ineligible errors
+  quotaExhausted: 24 * 60 * 60 * 1000,    // 24 hours max for quota/credit exhaustion
   long: 2 * 60 * 1000,
   short: 5 * 1000,
 };
@@ -69,23 +70,27 @@ export const ERROR_RULES = [
   { text: "request illegal",                       cooldownMs: 0, lockAll: false, shouldFallback: false },
   { text: "content filter",                        cooldownMs: 0, lockAll: false, shouldFallback: false },
 
-  // Credit / Balance exhaustion (Account-wide lock until refill)
-  { text: "credits exhausted",                     cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
-  { text: "insufficient credits",                  cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
-  { text: "insufficient balance",                  cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
-  { text: "out of credits",                        cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
-  { text: "quota reached",                         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  // Credit / Balance exhaustion (Account-wide lock until refill, max 24 hours)
+  { text: "credits exhausted",                     cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
+  { text: "insufficient credits",                  cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
+  { text: "insufficient balance",                  cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
+  { text: "out of credits",                        cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
+  { text: "quota reached",                         cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
 
   // Model-level restrictions (do NOT lock other models on the same account)
-  { text: "not available on the workers free plan", cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
-  { text: "upgrade to access this model",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
-  { text: "plan does not include",                 cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
-  { text: "not supported for your plan",           cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
-  { text: "model not supported for tier",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
+  { text: "not available on the workers free plan", cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "upgrade to access this model",          cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "plan does not include",                 cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "not supported for your plan",           cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "model not supported for tier",          cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
 
   { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "banned",                    cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "account has been banned",   cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "account has been deleted",  cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "account suspended",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "suspended",                 cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "user has been suspended",   cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "session request failed: 403", cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission_denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },

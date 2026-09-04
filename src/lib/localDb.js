@@ -3,6 +3,8 @@
 export {
   getSettings, updateSettings, isCloudEnabled, getCloudUrl,
   getProviderConnections, getProviderConnectionById,
+  getAvailableAccountsForRouting, touchAccountLastUsed,
+  setModelCooldown, clearModelCooldown,
   createProviderConnection, updateProviderConnection,
   deleteProviderConnection, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,

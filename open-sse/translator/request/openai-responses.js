@@ -13,6 +13,13 @@ import { ROLE, OPENAI_BLOCK, RESPONSES_ITEM } from "../schema/index.js";
 const MAX_CALL_ID_LEN = 64;
 const clampCallId = (id) => (typeof id === "string" && id.length > MAX_CALL_ID_LEN ? id.substring(0, MAX_CALL_ID_LEN) : id);
 
+// Responses API requires function/tool names to match ^[a-zA-Z0-9_-]+$ (max 64 chars)
+const sanitizeResponsesToolName = (name) => {
+  if (typeof name !== "string" || !name) return "_unknown";
+  const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+  return sanitized || "_unknown";
+};
+
 /**
  * Convert OpenAI Responses API request to OpenAI Chat Completions format
  */
@@ -381,7 +388,7 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
         result.input.push({
           type: RESPONSES_ITEM.FUNCTION_CALL,
           call_id: clampCallId(tc.id),
-          name: tc.function?.name || "_unknown",
+          name: sanitizeResponsesToolName(tc.function?.name),
           arguments: tc.function?.arguments || "{}"
         });
       }
@@ -413,7 +420,7 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
       if (tool.type === OPENAI_BLOCK.FUNCTION) {
         return {
           type: OPENAI_BLOCK.FUNCTION,
-          name: tool.function.name,
+          name: sanitizeResponsesToolName(tool.function.name),
           description: String(tool.function.description || ""),
           parameters: normalizeToolParameters(tool.function.parameters),
           strict: tool.function.strict

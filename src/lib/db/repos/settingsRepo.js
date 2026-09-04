@@ -1,7 +1,7 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 
-const DEFAULT_MITM_ROUTER_BASE = "http://localhost:20128";
+const DEFAULT_MITM_ROUTER_BASE = "http://localhost:10128";
 const DEFAULT_HEADROOM_URL = process.env.HEADROOM_URL || "http://localhost:8787";
 
 const DEFAULT_SETTINGS = {
@@ -66,11 +66,10 @@ const DEFAULT_SETTINGS = {
 
 async function readRaw() {
   const db = await getAdapter();
-  const row = db.get(`SELECT data FROM settings WHERE id = 1`);
+  const row = await db.get("SELECT data FROM settings WHERE id = 1");
   return row ? parseJson(row.data, {}) : {};
 }
 
-// Merge raw settings with defaults; backward-compat for missing keys
 export function mergeWithDefaults(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
   for (const [key, defVal] of Object.entries(DEFAULT_SETTINGS)) {
@@ -94,19 +93,23 @@ export async function getSettings() {
   return mergeWithDefaults(raw);
 }
 
-// Atomic read-merge-write inside transaction (prevents losing concurrent updates)
 export async function updateSettings(updates) {
   const db = await getAdapter();
   let next;
-  db.transaction(function () {
-    const row = db.get(`SELECT data FROM settings WHERE id = 1`);
+  const updatedAt = new Date().toISOString();
+
+  await db.transaction(async (tx) => {
+    const row = await tx.get("SELECT data FROM settings WHERE id = 1");
     const current = row ? parseJson(row.data, {}) : {};
     next = { ...current, ...updates };
-    db.run(
-      `INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
-      [stringifyJson(next)],
+    await tx.run(
+      `INSERT INTO settings(id, data, updated_at)
+       VALUES(1, $1, $2)
+       ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+      [stringifyJson(next), updatedAt],
     );
   });
+
   return mergeWithDefaults(next);
 }
 
@@ -117,12 +120,7 @@ export async function isCloudEnabled() {
 
 export async function getCloudUrl() {
   const settings = await getSettings();
-  return (
-    settings.cloudUrl ||
-    process.env.CLOUD_URL ||
-    process.env.NEXT_PUBLIC_CLOUD_URL ||
-    ""
-  );
+  return settings.cloudUrl || process.env.CLOUD_URL || process.env.NEXT_PUBLIC_CLOUD_URL || "";
 }
 
 export async function exportSettings() {

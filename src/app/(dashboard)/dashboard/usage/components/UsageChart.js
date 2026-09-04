@@ -15,12 +15,13 @@ import {
 import Card from "@/shared/components/Card";
 
 const fmtTokens = (n) => {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n || 0);
+  const num = Number(n) || 0;
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return String(num);
 };
 
-const fmtCost = (n) => `$${(n || 0).toFixed(4)}`;
+const fmtCost = (n) => `$${(Number(n) || 0).toFixed(4)}`;
 
 export default function UsageChart({ period = "7d" }) {
   const [data, setData] = useState([]);

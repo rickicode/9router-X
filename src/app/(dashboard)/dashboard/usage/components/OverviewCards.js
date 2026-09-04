@@ -3,8 +3,8 @@
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 
-const fmt = (n) => new Intl.NumberFormat().format(n || 0);
-const fmtCost = (n) => `$${(n || 0).toFixed(2)}`;
+const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
+const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function OverviewCards({ stats }) {
   return (

@@ -2,12 +2,13 @@
 // Fail-open everywhere: tick errors and per-connection failures never kill the interval.
 
 import * as log from "../utils/logger.js";
+import { acquireLock, releaseLock } from "@/lib/redis/client.js";
 import { getRefreshLeadMs } from "open-sse/services/tokenRefresh.js";
 import { getCredentialExpiryMs } from "open-sse/services/oauthCredentialManager.js";
 
 /** Refresh when expiry is within 30 minutes (or the provider on-request lead, whichever larger). */
 export const BACKGROUND_REFRESH_LEAD_MS = 30 * 60 * 1000;
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_INTERVAL_MS = 60 * 1000;
 const INITIAL_DELAY_MS = 10 * 1000;
 
 let started = false;
@@ -81,28 +82,40 @@ async function loadActiveConnections() {
 }
 
 async function refreshOne(connection) {
-  const { checkAndRefreshToken } = await import("./tokenRefresh.js");
-  const result = await checkAndRefreshToken(connection.provider, connection, { force: true });
-
-  // Dead refresh token (revoked/reused/expired): persist the block marker so
-  // future ticks skip it, then surface the re-login requirement. The marker is
-  // lifted by checkAndRefreshToken on the next successful refresh.
-  if (result?.refreshError) {
-    const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
-    await updateProviderConnection(connection.id, {
-      providerSpecificData: {
-        ...(connection.providerSpecificData || {}),
-        refreshBlocked: result.refreshError,
-        refreshBlockedAt: result.refreshErrorAt,
-      },
-    });
-    log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — auto-refresh stopped, re-login required", {
-      id: connection.id,
-      provider: connection.provider,
-      error: result.refreshError,
-    });
+  // Use distributed lock to avoid concurrent refresh across cluster nodes
+  const lockKey = `refresh:${connection.id}`;
+  const acquired = await acquireLock(lockKey, 45);
+  if (!acquired) {
+    log.debug("BG_TOKEN_REFRESH", `Skipping refresh for ${connection.id}: locked by another worker`);
+    return null;
   }
-  return result;
+
+  try {
+    const { checkAndRefreshToken } = await import("./tokenRefresh.js");
+    const result = await checkAndRefreshToken(connection.provider, connection, { force: true });
+
+    // Dead refresh token (revoked/reused/expired): persist the block marker so
+    // future ticks skip it, then surface the re-login requirement. The marker is
+    // lifted by checkAndRefreshToken on the next successful refresh.
+    if (result?.refreshError) {
+      const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
+      await updateProviderConnection(connection.id, {
+        providerSpecificData: {
+          ...(connection.providerSpecificData || {}),
+          refreshBlocked: result.refreshError,
+          refreshBlockedAt: result.refreshErrorAt,
+        },
+      });
+      log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — auto-refresh stopped, re-login required", {
+        id: connection.id,
+        provider: connection.provider,
+        error: result.refreshError,
+      });
+    }
+    return result;
+  } finally {
+    await releaseLock(lockKey).catch(() => {});
+  }
 }
 
 /**
@@ -134,23 +147,32 @@ export async function runBackgroundTokenRefreshTick(deps = {}) {
       ids: due.map((c) => c.id).filter(Boolean),
     });
 
-    await Promise.allSettled(
-      due.map(async (conn) => {
-        try {
-          await refresh(conn);
-          log.info("BG_TOKEN_REFRESH", "Connection refresh finished", {
-            id: conn.id,
-            provider: conn.provider,
-          });
-        } catch (err) {
-          log.warn("BG_TOKEN_REFRESH", "Connection refresh failed (swallowed)", {
-            id: conn?.id,
-            provider: conn?.provider,
-            error: err?.message ?? String(err),
-          });
-        }
-      })
-    );
+    // Rate limiter: max 5 refreshes per second (Section 6.E)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < due.length; i += BATCH_SIZE) {
+      const batch = due.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async (conn) => {
+          try {
+            await refresh(conn);
+            log.info("BG_TOKEN_REFRESH", "Connection refresh finished", {
+              id: conn.id,
+              provider: conn.provider,
+            });
+          } catch (err) {
+            log.warn("BG_TOKEN_REFRESH", "Connection refresh failed (swallowed)", {
+              id: conn?.id,
+              provider: conn?.provider,
+              error: err?.message ?? String(err),
+            });
+          }
+        })
+      );
+      // Wait 1 second before next batch if more connections exist
+      if (i + BATCH_SIZE < due.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
   } catch (err) {
     log.warn("BG_TOKEN_REFRESH", "Tick failed (swallowed)", {
       error: err?.message ?? String(err),

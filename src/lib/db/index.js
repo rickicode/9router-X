@@ -10,6 +10,8 @@ export {
 // Provider connections
 export {
   getProviderConnections, getProviderConnectionById,
+  getAvailableAccountsForRouting, touchAccountLastUsed,
+  setModelCooldown, clearModelCooldown,
   createProviderConnection, updateProviderConnection,
   deleteProviderConnection, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,
@@ -62,6 +64,12 @@ export {
   appendRequestLog, getRecentLogs,
 } from "./repos/usageRepo.js";
 
+// Usage snapshots
+export {
+  upsertUsageSnapshot, getUsageSnapshotByConnectionId,
+  getUsageSnapshotsByProvider, getBatchProviderQuotas,
+} from "./repos/usageSnapshotsRepo.js";
+
 // Request details
 export {
   saveRequestDetail, getRequestDetails, getRequestDetailById, getDistinctProviders,
@@ -72,23 +80,106 @@ export async function exportDb() {
   const db = await getAdapter();
   const { exportSettings } = await import("./repos/settingsRepo.js");
 
+  const [
+    settings,
+    rawConnections,
+    rawNodes,
+    rawPools,
+    rawKeys,
+    rawCombos,
+    rawKv,
+  ] = await Promise.all([
+    exportSettings(),
+    db.all(`SELECT * FROM provider_connections`),
+    db.all(`SELECT * FROM provider_nodes`),
+    db.all(`SELECT * FROM proxy_pools`),
+    db.all(`SELECT * FROM api_keys`),
+    db.all(`SELECT * FROM combos`),
+    db.all(`SELECT scope, key, value FROM kv WHERE scope IN ('modelAliases', 'customModels', 'mitmAlias', 'pricing')`),
+  ]);
+
   const out = {
-    settings: await exportSettings(),
-    providerConnections: db.all(`SELECT * FROM providerConnections`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, provider: r.provider, authType: r.authType, name: r.name, email: r.email, priority: r.priority, isActive: r.isActive === 1, createdAt: r.createdAt, updatedAt: r.updatedAt })),
-    providerNodes: db.all(`SELECT * FROM providerNodes`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, type: r.type, name: r.name, createdAt: r.createdAt, updatedAt: r.updatedAt })),
-    proxyPools: db.all(`SELECT * FROM proxyPools`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, isActive: r.isActive === 1, testStatus: r.testStatus, createdAt: r.createdAt, updatedAt: r.updatedAt })),
-    apiKeys: db.all(`SELECT * FROM apiKeys`).map((r) => ({ id: r.id, key: r.key, name: r.name, machineId: r.machineId, isActive: r.isActive === 1, createdAt: r.createdAt })),
-    combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
+    settings: settings || {},
+    providerConnections: rawConnections.map((r) => {
+      const extra = parseJson(r.data, {});
+      return {
+        ...extra,
+        id: r.id,
+        provider: r.provider,
+        authType: r.auth_type,
+        name: r.name,
+        email: r.email,
+        priority: r.priority,
+        isActive: r.is_active === true || r.is_active === 1,
+        testStatus: r.test_status,
+        lockedAllUntil: r.locked_all_until ? new Date(r.locked_all_until).toISOString() : null,
+        rateLimitedUntil: r.rate_limited_until ? new Date(r.rate_limited_until).toISOString() : null,
+        tokenExpiresAt: r.token_expires_at ? new Date(r.token_expires_at).toISOString() : null,
+        lastUsedAt: r.last_used_at ? new Date(r.last_used_at).toISOString() : null,
+        modelLocks: parseJson(r.model_locks, {}),
+        lastError: r.last_error,
+        errorCode: r.error_code,
+        lastErrorAt: r.last_error_at ? new Date(r.last_error_at).toISOString() : null,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+      };
+    }),
+    providerNodes: rawNodes.map((r) => ({
+      ...parseJson(r.data, {}),
+      id: r.id,
+      type: r.type,
+      name: r.name,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+    })),
+    proxyPools: rawPools.map((r) => {
+      const extra = parseJson(r.data, {});
+      return {
+        ...extra,
+        id: r.id,
+        name: r.name,
+        proxyUrl: r.proxy_url,
+        noProxy: r.no_proxy,
+        type: r.type,
+        group: r.group,
+        isActive: r.is_active === true || r.is_active === 1,
+        strictProxy: r.strict_proxy === true || r.strict_proxy === 1,
+        testStatus: r.test_status,
+        lastTestedAt: r.last_tested_at ? new Date(r.last_tested_at).toISOString() : null,
+        lastError: r.last_error,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+      };
+    }),
+    apiKeys: rawKeys.map((r) => ({
+      id: r.id,
+      key: r.key,
+      name: r.name,
+      machineId: r.machine_id,
+      isActive: r.is_active === true || r.is_active === 1,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+    })),
+    combos: rawCombos.map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind,
+      models: parseJson(r.models, []),
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+    })),
     modelAliases: {},
     customModels: [],
     mitmAlias: {},
     pricing: {},
   };
 
-  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelAliases'`)) out.modelAliases[r.key] = parseJson(r.value);
-  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'customModels'`)) out.customModels.push(parseJson(r.value));
-  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'mitmAlias'`)) out.mitmAlias[r.key] = parseJson(r.value);
-  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'pricing'`)) out.pricing[r.key] = parseJson(r.value);
+  for (const r of rawKv) {
+    const val = parseJson(r.value, null);
+    if (r.scope === "modelAliases") out.modelAliases[r.key] = val;
+    else if (r.scope === "customModels") out.customModels.push(val);
+    else if (r.scope === "mitmAlias") out.mitmAlias[r.key] = val;
+    else if (r.scope === "pricing") out.pricing[r.key] = val;
+  }
 
   return out;
 }
@@ -98,67 +189,237 @@ export async function importDb(payload) {
     throw new Error("Invalid database payload");
   }
   const db = await getAdapter();
+  const sql = db.raw;
 
-  db.transaction(() => {
-    // Wipe all tables (keep _meta)
-    db.run(`DELETE FROM settings`);
-    db.run(`DELETE FROM providerConnections`);
-    db.run(`DELETE FROM providerNodes`);
-    db.run(`DELETE FROM proxyPools`);
-    db.run(`DELETE FROM apiKeys`);
-    db.run(`DELETE FROM combos`);
-    db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'mitmAlias', 'pricing')`);
+  await db.transaction(async (tx) => {
+    // Wipe all active config tables (keep audit / partitions)
+    await tx.exec(`
+      TRUNCATE TABLE
+        provider_connections,
+        provider_nodes,
+        proxy_pools,
+        api_keys,
+        combos,
+        settings,
+        kv
+      CASCADE
+    `);
 
-    // Settings
+    // 1. Settings
     if (payload.settings) {
-      db.run(`INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`, [stringifyJson(payload.settings)]);
+      await tx.raw`
+        INSERT INTO settings(id, data, updated_at)
+        VALUES(1, ${tx.raw.json(payload.settings)}, NOW())
+        ON CONFLICT(id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+      `;
     }
 
-    for (const c of payload.providerConnections || []) {
-      const { id, provider, authType, name, email, priority, isActive, createdAt, updatedAt, ...rest } = c;
-      db.run(
-        `INSERT OR REPLACE INTO providerConnections(id, provider, authType, name, email, priority, isActive, data, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, provider, authType || "oauth", name || null, email || null, priority || null, isActive === false ? 0 : 1, stringifyJson(rest), createdAt || new Date().toISOString(), updatedAt || new Date().toISOString()]
-      );
+    // 2. Provider Connections (Batch 500)
+    const connections = payload.providerConnections || [];
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < connections.length; i += BATCH_SIZE) {
+      const chunk = connections.slice(i, i + BATCH_SIZE);
+      const values = chunk.map((c) => {
+        const extraData = { ...c };
+        delete extraData.id;
+        delete extraData.provider;
+        delete extraData.authType;
+        delete extraData.name;
+        delete extraData.email;
+        delete extraData.priority;
+        delete extraData.isActive;
+        delete extraData.testStatus;
+        delete extraData.lockedAllUntil;
+        delete extraData.rateLimitedUntil;
+        delete extraData.tokenExpiresAt;
+        delete extraData.lastUsedAt;
+        delete extraData.modelLocks;
+        delete extraData.lastError;
+        delete extraData.errorCode;
+        delete extraData.lastErrorAt;
+        delete extraData.createdAt;
+        delete extraData.updatedAt;
+
+        return {
+          id: String(c.id),
+          provider: String(c.provider),
+          auth_type: String(c.authType || "oauth"),
+          name: c.name || null,
+          email: c.email || null,
+          priority: Number(c.priority) || 999,
+          is_active: c.isActive === 1 || c.isActive === true || c.isActive === "1",
+          test_status: c.testStatus || "active",
+          locked_all_until: c.lockedAllUntil ? new Date(c.lockedAllUntil) : null,
+          rate_limited_until: c.rateLimitedUntil ? new Date(c.rateLimitedUntil) : null,
+          token_expires_at: c.tokenExpiresAt ? new Date(c.tokenExpiresAt) : (c.expiresAt ? new Date(c.expiresAt) : null),
+          last_used_at: c.lastUsedAt ? new Date(c.lastUsedAt) : null,
+          model_locks: tx.raw.json(c.modelLocks || {}),
+          last_error: c.lastError || null,
+          error_code: c.errorCode !== undefined && c.errorCode !== null ? String(c.errorCode) : null,
+          last_error_at: c.lastErrorAt ? new Date(c.lastErrorAt) : null,
+          data: tx.raw.json(extraData),
+          created_at: c.createdAt ? new Date(c.createdAt) : new Date(),
+          updated_at: c.updatedAt ? new Date(c.updatedAt) : new Date(),
+        };
+      });
+
+      await tx.raw`
+        INSERT INTO provider_connections ${tx.raw(values)}
+        ON CONFLICT (id) DO UPDATE SET
+          provider = EXCLUDED.provider,
+          auth_type = EXCLUDED.auth_type,
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          priority = EXCLUDED.priority,
+          is_active = EXCLUDED.is_active,
+          test_status = EXCLUDED.test_status,
+          locked_all_until = EXCLUDED.locked_all_until,
+          rate_limited_until = EXCLUDED.rate_limited_until,
+          token_expires_at = EXCLUDED.token_expires_at,
+          last_used_at = EXCLUDED.last_used_at,
+          model_locks = EXCLUDED.model_locks,
+          last_error = EXCLUDED.last_error,
+          error_code = EXCLUDED.error_code,
+          last_error_at = EXCLUDED.last_error_at,
+          data = EXCLUDED.data,
+          updated_at = EXCLUDED.updated_at
+      `;
     }
-    for (const n of payload.providerNodes || []) {
-      const { id, type, name, createdAt, updatedAt, ...rest } = n;
-      db.run(
-        `INSERT OR REPLACE INTO providerNodes(id, type, name, data, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [id, type || null, name || null, stringifyJson(rest), createdAt || new Date().toISOString(), updatedAt || new Date().toISOString()]
-      );
+
+    // 3. Provider Nodes
+    const nodes = payload.providerNodes || [];
+    if (nodes.length > 0) {
+      const nodeValues = nodes.map((n) => {
+        const extra = { ...n };
+        delete extra.id;
+        delete extra.type;
+        delete extra.name;
+        delete extra.createdAt;
+        delete extra.updatedAt;
+        return {
+          id: String(n.id),
+          type: n.type || null,
+          name: n.name || null,
+          data: tx.raw.json(extra),
+          created_at: n.createdAt ? new Date(n.createdAt) : new Date(),
+          updated_at: n.updatedAt ? new Date(n.updatedAt) : new Date(),
+        };
+      });
+      await tx.raw`
+        INSERT INTO provider_nodes ${tx.raw(nodeValues)}
+        ON CONFLICT (id) DO UPDATE SET
+          type = EXCLUDED.type,
+          name = EXCLUDED.name,
+          data = EXCLUDED.data,
+          updated_at = EXCLUDED.updated_at
+      `;
     }
-    for (const p of payload.proxyPools || []) {
-      const { id, isActive, testStatus, createdAt, updatedAt, ...rest } = p;
-      db.run(
-        `INSERT OR REPLACE INTO proxyPools(id, isActive, testStatus, data, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [id, isActive === false ? 0 : 1, testStatus || "unknown", stringifyJson(rest), createdAt || new Date().toISOString(), updatedAt || new Date().toISOString()]
-      );
+
+    // 4. Proxy Pools
+    const pools = payload.proxyPools || [];
+    if (pools.length > 0) {
+      const poolValues = pools.map((p) => {
+        const extra = { ...p };
+        delete extra.id;
+        delete extra.name;
+        delete extra.proxyUrl;
+        delete extra.noProxy;
+        delete extra.type;
+        delete extra.group;
+        delete extra.isActive;
+        delete extra.strictProxy;
+        delete extra.testStatus;
+        delete extra.lastTestedAt;
+        delete extra.lastError;
+        delete extra.createdAt;
+        delete extra.updatedAt;
+        return {
+          id: String(p.id),
+          name: p.name || "Default Pool",
+          proxy_url: p.proxyUrl || p.url || "",
+          no_proxy: p.noProxy || "",
+          type: p.type || "http",
+          group: p.group || "",
+          is_active: p.isActive === true || p.isActive === 1,
+          strict_proxy: !!p.strictProxy,
+          test_status: p.testStatus || "unknown",
+          last_tested_at: p.lastTestedAt ? new Date(p.lastTestedAt) : null,
+          last_error: p.lastError || null,
+          data: tx.raw.json(extra),
+          created_at: p.createdAt ? new Date(p.createdAt) : new Date(),
+          updated_at: p.updatedAt ? new Date(p.updatedAt) : new Date(),
+        };
+      });
+      await tx.raw`
+        INSERT INTO proxy_pools ${tx.raw(poolValues)}
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          proxy_url = EXCLUDED.proxy_url,
+          is_active = EXCLUDED.is_active,
+          test_status = EXCLUDED.test_status,
+          data = EXCLUDED.data,
+          updated_at = EXCLUDED.updated_at
+      `;
     }
-    for (const k of payload.apiKeys || []) {
-      db.run(
-        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [k.id, k.key, k.name || null, k.machineId || null, k.isActive === false ? 0 : 1, k.createdAt || new Date().toISOString()]
-      );
+
+    // 5. API Keys
+    const keys = payload.apiKeys || [];
+    if (keys.length > 0) {
+      const keyValues = keys.map((k) => ({
+        id: String(k.id),
+        key: String(k.key),
+        name: k.name || null,
+        machine_id: k.machineId || null,
+        is_active: k.isActive === true || k.isActive === 1,
+        created_at: k.createdAt ? new Date(k.createdAt) : new Date(),
+      }));
+      await tx.raw`
+        INSERT INTO api_keys ${tx.raw(keyValues)}
+        ON CONFLICT (id) DO NOTHING
+      `;
     }
-    for (const c of payload.combos || []) {
-      db.run(
-        `INSERT OR REPLACE INTO combos(id, name, kind, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [c.id, c.name, c.kind || null, stringifyJson(c.models || []), c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
-      );
+
+    // 6. Combos
+    const combos = payload.combos || [];
+    if (combos.length > 0) {
+      const comboValues = combos.map((c) => ({
+        id: String(c.id),
+        name: String(c.name),
+        kind: c.kind || null,
+        models: tx.raw.json(c.models || []),
+        created_at: c.createdAt ? new Date(c.createdAt) : new Date(),
+        updated_at: c.updatedAt ? new Date(c.updatedAt) : new Date(),
+      }));
+      await tx.raw`
+        INSERT INTO combos ${tx.raw(comboValues)}
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          models = EXCLUDED.models,
+          updated_at = EXCLUDED.updated_at
+      `;
     }
+
+    // 7. KV entries (modelAliases, customModels, mitmAlias, pricing)
+    const kvEntries = [];
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
-      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('modelAliases', ?, ?)`, [a, stringifyJson(m)]);
+      kvEntries.push({ scope: "modelAliases", key: a, value: tx.raw.json(m) });
     }
     for (const m of payload.customModels || []) {
       const k = `${m.providerAlias}|${m.id}|${m.type || "llm"}`;
-      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('customModels', ?, ?)`, [k, stringifyJson(m)]);
+      kvEntries.push({ scope: "customModels", key: k, value: tx.raw.json(m) });
     }
     for (const [tool, mappings] of Object.entries(payload.mitmAlias || {})) {
-      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('mitmAlias', ?, ?)`, [tool, stringifyJson(mappings || {})]);
+      kvEntries.push({ scope: "mitmAlias", key: tool, value: tx.raw.json(mappings || {}) });
     }
     for (const [provider, models] of Object.entries(payload.pricing || {})) {
-      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('pricing', ?, ?)`, [provider, stringifyJson(models || {})]);
+      kvEntries.push({ scope: "pricing", key: provider, value: tx.raw.json(models || {}) });
+    }
+
+    if (kvEntries.length > 0) {
+      await tx.raw`
+        INSERT INTO kv ${tx.raw(kvEntries)}
+        ON CONFLICT (scope, key) DO UPDATE SET value = EXCLUDED.value
+      `;
     }
   });
 

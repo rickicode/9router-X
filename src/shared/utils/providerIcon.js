@@ -21,6 +21,18 @@ export function resolveProviderIconId(providerId) {
   const id = normalizeId(providerId);
   if (!id) return "";
   if (failedIds.has(id)) return "";
+
+  // Dynamic custom compatible provider mapping
+  if (id.startsWith("anthropic-compatible-")) {
+    return "anthropic-m";
+  }
+  if (id.startsWith("openai-compatible-chat-") || id.startsWith("openai-compatible-")) {
+    return "oai-cc";
+  }
+  if (id.startsWith("openai-compatible-responses-")) {
+    return "oai-r";
+  }
+
   const aliased = ICON_ALIASES[id] || id;
   if (failedIds.has(aliased)) return "";
   return aliased;

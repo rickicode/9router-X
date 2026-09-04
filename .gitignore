@@ -49,6 +49,7 @@ next-env.d.ts
 # local persistent database
 /data/
 /data-home/
+/data-backup/
 /mitm-home/
 mitm-ca.crt
 mitm-ca.key

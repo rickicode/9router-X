@@ -1,11 +1,11 @@
 {
     "schema_version": 1,
-    "commit": "2d6673db61bdc4da7740a73c7961d41aee57848b",
-    "indexed_at": "2026-08-31T04:04:32Z",
-    "project": "workspaces-9router-mibp-version",
-    "nodes": 9953,
-    "edges": 19500,
-    "original_size": 16973824,
-    "compressed_size": 3910361,
-    "compression_level": 9
+    "commit": "21a8631fe8c4e4d584ce6ae0b2f634e0f6b1d6d3",
+    "indexed_at": "2026-09-04T18:25:03Z",
+    "project": "workspaces-9router-x",
+    "nodes": 26720,
+    "edges": 42410,
+    "original_size": 39256064,
+    "compressed_size": 7142669,
+    "compression_level": 3
 }

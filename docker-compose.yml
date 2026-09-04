@@ -1,5 +1,8 @@
 services:
   9router-x:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: 9router-x:latest
     container_name: 9router-x
     dns:
@@ -7,20 +10,63 @@ services:
       - 1.1.1.1
     restart: always
     ports:
-      - "20128:20128"
+      - "10128:10128"
     volumes:
       - 9router-data:/app/data
     env_file:
       - .env
     environment:
       DATA_DIR: /app/data
-      PORT: "20128"
+      PORT: "10128"
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Jakarta
       NODE_ENV: production
+      DATABASE_URL: postgres://9router:${POSTGRES_PASSWORD:-password123}@postgres:5432/9router
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword123}@redis:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       HEADROOM_URL: http://headroom:8787
     depends_on:
-      - headroom
+      headroom:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: 9router-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=256MB"]
+    environment:
+      POSTGRES_USER: 9router
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_DB: 9router
+      TZ: Asia/Jakarta
+    volumes:
+      - 9router-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U 9router -d 9router"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: 9router-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6381}:6379"
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "${REDIS_PASSWORD:-redispassword123}"]
+    volumes:
+      - 9router-redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redispassword123} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   headroom:
     image: ghcr.io/chopratejas/headroom:latest
@@ -33,3 +79,7 @@ volumes:
   9router-data:
     name: 9router-data
     external: true
+  9router-pgdata:
+    name: 9router-pgdata
+  9router-redisdata:
+    name: 9router-redisdata

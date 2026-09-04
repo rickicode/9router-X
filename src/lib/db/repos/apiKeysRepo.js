@@ -1,34 +1,57 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
 
+function booleanValue(value, fallback = true) {
+  if (value === undefined || value === null) return fallback;
+  return value === true || value === 1;
+}
+
 function rowToKey(row) {
   if (!row) return null;
   return {
     id: row.id,
     key: row.key,
     name: row.name,
-    machineId: row.machineId,
-    isActive: row.isActive === 1 || row.isActive === true,
-    createdAt: row.createdAt,
+    machineId: row.machine_id,
+    isActive: booleanValue(row.is_active),
+    createdAt: row.created_at,
+  };
+}
+
+function normalizePatch(data = {}) {
+  return {
+    ...data,
+    machineId: data.machineId ?? data.machine_id,
+    isActive: data.isActive ?? data.is_active,
+    createdAt: data.createdAt ?? data.created_at,
   };
 }
 
 export async function getApiKeys() {
   const db = await getAdapter();
-  const rows = db.all(`SELECT * FROM apiKeys ORDER BY createdAt ASC`);
+  const rows = await db.all(
+    `SELECT id, key, name, machine_id, is_active, created_at
+       FROM api_keys
+      ORDER BY created_at ASC`,
+  );
   return rows.map(rowToKey);
 }
 
 export async function getApiKeyById(id) {
   const db = await getAdapter();
-  const row = db.get(`SELECT * FROM apiKeys WHERE id = ?`, [id]);
+  const row = await db.get(
+    `SELECT id, key, name, machine_id, is_active, created_at
+       FROM api_keys
+      WHERE id = $1`,
+    [id],
+  );
   return rowToKey(row);
 }
 
 export async function createApiKey(name, machineId) {
   if (!machineId) throw new Error("machineId is required");
   const db = await getAdapter();
-  const { generateApiKeyWithMachine } = await import("@/shared/utils/apiKey");
+  const { generateApiKeyWithMachine } = await import("../../../shared/utils/apiKey.js");
   const result = generateApiKeyWithMachine(machineId);
   const apiKey = {
     id: uuidv4(),
@@ -38,38 +61,49 @@ export async function createApiKey(name, machineId) {
     isActive: true,
     createdAt: new Date().toISOString(),
   };
-  db.run(
-    `INSERT INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
-    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.createdAt]
+  const row = await db.get(
+    `INSERT INTO api_keys (id, key, name, machine_id, is_active, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, key, name, machine_id, is_active, created_at`,
+    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, apiKey.isActive, apiKey.createdAt],
   );
-  return apiKey;
+  return rowToKey(row);
 }
 
-export async function updateApiKey(id, data) {
+export async function updateApiKey(id, data = {}) {
   const db = await getAdapter();
-  let result = null;
-  db.transaction(() => {
-    const row = db.get(`SELECT * FROM apiKeys WHERE id = ?`, [id]);
-    if (!row) return;
-    const merged = { ...rowToKey(row), ...data };
-    db.run(
-      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ? WHERE id = ?`,
-      [merged.key, merged.name, merged.machineId, merged.isActive ? 1 : 0, id]
-    );
-    result = merged;
-  });
-  return result;
+  const patch = normalizePatch(data);
+  const row = await db.get(
+    `UPDATE api_keys
+        SET key = COALESCE($2, key),
+            name = COALESCE($3, name),
+            machine_id = COALESCE($4, machine_id),
+            is_active = COALESCE($5, is_active)
+      WHERE id = $1
+      RETURNING id, key, name, machine_id, is_active, created_at`,
+    [
+      id,
+      patch.key ?? null,
+      patch.name ?? null,
+      patch.machineId ?? null,
+      patch.isActive === undefined ? null : booleanValue(patch.isActive),
+    ],
+  );
+  return rowToKey(row);
 }
 
 export async function deleteApiKey(id) {
   const db = await getAdapter();
-  const res = db.run(`DELETE FROM apiKeys WHERE id = ?`, [id]);
-  return (res?.changes ?? 0) > 0;
+  const result = await db.run(`DELETE FROM api_keys WHERE id = $1`, [id]);
+  return Number(result?.changes ?? 0) > 0;
 }
 
 export async function validateApiKey(key) {
+  if (!key) return false;
   const db = await getAdapter();
-  const row = db.get(`SELECT isActive FROM apiKeys WHERE key = ?`, [key]);
-  if (!row) return false;
-  return row.isActive === 1 || row.isActive === true;
+  const row = await db.get(
+    `SELECT is_active FROM api_keys WHERE key = $1`,
+    [key],
+  );
+  return Boolean(row && booleanValue(row.is_active, false));
 }

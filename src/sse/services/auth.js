@@ -4,6 +4,12 @@ import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLock
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
+import {
+  setAccountCooldown as redisSetAccountCooldown,
+  isAccountInCooldown as redisIsAccountInCooldown,
+  setModelCooldown as redisSetModelCooldown,
+  isModelInCooldown as redisIsModelInCooldown,
+} from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
 
 // Mutex to prevent race conditions during account selection
@@ -109,9 +115,17 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
 
+    // Check Redis L2 Cooldown cache fast filters
+    const redisFilteredConnections = [];
+    for (const c of connections) {
+      if (excludeSet.has(c.id)) continue;
+      if (await redisIsAccountInCooldown(c.id)) continue;
+      if (model && await redisIsModelInCooldown(c.id, model)) continue;
+      redisFilteredConnections.push(c);
+    }
+
     // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
-    const availableConnections = connections.filter(c => {
-      if (excludeSet.has(c.id)) return false;
+    const availableConnections = redisFilteredConnections.filter(c => {
       if (isModelLockActive(c, model)) return false;
       // Antigravity: skip if live quota exhausted for this model
       if (isAntigravity && model && antigravityQuotaCache) {
@@ -214,8 +228,25 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         });
       }
     } else {
-      // Default: fill-first (already sorted by priority in getProviderConnections)
-      connection = availableConnections[0];
+      // Default: fill-first with Top-5 Fair-Share Jitter (Decision #6)
+      if (availableConnections.length > 1) {
+        // Take top candidates up to 5
+        const candidates = availableConnections.slice(0, Math.min(5, availableConnections.length));
+        // Pick 1 randomly with jitter
+        const pickedIdx = Math.floor(Math.random() * candidates.length);
+        connection = candidates[pickedIdx];
+      } else {
+        connection = availableConnections[0];
+      }
+      // Fire-and-forget touch last_used_at for fair-share distribution
+      if (connection?.id) {
+        try {
+          const res = updateProviderConnection(connection.id, {
+            lastUsedAt: new Date().toISOString(),
+          });
+          if (res && typeof res.catch === "function") res.catch(() => {});
+        } catch {}
+      }
     }
 
     // Scope the region-aware picker to this provider/model (e.g. freebuff::gpt-5.6-luna)
@@ -318,6 +349,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const lockKey = Object.keys(lockUpdate)[0];
   const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
   log.warn("AUTH", `${connName} locked ${lockKey} for ${Math.round(cooldownMs / 1000)}s [${status}]`);
+
+  // Sync with Redis L2 Cooldown Layer
+  const cooldownSecs = Math.ceil(cooldownMs / 1000);
+  if (isAccountWideLock) {
+    redisSetAccountCooldown(connectionId, cooldownSecs).catch(() => {});
+  } else if (model) {
+    redisSetModelCooldown(connectionId, model, cooldownSecs).catch(() => {});
+  }
 
   if (provider && status && reason) {
     console.error(`❌ ${provider} [${status}]: ${reason}`);

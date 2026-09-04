@@ -6,6 +6,8 @@ import { getUsageForProvider } from "open-sse/services/usage.js";
 import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
+import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
+import { publishEvent } from "@/lib/redis/client.js";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -181,6 +183,27 @@ export async function GET(request, { params }) {
       } catch (retryError) {
         console.warn(`[Usage] ${connection.provider}: force refresh failed: ${retryError.message}`);
       }
+    }
+
+    // Persist usage snapshot to PostgreSQL and publish to Redis speed layer (Decision #10)
+    if (usage && !usage.error) {
+      const remainingPct = typeof usage.remainingPercentage === "number" ? usage.remainingPercentage : null;
+      upsertUsageSnapshot({
+        connectionId: connection.id,
+        provider: connection.provider,
+        plan: usage.plan || null,
+        quotas: usage.quotas || {},
+        rateLimits: usage.rateLimits || null,
+        remainingPct,
+        resetAt: usage.resetAt || null,
+      }).catch(() => {});
+
+      publishEvent("9router:events", {
+        type: "quota_updated",
+        connectionId: connection.id,
+        provider: connection.provider,
+        usage,
+      }).catch(() => {});
     }
 
     return Response.json(usage);

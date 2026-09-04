@@ -1,68 +1,111 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
-import { makeKv } from "../helpers/kvStore.js";
 
-const aliasKv = makeKv("modelAliases");
-const customKv = makeKv("customModels");
-const mitmKv = makeKv("mitmAlias");
+const MODEL_ALIASES_SCOPE = "modelAliases";
+const CUSTOM_MODELS_SCOPE = "customModels";
+const MITM_ALIAS_SCOPE = "mitmAlias";
 
-// modelAliases: key=alias, value=modelString
+async function getAll(scope) {
+  const db = await getAdapter();
+  const rows = await db.all("SELECT key, value FROM kv WHERE scope = $1", [scope]);
+  const result = {};
+  for (const row of rows) result[row.key] = parseJson(row.value);
+  return result;
+}
+
+async function getValue(scope, key, fallback = null) {
+  const db = await getAdapter();
+  const row = await db.get("SELECT value FROM kv WHERE scope = $1 AND key = $2", [scope, key]);
+  return row ? parseJson(row.value, fallback) : fallback;
+}
+
+async function setValue(scope, key, value) {
+  const db = await getAdapter();
+  await db.run(
+    `INSERT INTO kv(scope, key, value)
+     VALUES($1, $2, $3)
+     ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
+    [scope, key, stringifyJson(value)],
+  );
+}
+
+async function removeValue(scope, key) {
+  const db = await getAdapter();
+  await db.run("DELETE FROM kv WHERE scope = $1 AND key = $2", [scope, key]);
+}
+
 export async function getModelAliases() {
-  return await aliasKv.getAll();
+  return await getAll(MODEL_ALIASES_SCOPE);
 }
 
 export async function setModelAlias(alias, model) {
-  await aliasKv.set(alias, model);
+  await setValue(MODEL_ALIASES_SCOPE, alias, model);
 }
 
 export async function deleteModelAlias(alias) {
-  await aliasKv.remove(alias);
+  await removeValue(MODEL_ALIASES_SCOPE, alias);
 }
 
-// customModels: key=`${providerAlias}|${id}|${type}`, value=full model object
 function customKey(providerAlias, id, type) {
   return `${providerAlias}|${id}|${type}`;
 }
 
 export async function getCustomModels() {
-  const all = await customKv.getAll();
+  const all = await getAll(CUSTOM_MODELS_SCOPE);
   return Object.values(all);
 }
 
-// Atomic upsert inside transaction to prevent duplicate races.
-// Re-adding an existing model updates caps/name without resetting omitted fields.
 export async function addCustomModel({ providerAlias, id, type = "llm", name, caps }) {
-  const k = customKey(providerAlias, id, type);
+  const key = customKey(providerAlias, id, type);
   const db = await getAdapter();
   let added = false;
-  db.transaction(() => {
-    const row = db.get(`SELECT value FROM kv WHERE scope = 'customModels' AND key = ?`, [k]);
+
+  await db.transaction(async (tx) => {
+    const row = await tx.get(
+      "SELECT value FROM kv WHERE scope = $1 AND key = $2",
+      [CUSTOM_MODELS_SCOPE, key],
+    );
+
     if (row) {
-      const prev = parseJson(row.value) || {};
-      const next = { ...prev, ...(name ? { name } : {}), ...(caps ? { caps } : {}) };
-      db.run(`UPDATE kv SET value = ? WHERE scope = 'customModels' AND key = ?`, [stringifyJson(next), k]);
+      const previous = parseJson(row.value, {}) || {};
+      const next = {
+        ...previous,
+        ...(name ? { name } : {}),
+        ...(caps ? { caps } : {}),
+      };
+      await tx.run(
+        "UPDATE kv SET value = $1 WHERE scope = $2 AND key = $3",
+        [stringifyJson(next), CUSTOM_MODELS_SCOPE, key],
+      );
       return;
     }
-    const value = stringifyJson({ providerAlias, id, type, name: name || id, ...(caps ? { caps } : {}) });
-    db.run(`INSERT INTO kv(scope, key, value) VALUES('customModels', ?, ?)`, [k, value]);
+
+    const value = {
+      providerAlias,
+      id,
+      type,
+      name: name || id,
+      ...(caps ? { caps } : {}),
+    };
+    await tx.run(
+      "INSERT INTO kv(scope, key, value) VALUES($1, $2, $3)",
+      [CUSTOM_MODELS_SCOPE, key, stringifyJson(value)],
+    );
     added = true;
   });
+
   return added;
 }
 
 export async function deleteCustomModel({ providerAlias, id, type = "llm" }) {
-  await customKv.remove(customKey(providerAlias, id, type));
+  await removeValue(CUSTOM_MODELS_SCOPE, customKey(providerAlias, id, type));
 }
 
-// mitmAlias: key=toolName, value=mappings object
 export async function getMitmAlias(toolName) {
-  if (toolName) {
-    const v = await mitmKv.get(toolName);
-    return v || {};
-  }
-  return await mitmKv.getAll();
+  if (toolName) return (await getValue(MITM_ALIAS_SCOPE, toolName, {})) || {};
+  return await getAll(MITM_ALIAS_SCOPE);
 }
 
 export async function setMitmAliasAll(toolName, mappings) {
-  await mitmKv.set(toolName, mappings || {});
+  await setValue(MITM_ALIAS_SCOPE, toolName, mappings || {});
 }

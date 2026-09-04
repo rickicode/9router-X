@@ -5,29 +5,37 @@ const SCOPE = "disabledModels";
 
 export async function getDisabledModels() {
   const db = await getAdapter();
-  const rows = db.all(`SELECT key, value FROM kv WHERE scope = ?`, [SCOPE]);
-  const out = {};
-  for (const r of rows) out[r.key] = parseJson(r.value, []);
-  return out;
+  const rows = await db.all("SELECT key, value FROM kv WHERE scope = $1", [SCOPE]);
+  const result = {};
+  for (const row of rows) result[row.key] = parseJson(row.value, []);
+  return result;
 }
 
 export async function getDisabledByProvider(providerAlias) {
   const db = await getAdapter();
-  const row = db.get(`SELECT value FROM kv WHERE scope = ? AND key = ?`, [SCOPE, providerAlias]);
-  return row ? (parseJson(row.value, []) || []) : [];
+  const row = await db.get(
+    "SELECT value FROM kv WHERE scope = $1 AND key = $2",
+    [SCOPE, providerAlias],
+  );
+  return row ? parseJson(row.value, []) || [] : [];
 }
 
-// Atomic read-merge-write inside a transaction (no JS yield mid-transaction).
 export async function disableModels(providerAlias, ids) {
   if (!providerAlias || !Array.isArray(ids)) return;
   const db = await getAdapter();
-  db.transaction(() => {
-    const row = db.get(`SELECT value FROM kv WHERE scope = ? AND key = ?`, [SCOPE, providerAlias]);
-    const current = row ? (parseJson(row.value, []) || []) : [];
+
+  await db.transaction(async (tx) => {
+    const row = await tx.get(
+      "SELECT value FROM kv WHERE scope = $1 AND key = $2",
+      [SCOPE, providerAlias],
+    );
+    const current = row ? parseJson(row.value, []) || [] : [];
     const merged = [...new Set([...current, ...ids])];
-    db.run(
-      `INSERT INTO kv(scope, key, value) VALUES(?, ?, ?) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-      [SCOPE, providerAlias, stringifyJson(merged)]
+    await tx.run(
+      `INSERT INTO kv(scope, key, value)
+       VALUES($1, $2, $3)
+       ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
+      [SCOPE, providerAlias, stringifyJson(merged)],
     );
   });
 }
@@ -35,21 +43,29 @@ export async function disableModels(providerAlias, ids) {
 export async function enableModels(providerAlias, ids) {
   if (!providerAlias) return;
   const db = await getAdapter();
-  db.transaction(() => {
+
+  await db.transaction(async (tx) => {
     if (!Array.isArray(ids) || ids.length === 0) {
-      db.run(`DELETE FROM kv WHERE scope = ? AND key = ?`, [SCOPE, providerAlias]);
+      await tx.run("DELETE FROM kv WHERE scope = $1 AND key = $2", [SCOPE, providerAlias]);
       return;
     }
-    const row = db.get(`SELECT value FROM kv WHERE scope = ? AND key = ?`, [SCOPE, providerAlias]);
-    const current = row ? (parseJson(row.value, []) || []) : [];
+
+    const row = await tx.get(
+      "SELECT value FROM kv WHERE scope = $1 AND key = $2",
+      [SCOPE, providerAlias],
+    );
+    const current = row ? parseJson(row.value, []) || [] : [];
     const removeSet = new Set(ids);
     const next = current.filter((id) => !removeSet.has(id));
+
     if (next.length === 0) {
-      db.run(`DELETE FROM kv WHERE scope = ? AND key = ?`, [SCOPE, providerAlias]);
+      await tx.run("DELETE FROM kv WHERE scope = $1 AND key = $2", [SCOPE, providerAlias]);
     } else {
-      db.run(
-        `INSERT INTO kv(scope, key, value) VALUES(?, ?, ?) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-        [SCOPE, providerAlias, stringifyJson(next)]
+      await tx.run(
+        `INSERT INTO kv(scope, key, value)
+         VALUES($1, $2, $3)
+         ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
+        [SCOPE, providerAlias, stringifyJson(next)],
       );
     }
   });
