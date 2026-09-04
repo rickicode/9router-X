@@ -328,6 +328,17 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     if (result.success) return result.response;
 
+    // Upstream 401: If connection has a refreshToken, attempt one immediate forced refresh before locking account
+    if (result.status === 401 && credentials.refreshToken && !credentials._tokenRefreshedOn401) {
+      log.warn("TOKEN_REFRESH", `Upstream 401 on ${provider} — attempting immediate force token refresh for ${credentials.connectionName}`);
+      credentials._tokenRefreshedOn401 = true;
+      const ref = await checkAndRefreshToken(provider, credentials, { force: true });
+      if (ref?.accessToken && ref.accessToken !== refreshedCredentials.accessToken) {
+        log.info("TOKEN_REFRESH", `Immediate token refresh succeeded for ${provider} (${credentials.connectionName}), retrying request`);
+        continue;
+      }
+    }
+
     // Antigravity 409/429: refresh live quota to get exact resetAt before locking
     let quotaResetMs = null;
     let resetsAtMs = result.resetsAtMs;

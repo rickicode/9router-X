@@ -32,7 +32,8 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
         return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll };
       }
-      return { shouldFallback: true, cooldownMs: rule.cooldownMs, lockAll: !!rule.lockAll };
+      const canFallback = rule.shouldFallback !== false;
+      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll };
     }
 
     // Status-based rule: match HTTP status code

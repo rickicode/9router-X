@@ -63,6 +63,12 @@ const COOLDOWN = {
  */
 export const ERROR_RULES = [
   // --- Text-based rules (checked first, order = priority) ---
+  // Content filter / safety review errors (do NOT lock account or model)
+  { text: "did not pass the safety review",        cooldownMs: 0, lockAll: false, shouldFallback: false },
+  { text: "safety review",                         cooldownMs: 0, lockAll: false, shouldFallback: false },
+  { text: "request illegal",                       cooldownMs: 0, lockAll: false, shouldFallback: false },
+  { text: "content filter",                        cooldownMs: 0, lockAll: false, shouldFallback: false },
+
   // Model-level restrictions (do NOT lock other models on the same account)
   { text: "not available on the workers free plan", cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
   { text: "upgrade to access this model",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
