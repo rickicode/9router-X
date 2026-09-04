@@ -302,6 +302,27 @@ export default function ProviderLimits() {
     [fetchQuota],
   );
 
+  const [resettingStatusId, setResettingStatusId] = useState(null);
+
+  const handleResetConnectionStatus = useCallback(async (connectionId, provider) => {
+    setResettingStatusId(connectionId);
+    try {
+      const res = await fetch(`/api/providers/${connectionId}/reset-status`, { method: "POST" });
+      if (res.ok) {
+        notify.success("Status and cooldown reset");
+        await fetchQuota(connectionId, provider);
+        await fetchConnections(pagination.page);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        notify.error(d.error || "Failed to reset status");
+      }
+    } catch {
+      notify.error("Failed to reset status");
+    } finally {
+      setResettingStatusId(null);
+    }
+  }, [fetchQuota, fetchConnections, pagination.page]);
+
   const handleResetCodexLimit = useCallback(
     async (connectionId, provider) => {
       if (provider !== "codex" || resettingLimitId) return;
@@ -1169,6 +1190,21 @@ export default function ProviderLimits() {
                         </button>
                       </Tooltip>
                     )}
+                    <Tooltip text="Reset status & cooldown">
+                      <button
+                        type="button"
+                        onClick={() => handleResetConnectionStatus(conn.id, conn.provider)}
+                        disabled={isLoading || rowBusy || resettingStatusId === conn.id}
+                        aria-label="Reset status & cooldown"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-amber-500 transition-colors disabled:opacity-50"
+                      >
+                        <span
+                          className={`material-symbols-outlined text-[18px] ${resettingStatusId === conn.id ? "animate-spin text-amber-500" : ""}`}
+                        >
+                          restart_alt
+                        </span>
+                      </button>
+                    </Tooltip>
                     <Tooltip text="Refresh quota">
                       <button
                         type="button"

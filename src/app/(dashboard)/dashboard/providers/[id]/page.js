@@ -776,6 +776,40 @@ export default function ProviderDetailPage() {
     setOneByOneStopping(true);
   };
 
+  const handleResetConnectionStatus = async (connectionId) => {
+    try {
+      const res = await fetch(`/api/providers/${connectionId}/reset-status`, { method: "POST" });
+      if (res.ok) {
+        notify.success("Status and cooldown reset");
+        await fetchConnections();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        notify.error(d.error || "Failed to reset status");
+      }
+    } catch (err) {
+      notify.error("Failed to reset status");
+    }
+  };
+
+  const handleBulkResetStatus = async () => {
+    const exhaustedConns = connections.filter(
+      (c) => c.testStatus === "unavailable" || c.lastError || Object.keys(c).some((k) => k.startsWith("modelLock_") && c[k])
+    );
+    if (exhaustedConns.length === 0) {
+      notify.info("No exhausted or locked connections found");
+      return;
+    }
+    let success = 0;
+    for (const c of exhaustedConns) {
+      try {
+        const res = await fetch(`/api/providers/${c.id}/reset-status`, { method: "POST" });
+        if (res.ok) success++;
+      } catch {}
+    }
+    notify.success(`Reset status for ${success} connection(s)`);
+    await fetchConnections();
+  };
+
   const handleDelete = async (id) => {
     setConfirmState({
       title: "Delete Connection",
@@ -1120,6 +1154,7 @@ export default function ProviderDetailPage() {
                   setShowEditModal(true);
                 }}
                 onDelete={() => handleDelete(conn.id)}
+                onResetStatus={handleResetConnectionStatus}
                 oneByOneStatus={oneByOneResults[conn.id] || null}
                 modelAssignmentOptions={providerId === "freebuff" ? assignmentModels : null}
                 onModelAssignmentChange={providerId === "freebuff" ? (model) => handleModelAssignment(conn.id, model) : null}
@@ -1618,6 +1653,17 @@ export default function ProviderDetailPage() {
                   onClick={() => setShowBulkProxyModal(true)}
                 >
                   Apply Proxy
+                </Button>
+              )}
+              {connections.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="restart_alt"
+                  onClick={handleBulkResetStatus}
+                  title="Clear all model locks, cooldowns, and error statuses for this provider"
+                >
+                  Reset Exhausted
                 </Button>
               )}
               {connections.length > 0 && (

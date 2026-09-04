@@ -185,3 +185,17 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
   log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | UPSTREAM_${status} ${model} — quota exhausted; CACHE_BLOCK until ${quota.resetAt}`);
   return resetMs;
 }
+
+/**
+ * Reset all cached quota and strike blocks for a specific connection.
+ */
+export function clearAntigravityConnectionCache(connectionId) {
+  if (!connectionId) return;
+  quotaCache.delete(connectionId);
+  for (const key of strikeCounts.keys()) {
+    if (key.startsWith(`${connectionId}|`)) strikeCounts.delete(key);
+  }
+  for (const key of strikeBlocks.keys()) {
+    if (key.startsWith(`${connectionId}|`)) strikeBlocks.delete(key);
+  }
+}

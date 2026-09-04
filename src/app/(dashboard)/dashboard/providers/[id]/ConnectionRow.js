@@ -6,9 +6,10 @@ import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
 
-export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, oneByOneStatus = null, autoPing = null, modelAssignmentOptions = null, onModelAssignmentChange = null, strictModelAssignment = false }) {
+export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, oneByOneStatus = null, autoPing = null, modelAssignmentOptions = null, onModelAssignmentChange = null, strictModelAssignment = false }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
+  const [resettingStatus, setResettingStatus] = useState(false);
   const [selectedProxyIds, setSelectedProxyIds] = useState([]);
   const [rotationStrategy, setRotationStrategy] = useState("none");
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -517,6 +518,27 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
               >
                 <span className="material-symbols-outlined text-[18px]">bolt</span>
                 <span className="text-[10px] leading-tight">Auto-ping</span>
+              </button>
+            </Tooltip>
+          )}
+          {onResetStatus && (isCooldown || connection.testStatus === "unavailable" || connection.lastError) && (
+            <Tooltip text="Reset exhausted/cooldown status">
+              <button
+                onClick={async () => {
+                  setResettingStatus(true);
+                  try {
+                    await onResetStatus(connection.id);
+                  } finally {
+                    setResettingStatus(false);
+                  }
+                }}
+                disabled={resettingStatus}
+                className="flex flex-col items-center rounded px-2 py-1 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+              >
+                <span className={`material-symbols-outlined text-[18px] ${resettingStatus ? "animate-spin" : ""}`}>
+                  restart_alt
+                </span>
+                <span className="text-[10px] leading-tight">Reset</span>
               </button>
             </Tooltip>
           )}
