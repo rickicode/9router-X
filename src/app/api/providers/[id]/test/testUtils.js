@@ -151,6 +151,12 @@ const OAUTH_TEST_CONFIG = {
 export function classifyOAuthProbeResult(res, config, bodyText = "") {
   if (!res) return { valid: false, error: "No response", soft: false };
   const status = res.status;
+
+  // Explicit check for hard account ban (e.g. Freebuff {"status":"banned"})
+  if ((status === 403 || !res.ok) && /\b(banned|account has been banned)\b/i.test(bodyText)) {
+    return { valid: false, error: "Freebuff account has been banned (403)", soft: false };
+  }
+
   const accepted = res.ok || (config?.acceptStatuses && config.acceptStatuses.includes(status));
   if (!accepted) {
     if (status === 401) return { valid: false, error: "Token invalid or revoked", soft: false };

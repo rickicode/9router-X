@@ -118,6 +118,11 @@ export function getModelLockKey(model) {
  * Reads flat field `modelLock_${model}` (or `modelLock___all` when model=null).
  */
 export function isModelLockActive(connection, model) {
+  if (!connection) return false;
+  // Permanent lock for banned or revoked accounts
+  if (connection.lastError && /\b(banned|account has been banned)\b/i.test(connection.lastError)) {
+    return true;
+  }
   const key = getModelLockKey(model);
   const expiry = connection[key] || connection[MODEL_LOCK_ALL];
   if (!expiry) return false;
