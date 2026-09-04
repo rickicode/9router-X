@@ -69,6 +69,13 @@ export const ERROR_RULES = [
   { text: "request illegal",                       cooldownMs: 0, lockAll: false, shouldFallback: false },
   { text: "content filter",                        cooldownMs: 0, lockAll: false, shouldFallback: false },
 
+  // Credit / Balance exhaustion (Account-wide lock until refill)
+  { text: "credits exhausted",                     cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "insufficient credits",                  cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "insufficient balance",                  cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "out of credits",                        cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  { text: "quota reached",                         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+
   // Model-level restrictions (do NOT lock other models on the same account)
   { text: "not available on the workers free plan", cooldownMs: COOLDOWN.permanentAuth, lockAll: false },
   { text: "upgrade to access this model",          cooldownMs: COOLDOWN.permanentAuth, lockAll: false },

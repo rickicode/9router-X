@@ -278,6 +278,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // GitHub premium-request exhaustion is account-wide until the next UTC month.
   const githubResetAtMs = githubMonthlyResetMs(status, errorText, provider);
 
+  const providerId = resolveProviderId(provider);
+  // Providers whose quota/credits are account-wide across ALL models
+  const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "github", "grok-cli"]);
+  const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
+
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
   let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false;
   if (githubResetAtMs) {
@@ -289,8 +294,10 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     shouldFallback = true;
     cooldownMs = Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS);
     newBackoffLevel = 0;
+    if (isPooledQuotaProvider) lockAll = true;
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll } = checkFallbackError(status, errorText, backoffLevel));
+    if (isPooledQuotaProvider && (status === 429 || status === 402)) lockAll = true;
   }
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
