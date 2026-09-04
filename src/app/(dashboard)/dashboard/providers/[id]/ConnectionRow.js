@@ -226,9 +226,14 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
   const hasFatalError = Boolean(
     connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(connection.lastError)
   );
-  const effectiveStatus = (connection.testStatus === "unavailable" && !isCooldown && !hasFatalError)
-    ? "active"  // Cooldown expired u2192 treat as active
-    : connection.testStatus;
+  const hasAccountLock = Boolean(
+    connection.modelLock___all && new Date(connection.modelLock___all).getTime() > Date.now()
+  );
+  const effectiveStatus = connection.isActive === false
+    ? "disabled"
+    : (hasAccountLock || hasFatalError)
+      ? "unavailable"
+      : (connection.testStatus === "unavailable" ? "active" : (connection.testStatus || "active"));
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
