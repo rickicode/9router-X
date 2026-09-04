@@ -220,6 +220,12 @@ export async function refreshGoogleToken(refreshToken, clientId, clientSecret, l
     if (!response.ok) {
       const errorText = await response.text();
       log?.error?.("TOKEN_REFRESH", "Failed to refresh Google token", { status: response.status, error: errorText });
+      const failure = classifyOAuthRefreshError(errorText, response.status);
+      // Permanent grant errors (revoked/reused/deleted account) must stop the
+      // background refresh loop instead of retrying every tick.
+      if (failure.permanent || /account has been deleted|deleted|removed|disabled/i.test(errorText)) {
+        return { error: "unrecoverable_refresh_error", code: failure.code || "invalid_grant" };
+      }
       return null;
     }
 
