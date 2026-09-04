@@ -83,7 +83,10 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
     return () => document.removeEventListener("mousedown", handler);
   }, [showProxyDropdown]);
 
-  const effectiveStatus = connection.testStatus === "unavailable" && !isCooldown ? "active" : connection.testStatus;
+  const hasFatalError = Boolean(
+    connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(connection.lastError)
+  );
+  const effectiveStatus = connection.testStatus === "unavailable" && !isCooldown && !hasFatalError ? "active" : connection.testStatus;
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
