@@ -46,8 +46,16 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     }
   }
 
-  // Default: transient cooldown for any unmatched error
-  return { shouldFallback: true, cooldownMs: TRANSIENT_COOLDOWN_MS };
+  // 5xx and unknown errors are transient (server error, network, etc):
+  // lock briefly so we retry, but DO NOT treat as request-level (400/404/413)
+  // which are handled by explicit rules above.
+  if (status >= 500) {
+    return { shouldFallback: true, cooldownMs: TRANSIENT_COOLDOWN_MS };
+  }
+
+  // Default: do NOT lock for any other unmatched status (e.g. 400/413 from
+  // custom providers). The account is fine; the request was bad.
+  return { shouldFallback: false, cooldownMs: 0 };
 }
 
 /**

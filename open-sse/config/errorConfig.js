@@ -97,11 +97,17 @@ export const ERROR_RULES = [
   { text: "capacity",                  backoff: true },
   { text: "overloaded",                backoff: true },
 
-  // --- Status-based rules (fallback when text doesn't match) ---
+  // --- Status-based rules (fallback when text doesn not match) ---
+  // 4xx request errors (400/404/413) are request-level, not account-level:
+  // the account itself is healthy; only the request was bad. Do NOT lock.
+  { status: 400, cooldownMs: 0, lockAll: false, shouldFallback: false },
+  { status: 404, cooldownMs: 0, lockAll: false, shouldFallback: false },
+  { status: 413, cooldownMs: 0, lockAll: false, shouldFallback: false },
+  // Auth errors — the account/token is dead or forbidden
   { status: 401, cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { status: 402, cooldownMs: COOLDOWN.long },
   { status: 403, cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
-  { status: 404, cooldownMs: COOLDOWN.long },
+  // Rate limit — backoff
   { status: 429, backoff: true },
 ];
 
