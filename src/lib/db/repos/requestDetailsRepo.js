@@ -134,15 +134,18 @@ async function flushToDatabase() {
           );
         }
 
-        await tx.run(
-          `DELETE FROM request_details
-           WHERE (id, timestamp) IN (
-             SELECT id, timestamp FROM request_details ORDER BY timestamp ASC LIMIT GREATEST(
-               (SELECT COUNT(*) FROM request_details) - $1, 0
-             )
-           )`,
-          [config.maxRecords],
-        );
+        // Fast partition-pruned cleanup: find timestamp cutoff instead of unindexed composite IN subquery
+        const countRow = await tx.get(`SELECT COUNT(*)::int AS total FROM request_details`);
+        const excess = (countRow?.total || 0) - config.maxRecords;
+        if (excess > 0) {
+          const cutoffRow = await tx.get(
+            `SELECT timestamp FROM request_details ORDER BY timestamp ASC OFFSET $1 LIMIT 1`,
+            [excess],
+          );
+          if (cutoffRow?.timestamp) {
+            await tx.run(`DELETE FROM request_details WHERE timestamp < $1`, [cutoffRow.timestamp]);
+          }
+        }
       });
     }
   } catch (error) {

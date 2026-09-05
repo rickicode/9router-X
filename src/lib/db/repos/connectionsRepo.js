@@ -330,7 +330,13 @@ export async function getAvailableAccountsForRouting({ provider, model, limit = 
        FROM provider_connections
       WHERE provider = $1 AND is_active = true
         AND (locked_all_until IS NULL OR locked_all_until <= NOW())
-        AND (model_locks->>$2 IS NULL OR (model_locks->>$2)::timestamptz <= NOW())
+        AND (
+          model_locks->>$2 IS NULL
+          OR CASE
+               WHEN (model_locks->>$2) ~ '^\\d{4}-\\d{2}-\\d{2}' THEN (model_locks->>$2)::timestamptz <= NOW()
+               ELSE true
+             END
+        )
       ORDER BY priority ASC, last_used_at ASC NULLS FIRST
       LIMIT $3`,
     [provider, model, limit],

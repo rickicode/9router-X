@@ -30,6 +30,8 @@ import {
   upsertUsageSnapshot,
   getBatchProviderQuotas,
 } from "@/lib/db/repos/usageSnapshotsRepo.js";
+import { makeKv } from "@/lib/db/helpers/kvStore.js";
+import { saveRequestDetail, getRequestDetails } from "@/lib/db/repos/requestDetailsRepo.js";
 import { GET as healthGet } from "@/app/api/health/route.js";
 import { GET as quotasGet } from "@/app/api/usage/quotas/route.js";
 
@@ -150,6 +152,47 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     const data = await res.json();
     expect(data.status).toBe("healthy");
     expect(data.postgres).toBe(true);
+  });
+
+  it("should verify kvStore works with Postgres placeholders", async () => {
+    const testKv = makeKv("test_scope");
+    await testKv.set("hello", { foo: "bar" });
+    const val = await testKv.get("hello");
+    expect(val).toEqual({ foo: "bar" });
+
+    await testKv.setMany({ a: 1, b: 2 });
+    const all = await testKv.getAll();
+    expect(all.a).toBe(1);
+    expect(all.b).toBe(2);
+
+    await testKv.remove("hello");
+    const removed = await testKv.get("hello");
+    expect(removed).toBeNull();
+    await testKv.clear();
+  });
+
+  it("should safely handle non-timestamp model_locks values in routing", async () => {
+    const conn = await createProviderConnection({
+      id: "e2e-lock-conn",
+      provider: "openai",
+      authType: "apikey",
+      name: "E2E Bad Lock Test",
+      apiKey: "sk-bad-lock",
+      priority: 1,
+      isActive: true,
+      modelLocks: { "gpt-4o": "invalid-non-date-value" },
+    });
+    expect(conn.id).toBe("e2e-lock-conn");
+
+    // Routing query should not crash with Postgres timestamp syntax error
+    const candidates = await getAvailableAccountsForRouting({
+      provider: "openai",
+      model: "gpt-4o",
+      limit: 5,
+    });
+    expect(Array.isArray(candidates)).toBe(true);
+
+    await deleteProviderConnection("e2e-lock-conn");
   });
 
   it("should verify batch quotas API route", async () => {
