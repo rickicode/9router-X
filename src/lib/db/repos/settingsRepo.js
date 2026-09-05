@@ -64,10 +64,20 @@ const DEFAULT_SETTINGS = {
   pxpipeTimeoutMs: 15000,
 };
 
+let cachedSettings = null;
+let cachedSettingsExpiresAt = 0;
+const SETTINGS_CACHE_TTL_MS = 5000; // 5s in-memory cache
+
 async function readRaw() {
+  const now = Date.now();
+  if (cachedSettings && now < cachedSettingsExpiresAt) {
+    return cachedSettings;
+  }
   const db = await getAdapter();
   const row = await db.get("SELECT data FROM settings WHERE id = 1");
-  return row ? parseJson(row.data, {}) : {};
+  cachedSettings = row ? parseJson(row.data, {}) : {};
+  cachedSettingsExpiresAt = now + SETTINGS_CACHE_TTL_MS;
+  return cachedSettings;
 }
 
 export function mergeWithDefaults(raw) {
@@ -110,6 +120,8 @@ export async function updateSettings(updates) {
     );
   });
 
+  cachedSettings = next;
+  cachedSettingsExpiresAt = Date.now() + SETTINGS_CACHE_TTL_MS;
   return mergeWithDefaults(next);
 }
 

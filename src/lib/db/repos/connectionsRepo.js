@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
+import { invalidateCachedConnections } from "../../redis/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 const MODEL_LOCK_ALL = "__all";
@@ -438,6 +439,7 @@ export async function createProviderConnection(data = {}) {
     await writeConnection(tx, connection);
     await reorderInTransaction(tx, connection.provider);
     const reordered = await tx.get(`SELECT * FROM provider_connections WHERE id = $1`, [connection.id]);
+    invalidateCachedConnections(connection.provider).catch(() => {});
     return rowToConnection(reordered);
   });
 }
@@ -458,6 +460,7 @@ export async function updateProviderConnection(id, data = {}) {
       updatedAt: new Date().toISOString(),
     };
     const updated = await writeConnection(tx, merged, { createdAt: existing.createdAt });
+    invalidateCachedConnections(existing.provider).catch(() => {});
     if (patch.priority !== undefined) {
       await reorderInTransaction(tx, existing.provider);
       return rowToConnection(await tx.get(`SELECT * FROM provider_connections WHERE id = $1`, [id]));
@@ -473,6 +476,7 @@ export async function deleteProviderConnection(id) {
     if (!row) return false;
     await tx.run(`DELETE FROM provider_connections WHERE id = $1`, [id]);
     await reorderInTransaction(tx, row.provider);
+    invalidateCachedConnections(row.provider).catch(() => {});
     return true;
   });
 }
@@ -480,7 +484,8 @@ export async function deleteProviderConnection(id) {
 export async function deleteProviderConnectionsByProvider(provider) {
   const db = await getAdapter();
   return db.transaction(async (tx) => {
-    const result = await tx.run(`DELETE FROM provider_connections WHERE provider = $1`, [provider]);
+    const result = await db.run(`DELETE FROM provider_connections WHERE provider = $1`, [provider]);
+    invalidateCachedConnections(provider).catch(() => {});
     return Number(result?.changes ?? 0);
   });
 }

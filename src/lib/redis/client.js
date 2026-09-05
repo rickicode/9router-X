@@ -92,6 +92,77 @@ export async function isModelInCooldown(connId, model) {
 }
 
 /**
+ * High-performance batch cooldown check for hundreds/thousands of connections in 1 roundtrip.
+ * Returns a Set of connection IDs that are in cooldown (either account-wide or model-specific).
+ */
+export async function getBatchCooldowns(connIds, model = null) {
+  if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) {
+    return new Set();
+  }
+  try {
+    const keys = [];
+    for (const id of connIds) {
+      keys.push(`cooldown:conn:${id}`);
+      if (model) {
+        keys.push(`cooldown:model:${id}:${model}`);
+      }
+    }
+
+    const values = await redis.mget(keys);
+    const cooledDown = new Set();
+    const stride = model ? 2 : 1;
+
+    for (let i = 0; i < connIds.length; i++) {
+      const connId = connIds[i];
+      const accountVal = values[i * stride];
+      const modelVal = model ? values[i * stride + 1] : null;
+
+      if (accountVal === "1" || modelVal === "1") {
+        cooledDown.add(connId);
+      }
+    }
+
+    return cooledDown;
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Cache and retrieve full active connections in Redis (L2 speed layer)
+ * Survives across multi-replica and reduces Postgres roundtrips to 0
+ */
+export async function getCachedConnections(provider) {
+  if (!isRedisAvailable() || !provider) return null;
+  try {
+    const raw = await redis.get(`cache:connections:${provider}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedConnections(provider, connections, ttlSeconds = 10) {
+  if (!isRedisAvailable() || !provider || !Array.isArray(connections)) return false;
+  try {
+    await redis.set(`cache:connections:${provider}`, JSON.stringify(connections), "EX", ttlSeconds);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function invalidateCachedConnections(provider) {
+  if (!isRedisAvailable() || !provider) return false;
+  try {
+    await redis.del(`cache:connections:${provider}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Distributed Lock (Anti-Race Condition for OAuth Token Refresh)
  */
 export async function acquireLock(key, ttlSeconds = 30) {

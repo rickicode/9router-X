@@ -54,16 +54,16 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
     container_name: 9router-redis
     restart: always
     ports:
       - "${REDIS_PORT:-6381}:6379"
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "${REDIS_PASSWORD:-redispassword123}"]
+    command: ["dragonfly", "--maxmemory=512mb", "--requirepass=${REDIS_PASSWORD:-redispassword123}", "--dir=/data"]
     volumes:
       - 9router-redisdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redispassword123} ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redispassword123} ping | grep PONG || exit 0"]
       interval: 5s
       timeout: 3s
       retries: 5

@@ -7,6 +7,9 @@ import {
   isAccountInCooldown,
   setModelCooldown,
   isModelInCooldown,
+  getBatchCooldowns,
+  getCachedConnections,
+  setCachedConnections,
   acquireLock,
   releaseLock,
 } from "@/lib/redis/client.js";
@@ -67,6 +70,23 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       const lock = await acquireLock("test-suite-lock", 10);
       expect(lock).toBe(true);
       await releaseLock("test-suite-lock");
+
+      // Verify batch cooldown check (O(1) roundtrip for thousands of connections)
+      await setAccountCooldown("batch-conn-1", 10);
+      await setModelCooldown("batch-conn-2", "gpt-4o", 10);
+      const cooledDown = await getBatchCooldowns(
+        ["batch-conn-1", "batch-conn-2", "batch-conn-3"],
+        "gpt-4o"
+      );
+      expect(cooledDown.has("batch-conn-1")).toBe(true);
+      expect(cooledDown.has("batch-conn-2")).toBe(true);
+      expect(cooledDown.has("batch-conn-3")).toBe(false);
+
+      // Verify cached connections speed layer
+      await setCachedConnections("test-provider", [{ id: "c1", provider: "test-provider" }], 5);
+      const cached = await getCachedConnections("test-provider");
+      expect(cached).toHaveLength(1);
+      expect(cached[0].id).toBe("c1");
     }
   });
 

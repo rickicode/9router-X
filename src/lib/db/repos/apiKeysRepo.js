@@ -95,15 +95,33 @@ export async function updateApiKey(id, data = {}) {
 export async function deleteApiKey(id) {
   const db = await getAdapter();
   const result = await db.run(`DELETE FROM api_keys WHERE id = $1`, [id]);
+  apiKeyCache.clear();
   return Number(result?.changes ?? 0) > 0;
 }
 
+const apiKeyCache = new Map();
+const API_KEY_CACHE_TTL_MS = 60000; // 1 min
+
 export async function validateApiKey(key) {
   if (!key) return false;
+  const now = Date.now();
+  const cached = apiKeyCache.get(key);
+  if (cached && now < cached.expiresAt) {
+    return cached.isValid;
+  }
+
   const db = await getAdapter();
   const row = await db.get(
     `SELECT is_active FROM api_keys WHERE key = $1`,
     [key],
   );
-  return Boolean(row && booleanValue(row.is_active, false));
+  const isValid = Boolean(row && booleanValue(row.is_active, false));
+  apiKeyCache.set(key, { isValid, expiresAt: now + API_KEY_CACHE_TTL_MS });
+
+  // Simple cap on map size
+  if (apiKeyCache.size > 5000) {
+    apiKeyCache.clear();
+  }
+
+  return isValid;
 }

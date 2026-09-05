@@ -9,11 +9,14 @@ import {
   isAccountInCooldown as redisIsAccountInCooldown,
   setModelCooldown as redisSetModelCooldown,
   isModelInCooldown as redisIsModelInCooldown,
+  getBatchCooldowns,
+  getCachedConnections,
+  setCachedConnections,
 } from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
 
-// Mutex to prevent race conditions during account selection
-let selectionMutex = Promise.resolve();
+// Per-provider mutex map to prevent race conditions during account selection without blocking unrelated providers
+const selectionMutexes = new Map();
 
 export function filterConnectionsForModel(providerId, connections, model, settings = {}) {
   const override = (settings.providerStrategies || {})[providerId] || {};
@@ -49,16 +52,18 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     ? excludeConnectionIds
     : (excludeConnectionIds ? new Set([excludeConnectionIds]) : new Set());
   const preferredConnectionId = options?.preferredConnectionId || null;
-  // Acquire mutex to prevent race conditions
-  const currentMutex = selectionMutex;
+
+  // Resolve alias to provider ID (e.g., "kc" -> "kilocode")
+  const providerId = resolveProviderId(provider);
+
+  // Per-provider mutex: concurrency for different providers remains non-blocking
+  const currentMutex = selectionMutexes.get(providerId) || Promise.resolve();
   let resolveMutex;
-  selectionMutex = new Promise(resolve => { resolveMutex = resolve; });
+  const nextMutex = new Promise(resolve => { resolveMutex = resolve; });
+  selectionMutexes.set(providerId, nextMutex);
 
   try {
     await currentMutex;
-
-    // Resolve alias to provider ID (e.g., "kc" -> "kilocode")
-    const providerId = resolveProviderId(provider);
 
     // Inject a virtual connection for no-auth free providers (with optional proxy pool from settings)
     if (FREE_PROVIDERS[providerId]?.noAuth) {
@@ -100,7 +105,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       };
     }
 
-    let connections = await getProviderConnections({ provider: providerId, isActive: true });
+    // L2 Speed Layer: Try fetching cached connections from Redis first
+    let connections = await getCachedConnections(providerId);
+    if (!connections || !Array.isArray(connections)) {
+      connections = await getProviderConnections({ provider: providerId, isActive: true });
+      if (connections.length > 0) {
+        setCachedConnections(providerId, connections, 10).catch(() => {});
+      }
+    }
+
     const settings = await getSettings();
     const providerOverride = (settings.providerStrategies || {})[providerId] || {};
     connections = filterConnectionsForModel(providerId, connections, model, settings);
@@ -115,17 +128,14 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
 
-    // Check Redis L2 Cooldown cache fast filters
-    const redisFilteredConnections = [];
-    for (const c of connections) {
-      if (excludeSet.has(c.id)) continue;
-      if (await redisIsAccountInCooldown(c.id)) continue;
-      if (model && await redisIsModelInCooldown(c.id, model)) continue;
-      redisFilteredConnections.push(c);
-    }
+    // Check Redis L2 Cooldown in 1 single BATCH call (O(1) roundtrip for 1000s of accounts)
+    const candidateIds = connections.map(c => c.id).filter(id => !excludeSet.has(id));
+    const cooledDownIds = await getBatchCooldowns(candidateIds, model);
 
     // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
-    const availableConnections = redisFilteredConnections.filter(c => {
+    const availableConnections = connections.filter(c => {
+      if (excludeSet.has(c.id)) return false;
+      if (cooledDownIds.has(c.id)) return false;
       if (isModelLockActive(c, model)) return false;
       // Antigravity: skip if live quota exhausted for this model
       if (isAntigravity && model && antigravityQuotaCache) {
@@ -287,6 +297,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     };
   } finally {
     if (resolveMutex) resolveMutex();
+    if (selectionMutexes.get(providerId) === nextMutex) {
+      selectionMutexes.delete(providerId);
+    }
   }
 }
 
