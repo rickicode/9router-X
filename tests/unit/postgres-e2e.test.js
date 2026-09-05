@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import { makeKv } from "@/lib/db/helpers/kvStore.js";
 import { saveRequestDetail, getRequestDetails } from "@/lib/db/repos/requestDetailsRepo.js";
+import { getChartData } from "@/lib/db/repos/usageRepo.js";
 import { GET as healthGet } from "@/app/api/health/route.js";
 import { GET as quotasGet } from "@/app/api/usage/quotas/route.js";
 
@@ -222,6 +223,84 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     } finally {
       for (const id of ids) {
         await deleteProviderConnection(id);
+      }
+    }
+  });
+
+  it("should handle Antigravity model locks and Codex account locks accurately", async () => {
+    const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const past = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+    const agConn = await createProviderConnection({
+      id: "ag-lock-test",
+      provider: "antigravity",
+      authType: "oauth",
+      name: "AG Lock Test",
+      priority: 0,
+      isActive: true,
+      modelLocks: { "gemini-2.5-flash": future, "gemini-2.5-pro": past },
+    });
+
+    const codexConn = await createProviderConnection({
+      id: "codex-lock-test",
+      provider: "codex",
+      authType: "oauth",
+      name: "Codex Lock Test",
+      priority: 0,
+      isActive: true,
+      lockedAllUntil: future,
+    });
+
+    try {
+      // AG account has future lock on flash -> exhausted
+      const agExhausted = await getProviderConnections({ provider: "antigravity", status: "exhausted" });
+      expect(agExhausted.map((c) => c.id)).toContain("ag-lock-test");
+
+      // AG account should route for gemini-2.5-pro (lock is in past)
+      const agProRouting = await getAvailableAccountsForRouting({
+        provider: "antigravity",
+        model: "gemini-2.5-pro",
+        limit: 50,
+      });
+      expect(agProRouting.some((c) => c.id === "ag-lock-test")).toBe(true);
+
+      // AG account should NOT route for gemini-2.5-flash (active lock)
+      const agFlashRouting = await getAvailableAccountsForRouting({
+        provider: "antigravity",
+        model: "gemini-2.5-flash",
+        limit: 50,
+      });
+      expect(agFlashRouting.some((c) => c.id === "ag-lock-test")).toBe(false);
+
+      // Codex account has lockedAllUntil -> unavailable
+      const codexUnavailable = await getProviderConnections({ provider: "codex", status: "unavailable" });
+      expect(codexUnavailable.map((c) => c.id)).toContain("codex-lock-test");
+
+      // Codex account should NOT route for any model
+      const codexRouting = await getAvailableAccountsForRouting({
+        provider: "codex",
+        model: "gpt-5.5",
+        limit: 50,
+      });
+      expect(codexRouting.some((c) => c.id === "codex-lock-test")).toBe(false);
+    } finally {
+      await deleteProviderConnection("ag-lock-test");
+      await deleteProviderConnection("codex-lock-test");
+    }
+  });
+
+  it("should return requests counts in getChartData across periods", async () => {
+    for (const period of ["today", "24h", "7d", "30d", "60d"]) {
+      const data = await getChartData(period);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data.length).toBeGreaterThan(0);
+      for (const bucket of data) {
+        expect(bucket).toHaveProperty("label");
+        expect(bucket).toHaveProperty("tokens");
+        expect(bucket).toHaveProperty("cost");
+        expect(bucket).toHaveProperty("requests");
+        expect(typeof bucket.requests).toBe("number");
+        expect(bucket.requests).toBeGreaterThanOrEqual(0);
       }
     }
   });

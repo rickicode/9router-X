@@ -154,3 +154,87 @@ describe("GitHub monthly usage exhaustion", () => {
     }
   });
 });
+
+describe("Freebuff banned/country-blocked accounts", () => {
+  it("disables a banned Freebuff account (is_active=false, testStatus disabled)", async () => {
+    dbMocks.getProviderConnections.mockResolvedValueOnce([{
+      id: "fb-1",
+      provider: "freebuff",
+      name: "fb-1",
+      displayName: "Freebuff A",
+      backoffLevel: 0,
+      testStatus: "active",
+    }]);
+
+    const res = await markAccountUnavailable(
+      "fb-1",
+      403,
+      "Freebuff account banned (403): {\"status\":\"banned\"}",
+      "freebuff",
+      "deepseek/deepseek-v4-flash",
+      null,
+      "banned",
+    );
+
+    expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
+      "fb-1",
+      expect.objectContaining({
+        isActive: false,
+        testStatus: "disabled",
+        errorCode: 403,
+        backoffLevel: 0,
+        modelLock___all: null,
+        rateLimitedUntil: null,
+      }),
+    );
+    expect(res).toEqual({ shouldFallback: false, cooldownMs: 0 });
+  });
+
+  it("disables a banned Freebuff account even when freebuffKind is absent (regex fallback)", async () => {
+    dbMocks.getProviderConnections.mockResolvedValueOnce([{
+      id: "fb-2",
+      provider: "freebuff",
+      name: "fb-2",
+      backoffLevel: 0,
+    }]);
+
+    await markAccountUnavailable(
+      "fb-2",
+      403,
+      "Freebuff account banned (403): {\"status\":\"banned\"}",
+      "freebuff",
+      "openai/gpt-5.6-luna",
+      null,
+      null,
+    );
+
+    expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
+      "fb-2",
+      expect.objectContaining({ isActive: false, testStatus: "disabled", errorCode: 403 }),
+    );
+  });
+
+  it("never disables a country_blocked Freebuff account (proxy-rotatable, not an account fault)", async () => {
+    dbMocks.getProviderConnections.mockResolvedValueOnce([{
+      id: "fb-3",
+      provider: "freebuff",
+      name: "fb-3",
+      backoffLevel: 0,
+    }]);
+
+    await markAccountUnavailable(
+      "fb-3",
+      403,
+      "Freebuff is not available in your region (country blocked).",
+      "freebuff",
+      "deepseek/deepseek-v4-flash",
+      null,
+      "country_blocked",
+    );
+
+    const update = dbMocks.updateProviderConnection.mock.calls[0][1];
+    expect(update).not.toHaveProperty("isActive");
+    expect(update).not.toHaveProperty("modelLock___all");
+    expect(update.lastError).toMatch(/country blocked/i);
+  });
+});

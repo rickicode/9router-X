@@ -83,6 +83,8 @@ export const ERROR_RULES = [
   { text: "plan does not include",                 cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
   { text: "not supported for your plan",           cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
   { text: "model not supported for tier",          cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "not available in your region",  cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: "country_blocked",                cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
 
   { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "banned",                    cooldownMs: COOLDOWN.permanentAuth, lockAll: true },

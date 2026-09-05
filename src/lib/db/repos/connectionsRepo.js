@@ -286,7 +286,7 @@ function deriveConnectionName(data, fallbackName) {
 }
 
 const FATAL_CONNECTION_ERROR_SQL = "(last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
-const CONNECTION_UNAVAILABLE_DATA_SQL = "(data->'providerSpecificData'->>'refreshBlocked' IS NOT NULL)";
+const CONNECTION_UNAVAILABLE_DATA_SQL = "(COALESCE(data->'providerSpecificData'->>'refreshBlocked', 'false') = 'true')";
 const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
 const FUTURE_ACCOUNT_LOCK_SQL = `(
   (locked_all_until IS NOT NULL AND locked_all_until > NOW())
@@ -630,26 +630,30 @@ export async function touchAccountLastUsed(id) {
 
 export async function setModelCooldown(id, model, untilIso) {
   const db = await getAdapter();
-  const result = await db.run(
+  const row = await db.get(
     `UPDATE provider_connections
         SET model_locks = jsonb_set(COALESCE(model_locks, '{}'::jsonb), ARRAY[$2], to_jsonb($3::text), true),
             updated_at = NOW()
-      WHERE id = $1`,
+      WHERE id = $1
+      RETURNING provider`,
     [id, model, untilIso],
   );
-  return Number(result?.changes ?? 0) > 0;
+  if (row?.provider) invalidateCachedConnections(row.provider).catch(() => {});
+  return Boolean(row);
 }
 
 export async function clearModelCooldown(id, model) {
   const db = await getAdapter();
-  const result = await db.run(
+  const row = await db.get(
     `UPDATE provider_connections
         SET model_locks = COALESCE(model_locks, '{}'::jsonb) - $2,
             updated_at = NOW()
-      WHERE id = $1`,
+      WHERE id = $1
+      RETURNING provider`,
     [id, model],
   );
-  return Number(result?.changes ?? 0) > 0;
+  if (row?.provider) invalidateCachedConnections(row.provider).catch(() => {});
+  return Boolean(row);
 }
 
 export async function createProviderConnection(data = {}) {

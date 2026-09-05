@@ -608,7 +608,7 @@ export async function getUsageStats(period = "all") {
   const bucketMap = {};
   for (let i = 0; i < 10; i++) {
     const ts = currentMinuteStart.getTime() - (9 - i) * 60 * 1000;
-    bucketMap[ts] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+    bucketMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
     stats.last10Minutes.push(bucketMap[ts]);
   }
   const recent10 = await db.all(

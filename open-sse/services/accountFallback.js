@@ -138,7 +138,7 @@ export function isModelLockActive(connection, model) {
     return true;
   }
   const key = getModelLockKey(model);
-  const expiries = [connection[key], connection.modelLocks?.[model], connection.modelLock___all, connection.modelLocks?.__all, connection.lockedAllUntil]
+  const expiries = [connection[key], connection.modelLocks?.[model], connection.modelLock___all, connection.modelLocks?.__all, connection.lockedAllUntil, connection.rateLimitedUntil]
     .map((value) => (value ? new Date(value).getTime() : 0))
     .filter((value) => Number.isFinite(value));
   return expiries.some((expiry) => expiry > Date.now());
@@ -152,11 +152,21 @@ export function getEarliestModelLockUntil(connection) {
   if (!connection) return null;
   let earliest = null;
   const now = Date.now();
+  const candidates = [];
   for (const [key, val] of Object.entries(connection)) {
-    if (!key.startsWith(MODEL_LOCK_PREFIX) || !val) continue;
+    if (key.startsWith(MODEL_LOCK_PREFIX) && val) candidates.push(val);
+  }
+  for (const val of Object.values(connection.modelLocks || {})) {
+    if (val) candidates.push(val);
+  }
+  if (connection.lockedAllUntil) candidates.push(connection.lockedAllUntil);
+  if (connection.rateLimitedUntil) candidates.push(connection.rateLimitedUntil);
+
+  for (const val of candidates) {
     const t = new Date(val).getTime();
-    if (t <= now) continue;
-    if (!earliest || t < earliest) earliest = t;
+    if (Number.isFinite(t) && t > now) {
+      if (!earliest || t < earliest) earliest = t;
+    }
   }
   return earliest ? new Date(earliest).toISOString() : null;
 }

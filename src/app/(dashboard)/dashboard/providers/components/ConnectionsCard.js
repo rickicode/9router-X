@@ -86,25 +86,30 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   }, [showProxyDropdown]);
 
   const hasFatalError = Boolean(
-    connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError)
+    connection.providerSpecificData?.refreshBlocked ||
+    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
   );
   const accountLockUntil = connection.lockedAllUntil
+    || connection.rateLimitedUntil
     || connection.modelLocks?.__all
     || connection.modelLock___all;
   const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
-    if (!accountLockUntil) return;
     const updateTime = () => setCurrentTime(Date.now());
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, [accountLockUntil]);
 
+  const now = currentTime > 0 ? currentTime : Date.now();
   const hasAccountLock = Boolean(
-    accountLockUntil && (currentTime > 0 ? new Date(accountLockUntil).getTime() > currentTime : new Date(accountLockUntil).getTime() > 0)
+    accountLockUntil && new Date(accountLockUntil).getTime() > now
   );
-  const hasModelLock = Object.entries(connection.modelLocks || {}).some(([model]) => model !== "__all");
+  const hasModelLock = [
+    ...Object.entries(connection).filter(([k]) => k.startsWith("modelLock_")).map(([k, v]) => ({ model: k.slice("modelLock_".length) || "__all", until: v })),
+    ...Object.entries(connection.modelLocks || {}).map(([k, v]) => ({ model: k || "__all", until: v })),
+  ].some((item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now);
 
   const effectiveStatus = connection.isActive === false
     ? "disabled"

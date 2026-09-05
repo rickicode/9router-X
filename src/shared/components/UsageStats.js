@@ -88,13 +88,16 @@ function RecentRequests({ requests = [] }) {
 
 function RequestStream({ buckets = [] }) {
   const total = buckets.reduce((sum, bucket) => sum + Number(bucket.requests || 0), 0);
+  const current = buckets.length ? Number(buckets[buckets.length - 1]?.requests || 0) : 0;
   const max = Math.max(1, ...buckets.map((bucket) => Number(bucket.requests || 0)));
 
   return (
     <Card className="min-w-0 overflow-hidden" padding="sm">
       <div className="flex items-center justify-between border-b border-border px-1 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Request Stream</span>
-        <span className="text-sm font-semibold text-primary">{total.toLocaleString()} requests / 10m</span>
+        <span className="text-sm font-semibold text-primary" title={`Total last 10m: ${total.toLocaleString()} requests`}>
+          {current.toLocaleString()} requests / 1 min
+        </span>
       </div>
       {!buckets.length ? (
         <div className="flex h-32 items-center justify-center text-sm text-text-muted">No requests yet.</div>
@@ -103,8 +106,11 @@ function RequestStream({ buckets = [] }) {
           {buckets.map((bucket, index) => {
             const requests = Number(bucket.requests || 0);
             const height = requests > 0 ? Math.max(8, Math.round((requests / max) * 100)) : 2;
+            const timeLabel = bucket.timestamp
+              ? new Date(bucket.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : "";
             return (
-              <div key={`${bucket.timestamp || index}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${requests} requests`}>
+              <div key={`${bucket.timestamp || index}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={timeLabel ? `${timeLabel}: ${requests} requests` : `${requests} requests`}>
                 <span className="text-[10px] text-text-muted">{requests || ""}</span>
                 <div className="w-full rounded-t bg-primary/70 transition-all" style={{ height: `${height}%` }} />
               </div>

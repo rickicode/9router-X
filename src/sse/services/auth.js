@@ -313,18 +313,48 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
  * @param {string} errorText
  * @param {string|null} provider
  * @param {string|null} model - The specific model that triggered the error
+ * @param {number|null} resetsAtMs - Precise upstream reset time when known
+ * @param {string} [freebuffKind] - Freebuff gate kind: "banned" | "country_blocked"
  * @returns {{ shouldFallback: boolean, cooldownMs: number }}
  */
-export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null) {
+export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null, freebuffKind = null) {
   if (!connectionId || connectionId === "noauth") return { shouldFallback: false, cooldownMs: 0 };
   const connections = await getProviderConnections({ provider });
   const conn = connections.find(c => c.id === connectionId);
   const backoffLevel = conn?.backoffLevel || 0;
 
+  // A Freebuff account the backend reports as banned is permanently dead:
+  // take it out of routing entirely (is_active=false, status disabled) rather
+  // than a timed cooldown that would re-select it after the window lapses.
+  // country_blocked is NOT an account fault — the proxy/region is blocked — so
+  // it must never disable the account here; it falls through to the generic
+  // path and the short-cooldown country rules in ERROR_RULES.
+  const providerId = resolveProviderId(provider);
+  const freebuffBanned = providerId === "freebuff"
+    && (freebuffKind === "banned" || /(^|[^a-z])banned([^a-z]|$)/i.test(String(errorText || "")));
+  if (freebuffBanned) {
+    const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Freebuff account banned");
+    await updateProviderConnection(connectionId, {
+      isActive: false,
+      testStatus: "disabled",
+      lastError: reason,
+      errorCode: status || 403,
+      lastErrorAt: new Date().toISOString(),
+      backoffLevel: 0,
+      modelLock___all: null,
+      rateLimitedUntil: null,
+    });
+    // Long L2 cooldown so the Redis-cached path also stops returning it.
+    redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+    const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
+    log.warn("AUTH", `${connName} Freebuff account banned — DISABLED (is_active=false), removed from routing`);
+    console.error(`❌ ${provider} [${status}]: ${reason}`);
+    return { shouldFallback: false, cooldownMs: 0 };
+  }
+
   // GitHub premium-request exhaustion is account-wide until the next UTC month.
   const githubResetAtMs = githubMonthlyResetMs(status, errorText, provider);
 
-  const providerId = resolveProviderId(provider);
   // Providers whose quota/credits are account-wide across ALL models
   const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "github", "grok-cli"]);
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);

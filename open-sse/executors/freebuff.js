@@ -279,10 +279,22 @@ async function requestSession(token, model, proxyOptions) {
     throw err;
   }
   if (!response.ok) {
-    const statusText = data?.status || "";
-    if (response.status === 403 || statusText === "banned") {
+    const statusText = String(data?.status || "").toLowerCase();
+    if (statusText === "banned") {
       const err = new Error(`Freebuff account banned (403): ${JSON.stringify(data).slice(0, 200)}`);
       err.status = 403;
+      err.freebuffKind = "banned";
+      throw err;
+    }
+    if (statusText === "country_blocked") {
+      const err = new Error("Freebuff is not available in your region (country blocked).");
+      err.status = 403;
+      err.freebuffKind = "country_blocked";
+      err.poolScoped = {
+        poolId: proxyOptions?.proxyPoolId || null,
+        scope: `freebuff::${model}`,
+        reason: "country_blocked",
+      };
       throw err;
     }
     const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
@@ -318,7 +330,19 @@ async function requestSession(token, model, proxyOptions) {
   };
   if (GATE_MESSAGES[status]) {
     const message = data?.message ? `${GATE_MESSAGES[status]} ${data.message}` : GATE_MESSAGES[status];
-    throw new Error(message);
+    const err = new Error(message);
+    if (status === "banned" || status === "country_blocked") {
+      err.status = 403;
+      err.freebuffKind = status;
+      if (status === "country_blocked") {
+        err.poolScoped = {
+          poolId: proxyOptions?.proxyPoolId || null,
+          scope: `freebuff::${model}`,
+          reason: "country_blocked",
+        };
+      }
+    }
+    throw err;
   }
   throw new Error(`Freebuff session rejected (${status || response.status}): ${JSON.stringify(data).slice(0, 200)}`);
 }
@@ -456,7 +480,17 @@ export class FreebuffExecutor extends BaseExecutor {
   // normally prevented by injecting the CLI's `end_turn` tool (see
   // injectEndTurnTool). If one still slips through, surface a helpful message
   // instead of a bare 404, and let the standard cooldown pace retries.
-  async parseError(response, bodyText) {
+  parseError(response, bodyText) {
+    if (response instanceof Error || (response?.message && !response?.statusText)) {
+      return {
+        status: response.status || response.upstreamStatus || 502,
+        message: response.message,
+        resetsAtMs: response.resetsAtMs,
+        poolScoped: response.poolScoped,
+        freebuffKind: response.freebuffKind,
+        upstreamStatus: response.upstreamStatus || response.status,
+      };
+    }
     const text = String(bodyText || "");
     if (response?.status === 404 && /No endpoints found/i.test(text)) {
       return {

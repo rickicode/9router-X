@@ -463,7 +463,11 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     if (log?.errorLine) {
       log.errorLine(reqTag, "✗", `ERROR 502 · ${provider}/${model} · ${Date.now() - requestStartTime}ms\n    ${errMsg}`);
     }
-    return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg, error?.resetsAtMs || undefined);
+    return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg, error?.resetsAtMs || undefined, {
+      poolScoped: error?.poolScoped,
+      upstreamStatus: error?.upstreamStatus || error?.status,
+      freebuffKind: error?.freebuffKind,
+    });
   }
 
   // Handle 401/403 - try token refresh (skip for noAuth providers)

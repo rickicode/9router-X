@@ -299,6 +299,79 @@ describe("freebuff session pre-flight", () => {
     );
   });
 
+  it("classifies a 403 banned session response as a banned account", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "banned" }, { ok: false, status: 403 }));
+
+    await expect(requestSession("tok-banned", "deepseek/deepseek-v4-flash", null)).rejects.toMatchObject({
+      status: 403,
+      freebuffKind: "banned",
+    });
+  });
+
+  it("classifies a 403 country block as pool-scoped", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "country_blocked" }, { ok: false, status: 403 }));
+
+    await expect(requestSession("tok-country", "deepseek/deepseek-v4-flash", { proxyPoolId: "pool-1" })).rejects.toMatchObject({
+      status: 403,
+      freebuffKind: "country_blocked",
+      poolScoped: {
+        poolId: "pool-1",
+        scope: "freebuff::deepseek/deepseek-v4-flash",
+        reason: "country_blocked",
+      },
+    });
+  });
+
+  it("classifies a 200 banned session gate as a banned account", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "banned" }));
+
+    await expect(requestSession("tok-banned", "deepseek/deepseek-v4-flash", null)).rejects.toMatchObject({
+      status: 403,
+      freebuffKind: "banned",
+    });
+  });
+
+  it("classifies a 200 country block as pool-scoped", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "country_blocked" }));
+
+    await expect(requestSession("tok-country-200", "deepseek/deepseek-v4-flash", { proxyPoolId: "pool-1" })).rejects.toMatchObject({
+      status: 403,
+      freebuffKind: "country_blocked",
+      poolScoped: {
+        poolId: "pool-1",
+        scope: "freebuff::deepseek/deepseek-v4-flash",
+        reason: "country_blocked",
+      },
+    });
+  });
+
+  it("preserves thrown Freebuff metadata in parseError", async () => {
+    const ex = new FreebuffExecutor();
+    const error = Object.assign(new Error("country blocked"), {
+      status: 403,
+      upstreamStatus: 403,
+      freebuffKind: "country_blocked",
+      poolScoped: { poolId: "pool-1", reason: "country_blocked" },
+    });
+
+    expect(await ex.parseError(error)).toMatchObject({
+      status: 403,
+      upstreamStatus: 403,
+      freebuffKind: "country_blocked",
+      poolScoped: { poolId: "pool-1", reason: "country_blocked" },
+    });
+  });
+
+  it("falls back for a plain thrown Error without Freebuff metadata", async () => {
+    const ex = new FreebuffExecutor();
+    const parsed = await ex.parseError(new Error("upstream failed"));
+
+    expect(parsed.status).toBe(502);
+    expect(parsed.message).toBe("upstream failed");
+    expect(parsed.poolScoped).toBeUndefined();
+    expect(parsed.freebuffKind).toBeUndefined();
+  });
+
   it("throws a 401 re-login error when the session endpoint rejects the token", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "unauthorized" }, { status: 401, ok: false }));
     await expect(requestSession("tok-expired", "deepseek/deepseek-v4-flash", null)).rejects.toThrow(/re-login/i);

@@ -235,7 +235,8 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
 
   // Determine effective status (override unavailable if cooldown expired)
   const hasFatalError = Boolean(
-    connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError)
+    connection.providerSpecificData?.refreshBlocked ||
+    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
   );
   const accountLockUntil = connection.lockedAllUntil
     || connection.rateLimitedUntil
@@ -251,8 +252,9 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
     return () => clearInterval(interval);
   }, [accountLockUntil]);
 
+  const now = currentTime > 0 ? currentTime : Date.now();
   const hasAccountLock = Boolean(
-    accountLockUntil && (currentTime > 0 ? new Date(accountLockUntil).getTime() > currentTime : new Date(accountLockUntil).getTime() > 0)
+    accountLockUntil && new Date(accountLockUntil).getTime() > now
   );
   const hasModelLock = activeLocks.some((lock) => lock.model !== "__all");
 

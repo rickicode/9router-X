@@ -350,8 +350,34 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       if (quotaResetMs) resetsAtMs = quotaResetMs;
     }
 
-    // Persist model/account lock with exact resetsAtMs across providers (including Antigravity, Codex, etc.)
-    const shouldFallback = (await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, resetsAtMs)).shouldFallback;
+    // Preserve upstream status/kind because chatCore returns thrown upstream
+    // errors as a 502 gateway response.
+    const upstreamStatus = result.extra?.upstreamStatus || result.status;
+    // A banned Freebuff account is permanently disabled (not "unavailable") —
+    // the handler returns its 502 to the client and the account drops out of
+    // routing (is_active=false) instead of entering the fallback loop.
+    if (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || "")))) {
+      await markAccountUnavailable(
+        credentials.connectionId,
+        upstreamStatus,
+        result.error,
+        provider,
+        model,
+        resetsAtMs,
+        "banned",
+      );
+      return result.response;
+    }
+
+    const shouldFallback = (await markAccountUnavailable(
+      credentials.connectionId,
+      upstreamStatus,
+      result.error,
+      provider,
+      model,
+      resetsAtMs,
+      result.extra?.freebuffKind,
+    )).shouldFallback;
 
     if (shouldFallback) {
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
