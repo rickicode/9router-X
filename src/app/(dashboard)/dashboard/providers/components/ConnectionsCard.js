@@ -86,7 +86,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   }, [showProxyDropdown]);
 
   const hasFatalError = Boolean(
-    connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(connection.lastError)
+    connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError)
   );
   const accountLockUntil = connection.lockedAllUntil
     || connection.modelLocks?.__all
@@ -104,12 +104,15 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   const hasAccountLock = Boolean(
     accountLockUntil && (currentTime > 0 ? new Date(accountLockUntil).getTime() > currentTime : new Date(accountLockUntil).getTime() > 0)
   );
+  const hasModelLock = Object.entries(connection.modelLocks || {}).some(([model]) => model !== "__all");
 
   const effectiveStatus = connection.isActive === false
     ? "disabled"
-    : (hasAccountLock || hasFatalError || connection.testStatus === "unavailable")
+    : (hasAccountLock || hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
       ? "unavailable"
-      : (connection.testStatus || "active");
+      : hasModelLock
+        ? "exhausted"
+        : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 

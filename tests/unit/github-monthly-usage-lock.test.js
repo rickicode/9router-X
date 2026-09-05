@@ -83,4 +83,74 @@ describe("GitHub monthly usage exhaustion", () => {
       vi.useRealTimers();
     }
   });
+
+  it("locks Antigravity per-model on 429 quota exhaustion", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-04T19:30:00.000Z"));
+
+    dbMocks.getProviderConnections.mockResolvedValueOnce([{
+      id: "antigravity-1",
+      provider: "antigravity",
+      name: "antigravity-1",
+      backoffLevel: 0,
+      testStatus: "active",
+    }]);
+
+    try {
+      await markAccountUnavailable(
+        "antigravity-1",
+        429,
+        "Resource exhausted: quota exceeded",
+        "antigravity",
+        "claude-sonnet-4.5",
+      );
+
+      expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
+        "antigravity-1",
+        expect.objectContaining({
+          "modelLock_claude-sonnet-4.5": expect.any(String),
+          testStatus: "active",
+        }),
+      );
+      expect(dbMocks.updateProviderConnection.mock.calls[0][1])
+        .not.toHaveProperty("modelLock___all");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("locks Codex account-wide on 429 quota exhaustion", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-04T19:30:00.000Z"));
+
+    dbMocks.getProviderConnections.mockResolvedValueOnce([{
+      id: "codex-1",
+      provider: "codex",
+      name: "codex-1",
+      backoffLevel: 0,
+      testStatus: "active",
+    }]);
+
+    try {
+      await markAccountUnavailable(
+        "codex-1",
+        429,
+        "Usage limit reached",
+        "codex",
+        "gpt-5.6",
+      );
+
+      expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
+        "codex-1",
+        expect.objectContaining({
+          modelLock___all: expect.any(String),
+          testStatus: "unavailable",
+        }),
+      );
+      expect(dbMocks.updateProviderConnection.mock.calls[0][1])
+        .not.toHaveProperty("modelLock_gpt-5.6");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

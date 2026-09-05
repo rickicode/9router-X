@@ -62,15 +62,15 @@ export default {
   features: {
     usage: true,
   },
-  // Mirrors the CLI's free picker (FREEBUFF_ROOT_AGENT_ID_BY_MODEL).
-  // mimo/mimo-v2.5-pro is intentionally absent — it is not a free-tier model
-  // and would bill credits or be rejected under the base2-free agent.
+  // Mirrors the current Freebuff regular picker (six models; full access rows
+  // plus limited-tier rows where the service permits them).
   models: [
-    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-    { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-    { id: "mimo/mimo-v2.5", name: "MiMo 2.5" },
-    { id: "minimax/minimax-m3", name: "MiniMax M3" },
+    { id: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash" },
+    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash 07/31" },
     { id: "openai/gpt-5.6-luna", name: "GPT-5.6 Luna" },
+    { id: "mimo/mimo-v2.5", name: "MiMo 2.5" },
+    { id: "upstage/solar-pro4", name: "Solar Pro 4" },
+    { id: "meta/muse-spark-1.3-contributor", name: "Muse Spark 1.3" },
   ],
   // Login-flow host — the CLI in freebuff mode logs in via freebuff.com, and
   // the server builds loginUrl from the host it was called on, so the link the

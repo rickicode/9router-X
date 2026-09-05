@@ -104,11 +104,15 @@ function injectEndTurnTool(body) {
 // base3, and the backend can return 404 "No endpoints found" for the old
 // base2 roots during the transition).
 const FREE_ROOT_AGENT_BY_MODEL = {
+  "z-ai/glm-5.3-flash": "base3-free-glm-5-3-flash",
   "deepseek/deepseek-v4-flash": "base3-free-deepseek-flash",
-  "deepseek/deepseek-v4-pro": "base3-free-deepseek",
   "mimo/mimo-v2.5": "base3-free-mimo",
-  "minimax/minimax-m3": "base3-free-minimax-m3",
   "openai/gpt-5.6-luna": "base3-free-luna",
+  "upstage/solar-pro4": "base3-free-solar-pro4",
+  "meta/muse-spark-1.3-contributor": "base3-free-muse-spark-1-3",
+  // Retain roots for sessions from released clients while paused/retired models drain.
+  "deepseek/deepseek-v4-pro": "base3-free-deepseek",
+  "minimax/minimax-m3": "base3-free-minimax-m3",
 };
 
 // Per-token+model session cache (in-memory; keyed so multi-account setups

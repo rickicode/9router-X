@@ -136,6 +136,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
+      if (c.testStatus === "unavailable" || c.testStatus === "error" || c.testStatus === "expired" || c.testStatus === "invalid") return false;
+      if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
       if (isModelLockActive(c, model)) return false;
       // Antigravity: skip if live quota exhausted for this model
       if (isAntigravity && model && antigravityQuotaCache) {
@@ -341,7 +343,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     if (isPooledQuotaProvider) lockAll = true;
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll } = checkFallbackError(status, errorText, backoffLevel));
-    if (isPooledQuotaProvider && (status === 429 || status === 402)) lockAll = true;
+    if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 

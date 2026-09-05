@@ -337,12 +337,18 @@ describe("freebuff free-tier system marker", () => {
 });
 
 describe("freebuff run registration", () => {
-  it("maps freebuff models to their root free agent ids", () => {
+  it("maps all current Freebuff picker models to base3 root agents", () => {
+    expect(rootAgentIdForModel("z-ai/glm-5.3-flash")).toBe("base3-free-glm-5-3-flash");
     expect(rootAgentIdForModel("deepseek/deepseek-v4-flash")).toBe("base3-free-deepseek-flash");
-    expect(rootAgentIdForModel("deepseek/deepseek-v4-pro")).toBe("base3-free-deepseek");
     expect(rootAgentIdForModel("mimo/mimo-v2.5")).toBe("base3-free-mimo");
-    expect(rootAgentIdForModel("minimax/minimax-m3")).toBe("base3-free-minimax-m3");
     expect(rootAgentIdForModel("openai/gpt-5.6-luna")).toBe("base3-free-luna");
+    expect(rootAgentIdForModel("upstage/solar-pro4")).toBe("base3-free-solar-pro4");
+    expect(rootAgentIdForModel("meta/muse-spark-1.3-contributor")).toBe("base3-free-muse-spark-1-3");
+  });
+
+  it("keeps roots for released clients using paused models", () => {
+    expect(rootAgentIdForModel("deepseek/deepseek-v4-pro")).toBe("base3-free-deepseek");
+    expect(rootAgentIdForModel("minimax/minimax-m3")).toBe("base3-free-minimax-m3");
     expect(rootAgentIdForModel("some/unknown-model")).toBe("base2-free");
   });
 

@@ -86,6 +86,36 @@ function RecentRequests({ requests = [] }) {
   );
 }
 
+function RequestStream({ buckets = [] }) {
+  const total = buckets.reduce((sum, bucket) => sum + Number(bucket.requests || 0), 0);
+  const max = Math.max(1, ...buckets.map((bucket) => Number(bucket.requests || 0)));
+
+  return (
+    <Card className="min-w-0 overflow-hidden" padding="sm">
+      <div className="flex items-center justify-between border-b border-border px-1 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Request Stream</span>
+        <span className="text-sm font-semibold text-primary">{total.toLocaleString()} requests / 10m</span>
+      </div>
+      {!buckets.length ? (
+        <div className="flex h-32 items-center justify-center text-sm text-text-muted">No requests yet.</div>
+      ) : (
+        <div className="flex h-32 items-end gap-1 px-1 py-3" aria-label="Requests per minute for last 10 minutes">
+          {buckets.map((bucket, index) => {
+            const requests = Number(bucket.requests || 0);
+            const height = requests > 0 ? Math.max(8, Math.round((requests / max) * 100)) : 2;
+            return (
+              <div key={`${bucket.timestamp || index}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${requests} requests`}>
+                <span className="text-[10px] text-text-muted">{requests || ""}</span>
+                <div className="w-full rounded-t bg-primary/70 transition-all" style={{ height: `${height}%` }} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function sortData(dataMap, pendingMap = {}, sortBy, sortOrder) {
   return Object.entries(dataMap || {})
     .map(([key, data]) => {
@@ -292,6 +322,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
             recentRequests: data.recentRequests,
             errorProvider: data.errorProvider,
             pending: data.pending,
+            last10Minutes: data.last10Minutes,
           };
         });
         if (hasLoadedStats.current) setLoading(false);
@@ -479,6 +510,8 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           <RecentRequests requests={stats.recentRequests || []} />
         </div>
       )}
+
+      {loading ? spinner : <RequestStream buckets={stats.last10Minutes || []} />}
 
       {/* Token / Cost chart - sync period */}
       {loading ? spinner : <UsageChart period={period} />}

@@ -73,7 +73,7 @@ describe("getUsageForProvider(freebuff)", () => {
       resetAt: "2026-08-06T07:00:00.000Z",
       recurring: true,
       unlimited: false,
-      displayName: "DeepSeek V4 Flash",
+      displayName: "DeepSeek V4 Flash 07/31",
     });
     expect(usage.quotas["openai/gpt-5.6-luna"]).toMatchObject({
       used: 1,
@@ -115,7 +115,6 @@ describe("getUsageForProvider(freebuff)", () => {
     expect(usage.quotas["deepseek/deepseek-v4-pro"]).toMatchObject({
       used: 2.4,
       total: 6,
-      displayName: "DeepSeek V4 Pro",
     });
   });
 

@@ -209,7 +209,7 @@ async function writeConnection(db, connection, options = {}) {
         locked_all_until, rate_limited_until, token_expires_at, last_used_at,
         model_locks, last_error, error_code, last_error_at, data, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-             $13::jsonb, $14, $15, $16, $17::jsonb, $18, $19)
+             $13, $14, $15, $16, $17, $18, $19)
      ON CONFLICT (id) DO UPDATE SET
        provider = EXCLUDED.provider,
        auth_type = EXCLUDED.auth_type,
@@ -242,11 +242,11 @@ async function writeConnection(db, connection, options = {}) {
       values.rateLimitedUntil,
       values.tokenExpiresAt,
       values.lastUsedAt,
-      jsonString(values.modelLocks),
+      values.modelLocks,
       values.lastError,
       values.errorCode,
       values.lastErrorAt,
-      jsonString(values.data),
+      values.data,
       values.createdAt,
       values.updatedAt,
     ],
@@ -285,6 +285,53 @@ function deriveConnectionName(data, fallbackName) {
   return fallbackName;
 }
 
+const FATAL_CONNECTION_ERROR_SQL = "(last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
+const CONNECTION_UNAVAILABLE_DATA_SQL = "(data->'providerSpecificData'->>'refreshBlocked' IS NOT NULL)";
+const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
+const FUTURE_ACCOUNT_LOCK_SQL = `(
+  (locked_all_until IS NOT NULL AND locked_all_until > NOW())
+  OR (COALESCE(${safeTimestampSql("model_locks->>'__all'")}, '-infinity'::timestamptz) > NOW())
+  OR (rate_limited_until IS NOT NULL AND rate_limited_until > NOW())
+)`;
+const FUTURE_MODEL_LOCK_SQL = `EXISTS (
+  SELECT 1 FROM jsonb_each_text(
+    CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END
+  ) AS kv(k, v)
+  WHERE k <> '__all' AND COALESCE(${safeTimestampSql('kv.v')}, '-infinity'::timestamptz) > NOW()
+)`;
+const ACTIVE_CONNECTION_SQL = `(
+  is_active = true
+  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
+  AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
+  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
+  AND NOT ${FUTURE_MODEL_LOCK_SQL}
+)`;
+const EXHAUSTED_CONNECTION_SQL = `(
+  is_active = true
+  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
+  AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
+  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
+  AND ${FUTURE_MODEL_LOCK_SQL}
+)`;
+const UNAVAILABLE_CONNECTION_SQL = `(
+  is_active = true
+  AND (
+    ${FUTURE_ACCOUNT_LOCK_SQL}
+    OR COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid')
+    OR ${CONNECTION_UNAVAILABLE_DATA_SQL}
+    OR ${FATAL_CONNECTION_ERROR_SQL}
+  )
+)`;
+const ROUTABLE_CONNECTION_SQL = `(
+  is_active = true
+  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
+  AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
+  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
+)`;
+
 function buildConnectionFilterConditions(filter, params) {
   const where = [];
   if (filter.provider) {
@@ -309,31 +356,11 @@ function buildConnectionFilterConditions(filter, params) {
   }
   if (filter.status) {
     if (filter.status === "active") {
-      where.push(`(
-        is_active = true
-        AND (locked_all_until IS NULL OR locked_all_until <= NOW())
-        AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
-        AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
-      )`);
+      where.push(ACTIVE_CONNECTION_SQL);
     } else if (filter.status === "exhausted") {
-      where.push(`(
-        is_active = true
-        AND (locked_all_until IS NULL OR locked_all_until <= NOW())
-        AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
-        AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
-        AND EXISTS (
-          SELECT 1 FROM jsonb_each_text(
-            CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END
-          ) AS kv(k, v)
-          WHERE k <> '__all' AND v > NOW()::text
-        )
-      )`);
+      where.push(EXHAUSTED_CONNECTION_SQL);
     } else if (filter.status === "unavailable") {
-      where.push(`(
-        (locked_all_until IS NOT NULL AND locked_all_until > NOW())
-        OR (model_locks->>'__all' IS NOT NULL AND (model_locks->>'__all')::text > NOW()::text)
-        OR (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)')
-      )`);
+      where.push(UNAVAILABLE_CONNECTION_SQL);
     } else if (filter.status === "disabled") {
       where.push(`is_active = false`);
     }
@@ -409,19 +436,8 @@ export async function getProviderSummaryStats() {
       auth_type,
       COUNT(*)::int AS total,
       COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled_count,
-      COUNT(CASE
-        WHEN (locked_all_until IS NOT NULL AND locked_all_until > NOW())
-          OR (model_locks->>'__all' IS NOT NULL AND (model_locks->>'__all')::text > NOW()::text)
-          OR (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)')
-        THEN 1
-      END)::int AS unavailable_count,
-      COUNT(CASE
-        WHEN is_active = true
-          AND (locked_all_until IS NULL OR locked_all_until <= NOW())
-          AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
-          AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
-        THEN 1
-      END)::int AS active_count,
+      COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable_count,
+      COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active_count,
       MAX(last_error_at) AS latest_error_at
     FROM provider_connections
     GROUP BY provider, auth_type
@@ -476,9 +492,13 @@ export async function getUnavailableOrLockedConnections() {
   const rows = await db.all(`
     SELECT id, provider, name, email, test_status, last_error, model_locks, locked_all_until
       FROM provider_connections
-     WHERE (locked_all_until IS NOT NULL AND locked_all_until > NOW())
-        OR (model_locks IS NOT NULL AND model_locks != '{}'::jsonb)
-        OR test_status = 'unavailable'
+     WHERE ${UNAVAILABLE_CONNECTION_SQL}
+        OR EXISTS (
+          SELECT 1 FROM jsonb_each_text(
+            CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END
+          ) AS kv(k, v)
+          WHERE ${safeTimestampSql('kv.v')} > NOW()
+        )
   `);
   return rows.map((row) => ({
     id: row.id,
@@ -586,14 +606,11 @@ export async function getAvailableAccountsForRouting({ provider, model, limit = 
   const rows = await db.all(
     `SELECT id, provider, auth_type, name, priority, last_used_at, model_locks, data
        FROM provider_connections
-      WHERE provider = $1 AND is_active = true
-        AND (locked_all_until IS NULL OR locked_all_until <= NOW())
+      WHERE provider = $1 AND ${ROUTABLE_CONNECTION_SQL}
         AND (
           model_locks->>$2 IS NULL
-          OR CASE
-               WHEN (model_locks->>$2) ~ '^\\d{4}-\\d{2}-\\d{2}' THEN (model_locks->>$2)::timestamptz <= NOW()
-               ELSE true
-             END
+          OR ${safeTimestampSql('model_locks->>$2')} IS NULL
+          OR ${safeTimestampSql('model_locks->>$2')} <= NOW()
         )
       ORDER BY priority ASC, last_used_at ASC NULLS FIRST
       LIMIT $3`,

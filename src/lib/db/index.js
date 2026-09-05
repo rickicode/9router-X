@@ -406,17 +406,17 @@ export async function importDb(payload) {
     // 7. KV entries (modelAliases, customModels, mitmAlias, pricing)
     const kvEntries = [];
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
-      kvEntries.push({ scope: "modelAliases", key: a, value: tx.raw.json(m) });
+      kvEntries.push({ scope: "modelAliases", key: a, value: JSON.stringify(m ?? null) });
     }
     for (const m of payload.customModels || []) {
       const k = `${m.providerAlias}|${m.id}|${m.type || "llm"}`;
-      kvEntries.push({ scope: "customModels", key: k, value: tx.raw.json(m) });
+      kvEntries.push({ scope: "customModels", key: k, value: JSON.stringify(m ?? {}) });
     }
     for (const [tool, mappings] of Object.entries(payload.mitmAlias || {})) {
-      kvEntries.push({ scope: "mitmAlias", key: tool, value: tx.raw.json(mappings || {}) });
+      kvEntries.push({ scope: "mitmAlias", key: tool, value: JSON.stringify(mappings || {}) });
     }
     for (const [provider, models] of Object.entries(payload.pricing || {})) {
-      kvEntries.push({ scope: "pricing", key: provider, value: tx.raw.json(models || {}) });
+      kvEntries.push({ scope: "pricing", key: provider, value: JSON.stringify(models || {}) });
     }
 
     if (kvEntries.length > 0) {

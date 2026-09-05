@@ -197,6 +197,35 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     await deleteProviderConnection("e2e-lock-conn");
   });
 
+  it("should classify account and model locks consistently", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const ids = ["e2e-status-active", "e2e-status-model", "e2e-status-all", "e2e-status-unavailable"];
+    for (const item of [
+      { id: ids[0], provider: "status-test", authType: "apikey", name: ids[0], isActive: true },
+      { id: ids[1], provider: "status-test", authType: "apikey", name: ids[1], isActive: true, modelLocks: { "gpt-4o": future } },
+      { id: ids[2], provider: "status-test", authType: "apikey", name: ids[2], isActive: true, modelLocks: { __all: future }, testStatus: "unavailable" },
+      { id: ids[3], provider: "status-test", authType: "apikey", name: ids[3], isActive: true, testStatus: "unavailable" },
+    ]) {
+      await createProviderConnection(item);
+    }
+
+    try {
+      const active = await getProviderConnections({ provider: "status-test", status: "active" });
+      const exhausted = await getProviderConnections({ provider: "status-test", status: "exhausted" });
+      const unavailable = await getProviderConnections({ provider: "status-test", status: "unavailable" });
+      expect(active.map((c) => c.id)).toContain(ids[0]);
+      expect(active.map((c) => c.id)).not.toContain(ids[1]);
+      expect(exhausted.map((c) => c.id)).toContain(ids[1]);
+      expect(unavailable.map((c) => c.id)).toEqual(expect.arrayContaining([ids[2], ids[3]]));
+      const candidates = await getAvailableAccountsForRouting({ provider: "status-test", model: "gpt-4o", limit: 10 });
+      expect(candidates.map((c) => c.id)).toEqual([ids[0]]);
+    } finally {
+      for (const id of ids) {
+        await deleteProviderConnection(id);
+      }
+    }
+  });
+
   it("should calculate provider summary stats and bulk toggle active in DB", async () => {
     const stats = await getProviderSummaryStats();
     expect(stats).toBeDefined();

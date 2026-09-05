@@ -278,6 +278,7 @@ describe("DB SQLite layer — public API parity", () => {
     expect(data[0]).toHaveProperty("label");
     expect(data[0]).toHaveProperty("tokens");
     expect(data[0]).toHaveProperty("cost");
+    expect(data[0]).toHaveProperty("requests");
   });
 
   it("getChartData: 7d buckets", async () => {

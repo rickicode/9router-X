@@ -133,14 +133,15 @@ export function isModelLockActive(connection, model) {
   if (connection.providerSpecificData?.refreshBlocked) {
     return true;
   }
-  const fatalPattern = /\b(banned|account has been banned|account has been deleted|suspended|account suspended|revoked|token revoked|invalid_grant)\b/i;
+  const fatalPattern = /\b(banned|account has been banned|account has been deleted|suspended|account suspended|revoked|token revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i;
   if (connection.lastError && fatalPattern.test(connection.lastError)) {
     return true;
   }
   const key = getModelLockKey(model);
-  const expiry = connection[key] || connection[MODEL_LOCK_ALL];
-  if (!expiry) return false;
-  return new Date(expiry).getTime() > Date.now();
+  const expiries = [connection[key], connection.modelLocks?.[model], connection.modelLock___all, connection.modelLocks?.__all, connection.lockedAllUntil]
+    .map((value) => (value ? new Date(value).getTime() : 0))
+    .filter((value) => Number.isFinite(value));
+  return expiries.some((expiry) => expiry > Date.now());
 }
 
 /**
