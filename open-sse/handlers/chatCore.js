@@ -395,13 +395,27 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   const executeWithPoolFallback = async (attempt = 0) => {
     let result;
     try {
-      result = await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
+      result = await executor.execute({
+        model,
+        body: translatedBody,
+        stream,
+        credentials,
+        providerSessionId: sessionSeed,
+        clientTool,
+        signal: streamController.signal,
+        log,
+        proxyOptions,
+      });
     } catch (error) {
-      if (error?.poolScoped && typeof resolveProxyConfig === "function" && attempt < MAX_POOL_RETRIES) {
-        if (await tryNextPool(error.poolScoped, error.message)) return executeWithPoolFallback(attempt + 1);
+      if (typeof resolveProxyConfig === "function" && attempt < MAX_POOL_RETRIES) {
+        const poolScoped = executor.parseError ? executor.parseError(error).poolScoped : null;
+        if (poolScoped && await tryNextPool(poolScoped, error.message)) {
+          return executeWithPoolFallback(attempt + 1);
+        }
       }
       throw error;
     }
+
     // Non-ok response that the executor declared pool/IP-scoped (e.g. opencode
     // free per-IP limit) — parse once, retry via another pool when possible.
     if (!result.response.ok) {
@@ -474,7 +488,17 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
           try { await onCredentialsRefreshed(newCredentials); } catch (e) { log?.warn?.("TOKEN", `onCredentialsRefreshed failed: ${e.message}`); }
         }
         try {
-          const retryResult = await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
+          const retryResult = await executor.execute({
+            model,
+            body: translatedBody,
+            stream,
+            credentials,
+            providerSessionId: sessionSeed,
+            clientTool,
+            signal: streamController.signal,
+            log,
+            proxyOptions,
+          });
           if (retryResult.response.ok) {
             providerResponse = retryResult.response;
             providerUrl = retryResult.url;
@@ -533,7 +557,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Streaming response
   const { onStreamComplete, streamDetailId } = buildOnStreamComplete({ ...sharedCtx });
-  return handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId });
+  return handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, credentials });
 }
 
 export function isTokenExpiringSoon(expiresAt, bufferMs = 5 * 60 * 1000) {
