@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   getProviderConnections,
+  countProviderConnections,
   createProviderConnection,
+  setProviderConnectionsActive,
   getProviderNodeById,
   getProviderNodes,
   getProxyPoolById,
@@ -51,12 +53,37 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
+    const isActiveParam = searchParams.get("isActive");
     const pageParam = searchParams.get("page");
     const pageSizeParam = searchParams.get("pageSize");
+    const fields = searchParams.get("fields");
     const paginated = provider !== null || pageParam !== null || pageSizeParam !== null;
     const pageSize = Math.min(Math.max(Number.parseInt(pageSizeParam || "50", 10) || 50, 1), 500);
     const requestedPage = Math.max(Number.parseInt(pageParam || "1", 10) || 1, 1);
-    const connections = await getProviderConnections(provider ? { provider } : {});
+    const filter = {};
+    if (provider) filter.provider = provider;
+    if (isActiveParam !== null && isActiveParam !== undefined) {
+      filter.isActive = isActiveParam === "true";
+    }
+
+    let connections;
+    let total;
+    let totalPages = 1;
+    let page = requestedPage;
+
+    if (paginated) {
+      total = await countProviderConnections(filter);
+      totalPages = Math.max(1, Math.ceil(total / pageSize));
+      page = Math.min(requestedPage, totalPages);
+      const offset = (page - 1) * pageSize;
+      connections = await getProviderConnections({
+        ...filter,
+        limit: pageSize,
+        offset,
+      });
+    } else {
+      connections = await getProviderConnections(filter);
+    }
 
     // Build nodeNameMap for compatible providers (id → name)
     let nodeNameMap = {};
@@ -66,6 +93,30 @@ export async function GET(request) {
         if (node.id && node.name) nodeNameMap[node.id] = node.name;
       }
     } catch { }
+
+    // If summary fields requested (e.g. for dropdowns / selector modals)
+    if (fields === "summary") {
+      const summaryConnections = connections.map(c => {
+        const isCompatible = isOpenAICompatibleProvider(c.provider) || isAnthropicCompatibleProvider(c.provider);
+        const name = isCompatible
+          ? (c.name || nodeNameMap[c.provider] || c.providerSpecificData?.nodeName || c.provider)
+          : c.name;
+        return {
+          id: c.id,
+          provider: c.provider,
+          authType: c.authType,
+          name,
+          priority: c.priority,
+          isActive: c.isActive,
+        };
+      });
+
+      if (!paginated) return NextResponse.json({ connections: summaryConnections });
+      return NextResponse.json({
+        connections: summaryConnections,
+        pagination: { page, pageSize, total, totalPages },
+      });
+    }
 
     // Hide sensitive fields, enrich name for compatible providers
     const safeConnections = connections.map(c => {
@@ -85,17 +136,30 @@ export async function GET(request) {
 
     if (!paginated) return NextResponse.json({ connections: safeConnections });
 
-    const total = safeConnections.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const page = Math.min(requestedPage, totalPages);
-    const offset = (page - 1) * pageSize;
     return NextResponse.json({
-      connections: safeConnections.slice(offset, offset + pageSize),
+      connections: safeConnections,
       pagination: { page, pageSize, total, totalPages },
     });
   } catch (error) {
     console.log("Error fetching providers:", error);
     return NextResponse.json({ error: "Failed to fetch providers" }, { status: 500 });
+  }
+}
+
+// PATCH /api/providers - Batch toggle active status for provider
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { provider, authType, isActive } = body;
+    if (!provider) {
+      return NextResponse.json({ error: "provider is required" }, { status: 400 });
+    }
+    const authTypes = Array.isArray(authType) ? authType : (authType ? [authType] : ["oauth", "apikey", "api_key", "cookie"]);
+    const updatedCount = await setProviderConnectionsActive(provider, authTypes, isActive);
+    return NextResponse.json({ success: true, updatedCount });
+  } catch (error) {
+    console.error("Error bulk updating provider status:", error);
+    return NextResponse.json({ error: "Failed to update provider status" }, { status: 500 });
   }
 }
 

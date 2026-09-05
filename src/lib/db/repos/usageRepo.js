@@ -518,16 +518,12 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
 export async function getUsageStats(period = "all") {
   const db = await getAdapter();
 
-  const [{ getProviderConnections }, { getApiKeys }, { getProviderNodes }] = await Promise.all([
-    import("./connectionsRepo.js"),
+  const [{ getApiKeys }, { getProviderNodes }] = await Promise.all([
     import("./apiKeysRepo.js"),
     import("./nodesRepo.js"),
   ]);
 
-  let allConnections = [];
-  try { allConnections = await getProviderConnections(); } catch {}
-  const connectionMap = {};
-  for (const c of allConnections) connectionMap[c.id] = c.name || c.email || c.id;
+  const connectionMap = await getConnectionMapCached();
 
   const providerNodeNameMap = {};
   try {
@@ -868,12 +864,7 @@ export async function getRecentLogs(limit = 200) {
     );
     if (!rows.length) return [];
 
-    const connMap = {};
-    try {
-      const { getProviderConnections } = await import("./connectionsRepo.js");
-      const connections = await getProviderConnections();
-      for (const c of connections) connMap[c.id] = c.name || c.email || "";
-    } catch {}
+    const connMap = await getConnectionMapCached();
 
     return rows.map((row) => {
       const ts = formatLogDate(new Date(row.timestamp));

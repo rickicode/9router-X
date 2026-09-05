@@ -1,7 +1,10 @@
 // Database Models - Export all from localDb
 export {
   getProviderConnections,
+  countProviderConnections,
   getProviderConnectionById,
+  getProviderSummaryStats,
+  setProviderConnectionsActive,
   createProviderConnection,
   updateProviderConnection,
   deleteProviderConnection,

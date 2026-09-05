@@ -19,6 +19,8 @@ import {
   updateProviderConnection,
   deleteProviderConnection,
   getAvailableAccountsForRouting,
+  getProviderSummaryStats,
+  setProviderConnectionsActive,
 } from "@/lib/db/repos/connectionsRepo.js";
 import {
   createApiKey,
@@ -193,6 +195,16 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     expect(Array.isArray(candidates)).toBe(true);
 
     await deleteProviderConnection("e2e-lock-conn");
+  });
+
+  it("should calculate provider summary stats and bulk toggle active in DB", async () => {
+    const stats = await getProviderSummaryStats();
+    expect(stats).toBeDefined();
+    expect(typeof stats).toBe("object");
+
+    // Test bulk toggle active
+    const toggled = await setProviderConnectionsActive("openai", ["apikey"], true);
+    expect(typeof toggled).toBe("number");
   });
 
   it("should verify batch quotas API route", async () => {

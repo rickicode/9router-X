@@ -248,8 +248,7 @@ export async function buildModelsList(kindFilter, options = {}) {
   const skipDynamicFetch = options.skipDynamicFetch === true;
   let connections = [];
   try {
-    connections = await getProviderConnections();
-    connections = connections.filter(c => c.isActive !== false);
+    connections = await getProviderConnections({ isActive: true });
   } catch (e) {
     console.log("Could not fetch providers, returning all models");
   }

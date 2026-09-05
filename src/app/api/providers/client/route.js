@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProviderConnections } from "@/lib/localDb";
+import { getClientUsageConnections, getClientUsageMeta } from "@/lib/localDb";
 import { backfillCodexEmails } from "@/lib/oauth/providers";
 import { USAGE_APIKEY_PROVIDERS, USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 
@@ -54,26 +54,6 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function sortConnections(connections, sort) {
-  const list = [...connections];
-
-  if (sort === "provider") {
-    return list.sort((a, b) => {
-      const orderA = USAGE_SUPPORTED_PROVIDERS.indexOf(a.provider);
-      const orderB = USAGE_SUPPORTED_PROVIDERS.indexOf(b.provider);
-      if (orderA !== orderB) return orderA - orderB;
-      return a.provider.localeCompare(b.provider);
-    });
-  }
-
-  return list.sort((a, b) => {
-    const priorityA = a.priority ?? Number.MAX_SAFE_INTEGER;
-    const priorityB = b.priority ?? Number.MAX_SAFE_INTEGER;
-    if (priorityA !== priorityB) return priorityA - priorityB;
-    return (a.provider || "").localeCompare(b.provider || "");
-  });
-}
-
 export async function GET(request) {
   try {
     await backfillCodexEmails();
@@ -85,30 +65,30 @@ export async function GET(request) {
     const page = parsePositiveInt(searchParams.get("page"), 1);
     const pageSize = Math.min(parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
 
-    const allConnections = await getProviderConnections();
-    const eligibleConnections = allConnections.filter(isUsageEligible);
-    const providerOptions = Array.from(new Set(eligibleConnections.map((conn) => conn.provider))).sort();
+    const [meta, queryResult] = await Promise.all([
+      getClientUsageMeta({
+        supportedProviders: USAGE_SUPPORTED_PROVIDERS,
+        apiKeyProviders: USAGE_APIKEY_PROVIDERS,
+      }),
+      getClientUsageConnections({
+        provider,
+        accountStatus,
+        sort,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        supportedProviders: USAGE_SUPPORTED_PROVIDERS,
+        apiKeyProviders: USAGE_APIKEY_PROVIDERS,
+      }),
+    ]);
 
-    const providerFilteredConnections = eligibleConnections.filter((conn) => (
-      provider === "all" || conn.provider === provider
-    ));
-
-    const accountFilteredConnections = providerFilteredConnections.filter((conn) => {
-      if (accountStatus === "active") return conn.isActive ?? true;
-      if (accountStatus === "inactive") return !(conn.isActive ?? true);
-      return true;
-    });
-
-    const sortedConnections = sortConnections(accountFilteredConnections, sort);
-    const total = sortedConnections.length;
+    const total = queryResult.total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const currentPage = Math.min(page, totalPages);
-    const offset = (currentPage - 1) * pageSize;
-    const pageConnections = sortedConnections.slice(offset, offset + pageSize).map(sanitize);
+    const pageConnections = queryResult.connections.map(sanitize);
 
     return NextResponse.json({
       connections: pageConnections,
-      providerOptions,
+      providerOptions: meta.providers,
       pagination: {
         page: currentPage,
         pageSize,
@@ -116,8 +96,8 @@ export async function GET(request) {
         totalPages,
       },
       totals: {
-        eligibleConnections: eligibleConnections.length,
-        providerFilteredConnections: providerFilteredConnections.length,
+        eligibleConnections: meta.eligibleCount,
+        providerFilteredConnections: total,
       },
     });
   } catch (error) {

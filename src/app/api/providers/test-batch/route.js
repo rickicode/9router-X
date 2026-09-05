@@ -49,26 +49,27 @@ export async function POST(request) {
       return NextResponse.json({ error: "mode is required" }, { status: 400 });
     }
 
-    const allConnections = await getProviderConnections({ isActive: true });
-
     let connectionsToTest = [];
     if (mode === "provider" && providerId) {
-      connectionsToTest = allConnections.filter((c) => c.provider === providerId);
-    } else if (mode === "oauth") {
-      connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "oauth");
-    } else if (mode === "free") {
-      connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "free");
-    } else if (mode === "apikey") {
-      connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "apikey");
-    } else if (mode === "compatible") {
-      connectionsToTest = allConnections.filter((c) => isCompatibleProvider(c.provider));
-    } else if (mode === "all") {
-      connectionsToTest = allConnections;
+      connectionsToTest = await getProviderConnections({ provider: providerId, isActive: true });
     } else {
-      return NextResponse.json(
-        { error: "Invalid mode. Use: provider, oauth, free, apikey, compatible, all" },
-        { status: 400 }
-      );
+      const allConnections = await getProviderConnections({ isActive: true });
+      if (mode === "oauth") {
+        connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "oauth");
+      } else if (mode === "free") {
+        connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "free");
+      } else if (mode === "apikey") {
+        connectionsToTest = allConnections.filter((c) => getAuthGroup(c.provider, c) === "apikey");
+      } else if (mode === "compatible") {
+        connectionsToTest = allConnections.filter((c) => isCompatibleProvider(c.provider));
+      } else if (mode === "all") {
+        connectionsToTest = allConnections;
+      } else {
+        return NextResponse.json(
+          { error: "Invalid mode. Use: provider, oauth, free, apikey, compatible, all" },
+          { status: 400 }
+        );
+      }
     }
 
     if (connectionsToTest.length === 0) {

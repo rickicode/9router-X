@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getUnavailableOrLockedConnections,
   getProviderConnections,
   updateProviderConnection,
 } from "@/lib/localDb";
@@ -8,20 +9,30 @@ const MODEL_LOCK_PREFIX = "modelLock_";
 
 function getActiveModelLocks(connection) {
   const now = Date.now();
-  return Object.entries(connection)
-    .filter(([key, value]) => key.startsWith(MODEL_LOCK_PREFIX) && value)
-    .map(([key, value]) => ({
-      key,
-      model: key.slice(MODEL_LOCK_PREFIX.length) || "__all",
-      until: value,
-      active: new Date(value).getTime() > now,
-    }))
-    .filter((lock) => lock.active);
+  const locks = [];
+  if (connection.lockedAllUntil && new Date(connection.lockedAllUntil).getTime() > now) {
+    locks.push({
+      model: "__all",
+      until: connection.lockedAllUntil,
+      active: true,
+    });
+  }
+  const modelLocks = connection.modelLocks || {};
+  for (const [model, until] of Object.entries(modelLocks)) {
+    if (until && new Date(until).getTime() > now) {
+      locks.push({
+        model,
+        until,
+        active: true,
+      });
+    }
+  }
+  return locks;
 }
 
 export async function GET() {
   try {
-    const connections = await getProviderConnections();
+    const connections = await getUnavailableOrLockedConnections();
     const models = [];
 
     for (const connection of connections) {

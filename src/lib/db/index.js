@@ -9,7 +9,11 @@ export {
 
 // Provider connections
 export {
-  getProviderConnections, getProviderConnectionById,
+  getProviderConnections, countProviderConnections, getProviderConnectionById, getProviderSummaryStats,
+  setProviderConnectionsActive,
+  getProxyPoolBoundCounts, countProxyPoolBoundConnections,
+  getUnavailableOrLockedConnections,
+  getClientUsageConnections, getClientUsageMeta,
   getAvailableAccountsForRouting, touchAccountLastUsed,
   setModelCooldown, clearModelCooldown,
   createProviderConnection, updateProviderConnection,

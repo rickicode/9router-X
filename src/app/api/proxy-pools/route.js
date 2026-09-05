@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProxyPool, getProviderConnections, getProxyPools } from "@/models";
+import { createProxyPool, getProxyPoolBoundCounts, getProxyPools } from "@/models";
 import { getPoolGeo } from "open-sse/services/poolGeo.js";
 
 function toBoolean(value) {
@@ -30,19 +30,6 @@ function normalizeProxyPoolInput(body = {}) {
   return { name, proxyUrl, noProxy, isActive, strictProxy, type, group };
 }
 
-function buildUsageMap(connections = []) {
-  const usageMap = new Map();
-
-  for (const connection of connections) {
-    const proxyPoolId = connection?.providerSpecificData?.proxyPoolId;
-    if (!proxyPoolId) continue;
-
-    usageMap.set(proxyPoolId, (usageMap.get(proxyPoolId) || 0) + 1);
-  }
-
-  return usageMap;
-}
-
 // GET /api/proxy-pools - List proxy pools
 export async function GET(request) {
   try {
@@ -61,12 +48,11 @@ export async function GET(request) {
       return NextResponse.json({ proxyPools });
     }
 
-    const connections = await getProviderConnections();
-    const usageMap = buildUsageMap(connections);
+    const usageMap = await getProxyPoolBoundCounts();
 
     const enrichedProxyPools = proxyPools.map((pool) => ({
       ...pool,
-      boundConnectionCount: usageMap.get(pool.id) || 0,
+      boundConnectionCount: usageMap[pool.id] || 0,
       // Egress geo from the background probe cache (null until first probe).
       egress: getPoolGeo(pool.id) || null,
     }));

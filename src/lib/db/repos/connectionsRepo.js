@@ -293,9 +293,27 @@ export async function getProviderConnections(filter = {}) {
     params.push(filter.provider);
     where.push(`provider = $${params.length}`);
   }
+  if (filter.providers && Array.isArray(filter.providers) && filter.providers.length > 0) {
+    params.push(filter.providers);
+    where.push(`provider = ANY($${params.length})`);
+  }
+  if (filter.authType) {
+    params.push(filter.authType);
+    where.push(`auth_type = $${params.length}`);
+  }
   if (filter.isActive !== undefined) {
     params.push(filter.isActive);
     where.push(`is_active = $${params.length}`);
+  }
+
+  let limitClause = "";
+  if (filter.limit) {
+    params.push(Math.max(1, Number(filter.limit)));
+    limitClause = ` LIMIT $${params.length}`;
+    if (filter.offset) {
+      params.push(Math.max(0, Number(filter.offset)));
+      limitClause += ` OFFSET $${params.length}`;
+    }
   }
 
   const rows = await db.all(
@@ -304,10 +322,41 @@ export async function getProviderConnections(filter = {}) {
             model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
        FROM provider_connections
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY priority ASC NULLS LAST, updated_at DESC NULLS LAST`,
+      ORDER BY priority ASC NULLS LAST, updated_at DESC NULLS LAST
+      ${limitClause}`,
     params,
   );
   return rows.map(rowToConnection);
+}
+
+export async function countProviderConnections(filter = {}) {
+  const db = await getAdapter();
+  const where = [];
+  const params = [];
+  if (filter.provider) {
+    params.push(filter.provider);
+    where.push(`provider = $${params.length}`);
+  }
+  if (filter.providers && Array.isArray(filter.providers) && filter.providers.length > 0) {
+    params.push(filter.providers);
+    where.push(`provider = ANY($${params.length})`);
+  }
+  if (filter.authType) {
+    params.push(filter.authType);
+    where.push(`auth_type = $${params.length}`);
+  }
+  if (filter.isActive !== undefined) {
+    params.push(filter.isActive);
+    where.push(`is_active = $${params.length}`);
+  }
+
+  const row = await db.get(
+    `SELECT COUNT(*)::int AS count
+       FROM provider_connections
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}`,
+    params,
+  );
+  return Number(row?.count || 0);
 }
 
 export async function getProviderConnectionById(id) {
@@ -321,6 +370,186 @@ export async function getProviderConnectionById(id) {
     [id],
   );
   return rowToConnection(row);
+}
+
+export async function getProviderSummaryStats() {
+  const db = await getAdapter();
+  const rows = await db.all(`
+    SELECT
+      provider,
+      auth_type,
+      COUNT(*)::int AS total,
+      COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled_count,
+      COUNT(CASE
+        WHEN (locked_all_until IS NOT NULL AND locked_all_until > NOW())
+          OR (model_locks->>'__all' IS NOT NULL AND (model_locks->>'__all')::text > NOW()::text)
+          OR (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)')
+        THEN 1
+      END)::int AS unavailable_count,
+      COUNT(CASE
+        WHEN is_active = true
+          AND (locked_all_until IS NULL OR locked_all_until <= NOW())
+          AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
+          AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
+        THEN 1
+      END)::int AS active_count,
+      MAX(last_error_at) AS latest_error_at
+    FROM provider_connections
+    GROUP BY provider, auth_type
+  `);
+
+  const stats = {};
+  for (const r of rows) {
+    const provider = r.provider;
+    const authType = r.auth_type;
+    stats[provider] ||= {};
+    stats[provider][authType] = {
+      total: Number(r.total || 0),
+      connected: Number(r.active_count || 0),
+      error: Number(r.unavailable_count || 0),
+      allDisabled: Number(r.total || 0) > 0 && Number(r.disabled_count || 0) === Number(r.total || 0),
+      lastErrorAt: r.latest_error_at || null,
+    };
+  }
+  return stats;
+}
+
+export async function getProxyPoolBoundCounts() {
+  const db = await getAdapter();
+  const rows = await db.all(`
+    SELECT data->'providerSpecificData'->>'proxyPoolId' AS pool_id,
+           COUNT(*)::int AS count
+      FROM provider_connections
+     WHERE data->'providerSpecificData'->>'proxyPoolId' IS NOT NULL
+     GROUP BY 1
+  `);
+  const map = {};
+  for (const r of rows) {
+    if (r.pool_id) map[r.pool_id] = Number(r.count || 0);
+  }
+  return map;
+}
+
+export async function countProxyPoolBoundConnections(proxyPoolId) {
+  if (!proxyPoolId) return 0;
+  const db = await getAdapter();
+  const row = await db.get(
+    `SELECT COUNT(*)::int AS count
+       FROM provider_connections
+      WHERE data->'providerSpecificData'->>'proxyPoolId' = $1`,
+    [proxyPoolId],
+  );
+  return Number(row?.count || 0);
+}
+
+export async function getUnavailableOrLockedConnections() {
+  const db = await getAdapter();
+  const rows = await db.all(`
+    SELECT id, provider, name, email, test_status, last_error, model_locks, locked_all_until
+      FROM provider_connections
+     WHERE (locked_all_until IS NOT NULL AND locked_all_until > NOW())
+        OR (model_locks IS NOT NULL AND model_locks != '{}'::jsonb)
+        OR test_status = 'unavailable'
+  `);
+  return rows.map((row) => ({
+    id: row.id,
+    provider: row.provider,
+    name: row.name,
+    email: row.email,
+    testStatus: row.test_status,
+    lastError: row.last_error,
+    modelLocks: jsonObject(row.model_locks, {}),
+    lockedAllUntil: row.locked_all_until,
+  }));
+}
+
+export async function getClientUsageConnections({
+  provider = "all",
+  accountStatus = "all",
+  sort = "priority",
+  limit = 20,
+  offset = 0,
+  supportedProviders = [],
+  apiKeyProviders = [],
+}) {
+  const db = await getAdapter();
+  const where = [];
+  const params = [];
+
+  // Eligibility condition
+  params.push(supportedProviders);
+  const suppIdx = params.length;
+  params.push(apiKeyProviders);
+  const apiIdx = params.length;
+  where.push(`(provider = ANY($${suppIdx}) AND (auth_type = 'oauth' OR provider = ANY($${apiIdx})))`);
+
+  if (provider && provider !== "all") {
+    params.push(provider);
+    where.push(`provider = $${params.length}`);
+  }
+
+  if (accountStatus === "active") {
+    where.push(`is_active = true`);
+  } else if (accountStatus === "inactive") {
+    where.push(`is_active = false`);
+  }
+
+  let orderClause = `ORDER BY priority ASC NULLS LAST, provider ASC, updated_at DESC NULLS LAST`;
+  if (sort === "provider") {
+    orderClause = `ORDER BY provider ASC, priority ASC NULLS LAST, updated_at DESC NULLS LAST`;
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  // Count filtered
+  const countRow = await db.get(
+    `SELECT COUNT(*)::int AS count FROM provider_connections ${whereSql}`,
+    params,
+  );
+  const total = Number(countRow?.count || 0);
+
+  // Get paged rows
+  params.push(limit);
+  const limitIdx = params.length;
+  params.push(offset);
+  const offsetIdx = params.length;
+
+  const rows = await db.all(
+    `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
+            locked_all_until, rate_limited_until, token_expires_at, last_used_at,
+            model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
+       FROM provider_connections
+      ${whereSql}
+      ${orderClause}
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params,
+  );
+
+  return {
+    total,
+    connections: rows.map(rowToConnection),
+  };
+}
+
+export async function getClientUsageMeta({ supportedProviders = [], apiKeyProviders = [] }) {
+  const db = await getAdapter();
+  const rows = await db.all(
+    `SELECT DISTINCT provider
+       FROM provider_connections
+      WHERE (provider = ANY($1) AND (auth_type = 'oauth' OR provider = ANY($2)))
+      ORDER BY provider ASC`,
+    [supportedProviders, apiKeyProviders],
+  );
+  const countRow = await db.get(
+    `SELECT COUNT(*)::int AS count
+       FROM provider_connections
+      WHERE (provider = ANY($1) AND (auth_type = 'oauth' OR provider = ANY($2)))`,
+    [supportedProviders, apiKeyProviders],
+  );
+  return {
+    providers: rows.map((r) => r.provider),
+    eligibleCount: Number(countRow?.count || 0),
+  };
 }
 
 export async function getAvailableAccountsForRouting({ provider, model, limit = 5 }) {
@@ -473,6 +702,19 @@ export async function updateProviderConnection(id, data = {}) {
     }
     return updated;
   });
+}
+
+export async function setProviderConnectionsActive(provider, authTypes, isActive) {
+  const db = await getAdapter();
+  const types = Array.isArray(authTypes) ? authTypes : [authTypes];
+  const result = await db.run(
+    `UPDATE provider_connections
+        SET is_active = $1, updated_at = NOW()
+      WHERE provider = $2 AND auth_type = ANY($3::text[])`,
+    [Boolean(isActive), provider, types],
+  );
+  invalidateCachedConnections(provider).catch(() => {});
+  return Number(result?.changes ?? 0);
 }
 
 export async function deleteProviderConnection(id) {

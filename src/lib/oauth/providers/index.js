@@ -211,9 +211,9 @@ export async function backfillCodexEmails() {
   codexBackfillDone = true;
   try {
     const { getProviderConnections, updateProviderConnection } = await import("@/lib/localDb");
-    const connections = await getProviderConnections();
+    const connections = await getProviderConnections({ provider: "codex", authType: "oauth" });
     const targets = connections.filter((c) => {
-      if (c.provider !== "codex" || c.authType !== "oauth" || !c.idToken) return false;
+      if (!c.idToken) return false;
       const hasEmail = !!c.email;
       const hasAccountInfo = !!c.providerSpecificData?.chatgptAccountId;
       return !hasEmail || !hasAccountInfo;

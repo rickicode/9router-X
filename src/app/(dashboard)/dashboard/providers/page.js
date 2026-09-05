@@ -97,7 +97,7 @@ function getConnectionErrorTag(connection) {
 const APIKEY_INITIAL_VISIBLE = 20;
 
 export default function ProvidersPage() {
-  const [connections, setConnections] = useState([]);
+  const [providerStats, setProviderStats] = useState({});
   const [providerNodes, setProviderNodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllApikey, setShowAllApikey] = useState(false);
@@ -152,14 +152,14 @@ export default function ProvidersPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [connectionsRes, nodesRes] = await Promise.all([
-          fetch("/api/providers"),
+        const [statsRes, nodesRes] = await Promise.all([
+          fetch("/api/providers/stats"),
           fetch("/api/provider-nodes"),
         ]);
-        const connectionsData = await connectionsRes.json();
+        const statsData = await statsRes.json();
         const nodesData = await nodesRes.json();
-        if (connectionsRes.ok)
-          setConnections(connectionsData.connections || []);
+        if (statsRes.ok)
+          setProviderStats(statsData.stats || {});
         if (nodesRes.ok) setProviderNodes(nodesData.nodes || []);
       } catch (error) {
         console.log("Error fetching data:", error);
@@ -172,50 +172,35 @@ export default function ProvidersPage() {
 
   const getProviderStats = (providerId, authType) => {
     const authTypes = Array.isArray(authType) ? authType : [authType];
-    const providerConnections = connections.filter(
-      (c) => c.provider === providerId && authTypes.includes(c.authType),
-    );
+    const pStats = providerStats[providerId] || {};
 
-    const getEffectiveStatus = (conn) => {
-      const now = Date.now();
-      const isAccountLock = Boolean(conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now);
-      if (isAccountLock) return "unavailable";
-      if (conn.isActive === false) return "disabled";
+    let connected = 0;
+    let error = 0;
+    let total = 0;
+    let latestErrorAt = null;
+    let allDisabled = true;
 
-      // If testStatus was marked unavailable but only per-model locks exist (e.g. Claude 429 on Antigravity),
-      // the account is still alive and serving other models.
-      const hasFatal = Boolean(
-        conn.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(conn.lastError)
-      );
-      if (hasFatal) return "unavailable";
+    for (const type of authTypes) {
+      const stat = pStats[type];
+      if (stat) {
+        total += stat.total || 0;
+        connected += stat.connected || 0;
+        error += stat.error || 0;
+        if (!stat.allDisabled) allDisabled = false;
+        if (stat.lastErrorAt) {
+          if (!latestErrorAt || new Date(stat.lastErrorAt) > new Date(latestErrorAt)) {
+            latestErrorAt = stat.lastErrorAt;
+          }
+        }
+      }
+    }
 
-      return "active";
-    };
+    if (total === 0) {
+      allDisabled = false;
+    }
 
-    const connected = providerConnections.filter((c) => {
-      const status = getEffectiveStatus(c);
-      return status === "active" || status === "success";
-    }).length;
-
-    const errorConns = providerConnections.filter((c) => {
-      const status = getEffectiveStatus(c);
-      return (
-        status === "error" || status === "expired" || status === "unavailable"
-      );
-    });
-
-    const error = errorConns.length;
-    const total = providerConnections.length;
-    const allDisabled =
-      total > 0 && providerConnections.every((c) => c.isActive === false);
-
-    const latestError = errorConns.sort(
-      (a, b) => new Date(b.lastErrorAt || 0) - new Date(a.lastErrorAt || 0),
-    )[0];
-    const errorCode = latestError ? getConnectionErrorTag(latestError) : null;
-    const errorTime = latestError?.lastErrorAt
-      ? getRelativeTime(latestError.lastErrorAt)
-      : null;
+    const errorTime = latestErrorAt ? getRelativeTime(latestErrorAt) : null;
+    const errorCode = error > 0 ? "ERR" : null;
 
     return { connected, error, total, errorCode, errorTime, allDisabled };
   };
@@ -227,21 +212,38 @@ export default function ProvidersPage() {
   // string or an array (kiro counts oauth + api_key/apikey together).
   const handleToggleProvider = async (providerId, authType, newActive) => {
     const authTypes = Array.isArray(authType) ? authType : [authType];
-    const matches = (c) =>
-      c.provider === providerId && authTypes.includes(c.authType);
-    const providerConns = connections.filter(matches);
-    setConnections((prev) =>
-      prev.map((c) => (matches(c) ? { ...c, isActive: newActive } : c)),
-    );
-    await Promise.allSettled(
-      providerConns.map((c) =>
-        fetch(`/api/providers/${c.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: newActive }),
+
+    // Optimistic update on stats
+    setProviderStats((prev) => {
+      const next = { ...prev };
+      const currentP = { ...(next[providerId] || {}) };
+      for (const type of authTypes) {
+        const s = currentP[type];
+        if (s) {
+          currentP[type] = {
+            ...s,
+            allDisabled: !newActive,
+            connected: newActive ? (s.total - s.error) : 0,
+          };
+        }
+      }
+      next[providerId] = currentP;
+      return next;
+    });
+
+    try {
+      await fetch("/api/providers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: providerId,
+          authType: authTypes,
+          isActive: newActive,
         }),
-      ),
-    );
+      });
+    } catch (error) {
+      console.error("Error updating provider status:", error);
+    }
   };
 
   const handleBatchTest = async (mode, providerId = null) => {
