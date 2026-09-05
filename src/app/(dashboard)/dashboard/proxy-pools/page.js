@@ -44,6 +44,7 @@ export default function ProxyPoolsPage() {
   const [batchImportGroup, setBatchImportGroup] = useState("");
   const [vercelForm, setVercelForm] = useState({ vercelToken: "", projectName: "vercel-relay" });
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: "", apiToken: "", projectName: "cloudflare-relay" });
+  const [cloudflareBulkPoolName, setCloudflareBulkPoolName] = useState("cloudflare-relay");
   const [cloudflareBulkText, setCloudflareBulkText] = useState("");
   const [cloudflareBulkResults, setCloudflareBulkResults] = useState([]);
   const [cloudflareBulkProgress, setCloudflareBulkProgress] = useState({
@@ -410,6 +411,7 @@ export default function ProxyPoolsPage() {
   };
 
   const openCloudflareBulkModal = () => {
+    setCloudflareBulkPoolName("cloudflare-relay");
     setCloudflareBulkText("");
     setCloudflareBulkResults([]);
     setCloudflareBulkProgress({ total: 0, completed: 0, success: 0, failed: 0, currentBatch: 0, totalBatches: 0 });
@@ -482,19 +484,24 @@ export default function ProxyPoolsPage() {
   };
 
   const handleCloudflareBulkDeploy = async () => {
+    const poolBase = cloudflareBulkPoolName.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32) || "cloudflare-relay";
+
     const entries = cloudflareBulkText
       .split(/\r?\n/)
       .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
       .filter(({ line }) => line.length > 0)
       .map(({ line, lineNumber }, index) => {
         const [label = "", accountId = "", apiToken = "", ...extra] = line.split("|").map((part) => part.trim());
-        const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
         return {
           lineNumber,
           label,
           accountId,
           apiToken,
-          projectName: `relay-${slug || `account-${index + 1}`}-${index + 1}`,
+          projectName: `${poolBase}-${index + 1}`,
           valid: Boolean(label && accountId && apiToken && !extra.length),
         };
       });
@@ -1195,8 +1202,16 @@ export default function ProxyPoolsPage() {
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-orange-500/10 bg-orange-500/5 p-3">
             <p className="text-sm font-medium text-text-main">One account per line (Batch of 10 concurrent)</p>
-            <p className="mt-1 text-xs text-text-muted">Format: name/email|accountID|apiToken. Deploy jalan 10 worker sekaligus per batch dengan progress detail.</p>
+            <p className="mt-1 text-xs text-text-muted">Format: name/email|accountID|apiToken. Nama worker/subdomain otomatis memakai Pool Name + urutan batch (bukan nama/email akun).</p>
           </div>
+          <Input
+            label="Pool Name / Worker Prefix"
+            value={cloudflareBulkPoolName}
+            onChange={(e) => setCloudflareBulkPoolName(e.target.value)}
+            disabled={bulkCloudflareDeploying}
+            placeholder="e.g. cloudflare-relay, cf-indo, cf-pool"
+            hint="Prefix untuk nama pool dan subdomain worker Cloudflare (contoh: cloudflare-relay-1, cloudflare-relay-2)."
+          />
           <textarea
             value={cloudflareBulkText}
             onChange={(e) => setCloudflareBulkText(e.target.value)}

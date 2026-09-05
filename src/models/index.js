@@ -15,6 +15,7 @@ export {
   deleteProviderNode,
   getProxyPools,
   getProxyPoolById,
+  getProxyPoolBoundCounts,
   createProxyPool,
   updateProxyPool,
   deleteProxyPool,
