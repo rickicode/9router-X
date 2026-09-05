@@ -61,7 +61,7 @@ export async function GET(request) {
     const pageSizeParam = searchParams.get("pageSize");
     const fields = searchParams.get("fields");
     const distinctParam = searchParams.get("distinct");
-    const paginated = provider !== null || pageParam !== null || pageSizeParam !== null || searchParam !== null || statusParam !== null;
+    const paginated = provider !== null || pageParam !== null || pageSizeParam !== null || searchParam !== null || statusParam !== null || (!distinctParam && fields !== "summary");
     const pageSize = Math.min(Math.max(Number.parseInt(pageSizeParam || "50", 10) || 50, 1), 500);
     const requestedPage = Math.max(Number.parseInt(pageParam || "1", 10) || 1, 1);
     const filter = {};

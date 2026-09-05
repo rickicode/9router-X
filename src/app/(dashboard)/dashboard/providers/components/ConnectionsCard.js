@@ -34,6 +34,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const [isCooldown, setIsCooldown] = useState(false);
+  const [modelLockUntil, setModelLockUntil] = useState(null);
   const proxyDropdownRef = useRef(null);
 
   const proxyPoolMap = new Map((proxyPools || []).map((p) => [p.id, p]));
@@ -66,6 +67,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
       const until = Object.entries(connection)
         .filter(([k]) => k.startsWith("modelLock_"))
         .map(([, v]) => v).filter(v => v && new Date(v).getTime() > Date.now()).sort()[0] || null;
+      setModelLockUntil(until);
       setIsCooldown(!!until);
     };
     check();

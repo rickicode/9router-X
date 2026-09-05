@@ -78,7 +78,7 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
 async function loadActiveConnections() {
   // Dynamic import avoids circular load with db / app graph at module eval time.
   const { getProviderConnections } = await import("../../lib/db/repos/connectionsRepo.js");
-  return getProviderConnections({ isActive: true });
+  return getProviderConnections({ isActive: true, authType: "oauth" });
 }
 
 async function refreshOne(connection) {

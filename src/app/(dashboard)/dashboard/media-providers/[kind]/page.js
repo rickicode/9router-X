@@ -20,15 +20,26 @@ function getEffectiveStatus(conn) {
   return conn.testStatus === "unavailable" && !isCooldown ? "active" : conn.testStatus;
 }
 
-function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) {
+function MediaProviderCard({ provider, kind, providerStats, isCustom, onToggle }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
 
-  const providerConns = connections.filter((c) => c.provider === provider.id);
-  const connected = providerConns.filter((c) => { const s = getEffectiveStatus(c); return s === "active" || s === "success"; }).length;
-  const error = providerConns.filter((c) => { const s = getEffectiveStatus(c); return s === "error" || s === "expired" || s === "unavailable"; }).length;
-  const total = providerConns.length;
-  const allDisabled = total > 0 && providerConns.every((c) => c.isActive === false);
+  const pStats = providerStats[provider.id] || {};
+  let connected = 0;
+  let error = 0;
+  let total = 0;
+  let allDisabled = true;
+
+  for (const type of Object.keys(pStats)) {
+    const stat = pStats[type];
+    if (stat) {
+      total += stat.total || 0;
+      connected += stat.connected || 0;
+      error += stat.error || 0;
+      if (!stat.allDisabled) allDisabled = false;
+    }
+  }
+  if (total === 0) allDisabled = false;
 
   const handleToggleClick = (e) => {
     e.preventDefault();
@@ -141,7 +152,7 @@ function ComboList({ combos }) {
 export default function MediaProviderKindPage() {
   const { kind } = useParams();
   const router = useRouter();
-  const [connections, setConnections] = useState([]);
+  const [providerStats, setProviderStats] = useState({});
   const [customNodes, setCustomNodes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [showAddCustomEmbedding, setShowAddCustomEmbedding] = useState(false);
@@ -159,12 +170,9 @@ export default function MediaProviderKindPage() {
 
   useEffect(() => {
     if (!kindConfig) return;
-    const kindProviders = getProvidersByKind(kind);
-    const providerIds = kindProviders.map((p) => p.id);
-    const qs = providerIds.length > 0 ? `?providers=${encodeURIComponent(providerIds.join(","))}` : "";
-    fetch(`/api/providers${qs}`, { cache: "no-store" })
+    fetch("/api/providers/stats", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setConnections(d.connections || []))
+      .then((d) => setProviderStats(d.stats || {}))
       .catch(() => {});
     if (isEmbedding) {
       fetch("/api/provider-nodes", { cache: "no-store" })
@@ -196,9 +204,13 @@ export default function MediaProviderKindPage() {
   const allProviders = [...providers, ...customProviders];
 
   const handleToggleProvider = async (providerId, newActive) => {
-    setConnections((prev) =>
-      prev.map((c) => (c.provider === providerId ? { ...c, isActive: newActive } : c))
-    );
+    setProviderStats((prev) => {
+      const p = { ...(prev[providerId] || {}) };
+      for (const k of Object.keys(p)) {
+        p[k] = { ...p[k], allDisabled: !newActive };
+      }
+      return { ...prev, [providerId]: p };
+    });
     try {
       await fetch("/api/providers", {
         method: "PATCH",
@@ -263,7 +275,7 @@ export default function MediaProviderKindPage() {
               key={provider.id}
               provider={provider}
               kind={kind}
-              connections={connections}
+              providerStats={providerStats}
               onToggle={handleToggleProvider}
             />
           ))}
@@ -272,7 +284,7 @@ export default function MediaProviderKindPage() {
               key={provider.id}
               provider={provider}
               kind={kind}
-              connections={connections}
+              providerStats={providerStats}
               isCustom
               onToggle={handleToggleProvider}
             />

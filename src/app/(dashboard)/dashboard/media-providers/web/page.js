@@ -7,22 +7,26 @@ import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 
-function getEffectiveStatus(conn) {
-  const isCooldown = Object.entries(conn).some(
-    ([k, v]) => k.startsWith("modelLock_") && v && new Date(v).getTime() > Date.now()
-  );
-  if (isCooldown) return "unavailable";
-  return conn.testStatus === "unavailable" && !isCooldown ? "active" : conn.testStatus;
-}
-
-function ProviderCard({ provider, kind, connections }) {
+function ProviderCard({ provider, kind, providerStats }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
-  const providerConns = connections.filter((c) => c.provider === provider.id);
-  const connected = providerConns.filter((c) => { const s = getEffectiveStatus(c); return s === "active" || s === "success"; }).length;
-  const error = providerConns.filter((c) => { const s = getEffectiveStatus(c); return s === "error" || s === "expired" || s === "unavailable"; }).length;
-  const total = providerConns.length;
-  const allDisabled = total > 0 && providerConns.every((c) => c.isActive === false);
+
+  const pStats = providerStats[provider.id] || {};
+  let connected = 0;
+  let error = 0;
+  let total = 0;
+  let allDisabled = true;
+
+  for (const type of Object.keys(pStats)) {
+    const stat = pStats[type];
+    if (stat) {
+      total += stat.total || 0;
+      connected += stat.connected || 0;
+      error += stat.error || 0;
+      if (!stat.allDisabled) allDisabled = false;
+    }
+  }
+  if (total === 0) allDisabled = false;
 
   const renderStatus = () => {
     if (isNoAuth) return <Badge variant="success" size="sm">Ready</Badge>;
@@ -108,7 +112,7 @@ function ComboList({ combos }) {
   );
 }
 
-function Section({ title, icon, kind, providers, connections, combos, onCreateCombo }) {
+function Section({ title, icon, kind, providers, providerStats, combos, onCreateCombo }) {
   return (
     <div>
       {/* Header — title left, Create Combo right */}
@@ -136,7 +140,7 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {providers.map((p) => (
-            <ProviderCard key={p.id} provider={p} kind={kind} connections={connections} />
+            <ProviderCard key={p.id} provider={p} kind={kind} providerStats={providerStats} />
           ))}
         </div>
       )}
@@ -146,20 +150,16 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
 
 export default function WebProvidersPage() {
   const router = useRouter();
-  const [connections, setConnections] = useState([]);
+  const [providerStats, setProviderStats] = useState({});
   const [combos, setCombos] = useState([]);
 
   const fetchAll = async () => {
     try {
-      const searchP = getProvidersByKind("webSearch");
-      const fetchP = getProvidersByKind("webFetch");
-      const providerIds = Array.from(new Set([...searchP, ...fetchP].map((p) => p.id)));
-      const qs = providerIds.length > 0 ? `?providers=${encodeURIComponent(providerIds.join(","))}` : "";
-      const [connsRes, combosRes] = await Promise.all([
-        fetch(`/api/providers${qs}`, { cache: "no-store" }),
+      const [statsRes, combosRes] = await Promise.all([
+        fetch("/api/providers/stats", { cache: "no-store" }),
         fetch("/api/combos", { cache: "no-store" }),
       ]);
-      if (connsRes.ok) setConnections((await connsRes.json()).connections || []);
+      if (statsRes.ok) setProviderStats((await statsRes.json()).stats || {});
       if (combosRes.ok) setCombos((await combosRes.json()).combos || []);
     } catch { /* noop */ }
   };
@@ -196,8 +196,12 @@ export default function WebProvidersPage() {
   return (
     <div className="flex flex-col gap-8">
       <Section
-        title="Web Search" icon="search" kind="webSearch"
-        providers={searchProviders} connections={connections} combos={searchCombos}
+        title="Web Search"
+        icon="travel_explore"
+        kind="webSearch"
+        providers={searchProviders}
+        providerStats={providerStats}
+        combos={searchCombos}
         onCreateCombo={() => handleCreateCombo("webSearch")}
       />
 
@@ -205,8 +209,12 @@ export default function WebProvidersPage() {
       <div className="border-t border-border" />
 
       <Section
-        title="Web Fetch" icon="travel_explore" kind="webFetch"
-        providers={fetchProviders} connections={connections} combos={fetchCombos}
+        title="Web Fetch"
+        icon="download"
+        kind="webFetch"
+        providers={fetchProviders}
+        providerStats={providerStats}
+        combos={fetchCombos}
         onCreateCombo={() => handleCreateCombo("webFetch")}
       />
     </div>

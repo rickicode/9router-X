@@ -41,14 +41,11 @@ Data layout under `$DATA_DIR/`:
 
 ```text
 $DATA_DIR/
-├── db/
-│   ├── data.sqlite       # main SQLite database
-│   └── backups/          # auto backups
-└── ...                   # certs, logs, runtime configs
+├── mitm/                 # MITM CA certs and read-replica aliases
+└── ...                   # runtime configs and local certificates
 ```
 
-Host path: `$HOME/.9router/db/data.sqlite`
-Container path: `/app/data/db/data.sqlite`
+Database is hosted via PostgreSQL 17 (see `docker-compose.yml` for production stack with PostgreSQL and Valkey).
 
 ## Optional env vars
 

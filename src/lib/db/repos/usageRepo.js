@@ -106,10 +106,12 @@ function pushToRing(entry) {
 async function getConnectionMapCached() {
   if (Date.now() - connCache.ts < CONN_CACHE_TTL_MS) return connCache.map;
   try {
-    const { getProviderConnections } = await import("./connectionsRepo.js");
-    const all = await getProviderConnections();
+    const db = await getAdapter();
+    const rows = await db.all(
+      `SELECT id, name, email FROM provider_connections`
+    );
     const map = {};
-    for (const c of all) map[c.id] = c.name || c.email || c.id;
+    for (const r of rows) map[r.id] = r.name || r.email || r.id;
     connCache.map = map;
     connCache.ts = Date.now();
   } catch {}
