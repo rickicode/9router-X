@@ -285,10 +285,8 @@ function deriveConnectionName(data, fallbackName) {
   return fallbackName;
 }
 
-export async function getProviderConnections(filter = {}) {
-  const db = await getAdapter();
+function buildConnectionFilterConditions(filter, params) {
   const where = [];
-  const params = [];
   if (filter.provider) {
     params.push(filter.provider);
     where.push(`provider = $${params.length}`);
@@ -305,6 +303,48 @@ export async function getProviderConnections(filter = {}) {
     params.push(filter.isActive);
     where.push(`is_active = $${params.length}`);
   }
+  if (filter.search && typeof filter.search === "string" && filter.search.trim()) {
+    params.push(`%${filter.search.trim()}%`);
+    where.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length})`);
+  }
+  if (filter.status) {
+    if (filter.status === "active") {
+      where.push(`(
+        is_active = true
+        AND (locked_all_until IS NULL OR locked_all_until <= NOW())
+        AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
+        AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
+      )`);
+    } else if (filter.status === "exhausted") {
+      where.push(`(
+        is_active = true
+        AND (locked_all_until IS NULL OR locked_all_until <= NOW())
+        AND (model_locks->>'__all' IS NULL OR (model_locks->>'__all')::text <= NOW()::text)
+        AND (last_error IS NULL OR NOT (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)'))
+        AND EXISTS (
+          SELECT 1 FROM jsonb_each_text(
+            CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END
+          ) AS kv(k, v)
+          WHERE k <> '__all' AND v > NOW()::text
+        )
+      )`);
+    } else if (filter.status === "unavailable") {
+      where.push(`(
+        (locked_all_until IS NOT NULL AND locked_all_until > NOW())
+        OR (model_locks->>'__all' IS NOT NULL AND (model_locks->>'__all')::text > NOW()::text)
+        OR (last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)')
+      )`);
+    } else if (filter.status === "disabled") {
+      where.push(`is_active = false`);
+    }
+  }
+  return where;
+}
+
+export async function getProviderConnections(filter = {}) {
+  const db = await getAdapter();
+  const params = [];
+  const where = buildConnectionFilterConditions(filter, params);
 
   let limitClause = "";
   if (filter.limit) {
@@ -331,24 +371,8 @@ export async function getProviderConnections(filter = {}) {
 
 export async function countProviderConnections(filter = {}) {
   const db = await getAdapter();
-  const where = [];
   const params = [];
-  if (filter.provider) {
-    params.push(filter.provider);
-    where.push(`provider = $${params.length}`);
-  }
-  if (filter.providers && Array.isArray(filter.providers) && filter.providers.length > 0) {
-    params.push(filter.providers);
-    where.push(`provider = ANY($${params.length})`);
-  }
-  if (filter.authType) {
-    params.push(filter.authType);
-    where.push(`auth_type = $${params.length}`);
-  }
-  if (filter.isActive !== undefined) {
-    params.push(filter.isActive);
-    where.push(`is_active = $${params.length}`);
-  }
+  const where = buildConnectionFilterConditions(filter, params);
 
   const row = await db.get(
     `SELECT COUNT(*)::int AS count

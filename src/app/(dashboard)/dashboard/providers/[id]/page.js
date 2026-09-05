@@ -45,6 +45,9 @@ export default function ProviderDetailPage() {
   const [connections, setConnections] = useState([]);
   const [connectionPage, setConnectionPage] = useState(1);
   const [connectionPagination, setConnectionPagination] = useState({ page: 1, pageSize: CONNECTION_PAGE_SIZE, total: 0, totalPages: 1 });
+  const [connectionSearch, setConnectionSearch] = useState("");
+  const [connectionStatusFilter, setConnectionStatusFilter] = useState("all");
+  const [connectionStats, setConnectionStats] = useState({ total: 0, active: 0, exhausted: 0, unavailable: 0, disabled: 0 });
   const [loading, setLoading] = useState(true);
   const [providerNode, setProviderNode] = useState(null);
   const [proxyPools, setProxyPools] = useState([]);
@@ -314,9 +317,47 @@ export default function ProviderDetailPage() {
       .catch(() => {});
   }, [providerId]);
 
-  const fetchConnections = useCallback(async (targetPage = connectionPage) => {
+  const fetchConnectionStats = useCallback(async () => {
     try {
-      const connectionParams = new URLSearchParams({ provider: providerId, page: String(targetPage), pageSize: String(CONNECTION_PAGE_SIZE) });
+      const [allRes, activeRes, exhaustedRes, unavailableRes, disabledRes] = await Promise.all([
+        fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&pageSize=1`, { cache: "no-store" }),
+        fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&status=active&pageSize=1`, { cache: "no-store" }),
+        fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&status=exhausted&pageSize=1`, { cache: "no-store" }),
+        fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&status=unavailable&pageSize=1`, { cache: "no-store" }),
+        fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&status=disabled&pageSize=1`, { cache: "no-store" }),
+      ]);
+      const [allData, activeData, exhaustedData, unavailableData, disabledData] = await Promise.all([
+        allRes.json(),
+        activeRes.json(),
+        exhaustedRes.json(),
+        unavailableRes.json(),
+        disabledRes.json(),
+      ]);
+      setConnectionStats({
+        total: allData.pagination?.total || 0,
+        active: activeData.pagination?.total || 0,
+        exhausted: exhaustedData.pagination?.total || 0,
+        unavailable: unavailableData.pagination?.total || 0,
+        disabled: disabledData.pagination?.total || 0,
+      });
+    } catch (err) {
+      console.log("Error fetching connection stats:", err);
+    }
+  }, [providerId]);
+
+  const fetchConnections = useCallback(async (targetPage = connectionPage, search = connectionSearch, status = connectionStatusFilter) => {
+    try {
+      const connectionParams = new URLSearchParams({
+        provider: providerId,
+        page: String(targetPage),
+        pageSize: String(CONNECTION_PAGE_SIZE),
+      });
+      if (search && search.trim()) {
+        connectionParams.set("search", search.trim());
+      }
+      if (status && status !== "all") {
+        connectionParams.set("status", status);
+      }
       const [connectionsRes, nodesRes, proxyPoolsRes, settingsRes] = await Promise.all([
         fetch(`/api/providers?${connectionParams.toString()}`, { cache: "no-store" }),
         fetch("/api/provider-nodes", { cache: "no-store" }),
@@ -371,7 +412,7 @@ export default function ProviderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [providerId, isCompatible, connectionPage]);
+  }, [providerId, isCompatible, connectionPage, connectionSearch, connectionStatusFilter]);
 
   const handleUpdateNode = async (formData) => {
     try {
@@ -525,11 +566,12 @@ export default function ProviderDetailPage() {
   useEffect(() => {
     Promise.resolve().then(() => {
       fetchConnections();
+      fetchConnectionStats();
       fetchAliases();
       fetchCustomModels();
       fetchDisabledModels();
     });
-  }, [fetchConnections, fetchAliases, fetchCustomModels, fetchDisabledModels]);
+  }, [fetchConnections, fetchConnectionStats, fetchAliases, fetchCustomModels, fetchDisabledModels]);
 
   // Cursor's model availability is account-specific and changes frequently.
   // Load the active account's live catalog for the dashboard; the static
@@ -1730,6 +1772,79 @@ export default function ProviderDetailPage() {
                   <Toggle checked={strictModelAssignment} onChange={handleStrictAssignmentToggle} />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Search & Status Filters */}
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-black/[0.03] pb-3 dark:border-white/[0.03]">
+            <div className="relative flex-1 max-w-sm">
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+                search
+              </span>
+              <input
+                type="text"
+                value={connectionSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setConnectionSearch(val);
+                  setConnectionPage(1);
+                  fetchConnections(1, val, connectionStatusFilter);
+                }}
+                placeholder="Search account name or email..."
+                className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-8 text-xs text-text-main placeholder-text-muted focus:border-primary focus:outline-none"
+              />
+              {connectionSearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConnectionSearch("");
+                    setConnectionPage(1);
+                    fetchConnections(1, "", connectionStatusFilter);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main text-xs"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { key: "all", label: "All", count: connectionStats.total },
+                { key: "active", label: "Active", count: connectionStats.active },
+                { key: "exhausted", label: "Exhausted", count: connectionStats.exhausted },
+                { key: "unavailable", label: "Unavailable", count: connectionStats.unavailable },
+                { key: "disabled", label: "Disabled", count: connectionStats.disabled },
+              ].map((tab) => {
+                const isSelected = connectionStatusFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      setConnectionStatusFilter(tab.key);
+                      setConnectionPage(1);
+                      fetchConnections(1, connectionSearch, tab.key);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                      isSelected
+                        ? "bg-primary text-white"
+                        : "bg-black/[0.03] text-text-muted hover:bg-black/[0.06] hover:text-text-main dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-black/5 text-text-muted dark:bg-white/10"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

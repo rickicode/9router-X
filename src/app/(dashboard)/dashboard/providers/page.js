@@ -392,21 +392,67 @@ export default function ProvidersPage() {
     compatibleProviders.length > 0 ||
     anthropicCompatibleProviders.length > 0;
 
+  // Aggregate totals across all provider types
+  const globalSummary = (() => {
+    let totalAccounts = 0;
+    let connectedAccounts = 0;
+    let errorAccounts = 0;
+    let disabledAccounts = 0;
+
+    for (const p of Object.values(providerStats)) {
+      for (const s of Object.values(p)) {
+        if (!s) continue;
+        totalAccounts += s.total || 0;
+        connectedAccounts += s.connected || 0;
+        errorAccounts += s.error || 0;
+        if (s.allDisabled && s.total) {
+          disabledAccounts += s.total;
+        }
+      }
+    }
+    return {
+      total: totalAccounts,
+      connected: connectedAccounts,
+      error: errorAccounts,
+      disabled: disabledAccounts,
+    };
+  })();
+
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
-      <div className="flex items-center justify-end">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-8 rounded-lg border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
-          aria-label="Filter providers by connection status"
-        >
-          {STATUS_FILTER_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-black/[0.04] pb-4 dark:border-white/[0.04]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-text-muted font-medium mr-1">Network Stats:</span>
+          <Badge variant="default" size="sm">
+            <span className="font-semibold">{globalSummary.total}</span>
+            <span className="ml-1 text-text-muted">Total Accounts</span>
+          </Badge>
+          <Badge variant="success" size="sm" dot>
+            <span className="font-semibold">{globalSummary.connected}</span>
+            <span className="ml-1 text-text-muted">Connected</span>
+          </Badge>
+          {globalSummary.error > 0 && (
+            <Badge variant="error" size="sm" dot>
+              <span className="font-semibold">{globalSummary.error}</span>
+              <span className="ml-1 text-text-muted">Error</span>
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-8 rounded-lg border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+            aria-label="Filter providers by connection status"
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!hasAnyResult && (

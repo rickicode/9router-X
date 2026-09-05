@@ -54,10 +54,12 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
     const isActiveParam = searchParams.get("isActive");
+    const statusParam = searchParams.get("status");
+    const searchParam = searchParams.get("search");
     const pageParam = searchParams.get("page");
     const pageSizeParam = searchParams.get("pageSize");
     const fields = searchParams.get("fields");
-    const paginated = provider !== null || pageParam !== null || pageSizeParam !== null;
+    const paginated = provider !== null || pageParam !== null || pageSizeParam !== null || searchParam !== null || statusParam !== null;
     const pageSize = Math.min(Math.max(Number.parseInt(pageSizeParam || "50", 10) || 50, 1), 500);
     const requestedPage = Math.max(Number.parseInt(pageParam || "1", 10) || 1, 1);
     const filter = {};
@@ -65,6 +67,8 @@ export async function GET(request) {
     if (isActiveParam !== null && isActiveParam !== undefined) {
       filter.isActive = isActiveParam === "true";
     }
+    if (statusParam) filter.status = statusParam;
+    if (searchParam) filter.search = searchParam;
 
     let connections;
     let total;
