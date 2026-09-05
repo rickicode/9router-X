@@ -437,6 +437,7 @@ export async function getProviderSummaryStats() {
       COUNT(*)::int AS total,
       COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled_count,
       COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable_count,
+      COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted_count,
       COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active_count,
       MAX(last_error_at) AS latest_error_at
     FROM provider_connections
@@ -451,6 +452,7 @@ export async function getProviderSummaryStats() {
     stats[provider][authType] = {
       total: Number(r.total || 0),
       connected: Number(r.active_count || 0),
+      exhausted: Number(r.exhausted_count || 0),
       error: Number(r.unavailable_count || 0),
       allDisabled: Number(r.total || 0) > 0 && Number(r.disabled_count || 0) === Number(r.total || 0),
       lastErrorAt: r.latest_error_at || null,
@@ -538,8 +540,12 @@ export async function getClientUsageConnections({
   }
 
   if (accountStatus === "active") {
-    where.push(`is_active = true`);
-  } else if (accountStatus === "inactive") {
+    where.push(ACTIVE_CONNECTION_SQL);
+  } else if (accountStatus === "exhausted") {
+    where.push(EXHAUSTED_CONNECTION_SQL);
+  } else if (accountStatus === "unavailable") {
+    where.push(UNAVAILABLE_CONNECTION_SQL);
+  } else if (accountStatus === "disabled" || accountStatus === "inactive") {
     where.push(`is_active = false`);
   }
 
@@ -580,7 +586,11 @@ export async function getClientUsageConnections({
   };
 }
 
-export async function getClientUsageMeta({ supportedProviders = [], apiKeyProviders = [] }) {
+export async function getClientUsageMeta({
+  supportedProviders = [],
+  apiKeyProviders = [],
+  provider = "all",
+}) {
   const db = await getAdapter();
   const rows = await db.all(
     `SELECT DISTINCT provider
@@ -595,9 +605,39 @@ export async function getClientUsageMeta({ supportedProviders = [], apiKeyProvid
       WHERE (provider = ANY($1) AND (auth_type = 'oauth' OR provider = ANY($2)))`,
     [supportedProviders, apiKeyProviders],
   );
+
+  const statusWhere = [
+    `(provider = ANY($1) AND (auth_type = 'oauth' OR provider = ANY($2)))`,
+  ];
+  const statusParams = [supportedProviders, apiKeyProviders];
+  if (provider && provider !== "all") {
+    statusParams.push(provider);
+    statusWhere.push(`provider = $${statusParams.length}`);
+  }
+  const statusWhereSql = `WHERE ${statusWhere.join(" AND ")}`;
+
+  const statsRow = await db.get(
+    `SELECT
+       COUNT(*)::int AS total,
+       COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active,
+       COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted,
+       COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable,
+       COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled
+     FROM provider_connections
+     ${statusWhereSql}`,
+    statusParams,
+  );
+
   return {
     providers: rows.map((r) => r.provider),
     eligibleCount: Number(countRow?.count || 0),
+    statusCounts: {
+      total: Number(statsRow?.total || 0),
+      active: Number(statsRow?.active || 0),
+      exhausted: Number(statsRow?.exhausted || 0),
+      unavailable: Number(statsRow?.unavailable || 0),
+      disabled: Number(statsRow?.disabled || 0),
+    },
   };
 }
 

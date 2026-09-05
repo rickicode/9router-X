@@ -27,6 +27,7 @@ import {
   reconcileConnectionsPage,
   getQuotaCache,
   setQuotaCache,
+  getEffectiveConnectionStatus,
   QUOTA_CACHE_KEY,
   REFRESH_INTERVAL_MS,
   CLAUDE_REFRESH_INTERVAL_MS,
@@ -39,7 +40,8 @@ import {
   QUOTA_SORT_OPTIONS,
 } from "./utils";
 import Card from "@/shared/components/Card";
-import { ConfirmModal, EditConnectionModal } from "@/shared/components";
+import { ConfirmModal, EditConnectionModal, Badge } from "@/shared/components";
+import { getStatusVariant } from "@/shared/utils/connectionStatus";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
@@ -168,6 +170,13 @@ export default function ProviderLimits() {
     eligibleConnections: 0,
     providerFilteredConnections: 0,
   });
+  const [statusCounts, setStatusCounts] = useState({
+    total: 0,
+    active: 0,
+    exhausted: 0,
+    unavailable: 0,
+    disabled: 0,
+  });
 
   const intervalRef = useRef(null);
   const countdownRef = useRef(null);
@@ -202,6 +211,9 @@ export default function ProviderLimits() {
         setPagination(nextPagination);
         setTotals(nextTotals);
         setPage(getPaginationPageValue(data.pagination, targetPage));
+        if (data.statusCounts) {
+          setStatusCounts(data.statusCounts);
+        }
         return connectionList;
       } catch (error) {
         console.error("Error fetching connections:", error);
@@ -209,6 +221,13 @@ export default function ProviderLimits() {
         setProviderOptions([]);
         setPagination({ page: 1, pageSize, total: 0, totalPages: 1 });
         setTotals({ eligibleConnections: 0, providerFilteredConnections: 0 });
+        setStatusCounts({
+          total: 0,
+          active: 0,
+          exhausted: 0,
+          unavailable: 0,
+          disabled: 0,
+        });
         return [];
       }
     },
@@ -840,7 +859,49 @@ export default function ProviderLimits() {
   return (
     <div className="space-y-6">
       {/* Header Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { key: "all", label: "All", count: statusCounts.total },
+            { key: "active", label: "Active", count: statusCounts.active },
+            { key: "exhausted", label: "Exhausted", count: statusCounts.exhausted },
+            { key: "unavailable", label: "Unavailable", count: statusCounts.unavailable },
+            { key: "disabled", label: "Turned off", count: statusCounts.disabled },
+          ].map((tab) => {
+            const isSelected = accountFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                  if (accountFilter !== tab.key) {
+                    setPage(1);
+                  }
+                  setAccountFilter(tab.key);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  isSelected
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-black/[0.03] text-text-muted hover:bg-black/[0.06] hover:text-text-main dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold tabular-nums ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-black/5 text-text-muted dark:bg-white/10"
+                  }`}
+                >
+                  {tab.count ?? 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Action Controls & Dropdowns */}
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative">
             <button
@@ -941,24 +1002,6 @@ export default function ProviderLimits() {
               </>
             )}
           </div>
-          <select
-            value={accountFilter}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              if (shouldResetPage(accountFilter, nextValue)) {
-                setPage(1);
-              }
-              setAccountFilter(nextValue);
-            }}
-            className="h-8 rounded-lg border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
-            aria-label="Filter accounts by status"
-          >
-            {ACCOUNT_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
 
           {providerFilter === "codex" && (
             <select
@@ -1113,46 +1156,42 @@ export default function ProviderLimits() {
                           {getConnectionSecondaryLabel(conn)}
                         </p>
                       ) : null}
-                      {conn.provider === "kiro" && (
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-300">
-                            {kiroMethodLabel(conn)}
-                          </span>
-                          {kiroRegion(conn) && (
-                            <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-                              {kiroRegion(conn)}
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        {conn.provider === "kiro" && (
+                          <>
+                            <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-300">
+                              {kiroMethodLabel(conn)}
                             </span>
-                          )}
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              isInactive
-                                ? "bg-surface-2 text-text-muted"
-                                : conn.testStatus === "active" || conn.testStatus === "success"
-                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                  : conn.testStatus === "error" || conn.testStatus === "expired" || conn.testStatus === "unavailable"
-                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                    : "bg-surface-2 text-text-muted"
-                            }`}
-                          >
-                            {isInactive ? "disabled" : conn.testStatus || "unknown"}
-                          </span>
-                          {conn.providerSpecificData?.profileArn && (
-                            <button
-                              type="button"
-                              onClick={() => copy(conn.providerSpecificData.profileArn, conn.id)}
-                              title={conn.providerSpecificData.profileArn}
-                              className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle px-2 py-0.5 text-[10px] text-text-muted transition-colors hover:text-primary"
-                            >
-                              <span className="material-symbols-outlined text-[12px]">
-                                {copied === conn.id ? "check" : "content_copy"}
+                            {kiroRegion(conn) && (
+                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                                {kiroRegion(conn)}
                               </span>
-                              <code className="truncate font-mono">
-                                {conn.providerSpecificData.profileArn}
-                              </code>
-                            </button>
-                          )}
-                        </div>
-                      )}
+                            )}
+                          </>
+                        )}
+                        <Badge
+                          variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn))}
+                          size="sm"
+                          dot
+                        >
+                          {conn.isActive === false ? "disabled" : getEffectiveConnectionStatus(conn)}
+                        </Badge>
+                        {conn.provider === "kiro" && conn.providerSpecificData?.profileArn && (
+                          <button
+                            type="button"
+                            onClick={() => copy(conn.providerSpecificData.profileArn, conn.id)}
+                            title={conn.providerSpecificData.profileArn}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle px-2 py-0.5 text-[10px] text-text-muted transition-colors hover:text-primary"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">
+                              {copied === conn.id ? "check" : "content_copy"}
+                            </span>
+                            <code className="truncate font-mono">
+                              {conn.providerSpecificData.profileArn}
+                            </code>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

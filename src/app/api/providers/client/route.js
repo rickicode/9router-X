@@ -8,6 +8,7 @@ const SAFE_FIELDS = [
   "priority", "globalPriority", "isActive", "defaultModel",
   "testStatus", "lastError", "lastErrorAt", "errorCode",
   "expiresAt", "lastUsedAt", "consecutiveUseCount",
+  "lockedAllUntil", "rateLimitedUntil", "modelLocks",
   "createdAt", "updatedAt",
 ];
 
@@ -32,6 +33,11 @@ function maskName(name) {
 function sanitize(c) {
   const safe = {};
   for (const f of SAFE_FIELDS) if (c[f] !== undefined) safe[f] = c[f];
+  for (const [k, v] of Object.entries(c)) {
+    if (k.startsWith("modelLock_") && v !== undefined) {
+      safe[k] = v;
+    }
+  }
   if (safe.name) safe.name = maskName(safe.name);
   if (c.providerSpecificData) {
     const psd = {};
@@ -69,6 +75,7 @@ export async function GET(request) {
       getClientUsageMeta({
         supportedProviders: USAGE_SUPPORTED_PROVIDERS,
         apiKeyProviders: USAGE_APIKEY_PROVIDERS,
+        provider,
       }),
       getClientUsageConnections({
         provider,
@@ -89,6 +96,7 @@ export async function GET(request) {
     return NextResponse.json({
       connections: pageConnections,
       providerOptions: meta.providers,
+      statusCounts: meta.statusCounts,
       pagination: {
         page: currentPage,
         pageSize,

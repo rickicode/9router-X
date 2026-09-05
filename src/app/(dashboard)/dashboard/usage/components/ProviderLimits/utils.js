@@ -13,7 +13,9 @@ export const ACCOUNT_PAGE_SIZE_MAX = 500;
 export const ACCOUNT_FILTER_OPTIONS = [
   { value: "all", label: "All accounts" },
   { value: "active", label: "Active" },
-  { value: "inactive", label: "Turned off" },
+  { value: "exhausted", label: "Exhausted" },
+  { value: "unavailable", label: "Unavailable" },
+  { value: "disabled", label: "Turned off" },
 ];
 export const QUOTA_SORT_OPTIONS = [
   { value: "default", label: "Default quota order" },
@@ -118,6 +120,45 @@ export function getConnectionsPageRange(pagination) {
   return { start, end };
 }
 
+export function getEffectiveConnectionStatus(connection, now = Date.now()) {
+  if (connection.isActive === false) return "disabled";
+
+  const hasFatalError = Boolean(
+    connection.providerSpecificData?.refreshBlocked ||
+    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
+  );
+
+  const accountLockUntil = connection.lockedAllUntil
+    || connection.rateLimitedUntil
+    || connection.modelLocks?.__all
+    || connection.modelLock___all;
+
+  const hasAccountLock = Boolean(
+    accountLockUntil && new Date(accountLockUntil).getTime() > now
+  );
+
+  if (hasAccountLock || hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus)) {
+    return "unavailable";
+  }
+
+  const flatLocks = Object.entries(connection)
+    .filter(([k]) => k.startsWith("modelLock_"))
+    .map(([k, v]) => ({ model: k.slice("modelLock_".length) || "__all", until: v }));
+
+  const dictLocks = Object.entries(connection.modelLocks || {})
+    .map(([k, v]) => ({ model: k || "__all", until: v }));
+
+  const hasModelLock = [...flatLocks, ...dictLocks].some(
+    (item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now
+  );
+
+  if (hasModelLock) {
+    return "exhausted";
+  }
+
+  return connection.testStatus || "active";
+}
+
 export function getConnectionsEmptyMessage(totals, providerFilter, accountFilter) {
   if (!totals.eligibleConnections) {
     return {
@@ -128,13 +169,23 @@ export function getConnectionsEmptyMessage(totals, providerFilter, accountFilter
     };
   }
   if (!totals.providerFilteredConnections) {
+    const statusLabel =
+      accountFilter === "inactive" || accountFilter === "disabled"
+        ? "turned off"
+        : accountFilter === "active"
+          ? "active"
+          : accountFilter === "exhausted"
+            ? "exhausted"
+            : accountFilter === "unavailable"
+              ? "unavailable"
+              : "matching";
     return {
       icon: "filter_alt_off",
       title: "No Accounts Match Current Filters",
       description:
         providerFilter === "all"
           ? "Try changing the account status filter to see more quota trackers."
-          : `No ${accountFilter === "inactive" ? "turned off" : accountFilter === "active" ? "active" : "matching"} accounts found for ${providerFilter}.`,
+          : `No ${statusLabel} accounts found for ${providerFilter}.`,
     };
   }
   return {

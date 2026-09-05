@@ -37,6 +37,7 @@ import { saveRequestDetail, getRequestDetails } from "@/lib/db/repos/requestDeta
 import { getChartData } from "@/lib/db/repos/usageRepo.js";
 import { GET as healthGet } from "@/app/api/health/route.js";
 import { GET as quotasGet } from "@/app/api/usage/quotas/route.js";
+import { GET as clientGet } from "@/app/api/providers/client/route.js";
 
 describe("Postgres & Redis L2 Architecture E2E", () => {
   beforeAll(async () => {
@@ -321,5 +322,53 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data.quotas)).toBe(true);
+  });
+
+  it("should verify client usage connections and statusCounts with model/account locks", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const testIds = ["cli-status-active", "cli-status-exhausted", "cli-status-unavailable", "cli-status-disabled"];
+    for (const item of [
+      { id: testIds[0], provider: "antigravity", authType: "oauth", name: testIds[0], isActive: true },
+      { id: testIds[1], provider: "antigravity", authType: "oauth", name: testIds[1], isActive: true, modelLocks: { "gemini-2.5-flash": future } },
+      { id: testIds[2], provider: "antigravity", authType: "oauth", name: testIds[2], isActive: true, lockedAllUntil: future },
+      { id: testIds[3], provider: "antigravity", authType: "oauth", name: testIds[3], isActive: false },
+    ]) {
+      await createProviderConnection(item);
+    }
+
+    try {
+      const reqAll = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=all");
+      const resAll = await clientGet(reqAll);
+      expect(resAll.status).toBe(200);
+      const dataAll = await resAll.json();
+      expect(dataAll.statusCounts).toBeDefined();
+      expect(dataAll.statusCounts.active).toBeGreaterThanOrEqual(1);
+      expect(dataAll.statusCounts.exhausted).toBeGreaterThanOrEqual(1);
+      expect(dataAll.statusCounts.unavailable).toBeGreaterThanOrEqual(1);
+      expect(dataAll.statusCounts.disabled).toBeGreaterThanOrEqual(1);
+
+      // Verify accountStatus=exhausted filtering
+      const reqExhausted = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=exhausted");
+      const resExhausted = await clientGet(reqExhausted);
+      const dataExhausted = await resExhausted.json();
+      const exhaustedIds = dataExhausted.connections.map((c) => c.id);
+      expect(exhaustedIds).toContain(testIds[1]);
+      expect(exhaustedIds).not.toContain(testIds[0]);
+      expect(exhaustedIds).not.toContain(testIds[2]);
+      expect(exhaustedIds).not.toContain(testIds[3]);
+
+      // Verify accountStatus=unavailable filtering
+      const reqUnavailable = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=unavailable");
+      const resUnavailable = await clientGet(reqUnavailable);
+      const dataUnavailable = await resUnavailable.json();
+      const unavailableIds = dataUnavailable.connections.map((c) => c.id);
+      expect(unavailableIds).toContain(testIds[2]);
+      expect(unavailableIds).not.toContain(testIds[0]);
+      expect(unavailableIds).not.toContain(testIds[1]);
+    } finally {
+      for (const id of testIds) {
+        await deleteProviderConnection(id);
+      }
+    }
   });
 });
