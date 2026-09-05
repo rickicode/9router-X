@@ -7,6 +7,8 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
+import ToolDetectionBanner from "./ToolDetectionBanner";
+import HostSetupCommand from "./HostSetupCommand";
 
 export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl }) {
   const [status, setStatus] = useState(initialStatus || null);
@@ -211,6 +213,21 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
               <span>Checking Copilot config...</span>
             </div>
           )}
+
+          {!checking && (
+            <ToolDetectionBanner
+              installed={status?.installed}
+              toolName={tool.name}
+              hasConfig={status?.has9Router}
+            />
+          )}
+
+          <HostSetupCommand
+            toolId="copilot"
+            baseUrl={getEffectiveBaseUrl()}
+            apiKey={selectedApiKey}
+            modelsList={selectedModels}
+          />
 
           {!checking && (
             <>

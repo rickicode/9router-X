@@ -8,6 +8,8 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
+import ToolDetectionBanner from "./ToolDetectionBanner";
+import HostSetupCommand from "./HostSetupCommand";
 
 const ENDPOINT = "/api/cli-tools/grok-build-settings";
 const MODEL_SLOT = "9router";
@@ -285,20 +287,22 @@ export default function GrokBuildToolCard({
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checking && <div className="flex items-center gap-2 text-text-muted"><span className="material-symbols-outlined animate-spin">progress_activity</span><span>Checking Grok Build...</span></div>}
 
-          {!checking && grokStatus && !grokStatus.installed && (
-            <div className="flex flex-col gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-              <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-yellow-500">warning</span>
-                <div className="flex-1">
-                  <p className="font-medium text-yellow-600 dark:text-yellow-400">Grok Build not detected locally</p>
-                  <code className="block mt-2 p-2 bg-black/20 rounded text-xs font-mono">curl -fsSL https://x.ai/cli/install.sh | bash</code>
-                </div>
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => setShowManualConfigModal(true)} className="w-full sm:w-auto"><span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config</Button>
-            </div>
+          {!checking && (
+            <ToolDetectionBanner
+              installed={grokStatus?.installed}
+              toolName={tool.name}
+              hasConfig={grokStatus?.has9Router}
+            />
           )}
 
-          {!checking && grokStatus?.installed && (
+          <HostSetupCommand
+            toolId="grok-build"
+            baseUrl={getEffectiveBaseUrl()}
+            apiKey={selectedApiKey}
+            model={selectedModel}
+          />
+
+          {!checking && (
             <>
               <div className="flex flex-col gap-2">
                 {tool.notes?.length > 0 && (

@@ -6,6 +6,8 @@ import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/prov
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Image from "next/image";
 import ApiKeySelect from "./ApiKeySelect";
+import HostSetupCommand from "./HostSetupCommand";
+import { TOOL_TEMPLATES } from "@/shared/constants/cliToolTemplates";
 
 export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders = [], cloudEnabled = false, tunnelEnabled = false }) {
   const [copiedField, setCopiedField] = useState(null);
@@ -150,6 +152,14 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
     return (
       <div className="flex flex-col gap-4">
         {renderNotes()}
+        {TOOL_TEMPLATES[toolId] && (
+          <HostSetupCommand
+            toolId={toolId}
+            baseUrl={baseUrl}
+            apiKey={selectedApiKey}
+            model={modelValue}
+          />
+        )}
         {canShowGuide() && tool.guideSteps.map((item) => (
           <div key={item.step} className="flex items-start gap-4">
             <div 
