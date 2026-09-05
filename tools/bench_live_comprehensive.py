@@ -251,33 +251,39 @@ def main():
     alive_models = []
     reps = 2
     
-    for idx, m in enumerate(eligible, 1):
+    def test_single_model(m):
         mid = m["id"]
         speeds = []
         oks = 0
         tpss = []
-        
         for r in range(reps):
-            res = query_chat(mid, PROMPT_SPEED, max_tokens=15, timeout=15)
+            res = query_chat(mid, PROMPT_SPEED, max_tokens=15, timeout=12)
             if res["ok"]:
                 oks += 1
                 speeds.append(res["dur"] * 1000)
                 tpss.append(res["tps"])
-            time.sleep(0.05)
-            
         liveness = oks / reps
         avg_ms = round(sum(speeds) / len(speeds), 1) if speeds else 0
         min_ms = round(min(speeds), 1) if speeds else 0
         avg_tps = round(sum(tpss) / len(tpss), 1) if tpss else 0
-        
-        status_tag = "ALIVE" if liveness >= 0.5 else "DEAD/SLOW"
-        if liveness >= 0.5:
-            alive_models.append({**m, "liveness": liveness, "avg_ms": avg_ms, "min_ms": min_ms, "tps": avg_tps, "oks": oks})
-            print(f"[{idx:3d}/{len(eligible)}] {status_tag} ({liveness*100:3.0f}%) | {avg_ms:6.1f}ms | {avg_tps:5.1f} tok/s | {mid}")
-        else:
-            print(f"[{idx:3d}/{len(eligible)}] {status_tag} ({liveness*100:3.0f}%) | FAIL            | {mid}")
+        return {**m, "liveness": liveness, "avg_ms": avg_ms, "min_ms": min_ms, "tps": avg_tps, "oks": oks}
 
-    print(f"\n[Phase 1 Selesai] {len(alive_models)}/{len(eligible)} models memenuhi syarat liveness >= 50%!")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+        futures = {executor.submit(test_single_model, m): m for m in eligible}
+        done_count = 0
+        for future in concurrent.futures.as_completed(futures):
+            done_count += 1
+            res = future.result()
+            mid = res["id"]
+            liveness = res["liveness"]
+            status_tag = "ALIVE" if liveness >= 0.5 else "DEAD/SLOW"
+            if liveness >= 0.5:
+                alive_models.append(res)
+                print(f"[{done_count:3d}/{len(eligible)}] {status_tag} ({liveness*100:3.0f}%) | {res['avg_ms']:6.1f}ms | {res['tps']:5.1f} tok/s | {mid}", flush=True)
+            else:
+                print(f"[{done_count:3d}/{len(eligible)}] {status_tag} ({liveness*100:3.0f}%) | FAIL            | {mid}", flush=True)
+
+    print(f"\n[Phase 1 Selesai] {len(alive_models)}/{len(eligible)} models memenuhi syarat liveness >= 50%!", flush=True)
 
     print(f"\n{'='*90}")
     print(f"PHASE 2: DEEP CAPABILITY (CODING, REASONING, TOOL-CALLING)")
