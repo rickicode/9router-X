@@ -1,11 +1,11 @@
 {
     "schema_version": 1,
-    "commit": "4a02345ec68b8259279e9d863e529b559162d40d",
-    "indexed_at": "2026-09-05T14:25:13Z",
+    "commit": "bdff1e6678ca4b8857f88d367fe32992e8a1f667",
+    "indexed_at": "2026-09-05T15:04:33Z",
     "project": "workspaces-9router-x",
-    "nodes": 158,
-    "edges": 191,
+    "nodes": 173,
+    "edges": 206,
     "original_size": 2621440,
-    "compressed_size": 324339,
+    "compressed_size": 351888,
     "compression_level": 3
 }

@@ -35,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_pc_model_locks ON provider_connections USING GIN 
 CREATE INDEX IF NOT EXISTS idx_pc_token_refresh ON provider_connections (provider, token_expires_at)
 WHERE is_active = true AND token_expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_pc_provider_active ON provider_connections (provider, is_active);
+CREATE INDEX IF NOT EXISTS idx_pc_provider_auth ON provider_connections (provider, auth_type);
 
 -- Provider Nodes
 CREATE TABLE IF NOT EXISTS provider_nodes (
