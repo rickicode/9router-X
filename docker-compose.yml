@@ -13,6 +13,7 @@ services:
       - "10128:10128"
     volumes:
       - 9router-data:/app/data
+      - 9router-tailscale:/var/lib/tailscale
     env_file:
       - .env
     environment:
@@ -25,6 +26,9 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword123}@redis:6379
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       HEADROOM_URL: http://headroom:8787
+      TAILSCALE_AUTHKEY: ${TAILSCALE_AUTHKEY:-${TS_AUTHKEY:-}}
+      TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-9router-x}
+      TAILSCALE_SERVE: ${TAILSCALE_SERVE:-true}
     logging:
       driver: "json-file"
       options:
@@ -114,6 +118,8 @@ volumes:
   9router-data:
     name: 9router-data
     external: true
+  9router-tailscale:
+    name: 9router-tailscale
   9router-pgdata:
     name: 9router-pgdata
   9router-redisdata:
