@@ -203,37 +203,62 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
   useEffect(() => {
     const checkCooldown = () => {
       const now = Date.now();
-      const locks = Object.entries(connection)
+      const flatLocks = Object.entries(connection)
         .filter(([k]) => k.startsWith("modelLock_"))
         .filter(([, v]) => v && new Date(v).getTime() > now)
         .map(([k, v]) => ({
           model: k.slice("modelLock_".length) || "__all",
           until: v,
-        }))
-        .sort((a, b) => new Date(b.until) - new Date(a.until));
+        }));
+
+      const dictLocks = Object.entries(connection.modelLocks || {})
+        .filter(([, v]) => v && new Date(v).getTime() > now)
+        .map(([k, v]) => ({
+          model: k || "__all",
+          until: v,
+        }));
+
+      const merged = new Map();
+      [...flatLocks, ...dictLocks].forEach(item => merged.set(item.model, item));
+      const locks = [...merged.values()].sort((a, b) => new Date(b.until) - new Date(a.until));
+
       setActiveLocks(locks);
       setIsCooldown(locks.length > 0);
     };
 
     checkCooldown();
-    const interval = hasAnyModelLockKey ? setInterval(checkCooldown, 1000) : null;
+    const interval = setInterval(checkCooldown, 1000);
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [connection, hasAnyModelLockKey]);
+  }, [connection]);
 
   // Determine effective status (override unavailable if cooldown expired)
   const hasFatalError = Boolean(
     connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(connection.lastError)
   );
+  const accountLockUntil = connection.lockedAllUntil
+    || connection.modelLocks?.__all
+    || connection.modelLock___all;
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    if (!accountLockUntil) return;
+    const updateTime = () => setCurrentTime(Date.now());
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [accountLockUntil]);
+
   const hasAccountLock = Boolean(
-    connection.modelLock___all && new Date(connection.modelLock___all).getTime() > Date.now()
+    accountLockUntil && (currentTime > 0 ? new Date(accountLockUntil).getTime() > currentTime : new Date(accountLockUntil).getTime() > 0)
   );
+
   const effectiveStatus = connection.isActive === false
     ? "disabled"
-    : (hasAccountLock || hasFatalError)
+    : (hasAccountLock || hasFatalError || connection.testStatus === "unavailable")
       ? "unavailable"
-      : (connection.testStatus === "unavailable" ? "active" : (connection.testStatus || "active"));
+      : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 

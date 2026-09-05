@@ -88,14 +88,28 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
   const hasFatalError = Boolean(
     connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned)\b/i.test(connection.lastError)
   );
+  const accountLockUntil = connection.lockedAllUntil
+    || connection.modelLocks?.__all
+    || connection.modelLock___all;
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    if (!accountLockUntil) return;
+    const updateTime = () => setCurrentTime(Date.now());
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [accountLockUntil]);
+
   const hasAccountLock = Boolean(
-    connection.modelLock___all && new Date(connection.modelLock___all).getTime() > Date.now()
+    accountLockUntil && (currentTime > 0 ? new Date(accountLockUntil).getTime() > currentTime : new Date(accountLockUntil).getTime() > 0)
   );
+
   const effectiveStatus = connection.isActive === false
     ? "disabled"
-    : (hasAccountLock || hasFatalError)
+    : (hasAccountLock || hasFatalError || connection.testStatus === "unavailable")
       ? "unavailable"
-      : (connection.testStatus === "unavailable" ? "active" : (connection.testStatus || "active"));
+      : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
@@ -344,7 +358,14 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
     finally { setLoading(false); }
   }, [providerId, page]);
 
-  useEffect(() => { fetch_(); }, [fetch_]);
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      await fetch_();
+    };
+    load();
+    return () => { ignore = true; };
+  }, [fetch_]);
 
   const saveStrategy = async (strategy, stickyLimit) => {
     try {
