@@ -46,6 +46,14 @@ export default function ProxyPoolsPage() {
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: "", apiToken: "", projectName: "cloudflare-relay" });
   const [cloudflareBulkText, setCloudflareBulkText] = useState("");
   const [cloudflareBulkResults, setCloudflareBulkResults] = useState([]);
+  const [cloudflareBulkProgress, setCloudflareBulkProgress] = useState({
+    total: 0,
+    completed: 0,
+    success: 0,
+    failed: 0,
+    currentBatch: 0,
+    totalBatches: 0,
+  });
   const [denoForm, setDenoForm] = useState({ denoToken: "", orgDomain: "", projectName: "" });
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -404,6 +412,7 @@ export default function ProxyPoolsPage() {
   const openCloudflareBulkModal = () => {
     setCloudflareBulkText("");
     setCloudflareBulkResults([]);
+    setCloudflareBulkProgress({ total: 0, completed: 0, success: 0, failed: 0, currentBatch: 0, totalBatches: 0 });
     setShowCloudflareBulkModal(true);
   };
 
@@ -503,33 +512,75 @@ export default function ProxyPoolsPage() {
     })));
     setBulkCloudflareDeploying(true);
 
+    const validEntries = entries.map((entry, index) => ({ ...entry, originalIndex: index })).filter((entry) => entry.valid);
+    const BATCH_SIZE = 10;
+    const totalBatches = Math.ceil(validEntries.length / BATCH_SIZE) || 1;
+
     let successCount = 0;
     let failedCount = entries.filter((entry) => !entry.valid).length;
+
+    setCloudflareBulkProgress({
+      total: entries.length,
+      completed: failedCount,
+      success: 0,
+      failed: failedCount,
+      currentBatch: validEntries.length > 0 ? 1 : 0,
+      totalBatches,
+    });
+
     try {
-      for (const [index, entry] of entries.entries()) {
-        if (!entry.valid) continue;
-        setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
-          resultIndex === index ? { ...result, status: "running" } : result
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const batch = validEntries.slice(batchIndex * BATCH_SIZE, (batchIndex + 1) * BATCH_SIZE);
+        if (!batch.length) continue;
+
+        setCloudflareBulkProgress((prev) => ({
+          ...prev,
+          currentBatch: batchIndex + 1,
+        }));
+
+        // Mark batch items as running
+        const runningIndices = new Set(batch.map((item) => item.originalIndex));
+        setCloudflareBulkResults((previous) => previous.map((result, idx) => (
+          runningIndices.has(idx) ? { ...result, status: "running" } : result
         )));
-        try {
-          const res = await fetch("/api/proxy-pools/cloudflare-deploy", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accountId: entry.accountId, apiToken: entry.apiToken, projectName: entry.projectName }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-          successCount += 1;
-          setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
-            resultIndex === index ? { ...result, status: "success", deployUrl: data.deployUrl || "Deployed" } : result
-          )));
-        } catch (error) {
-          failedCount += 1;
-          setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
-            resultIndex === index ? { ...result, status: "failed", error: error.message || "Deploy failed" } : result
-          )));
-        }
+
+        // Run 10 items in parallel
+        await Promise.all(
+          batch.map(async (entry) => {
+            const index = entry.originalIndex;
+            try {
+              const res = await fetch("/api/proxy-pools/cloudflare-deploy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ accountId: entry.accountId, apiToken: entry.apiToken, projectName: entry.projectName }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+              successCount += 1;
+              setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
+                resultIndex === index ? { ...result, status: "success", deployUrl: data.deployUrl || "Deployed" } : result
+              )));
+              setCloudflareBulkProgress((prev) => ({
+                ...prev,
+                completed: prev.completed + 1,
+                success: prev.success + 1,
+              }));
+            } catch (error) {
+              failedCount += 1;
+              setCloudflareBulkResults((previous) => previous.map((result, resultIndex) => (
+                resultIndex === index ? { ...result, status: "failed", error: error.message || "Deploy failed" } : result
+              )));
+              setCloudflareBulkProgress((prev) => ({
+                ...prev,
+                completed: prev.completed + 1,
+                failed: prev.failed + 1,
+              }));
+            }
+          })
+        );
       }
+
       await fetchProxyPools();
       if (failedCount) notify.error(`${successCount} deployed, ${failedCount} failed`);
       else notify.success(`${successCount} Cloudflare relays deployed`);
@@ -1111,7 +1162,7 @@ export default function ProxyPoolsPage() {
             value={cloudflareForm.apiToken}
             onChange={(e) => setCloudflareForm((prev) => ({ ...prev, apiToken: e.target.value }))}
             placeholder="your-cloudflare-api-token"
-            hint={<>Requires "Workers Scripts: Edit" permission. <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get token →</a></>}
+            hint={<>Requires &quot;Workers Scripts: Edit&quot; permission. <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get token →</a></>}
             type="password"
           />
           <Input
@@ -1143,16 +1194,64 @@ export default function ProxyPoolsPage() {
       >
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-orange-500/10 bg-orange-500/5 p-3">
-            <p className="text-sm font-medium text-text-main">One account per line</p>
-            <p className="mt-1 text-xs text-text-muted">Format: name/email|accountID|apiToken. Empty lines are ignored and each Worker gets a unique name.</p>
+            <p className="text-sm font-medium text-text-main">One account per line (Batch of 10 concurrent)</p>
+            <p className="mt-1 text-xs text-text-muted">Format: name/email|accountID|apiToken. Deploy jalan 10 worker sekaligus per batch dengan progress detail.</p>
           </div>
           <textarea
             value={cloudflareBulkText}
             onChange={(e) => setCloudflareBulkText(e.target.value)}
+            disabled={bulkCloudflareDeploying}
             placeholder={"email@example.com|account-id|api-token\nteam-account|account-id|api-token"}
             spellCheck={false}
-            className="min-h-[220px] w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 font-mono text-xs text-text-main outline-none focus:border-primary dark:border-white/10 dark:bg-zinc-900"
+            className="min-h-[200px] w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 font-mono text-xs text-text-main outline-none focus:border-primary dark:border-white/10 dark:bg-zinc-900 disabled:opacity-50"
           />
+
+          {cloudflareBulkProgress.total > 0 && (
+            <div className="rounded-lg border border-border bg-black/[0.02] p-3 dark:bg-white/[0.02] flex flex-col gap-2">
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span className="text-text-main flex items-center gap-1.5">
+                  {bulkCloudflareDeploying && (
+                    <span className="inline-block size-2 rounded-full bg-primary animate-pulse" />
+                  )}
+                  {bulkCloudflareDeploying
+                    ? `Deploying Batch ${cloudflareBulkProgress.currentBatch} of ${cloudflareBulkProgress.totalBatches}...`
+                    : "Deployment Complete"}
+                </span>
+                <span className="font-mono text-text-muted">
+                  {cloudflareBulkProgress.completed} / {cloudflareBulkProgress.total} ({Math.round((cloudflareBulkProgress.completed / cloudflareBulkProgress.total) * 100) || 0}%)
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10 flex">
+                <div
+                  className="bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${(cloudflareBulkProgress.success / cloudflareBulkProgress.total) * 100}%` }}
+                  title={`${cloudflareBulkProgress.success} succeeded`}
+                />
+                <div
+                  className="bg-red-500 transition-all duration-300"
+                  style={{ width: `${(cloudflareBulkProgress.failed / cloudflareBulkProgress.total) * 100}%` }}
+                  title={`${cloudflareBulkProgress.failed} failed`}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-text-muted pt-0.5">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    {cloudflareBulkProgress.success} Success
+                  </span>
+                  <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                    <span className="size-1.5 rounded-full bg-red-500" />
+                    {cloudflareBulkProgress.failed} Failed
+                  </span>
+                </div>
+                <span>Concurrency: 10/batch</span>
+              </div>
+            </div>
+          )}
+
           {cloudflareBulkResults.length > 0 && (
             <div className="max-h-64 overflow-auto rounded-lg border border-black/10 dark:border-white/10">
               <div className="divide-y divide-black/10 dark:divide-white/10">
@@ -1162,7 +1261,17 @@ export default function ProxyPoolsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-text-main">{result.label}</span>
-                        <Badge variant={result.status === "success" ? "success" : result.status === "failed" ? "error" : "default"}>
+                        <Badge
+                          variant={
+                            result.status === "success"
+                              ? "success"
+                              : result.status === "failed"
+                              ? "error"
+                              : result.status === "running"
+                              ? "default"
+                              : "default"
+                          }
+                        >
                           {result.status}
                         </Badge>
                       </div>
@@ -1177,7 +1286,7 @@ export default function ProxyPoolsPage() {
           )}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button fullWidth onClick={handleCloudflareBulkDeploy} disabled={!cloudflareBulkText.trim() || bulkCloudflareDeploying}>
-              {bulkCloudflareDeploying ? "Deploying..." : "Deploy All"}
+              {bulkCloudflareDeploying ? `Deploying (${cloudflareBulkProgress.completed}/${cloudflareBulkProgress.total})...` : "Deploy All"}
             </Button>
             <Button fullWidth variant="ghost" onClick={closeCloudflareBulkModal} disabled={bulkCloudflareDeploying}>
               Close
