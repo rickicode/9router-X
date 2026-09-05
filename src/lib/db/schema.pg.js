@@ -178,5 +178,10 @@ export async function ensureMonthlyPartitions(adapter) {
 
     await adapter.exec(rdSql);
     await adapter.exec(uhSql);
+
+    // Performance indexes per partition for high-speed dashboard analytics
+    await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_rd_${suffix}_ts ON request_details_${suffix} (timestamp DESC);`);
+    await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_rd_${suffix}_prov ON request_details_${suffix} (provider, timestamp DESC);`);
+    await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_uh_${suffix}_lookup ON usage_history_${suffix} (timestamp, provider, model);`);
   }
 }

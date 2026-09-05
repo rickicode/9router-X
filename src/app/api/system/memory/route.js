@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { getDataDir } from "@/lib/dataDir";
-import { DATA_DIR, DATA_FILE } from "@/lib/db/paths";
+import { getAdapter } from "@/lib/db/driver";
 import { poolFitnessSnapshot } from "open-sse/services/proxyPoolFitness.js";
 import { poolGeoSnapshot } from "open-sse/services/poolGeo.js";
 
@@ -36,9 +36,15 @@ function dirSizeMB(dir, maxDepth = 4) {
 export async function GET() {
   try {
     const dataDir = getDataDir();
-    const dbPath = DATA_FILE;
-    let dbFile = 0;
-    try { dbFile = fs.statSync(dbPath).size; } catch { dbFile = 0; }
+    let dbSizeMB = "N/A (PostgreSQL)";
+
+    try {
+      const db = await getAdapter();
+      const res = await db.get("SELECT pg_size_pretty(pg_database_size(current_database())) AS size");
+      if (res?.size) dbSizeMB = res.size;
+    } catch {
+      // Fallback if db query fails
+    }
 
     const fitness = poolFitnessSnapshot();
     const geo = poolGeoSnapshot();
@@ -46,8 +52,8 @@ export async function GET() {
 
     return NextResponse.json({
       dataDir,
-      dbPath,
-      dbSizeMB: formatMB(dbFile),
+      dbEngine: "PostgreSQL",
+      dbSize: dbSizeMB,
       dataDirSizeMB: formatMB(dirSizeMB(dataDir)),
       inMemory: {
         fitnessPools: Object.keys(fitness).length,

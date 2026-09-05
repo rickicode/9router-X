@@ -25,6 +25,11 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword123}@redis:6379
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       HEADROOM_URL: http://headroom:8787
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     depends_on:
       headroom:
         condition: service_started
@@ -39,7 +44,22 @@ services:
     restart: always
     ports:
       - "5432:5432"
-    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=256MB"]
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "effective_cache_size=1536MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
     environment:
       POSTGRES_USER: 9router
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
@@ -47,6 +67,11 @@ services:
       TZ: Asia/Jakarta
     volumes:
       - 9router-pgdata:/var/lib/postgresql/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U 9router -d 9router"]
       interval: 5s
@@ -59,9 +84,14 @@ services:
     restart: always
     ports:
       - "${REDIS_PORT:-6381}:6379"
-    command: ["valkey-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "${REDIS_PASSWORD:-redispassword123}"]
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory", "768mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "${REDIS_PASSWORD:-redispassword123}", "--tcp-backlog", "511"]
     volumes:
       - 9router-redisdata:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "valkey-cli", "-a", "${REDIS_PASSWORD:-redispassword123}", "ping"]
       interval: 5s
@@ -74,6 +104,11 @@ services:
     restart: always
     ports:
       - "8787:8787"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
 volumes:
   9router-data:
