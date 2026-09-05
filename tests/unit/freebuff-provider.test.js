@@ -203,6 +203,14 @@ describe("freebuff executor wire shape", () => {
     expect(out.messages[0].content).toBe(FREEBUFF_SYSTEM_MARKER);
   });
 
+  it("falls back to a plain UUID client_id when fingerprintId is missing (no 9router- prefix)", () => {
+    const ex = new FreebuffExecutor();
+    const body = { model: "deepseek/deepseek-v4-flash", messages: [{ role: "user", content: "hi" }] };
+    const out = ex.transformRequest(body.model, body, true, {});
+    expect(out.codebuff_metadata.client_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(out.codebuff_metadata.client_id).not.toContain("9router");
+  });
+
   it("buildUrl targets the Codebuff chat completions endpoint (www.codebuff.com)", () => {
     const ex = new FreebuffExecutor();
     expect(ex.buildUrl()).toBe("https://www.codebuff.com/api/v1/chat/completions");
@@ -264,6 +272,7 @@ describe("freebuff session pre-flight", () => {
     expect(opts.method).toBe("POST");
     expect(opts.headers["x-freebuff-model"]).toBe("deepseek/deepseek-v4-flash");
     expect(opts.headers.Authorization).toBe("Bearer tok-1");
+    expect(opts.headers["User-Agent"]).toMatch(/^Codebuff-CLI\//);
 
     // Second call for the same token+model hits the cache — no new claim.
     await ensureSession("tok-1", "deepseek/deepseek-v4-flash", null);

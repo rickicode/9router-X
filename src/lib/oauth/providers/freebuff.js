@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { FREEBUFF_CONFIG } from "../constants/oauth.js";
+import { getCodebuffUserAgent } from "open-sse/services/freebuffVersion.js";
 
 /**
  * Freebuff / Codebuff CLI login (fingerprint device-flow — NOT OAuth2):
@@ -38,7 +39,7 @@ const freebuff = {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "User-Agent": "codebuff-cli/0.0.138",
+          "User-Agent": getCodebuffUserAgent(),
         },
         body: JSON.stringify({ fingerprintId }),
       },
@@ -99,7 +100,7 @@ const freebuff = {
         method: "GET",
         headers: {
           Accept: "application/json",
-          "User-Agent": "codebuff-cli/0.0.138",
+          "User-Agent": getCodebuffUserAgent(),
         },
       },
     );

@@ -18,6 +18,7 @@ import {
   KIMCHI_CONFIG,
 } from "@/lib/oauth/constants/oauth";
 import { buildClineHeaders } from "@/shared/utils/clineAuth";
+import { getCodebuffUserAgent } from "open-sse/services/freebuffVersion.js";
 
 // OAuth provider test endpoints
 const OAUTH_TEST_CONFIG = {
@@ -112,7 +113,9 @@ const OAUTH_TEST_CONFIG = {
     method: "GET",
     authHeader: "Authorization",
     authPrefix: "Bearer ",
-    extraHeaders: { Accept: "application/json", "User-Agent": "codebuff-cli/0.0.138" },
+    get extraHeaders() {
+      return { Accept: "application/json", "User-Agent": getCodebuffUserAgent() };
+    },
     acceptStatuses: [403, 404],
     softFailMessage: {
       403: "Connected, but Freebuff is gated (403) — country blocked or account banned.",

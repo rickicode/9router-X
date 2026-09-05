@@ -19,6 +19,7 @@
 
 import REGISTRY from "../../providers/registry/index.js";
 import { U, fetchWithTimeout } from "./shared.js";
+import { getCodebuffUserAgent } from "../freebuffVersion.js";
 
 // Friendly labels from the registry model list (mirrors the CLI picker).
 const freebuffRegistry = REGISTRY.find((r) => r.id === "freebuff") || {};
@@ -42,7 +43,7 @@ export async function getFreebuffUsage(accessToken, providerSpecificData, proxyO
         method: "GET",
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "User-Agent": "codebuff-cli/0.0.138",
+          "User-Agent": getCodebuffUserAgent(),
           Accept: "application/json",
         },
       },

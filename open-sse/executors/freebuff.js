@@ -9,6 +9,7 @@ import {
   resolveRetryEntry,
 } from "../config/runtimeConfig.js";
 import { markPoolUnfit, clearPoolUnfit } from "../services/proxyPoolFitness.js";
+import { getCodebuffUserAgent } from "../services/freebuffVersion.js";
 
 /**
  * Freebuff Executor — OpenAI-compatible chat completions on
@@ -265,7 +266,7 @@ async function requestSession(token, model, proxyOptions) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      "User-Agent": "codebuff-cli/0.0.138",
+      "User-Agent": getCodebuffUserAgent(),
       "x-freebuff-model": model,
     },
   }, proxyOptions);
@@ -377,7 +378,7 @@ async function startRun(token, model, proxyOptions) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      "User-Agent": "codebuff-cli/0.0.138",
+      "User-Agent": getCodebuffUserAgent(),
     },
     body: JSON.stringify({
       action: "START",
@@ -415,7 +416,7 @@ async function finishRun(token, runId, status, proxyOptions) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        "User-Agent": "codebuff-cli/0.0.138",
+        "User-Agent": getCodebuffUserAgent(),
       },
       body: JSON.stringify({ action: "FINISH", runId, status }),
       signal: AbortSignal.timeout(10_000),
@@ -509,7 +510,7 @@ export class FreebuffExecutor extends BaseExecutor {
     body.codebuff_metadata = {
       client_id:
         credentials?.providerSpecificData?.fingerprintId ||
-        `9router-${crypto.randomUUID()}`,
+        crypto.randomUUID(),
       cost_mode: "free",
     };
     body.provider = { allow_fallbacks: false };
@@ -732,6 +733,7 @@ export const __test__ = {
   fetchWithNetworkRetry,
   FREEBUFF_SYSTEM_MARKER,
   SESSION_STALE_CODES,
+  getCodebuffUserAgent,
 };
 
 export default FreebuffExecutor;
