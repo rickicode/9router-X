@@ -72,9 +72,9 @@ export function TtsExampleCard({ providerId }) {
       .then((r) => r.json())
       .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
       .catch(() => {});
-    fetch("/api/providers", { cache: "no-store" })
+    fetch(`/api/providers?provider=${encodeURIComponent(providerId)}&isActive=true&fields=summary`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => { setConnectionCount((d.connections || []).filter((c) => c.provider === providerId && c.isActive !== false).length); })
+      .then((d) => { setConnectionCount((d.connections || []).length); })
       .catch(() => {});
     fetch("/api/tunnel/status")
       .then((r) => r.json())

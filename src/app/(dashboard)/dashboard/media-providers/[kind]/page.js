@@ -159,7 +159,10 @@ export default function MediaProviderKindPage() {
 
   useEffect(() => {
     if (!kindConfig) return;
-    fetch("/api/providers", { cache: "no-store" })
+    const kindProviders = getProvidersByKind(kind);
+    const providerIds = kindProviders.map((p) => p.id);
+    const qs = providerIds.length > 0 ? `?providers=${encodeURIComponent(providerIds.join(","))}` : "";
+    fetch(`/api/providers${qs}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setConnections(d.connections || []))
       .catch(() => {});
@@ -175,7 +178,7 @@ export default function MediaProviderKindPage() {
         .then((d) => setCombos(d.combos || []))
         .catch(() => {});
     }
-  }, [isEmbedding, supportsCombo, kindConfig]);
+  }, [kind, isEmbedding, supportsCombo, kindConfig]);
 
   if (!kindConfig) return notFound();
 
@@ -193,19 +196,21 @@ export default function MediaProviderKindPage() {
   const allProviders = [...providers, ...customProviders];
 
   const handleToggleProvider = async (providerId, newActive) => {
-    const providerConns = connections.filter((c) => c.provider === providerId);
     setConnections((prev) =>
       prev.map((c) => (c.provider === providerId ? { ...c, isActive: newActive } : c))
     );
-    await Promise.allSettled(
-      providerConns.map((c) =>
-        fetch(`/api/providers/${c.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: newActive }),
-        })
-      )
-    );
+    try {
+      await fetch("/api/providers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: providerId,
+          isActive: newActive,
+        }),
+      });
+    } catch {
+      // noop
+    }
   };
 
   const handleCreateCombo = async () => {

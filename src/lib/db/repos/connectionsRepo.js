@@ -356,13 +356,18 @@ export async function getProviderConnections(filter = {}) {
     }
   }
 
+  const distinctClause = filter.distinctByProvider ? "DISTINCT ON (provider)" : "";
+  const orderClause = filter.distinctByProvider
+    ? "ORDER BY provider, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
+    : "ORDER BY priority ASC NULLS LAST, updated_at DESC NULLS LAST";
+
   const rows = await db.all(
-    `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
+    `SELECT ${distinctClause} id, provider, auth_type, name, email, priority, is_active, test_status,
             locked_all_until, rate_limited_until, token_expires_at, last_used_at,
             model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
        FROM provider_connections
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY priority ASC NULLS LAST, updated_at DESC NULLS LAST
+      ${orderClause}
       ${limitClause}`,
     params,
   );

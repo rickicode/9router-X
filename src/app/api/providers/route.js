@@ -53,22 +53,33 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
+    const providersParam = searchParams.get("providers");
     const isActiveParam = searchParams.get("isActive");
     const statusParam = searchParams.get("status");
     const searchParam = searchParams.get("search");
     const pageParam = searchParams.get("page");
     const pageSizeParam = searchParams.get("pageSize");
     const fields = searchParams.get("fields");
+    const distinctParam = searchParams.get("distinct");
     const paginated = provider !== null || pageParam !== null || pageSizeParam !== null || searchParam !== null || statusParam !== null;
     const pageSize = Math.min(Math.max(Number.parseInt(pageSizeParam || "50", 10) || 50, 1), 500);
     const requestedPage = Math.max(Number.parseInt(pageParam || "1", 10) || 1, 1);
     const filter = {};
     if (provider) filter.provider = provider;
+    if (providersParam) {
+      const parsedProviders = providersParam.split(",").map((p) => p.trim()).filter(Boolean);
+      if (parsedProviders.length > 0) {
+        filter.providers = parsedProviders;
+      }
+    }
     if (isActiveParam !== null && isActiveParam !== undefined) {
       filter.isActive = isActiveParam === "true";
     }
     if (statusParam) filter.status = statusParam;
     if (searchParam) filter.search = searchParam;
+    if (distinctParam === "provider" || (fields === "summary" && distinctParam !== "false")) {
+      filter.distinctByProvider = true;
+    }
 
     let connections;
     let total;
@@ -112,6 +123,7 @@ export async function GET(request) {
           name,
           priority: c.priority,
           isActive: c.isActive,
+          providerSpecificData: c.providerSpecificData ? { prefix: c.providerSpecificData.prefix, nodeName: c.providerSpecificData.nodeName } : undefined,
         };
       });
 

@@ -151,8 +151,12 @@ export default function WebProvidersPage() {
 
   const fetchAll = async () => {
     try {
+      const searchP = getProvidersByKind("webSearch");
+      const fetchP = getProvidersByKind("webFetch");
+      const providerIds = Array.from(new Set([...searchP, ...fetchP].map((p) => p.id)));
+      const qs = providerIds.length > 0 ? `?providers=${encodeURIComponent(providerIds.join(","))}` : "";
       const [connsRes, combosRes] = await Promise.all([
-        fetch("/api/providers", { cache: "no-store" }),
+        fetch(`/api/providers${qs}`, { cache: "no-store" }),
         fetch("/api/combos", { cache: "no-store" }),
       ]);
       if (connsRes.ok) setConnections((await connsRes.json()).connections || []);
