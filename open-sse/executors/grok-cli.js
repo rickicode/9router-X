@@ -368,6 +368,7 @@ export class GrokCliExecutor extends BaseExecutor {
       if (v != null && headers[k] === undefined) headers[k] = v;
     }
 
+    headers["x-xai-token-auth"] = this.config.tokenAuth || "xai-grok-cli";
     headers["x-grok-client-identifier"] =
       this.config.clientIdentifier || headers["x-grok-client-identifier"] || GROK_CLI_CLIENT_IDENTIFIER;
     headers["x-grok-client-version"] =
