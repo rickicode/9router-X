@@ -228,9 +228,11 @@ export async function getActiveRequests() {
   const recentRequests = [...recentRing.items]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .map((entry) => {
-      const tokens = entry.tokens || {};
+      const rawTokens = entry.tokens || {};
+      const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
+      const ts = entry.timestamp instanceof Date ? entry.timestamp.toISOString() : String(entry.timestamp || "");
       return {
-        timestamp: entry.timestamp,
+        timestamp: ts,
         model: entry.model,
         provider: entry.provider || "",
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
@@ -306,8 +308,8 @@ export async function saveRequestUsage(entry) {
           completionTokens,
           cost || 0,
           entry.status || "ok",
-          JSON.stringify(tokens),
-          JSON.stringify({}),
+          tokens,
+          {},
         ],
       );
 
@@ -542,9 +544,11 @@ export async function getUsageStats(period = "all") {
   const seen = new Set();
   const recentRequests = recentRows
     .map((row) => {
-      const tokens = row.tokens || {};
+      const rawTokens = row.tokens || {};
+      const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
+      const ts = row.timestamp instanceof Date ? row.timestamp.toISOString() : String(row.timestamp || "");
       return {
-        timestamp: row.timestamp,
+        timestamp: ts,
         model: row.model,
         provider: row.provider || "",
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
@@ -686,9 +690,10 @@ export async function getUsageStats(period = "all") {
     );
 
     for (const r of filtered) {
-      const tokens = r.tokens || {};
-      const promptTokens = Number(tokens.prompt_tokens || tokens.input_tokens || 0);
-      const completionTokens = Number(tokens.completion_tokens || tokens.output_tokens || 0);
+      const rawTokens = r.tokens || {};
+      const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
+      const promptTokens = Number(r.prompt_tokens ?? tokens.prompt_tokens ?? tokens.input_tokens ?? 0);
+      const completionTokens = Number(r.completion_tokens ?? tokens.completion_tokens ?? tokens.output_tokens ?? 0);
       const cachedTokens = Number(tokens.cached_tokens || tokens.cache_read_input_tokens || 0);
       const entryCost = Number(r.cost || 0);
       const providerDisplayName = providerNodeNameMap[r.provider] || r.provider;

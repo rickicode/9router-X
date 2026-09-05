@@ -21,6 +21,24 @@ if (!global._pgSql) {
         serialize: (x) => "" + x,
         parse: (x) => (x === null ? null : Number(x)),
       },
+      timestamptz: {
+        to: 1184,
+        from: [1184],
+        serialize: (x) => (x instanceof Date ? x.toISOString() : "" + x),
+        parse: (x) => (x === null ? null : (new Date(x)).toISOString()),
+      },
+      timestamp: {
+        to: 1114,
+        from: [1114],
+        serialize: (x) => (x instanceof Date ? x.toISOString() : "" + x),
+        parse: (x) => (x === null ? null : (new Date(x)).toISOString()),
+      },
+      date: {
+        to: 1082,
+        from: [1082],
+        serialize: (x) => (x instanceof Date ? x.toISOString().slice(0, 10) : "" + x),
+        parse: (x) => (x === null ? null : String(x).slice(0, 10)),
+      },
     },
     transform: {
       undefined: null,
