@@ -26,7 +26,8 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   const { scope = null, excludeIds = [] } = opts || {};
 
   const uniquePoolIds = [...new Set(poolIds)];
-  let eligible = uniquePoolIds.filter((id) => !(excludeIds || []).includes(id));
+  const excludeSet = new Set(excludeIds || []);
+  let eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
   // Region-aware filtering is opt-in via the "smart" strategy.
   if (strategy === "smart" && scope) eligible = fitPoolIds(eligible, scope);
 
@@ -36,7 +37,7 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
     // unfit; their executors may have their own pool fallback semantics.
     const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
     if (isFreebuff && strategy === "smart") return null;
-    eligible = uniquePoolIds.filter((id) => !(excludeIds || []).includes(id));
+    eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
     if (eligible.length === 0) return null;
   }
   if (eligible.length === 1) return eligible[0];

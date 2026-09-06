@@ -84,30 +84,45 @@ function providerWildcardScope(scope) {
   return `${scope.slice(0, sep)}::*`;
 }
 
-export function isPoolFit(poolId, scope, now = Date.now()) {
-  if (!poolId) return true;
+export function isPoolFit(poolId, scope, now = Date.now(), wildcardScope = null) {
+  if (!poolId || fitness.size === 0) return true;
   const byScope = fitness.get(poolId);
   if (!byScope) return true;
-  // A provider-wide mark ("provider::*", e.g. manual blocks) also covers any
-  // model lookup for that provider.
-  const candidates = [scope, providerWildcardScope(scope)];
-  for (const key of candidates) {
-    if (!key) continue;
-    const entry = byScope.get(key);
-    if (!entry) continue;
-    if (entry.until <= now) {
-      byScope.delete(key);
-      if (byScope.size === 0) fitness.delete(poolId);
-      continue;
+
+  if (scope) {
+    const entry = byScope.get(scope);
+    if (entry) {
+      if (entry.until <= now) {
+        byScope.delete(scope);
+        if (byScope.size === 0) fitness.delete(poolId);
+      } else {
+        return false;
+      }
     }
-    return false;
   }
+
+  const wc = wildcardScope ?? providerWildcardScope(scope);
+  if (wc && wc !== scope) {
+    const entry = byScope.get(wc);
+    if (entry) {
+      if (entry.until <= now) {
+        byScope.delete(wc);
+        if (byScope.size === 0) fitness.delete(poolId);
+      } else {
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
 // Keep only pool ids that are not in cooldown for the scope.
 export function fitPoolIds(poolIds, scope, now = Date.now()) {
-  return (poolIds || []).filter((id) => isPoolFit(id, scope, now));
+  if (!poolIds || poolIds.length === 0) return [];
+  if (fitness.size === 0) return poolIds;
+  const wc = providerWildcardScope(scope);
+  return poolIds.filter((id) => isPoolFit(id, scope, now, wc));
 }
 
 // Clear every mark — or only scopes belonging to one provider (`provider::*`).

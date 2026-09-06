@@ -143,7 +143,25 @@ async function writePool(db, pool, options = {}) {
   return rowToPool(row);
 }
 
+const POOL_CACHE_TTL_MS = 5000;
+const poolCache = new Map(); // id -> { pool, expiresAt }
+let allActivePoolsCache = null;
+let allActivePoolsCacheExpiresAt = 0;
+
+export function invalidateProxyPoolCache(id = null) {
+  if (id) poolCache.delete(id);
+  else poolCache.clear();
+  allActivePoolsCache = null;
+  allActivePoolsCacheExpiresAt = 0;
+}
+
 export async function getProxyPools(filter = {}) {
+  const isPlainActiveFilter = Object.keys(filter).length === 1 && filter.isActive === true;
+  const now = Date.now();
+  if (isPlainActiveFilter && allActivePoolsCache && now < allActivePoolsCacheExpiresAt) {
+    return allActivePoolsCache;
+  }
+
   const db = await getAdapter();
   const where = [];
   const params = [];
@@ -168,10 +186,25 @@ export async function getProxyPools(filter = {}) {
       ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST`,
     params,
   );
-  return rows.map(rowToPool);
+  const pools = rows.map(rowToPool);
+  if (isPlainActiveFilter) {
+    allActivePoolsCache = pools;
+    allActivePoolsCacheExpiresAt = now + POOL_CACHE_TTL_MS;
+    for (const p of pools) {
+      poolCache.set(p.id, { pool: p, expiresAt: now + POOL_CACHE_TTL_MS });
+    }
+  }
+  return pools;
 }
 
 export async function getProxyPoolById(id) {
+  if (!id) return null;
+  const now = Date.now();
+  const cached = poolCache.get(id);
+  if (cached && now < cached.expiresAt) {
+    return cached.pool;
+  }
+
   const db = await getAdapter();
   const row = await db.get(
     `SELECT id, name, proxy_url, no_proxy, type, "group", is_active, strict_proxy,
@@ -180,7 +213,11 @@ export async function getProxyPoolById(id) {
       WHERE id = $1`,
     [id],
   );
-  return rowToPool(row);
+  const pool = rowToPool(row);
+  if (pool) {
+    poolCache.set(id, { pool, expiresAt: now + POOL_CACHE_TTL_MS });
+  }
+  return pool;
 }
 
 export async function createProxyPool(data = {}) {
@@ -205,14 +242,16 @@ export async function createProxyPool(data = {}) {
     createdAt: now,
     updatedAt: now,
   };
-  return writePool(db, pool);
+  const result = await writePool(db, pool);
+  invalidateProxyPoolCache();
+  return result;
 }
 
 export async function updateProxyPool(id, data = {}) {
   const db = await getAdapter();
   const patch = normalizePatch(data);
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const row = await tx.get(`SELECT * FROM proxy_pools WHERE id = $1`, [id]);
     if (!row) return null;
     const existing = rowToPool(row);
@@ -223,6 +262,8 @@ export async function updateProxyPool(id, data = {}) {
     };
     return writePool(tx, merged, { createdAt: existing.createdAt });
   });
+  invalidateProxyPoolCache(id);
+  return result;
 }
 
 export async function deleteProxyPool(id) {
@@ -230,5 +271,6 @@ export async function deleteProxyPool(id) {
   const row = await db.get(`SELECT * FROM proxy_pools WHERE id = $1`, [id]);
   if (!row) return null;
   await db.run(`DELETE FROM proxy_pools WHERE id = $1`, [id]);
+  invalidateProxyPoolCache(id);
   return rowToPool(row);
 }

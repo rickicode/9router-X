@@ -34,6 +34,7 @@ export {
   createProxyPool,
   updateProxyPool,
   deleteProxyPool,
+  invalidateProxyPoolCache,
   getApiKeys,
   getApiKeyById,
   createApiKey,
