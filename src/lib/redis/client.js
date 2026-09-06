@@ -52,7 +52,15 @@ export function isRedisAvailable() {
  * Fast Cooldown Management (Auto-TTL, Zero DB Cleanup)
  */
 export async function setAccountCooldown(connId, cooldownSeconds) {
-  if (!isRedisAvailable() || cooldownSeconds <= 0) return false;
+  if (!isRedisAvailable() || !connId) return false;
+  if (cooldownSeconds <= 0) {
+    try {
+      await redis.del(`cooldown:conn:${connId}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   try {
     await redis.set(`cooldown:conn:${connId}`, "1", "EX", Math.ceil(cooldownSeconds));
     return true;
@@ -62,7 +70,7 @@ export async function setAccountCooldown(connId, cooldownSeconds) {
 }
 
 export async function isAccountInCooldown(connId) {
-  if (!isRedisAvailable()) return false;
+  if (!isRedisAvailable() || !connId) return false;
   try {
     const val = await redis.get(`cooldown:conn:${connId}`);
     return val === "1";
@@ -72,13 +80,29 @@ export async function isAccountInCooldown(connId) {
 }
 
 export async function setModelCooldown(connId, model, cooldownSeconds) {
-  if (!isRedisAvailable() || cooldownSeconds <= 0) return false;
+  if (!isRedisAvailable() || !connId || !model) return false;
+  if (cooldownSeconds <= 0) {
+    try {
+      await redis.del(`cooldown:model:${connId}:${model}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   try {
     await redis.set(`cooldown:model:${connId}:${model}`, "1", "EX", Math.ceil(cooldownSeconds));
     return true;
   } catch {
     return false;
   }
+}
+
+export async function clearAccountCooldown(connId) {
+  return setAccountCooldown(connId, 0);
+}
+
+export async function clearModelCooldown(connId, model) {
+  return setModelCooldown(connId, model, 0);
 }
 
 export async function isModelInCooldown(connId, model) {

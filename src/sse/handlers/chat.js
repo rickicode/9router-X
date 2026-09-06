@@ -297,7 +297,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       // failed pool so the request retries via another pool, not a dead end.
       resolveProxyConfig: async (creds, excludePoolIds = []) => {
         const psd = { ...(creds?.providerSpecificData || {}) };
-        if (psd.proxyPoolIds?.length) psd.proxyPoolScope = `${provider}::${model}`;
+        if (psd.proxyPoolIds?.length || psd.proxyGroup) psd.proxyPoolScope = `${provider}::${model}`;
         const resolved = await resolveConnectionProxyConfig(psd, creds?.connectionId || creds?.id, excludePoolIds);
         if (!resolved?.proxyPoolId) return null;
         return {

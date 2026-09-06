@@ -75,6 +75,13 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       );
       expect(modelInCd).toBe(true);
 
+      // Verify clearing cooldown via <= 0 removes key from Redis
+      await setAccountCooldown("test-redis-conn", 0);
+      expect(await isAccountInCooldown("test-redis-conn")).toBe(false);
+
+      await setModelCooldown("test-redis-conn", "claude-3-7-sonnet", 0);
+      expect(await isModelInCooldown("test-redis-conn", "claude-3-7-sonnet")).toBe(false);
+
       const lock = await acquireLock("test-suite-lock", 10);
       expect(lock).toBe(true);
       await releaseLock("test-suite-lock");

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProviderConnectionById, updateProviderConnection } from "@/models";
 import { clearAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
+import { setAccountCooldown } from "@/lib/redis/client.js";
 
 export async function POST(request, { params }) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });
     }
 
-    // Build clear object for all modelLock_* fields
+    // Build clear object for all modelLock_* fields and account locks
     const updates = {
       testStatus: "active",
       lastError: null,
@@ -19,6 +20,8 @@ export async function POST(request, { params }) {
       errorCode: null,
       backoffLevel: 0,
       rateLimitedUntil: null,
+      lockedAllUntil: null,
+      modelLocks: {},
     };
 
     for (const key of Object.keys(connection)) {
@@ -41,6 +44,9 @@ export async function POST(request, { params }) {
     }
 
     const updated = await updateProviderConnection(id, updates);
+
+    // Clear Redis L2 speed layer cooldown
+    setAccountCooldown(id, 0).catch(() => {});
 
     // Clear Antigravity in-memory cache if applicable
     if (typeof clearAntigravityConnectionCache === "function") {

@@ -4,6 +4,7 @@ import {
   getProviderConnections,
   updateProviderConnection,
 } from "@/lib/localDb";
+import { setAccountCooldown, setModelCooldown } from "@/lib/redis/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 
@@ -84,13 +85,16 @@ export async function POST(request) {
 
     const connections = await getProviderConnections({ provider });
     const lockKey = `${MODEL_LOCK_PREFIX}${model}`;
+    const isAll = model === "__all";
 
     await Promise.all(
       connections
-        .filter((connection) => connection[lockKey])
-        .map((connection) =>
-          updateProviderConnection(connection.id, {
+        .filter((c) => c[lockKey] || c.modelLocks?.[model] || (isAll && (c.lockedAllUntil || c.rateLimitedUntil)))
+        .map(async (connection) => {
+          const patch = {
             [lockKey]: null,
+            ...(isAll ? { lockedAllUntil: null, rateLimitedUntil: null } : {}),
+            modelLocks: { ...(connection.modelLocks || {}), [model]: null },
             ...(connection.testStatus === "unavailable"
               ? {
                   testStatus: "active",
@@ -99,8 +103,14 @@ export async function POST(request) {
                   backoffLevel: 0,
                 }
               : {}),
-          }),
-        ),
+          };
+          await updateProviderConnection(connection.id, patch);
+          if (isAll) {
+            setAccountCooldown(connection.id, 0).catch(() => {});
+          } else {
+            setModelCooldown(connection.id, model, 0).catch(() => {});
+          }
+        }),
     );
 
     return NextResponse.json({ ok: true });

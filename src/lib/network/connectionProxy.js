@@ -122,9 +122,11 @@ export async function resolveConnectionProxyConfig(
      * -----------------------------
      */
     if (proxyPoolIds.length > 0) {
-      selectedPoolId = pickProxyPoolId(proxyPoolIds, proxyRotationStrategy, connectionId, { scope: multiPoolScope, excludeIds: excludePoolIds });
-      
-    if (selectedPoolId) {
+      let candidateIds = proxyPoolIds.filter((id) => !(excludePoolIds || []).includes(id));
+      while (candidateIds.length > 0) {
+        selectedPoolId = pickProxyPoolId(candidateIds, proxyRotationStrategy, connectionId, { scope: multiPoolScope, excludeIds: excludePoolIds });
+        if (!selectedPoolId) break;
+
         const proxyPool = await getProxyPoolById(selectedPoolId);
         const proxyUrl = normalizeString(proxyPool?.proxyUrl);
         const noProxy = normalizeString(proxyPool?.noProxy);
@@ -162,6 +164,10 @@ export async function resolveConnectionProxyConfig(
             strictProxy: proxyPool.strictProxy === true,
           };
         }
+
+        // Selected pool was invalid/inactive/deleted — remove it and try next candidate
+        candidateIds = candidateIds.filter((id) => id !== selectedPoolId);
+        selectedPoolId = null;
       }
     }
     if (

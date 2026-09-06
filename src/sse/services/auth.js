@@ -264,7 +264,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     }
 
     // Scope the region-aware picker to this provider/model (e.g. freebuff::gpt-5.6-luna)
-    const psdForProxy = connection.providerSpecificData?.proxyPoolIds?.length
+    const hasPoolConfig = connection.providerSpecificData?.proxyPoolIds?.length || connection.providerSpecificData?.proxyGroup;
+    const psdForProxy = hasPoolConfig
       ? { ...connection.providerSpecificData, proxyPoolScope: `${providerId}::${model || ""}` }
       : connection.providerSpecificData;
     const resolvedProxy = await resolveConnectionProxyConfig(psdForProxy || {}, connection.id);
