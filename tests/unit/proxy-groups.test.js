@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const poolsDb = new Map();
 const groupsDb = new Map();
 const connectionsDb = new Map();
+let settingsDb = {};
 
 vi.mock("@/models", () => ({
   getProxyPoolById: vi.fn(async (id) => poolsDb.get(id) || null),
@@ -22,6 +23,11 @@ vi.mock("@/models", () => ({
     return null;
   }),
   getProxyGroups: vi.fn(async () => Array.from(groupsDb.values())),
+  getSettings: vi.fn(async () => settingsDb),
+  updateSettings: vi.fn(async (patch) => {
+    settingsDb = { ...settingsDb, ...patch };
+    return settingsDb;
+  }),
   createProxyGroup: vi.fn(async (data) => {
     const group = {
       id: data.id || `group-${Date.now()}-${Math.random()}`,
@@ -70,6 +76,7 @@ describe("Proxy Groups & Sticky Round-Robin System", () => {
     poolsDb.clear();
     groupsDb.clear();
     connectionsDb.clear();
+    settingsDb = {};
     resetPoolFitness();
     if (globalThis.__9routerProxyRotateState__) {
       globalThis.__9routerProxyRotateState__.clear();
@@ -114,6 +121,25 @@ describe("Proxy Groups & Sticky Round-Robin System", () => {
       expect(res1.source).toBe("pool");
       expect(res1.connectionProxyUrl).toBe("http://10.0.0.1:8080");
       expect(res2.connectionProxyUrl).toBe("http://10.0.0.2:8080");
+    });
+
+    it("supports sticky round-robin on default groups when configured in settings", async () => {
+      poolsDb.set("cf-1", { id: "cf-1", name: "CF 1", type: "cloudflare", proxyUrl: "https://cf1.workers.dev", isActive: true });
+      poolsDb.set("cf-2", { id: "cf-2", name: "CF 2", type: "cloudflare", proxyUrl: "https://cf2.workers.dev", isActive: true });
+
+      settingsDb = {
+        defaultProxyGroupSettings: {
+          cloudflare: { isSticky: true, stickyLimit: 2 },
+        },
+      };
+
+      const res1 = await resolveConnectionProxyConfig({ proxyGroup: "cloudflare" }, "conn-cf-sticky");
+      const res2 = await resolveConnectionProxyConfig({ proxyGroup: "cloudflare" }, "conn-cf-sticky");
+      const res3 = await resolveConnectionProxyConfig({ proxyGroup: "cloudflare" }, "conn-cf-sticky");
+
+      expect(res1.proxyPoolId).toBe("cf-1");
+      expect(res2.proxyPoolId).toBe("cf-1"); // Sticky 2x
+      expect(res3.proxyPoolId).toBe("cf-2"); // Rotates on 3rd request
     });
   });
 

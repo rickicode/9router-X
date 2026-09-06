@@ -5,7 +5,10 @@ import {
   updateProxyGroup,
   deleteProxyGroup,
   countProxyGroupBoundConnections,
+  getSettings,
+  updateSettings,
 } from "@/models";
+import { matchDefaultGroupType } from "@/lib/network/connectionProxy.js";
 
 // GET /api/proxy-groups/[id]
 export async function GET(request, { params }) {
@@ -26,12 +29,38 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
+    const defaultType = matchDefaultGroupType(id);
+    const body = await request.json();
+
+    if (defaultType) {
+      const isSticky = body.isSticky === true;
+      const num = Number(body.stickyLimit);
+      const stickyLimit = Number.isFinite(num) && num > 0 ? Math.floor(num) : 3;
+
+      const settings = await getSettings();
+      const currentDefaultSettings = settings?.defaultProxyGroupSettings || {};
+      const nextSettings = {
+        ...currentDefaultSettings,
+        [defaultType]: { isSticky, stickyLimit },
+      };
+
+      await updateSettings({ defaultProxyGroupSettings: nextSettings });
+      return NextResponse.json({
+        group: {
+          id: `default-${defaultType}`,
+          key: defaultType,
+          isDefault: true,
+          isSticky,
+          stickyLimit,
+        },
+      });
+    }
+
     const existing = await getProxyGroupById(id);
     if (!existing) {
       return NextResponse.json({ error: "Proxy group not found" }, { status: 404 });
     }
 
-    const body = await request.json();
     const patch = {};
 
     if (body.name !== undefined) {
@@ -82,6 +111,9 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
+    if (matchDefaultGroupType(id)) {
+      return NextResponse.json({ error: "System default groups cannot be deleted" }, { status: 400 });
+    }
     const existing = await getProxyGroupById(id);
     if (!existing) {
       return NextResponse.json({ error: "Proxy group not found" }, { status: 404 });

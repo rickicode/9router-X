@@ -3,6 +3,7 @@ import {
   getProxyPools,
   getProxyGroupByName,
   getProxyGroupById,
+  getSettings,
 } from "@/models";
 import { ensurePoolFitnessHydrated, fitPoolIds } from "open-sse/services/proxyPoolFitness.js";
 
@@ -170,6 +171,16 @@ export async function resolveConnectionProxyConfig(
       const defaultType = matchDefaultGroupType(proxyGroup);
       if (defaultType) {
         resolvedGroupId = `default-${defaultType}`;
+        try {
+          if (typeof getSettings === "function") {
+            const settings = await getSettings();
+            const defCfg = settings?.defaultProxyGroupSettings?.[defaultType];
+            if (defCfg?.isSticky) {
+              isSticky = true;
+              stickyLimit = Number(defCfg.stickyLimit) > 0 ? Number(defCfg.stickyLimit) : 3;
+            }
+          }
+        } catch {}
         const defaultPools = await getProxyPools({ isActive: true, type: defaultType });
         if (defaultPools.length > 0) {
           proxyPoolIds = defaultPools.map((p) => p.id);

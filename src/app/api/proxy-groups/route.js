@@ -4,6 +4,7 @@ import {
   createProxyGroup,
   getProxyPools,
   getProxyGroupByName,
+  getSettings,
 } from "@/models";
 
 export const DEFAULT_PROXY_GROUPS = [
@@ -64,9 +65,10 @@ const RESERVED_NAMES = new Set([
 // GET /api/proxy-groups - List default and custom proxy groups
 export async function GET() {
   try {
-    const [allPools, customGroups] = await Promise.all([
+    const [allPools, customGroups, settings] = await Promise.all([
       getProxyPools(),
       getProxyGroups(),
+      getSettings().catch(() => ({})),
     ]);
 
     const activePoolsMap = new Map();
@@ -76,12 +78,20 @@ export async function GET() {
       }
     }
 
-    // Populate counts for default groups
+    const defaultSettingsMap = settings?.defaultProxyGroupSettings || {};
+
+    // Populate counts and sticky settings for default groups
     const defaultGroups = DEFAULT_PROXY_GROUPS.map((def) => {
       const matchingAll = allPools.filter((p) => p.type === def.type);
       const matchingActive = matchingAll.filter((p) => p.isActive === true);
+      const defCfg = defaultSettingsMap[def.type] || {};
+      const isSticky = defCfg.isSticky === true;
+      const stickyLimit = Number(defCfg.stickyLimit) > 0 ? Number(defCfg.stickyLimit) : 3;
+
       return {
         ...def,
+        isSticky,
+        stickyLimit,
         poolCount: matchingAll.length,
         activeCount: matchingActive.length,
       };

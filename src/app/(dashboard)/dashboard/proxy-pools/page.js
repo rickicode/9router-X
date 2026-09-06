@@ -1222,16 +1222,30 @@ export default function ProxyPoolsPage() {
                         <div className={`flex size-8 items-center justify-center rounded-lg ${color}`}>
                           <span className="material-symbols-outlined text-[18px]">{icon}</span>
                         </div>
-                        <Badge variant="success">Auto Round-Robin</Badge>
+                        {grp.isSticky ? (
+                          <Badge variant="success">Sticky ({grp.stickyLimit}x)</Badge>
+                        ) : (
+                          <Badge variant="default">Round-Robin</Badge>
+                        )}
                       </div>
                       <h3 className="font-medium text-sm text-text-main">{grp.name}</h3>
                       <p className="mt-1 text-xs text-text-muted">{grp.description}</p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
-                      <span className="text-text-muted">Active Pools</span>
-                      <span className="font-semibold text-text-main font-mono">
-                        {grp.activeCount} / {grp.poolCount}
-                      </span>
+                      <div>
+                        <span className="text-text-muted">Active Pools: </span>
+                        <span className="font-semibold text-text-main font-mono">
+                          {grp.activeCount} / {grp.poolCount}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openEditGroupModal(grp)}
+                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">tune</span>
+                        <span>Configure</span>
+                      </button>
                     </div>
                   </Card>
                 );
@@ -1729,7 +1743,7 @@ export default function ProxyPoolsPage() {
       {/* Modal Create/Edit Custom Group */}
       <Modal
         isOpen={showGroupModal}
-        title={editingGroup ? "Edit Custom Proxy Group" : "Create Custom Proxy Group"}
+        title={editingGroup?.isDefault ? `Configure ${editingGroup.name}` : (editingGroup ? "Edit Custom Proxy Group" : "Create Custom Proxy Group")}
         onClose={closeGroupModal}
       >
         <div className="flex flex-col gap-4">
@@ -1738,14 +1752,17 @@ export default function ProxyPoolsPage() {
             value={groupForm.name}
             onChange={(e) => setGroupForm((prev) => ({ ...prev, name: e.target.value }))}
             placeholder="e.g. US-Fast, Residential-East"
-            hint="Unique name for this proxy group."
+            hint={editingGroup?.isDefault ? "Default system group name (cannot be changed)." : "Unique name for this proxy group."}
+            disabled={editingGroup?.isDefault}
           />
-          <Input
-            label="Description"
-            value={groupForm.description}
-            onChange={(e) => setGroupForm((prev) => ({ ...prev, description: e.target.value }))}
-            placeholder="Optional group description"
-          />
+          {!editingGroup?.isDefault && (
+            <Input
+              label="Description"
+              value={groupForm.description}
+              onChange={(e) => setGroupForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Optional group description"
+            />
+          )}
 
           <div className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1773,88 +1790,97 @@ export default function ProxyPoolsPage() {
             />
           )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-medium text-text-muted">
-                Assign Proxies ({groupForm.poolIds.length} selected)
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const activePoolIds = proxyPools.filter((p) => p.isActive === true).map((p) => p.id);
-                    setGroupForm((prev) => ({ ...prev, poolIds: activePoolIds }));
-                  }}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Select All Active
-                </button>
-                <span className="text-xs text-text-muted">|</span>
-                <button
-                  type="button"
-                  onClick={() => setGroupForm((prev) => ({ ...prev, poolIds: [] }))}
-                  className="text-xs text-text-muted hover:underline"
-                >
-                  Clear
-                </button>
+          {editingGroup?.isDefault ? (
+            <div className="rounded-lg bg-black/[0.02] dark:bg-white/[0.02] border border-border p-3 text-xs text-text-muted">
+              <p className="font-medium text-text-main mb-1">Automatic Membership</p>
+              <p>
+                All active proxy pools with type <span className="font-mono font-semibold uppercase">{editingGroup.type}</span> are automatically included in this group.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-text-muted">
+                  Assign Proxies ({groupForm.poolIds.length} selected)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const activePoolIds = proxyPools.filter((p) => p.isActive === true).map((p) => p.id);
+                      setGroupForm((prev) => ({ ...prev, poolIds: activePoolIds }));
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Select All Active
+                  </button>
+                  <span className="text-xs text-text-muted">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setGroupForm((prev) => ({ ...prev, poolIds: [] }))}
+                    className="text-xs text-text-muted hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={groupPoolSearch}
+                  onChange={(e) => setGroupPoolSearch(e.target.value)}
+                  placeholder="Filter proxy pools..."
+                  className="w-full rounded-md border border-border bg-background py-1.5 px-3 text-xs text-text-main focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                {proxyPools
+                  .filter((pool) => {
+                    if (!groupPoolSearch.trim()) return true;
+                    const q = groupPoolSearch.toLowerCase();
+                    return (pool.name || "").toLowerCase().includes(q) || (pool.proxyUrl || "").toLowerCase().includes(q) || (pool.type || "").toLowerCase().includes(q);
+                  })
+                  .map((pool) => {
+                    const checked = groupForm.poolIds.includes(pool.id);
+                    return (
+                      <label
+                        key={pool.id}
+                        className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+                          checked ? "bg-primary/5" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              poolIds: checked
+                                ? prev.poolIds.filter((id) => id !== pool.id)
+                                : [...prev.poolIds, pool.id],
+                            }));
+                          }}
+                          className="size-4 rounded border-border text-primary focus:ring-primary"
+                        />
+                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                          <span className="truncate font-medium text-text-main">{pool.name}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-text-muted">
+                              {pool.type || "http"}
+                            </span>
+                            {!pool.isActive && (
+                              <span className="text-[10px] text-red-500 font-medium">(inactive)</span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
               </div>
             </div>
-
-            <div className="mb-2">
-              <input
-                type="text"
-                value={groupPoolSearch}
-                onChange={(e) => setGroupPoolSearch(e.target.value)}
-                placeholder="Filter proxy pools..."
-                className="w-full rounded-md border border-border bg-background py-1.5 px-3 text-xs text-text-main focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-              {proxyPools
-                .filter((pool) => {
-                  if (!groupPoolSearch.trim()) return true;
-                  const q = groupPoolSearch.toLowerCase();
-                  return (pool.name || "").toLowerCase().includes(q) || (pool.proxyUrl || "").toLowerCase().includes(q) || (pool.type || "").toLowerCase().includes(q);
-                })
-                .map((pool) => {
-                  const checked = groupForm.poolIds.includes(pool.id);
-                  return (
-                    <label
-                      key={pool.id}
-                      className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
-                        checked ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setGroupForm((prev) => ({
-                            ...prev,
-                            poolIds: checked
-                              ? prev.poolIds.filter((id) => id !== pool.id)
-                              : [...prev.poolIds, pool.id],
-                          }));
-                        }}
-                        className="size-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                        <span className="truncate font-medium text-text-main">{pool.name}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-text-muted">
-                            {pool.type || "http"}
-                          </span>
-                          {!pool.isActive && (
-                            <span className="text-[10px] text-red-500 font-medium">(inactive)</span>
-                          )}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-2">
             <Button
