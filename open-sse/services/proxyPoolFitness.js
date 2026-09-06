@@ -65,7 +65,14 @@ export function markPoolUnfit(poolId, scope, until = Date.now() + POOL_UNFIT_MS,
 export function clearPoolUnfit(poolId, scope) {
   const byScope = fitness.get(poolId);
   if (!byScope) return;
-  byScope.delete(scope);
+  if (scope.endsWith("::*")) {
+    const prefix = scope.slice(0, -1);
+    for (const s of [...byScope.keys()]) {
+      if (s.startsWith(prefix) || s === scope) byScope.delete(s);
+    }
+  } else {
+    byScope.delete(scope);
+  }
   if (byScope.size === 0) fitness.delete(poolId);
   schedulePersist();
 }

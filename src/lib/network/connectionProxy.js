@@ -7,8 +7,8 @@ function normalizeString(value) {
   return String(value).trim();
 }
 
-// ─── Proxy pool rotation state (in-memory) ─────────────────────────
-const rotateState = new Map(); // providerId → { index }
+// ─── Proxy pool rotation state (in-memory, globalThis-backed for Turbopack/Next dev) ───
+const rotateState = (globalThis.__9routerProxyRotateState__ ??= new Map()); // providerId → { index }
 
 /**
  * Pick one proxy pool ID from a list based on strategy.
@@ -25,7 +25,8 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   if (!poolIds || poolIds.length === 0) return null;
   const { scope = null, excludeIds = [] } = opts || {};
 
-  let eligible = poolIds.filter((id) => !(excludeIds || []).includes(id));
+  const uniquePoolIds = [...new Set(poolIds)];
+  let eligible = uniquePoolIds.filter((id) => !(excludeIds || []).includes(id));
   // Region-aware filtering is opt-in via the "smart" strategy.
   if (strategy === "smart" && scope) eligible = fitPoolIds(eligible, scope);
 
@@ -35,15 +36,16 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
     // unfit; their executors may have their own pool fallback semantics.
     const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
     if (isFreebuff && strategy === "smart") return null;
-    eligible = poolIds.filter((id) => !(excludeIds || []).includes(id));
+    eligible = uniquePoolIds.filter((id) => !(excludeIds || []).includes(id));
     if (eligible.length === 0) return null;
   }
   if (eligible.length === 1) return eligible[0];
 
+  const stateKey = providerId || "default";
   if (strategy === "round-robin" || strategy === "smart") {
-    const state = rotateState.get(providerId) || { index: -1 };
+    const state = rotateState.get(stateKey) || { index: -1 };
     state.index = (state.index + 1) % eligible.length;
-    rotateState.set(providerId, state);
+    rotateState.set(stateKey, state);
     return eligible[state.index];
   }
 

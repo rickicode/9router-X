@@ -79,6 +79,13 @@ describe("proxy pool fitness registry", () => {
     clearPoolUnfit("p1", "freebuff::m1");
     expect(isPoolFit("p1", "freebuff::m1")).toBe(true);
 
+    // Test wildcard scope clearing on a single pool:
+    markPoolUnfit("p1", "freebuff::model-a", Date.now() + 60_000);
+    markPoolUnfit("p1", "freebuff::model-b", Date.now() + 60_000);
+    clearPoolUnfit("p1", "freebuff::*");
+    expect(isPoolFit("p1", "freebuff::model-a")).toBe(true);
+    expect(isPoolFit("p1", "freebuff::model-b")).toBe(true);
+
     clearAllPoolUnfit("kiro");
     expect(poolFitnessSnapshot().p1).toBeUndefined();
 
