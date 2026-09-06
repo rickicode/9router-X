@@ -146,7 +146,9 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     : connection.providerSpecificData?.connectionNoProxy || "";
 
   let proxyBadgeVariant = "default";
-  if (selectedProxyIds.length > 0) {
+  if (selectedGroup) {
+    proxyBadgeVariant = "success";
+  } else if (selectedProxyIds.length > 0) {
     const allActive = selectedProxyIds.every(id => proxyPoolMap.get(id)?.isActive === true);
     proxyBadgeVariant = allActive ? "success" : "error";
   } else if (hasLegacyProxy) {
@@ -166,6 +168,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
   }, [showProxyDropdown]);
 
   const handleToggleProxySelection = (poolId) => {
+    setSelectedGroup("");
     setSelectedProxyIds(prev => {
       if (prev.includes(poolId)) {
         return prev.filter(id => id !== poolId);
@@ -536,22 +539,24 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
                     <button
                       onClick={() => {
                         setSelectedProxyIds([]);
+                        setSelectedGroup("");
                         setRotationStrategy("none");
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${selectedProxyIds.length === 0 ? "text-primary font-medium" : "text-text-main"}`}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${selectedProxyIds.length === 0 && !selectedGroup ? "text-primary font-medium" : "text-text-main"}`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[16px]">
-                          {selectedProxyIds.length === 0 ? "check_box" : "check_box_outline_blank"}
+                          {selectedProxyIds.length === 0 && !selectedGroup ? "check_box" : "check_box_outline_blank"}
                         </span>
                         <span>None</span>
                       </div>
                     </button>
-                    
+
                     {/* Select All Button (only for rotation strategies) */}
                     {rotationStrategy !== "none" && (
                       <button
                         onClick={() => {
+                          setSelectedGroup("");
                           const activePoolIds = (proxyPools || [])
                             .filter(pool => pool.isActive === true)
                             .map(pool => pool.id);
