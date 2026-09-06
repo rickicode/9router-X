@@ -93,4 +93,13 @@ describe("proxy pool fitness registry", () => {
     expect(pruneExpired()).toBe(1);
     expect(poolFitnessSnapshot()).toEqual({});
   });
+
+  it("deduplicates pool IDs and safely rotates without providerId", () => {
+    // Duplicate pool IDs passed in
+    const chosen1 = pickProxyPoolId(["p1", "p1", "p2", "p2"], "round-robin", null);
+    const chosen2 = pickProxyPoolId(["p1", "p1", "p2", "p2"], "round-robin", null);
+    expect(["p1", "p2"]).toContain(chosen1);
+    expect(["p1", "p2"]).toContain(chosen2);
+    expect(chosen1).not.toBe(chosen2);
+  });
 });
