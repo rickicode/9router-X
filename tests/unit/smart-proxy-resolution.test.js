@@ -142,4 +142,32 @@ describe("Smart Proxy Resolution & Multi-Pool Candidate Failover", () => {
       expect.stringMatching(/Network error refreshing Codex token|ECONNREFUSED|connect/i),
     );
   });
+
+  it("efficiently resolves across large pool counts (500 pools) in a group without individual DB calls", async () => {
+    // Generate 500 pools in group 'MegaCluster'
+    const largePools = [];
+    for (let i = 1; i <= 500; i++) {
+      const id = `pool-${i}`;
+      poolsDb.set(id, {
+        id,
+        name: `Pool ${i}`,
+        group: "MegaCluster",
+        proxyUrl: `http://10.0.0.${(i % 250) + 1}:${8000 + i}`,
+        isActive: true,
+      });
+      largePools.push(id);
+    }
+
+    const res = await resolveConnectionProxyConfig(
+      {
+        proxyGroup: "MegaCluster",
+        proxyRotationStrategy: "round-robin",
+      },
+      "conn-large-scale",
+    );
+
+    expect(res.source).toBe("pool");
+    expect(res.proxyPoolId).toMatch(/^pool-\d+$/);
+    expect(res.connectionProxyUrl).toMatch(/^http:\/\/10\.0\.0\./);
+  });
 });

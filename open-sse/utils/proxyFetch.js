@@ -3,7 +3,7 @@ import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
 import { dbg } from "./debugLog.js";
 
 const originalFetch = globalThis.fetch;
-const proxyDispatchers = new Map();
+const proxyDispatchers = (globalThis.__9routerProxyDispatchers__ ??= new Map());
 
 // ─── TLS fingerprinting via got-scraping (browser-like JA3) ───────────────
 // Disabled: not in use. Kept commented for future re-enable.
@@ -221,9 +221,14 @@ async function getDispatcher(proxyUrl) {
   if (!normalized) return null;
 
   if (!proxyDispatchers.has(normalized)) {
-    // Evict oldest entry if max size reached
+    // Evict oldest entry if max size reached, closing idle sockets to avoid leaks
     if (proxyDispatchers.size >= MEMORY_CONFIG.proxyDispatchersMaxSize) {
-      proxyDispatchers.delete(proxyDispatchers.keys().next().value);
+      const oldestKey = proxyDispatchers.keys().next().value;
+      const oldestDispatcher = proxyDispatchers.get(oldestKey);
+      proxyDispatchers.delete(oldestKey);
+      if (oldestDispatcher && typeof oldestDispatcher.destroy === "function") {
+        oldestDispatcher.destroy().catch?.(() => {});
+      }
     }
     const { ProxyAgent } = await import("undici");
     proxyDispatchers.set(normalized, new ProxyAgent({ uri: normalized }));

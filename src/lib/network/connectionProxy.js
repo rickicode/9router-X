@@ -98,12 +98,19 @@ export async function resolveConnectionProxyConfig(
     let proxyPoolIds = providerSpecificData?.proxyPoolIds ? [...providerSpecificData.proxyPoolIds] : [];
     let proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
     const proxyGroup = normalizeString(providerSpecificData?.proxyGroup);
+    let groupPoolMap = null;
 
     if (proxyGroup) {
-      const allPools = await getProxyPools({ isActive: true });
-      const groupPools = allPools.filter((p) => normalizeString(p.group).toLowerCase() === proxyGroup.toLowerCase());
+      // Query group directly to leverage PostgreSQL partial index: idx_pp_group ON proxy_pools ("group") WHERE is_active = true
+      let groupPools = await getProxyPools({ isActive: true, group: proxyGroup });
+      if (groupPools.length === 0) {
+        // Case-insensitive fallback if exact casing differs
+        const allPools = await getProxyPools({ isActive: true });
+        groupPools = allPools.filter((p) => normalizeString(p.group).toLowerCase() === proxyGroup.toLowerCase());
+      }
       if (groupPools.length > 0) {
         proxyPoolIds = groupPools.map((p) => p.id);
+        groupPoolMap = new Map(groupPools.map((p) => [p.id, p]));
         if (proxyRotationStrategy === "none") {
           proxyRotationStrategy = "round-robin";
         }
@@ -129,7 +136,7 @@ export async function resolveConnectionProxyConfig(
         selectedPoolId = pickProxyPoolId(candidateIds, proxyRotationStrategy, connectionId, { scope: multiPoolScope, excludeIds: excludePoolIds });
         if (!selectedPoolId) break;
 
-        const proxyPool = await getProxyPoolById(selectedPoolId);
+        const proxyPool = groupPoolMap?.get(selectedPoolId) || await getProxyPoolById(selectedPoolId);
         const proxyUrl = normalizeString(proxyPool?.proxyUrl);
         const noProxy = normalizeString(proxyPool?.noProxy);
 

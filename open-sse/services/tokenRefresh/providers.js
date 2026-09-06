@@ -107,7 +107,8 @@ export async function refreshAccessToken(provider, refreshToken, credentials, lo
       Accept: "application/json",
       ...(profile.extraHeaders ? (profile.extraHeaders(credentials, config) || {}) : {}),
     };
-    const response = await proxyAwareFetch(url, { method: "POST", headers, body }, proxyOptions);
+    const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+    const response = await fetchFn(url, { method: "POST", headers, body });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -152,7 +153,8 @@ export async function refreshClineToken(refreshToken, log, proxyOptions = null) 
 
   return dedupRefresh("cline", refreshToken, async () => {
     try {
-      const response = await proxyAwareFetch(PROVIDERS.cline?.refreshUrl, {
+      const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+      const response = await fetchFn(PROVIDERS.cline?.refreshUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -163,7 +165,7 @@ export async function refreshClineToken(refreshToken, log, proxyOptions = null) 
           grantType: "refresh_token",
           clientType: "extension",
         }),
-      }, proxyOptions);
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -203,7 +205,8 @@ export async function refreshGoogleToken(refreshToken, clientId, clientSecret, l
   if (!refreshToken) return null;
   return dedupRefresh(`google:${clientId}`, refreshToken, async () => {
   try {
-    const response = await proxyAwareFetch(OAUTH_ENDPOINTS.google.token, {
+    const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+    const response = await fetchFn(OAUTH_ENDPOINTS.google.token, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -215,7 +218,7 @@ export async function refreshGoogleToken(refreshToken, clientId, clientSecret, l
         client_id: clientId,
         client_secret: clientSecret,
       }),
-    }, proxyOptions);
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -264,7 +267,8 @@ export async function refreshCodexToken(refreshToken, log, proxyOptions = null) 
   if (!refreshToken) return null;
   return dedupRefresh("codex", refreshToken, async () => {
     try {
-      const response = await proxyAwareFetch(OAUTH_ENDPOINTS.openai.token, {
+      const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+      const response = await fetchFn(OAUTH_ENDPOINTS.openai.token, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +279,7 @@ export async function refreshCodexToken(refreshToken, log, proxyOptions = null) 
           grant_type: "refresh_token",
           refresh_token: refreshToken,
         }),
-      }, proxyOptions);
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -522,7 +526,8 @@ export async function refreshCodebuddyToken(refreshToken, log, proxyOptions = nu
   if (!refreshToken) return null;
   return dedupRefresh("codebuddy-cn", refreshToken, async () => {
     const oauth = PROVIDER_OAUTH["codebuddy-cn"] || {};
-    const response = await proxyAwareFetch(oauth.refreshUrl, {
+    const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+    const response = await fetchFn(oauth.refreshUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -535,7 +540,7 @@ export async function refreshCodebuddyToken(refreshToken, log, proxyOptions = nu
         "X-Product": "SaaS",
       },
       body: "{}",
-    }, proxyOptions);
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -573,7 +578,8 @@ export async function refreshCodebuddyIntlToken(refreshToken, log, proxyOptions 
   if (!refreshToken) return null;
   return dedupRefresh("codebuddy-intl", refreshToken, async () => {
     const oauth = PROVIDER_OAUTH["codebuddy-intl"] || {};
-    const response = await proxyAwareFetch(oauth.refreshUrl, {
+    const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+    const response = await fetchFn(oauth.refreshUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -586,7 +592,7 @@ export async function refreshCodebuddyIntlToken(refreshToken, log, proxyOptions 
         "X-Product": "SaaS",
       },
       body: "{}",
-    }, proxyOptions);
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -633,7 +639,8 @@ export async function refreshTraeToken(refreshToken, credentials, log, proxyOpti
 
   return dedupRefresh("trae", refreshToken, async () => {
     try {
-      const response = await proxyAwareFetch(url, {
+      const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+      const response = await fetchFn(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -646,7 +653,7 @@ export async function refreshTraeToken(refreshToken, credentials, log, proxyOpti
           ClientSecret: oauth.clientSecret || "-",
           UserID: "",
         }),
-      }, proxyOptions);
+      });
 
       if (!response.ok) {
         const errorText = await response.text();

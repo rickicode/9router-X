@@ -23,20 +23,24 @@ export const CACHE_TTL = {
   modelAlias: 3600  // 1 hour
 };
 
+// Parse a positive integer env override, falling back to a default.
+function envInt(name, def) {
+  const raw = process.env[name];
+  if (raw == null || raw === "") return def;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : def;
+}
+
 // Memory management config
 export const MEMORY_CONFIG = {
   sessionTtlMs: 2 * 60 * 60 * 1000,
   sessionCleanupIntervalMs: 30 * 60 * 1000,
   dnsCacheTtlMs: 5 * 60 * 1000,
-  proxyDispatchersMaxSize: 20,
+  proxyDispatchersMaxSize: envInt("PROXY_DISPATCHERS_MAX_SIZE", 512),
 };
 
-// Parse a positive integer env override, falling back to a default.
 function envMs(name, def) {
-  const raw = process.env[name];
-  if (raw == null || raw === "") return def;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? n : def;
+  return envInt(name, def);
 }
 
 function envUrl(name, def) {
