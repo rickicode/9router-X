@@ -40,6 +40,15 @@ import { GET as quotasGet } from "@/app/api/usage/quotas/route.js";
 import { GET as clientGet } from "@/app/api/providers/client/route.js";
 import { checkFallbackError, isFatalAuthError } from "open-sse/services/accountFallback.js";
 import { markAccountUnavailable } from "@/sse/services/auth.js";
+import {
+  createProxyGroup,
+  getProxyGroups,
+  getProxyGroupById,
+  getProxyGroupByName,
+  updateProxyGroup,
+  deleteProxyGroup,
+} from "@/lib/db/repos/proxyGroupsRepo.js";
+import { countProxyGroupBoundConnections } from "@/lib/db/repos/connectionsRepo.js";
 
 describe("Postgres & Redis L2 Architecture E2E", () => {
   beforeAll(async () => {
@@ -57,6 +66,7 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     expect(tables).toContain("provider_connections");
     expect(tables).toContain("usage_snapshots");
     expect(tables).toContain("api_keys");
+    expect(tables).toContain("proxy_groups");
     expect(tables).toContain("settings");
     expect(tables).toContain("request_details");
     expect(tables).toContain("usage_history");
@@ -417,5 +427,46 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     } finally {
       await deleteProviderConnection("fatal-auth-conn");
     }
+  });
+
+  it("should create, read, update, and delete proxy groups in PostgreSQL", async () => {
+    const group = await createProxyGroup({
+      id: "test-pg-group",
+      name: "Postgres Test Group",
+      description: "Testing proxy group persistence",
+      isSticky: true,
+      stickyLimit: 4,
+      poolIds: ["pool-1", "pool-2"],
+    });
+
+    expect(group.id).toBe("test-pg-group");
+    expect(group.name).toBe("Postgres Test Group");
+    expect(group.isSticky).toBe(true);
+    expect(group.stickyLimit).toBe(4);
+    expect(group.poolIds).toEqual(["pool-1", "pool-2"]);
+
+    const byId = await getProxyGroupById("test-pg-group");
+    expect(byId).toBeDefined();
+    expect(byId.name).toBe("Postgres Test Group");
+
+    const byName = await getProxyGroupByName("postgres test group"); // Case-insensitive
+    expect(byName).toBeDefined();
+    expect(byName.id).toBe("test-pg-group");
+
+    const updated = await updateProxyGroup("test-pg-group", {
+      isSticky: false,
+      stickyLimit: 1,
+      poolIds: ["pool-1", "pool-3"],
+    });
+    expect(updated.isSticky).toBe(false);
+    expect(updated.stickyLimit).toBe(1);
+    expect(updated.poolIds).toEqual(["pool-1", "pool-3"]);
+
+    const boundCount = await countProxyGroupBoundConnections("Postgres Test Group");
+    expect(boundCount).toBe(0);
+
+    const deleted = await deleteProxyGroup("test-pg-group");
+    expect(deleted).toBeDefined();
+    expect(await getProxyGroupById("test-pg-group")).toBeNull();
   });
 });

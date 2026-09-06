@@ -51,6 +51,7 @@ export default function ProviderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [providerNode, setProviderNode] = useState(null);
   const [proxyPools, setProxyPools] = useState([]);
+  const [proxyGroups, setProxyGroups] = useState({ defaultGroups: [], customGroups: [] });
   const [showOAuthModal, setShowOAuthModal] = useState(false);
   const [showIFlowCookieModal, setShowIFlowCookieModal] = useState(false);
   const [showAddApiKeyModal, setShowAddApiKeyModal] = useState(false);
@@ -358,16 +359,18 @@ export default function ProviderDetailPage() {
       if (status && status !== "all") {
         connectionParams.set("status", status);
       }
-      const [connectionsRes, nodesRes, proxyPoolsRes, settingsRes] = await Promise.all([
+      const [connectionsRes, nodesRes, proxyPoolsRes, settingsRes, proxyGroupsRes] = await Promise.all([
         fetch(`/api/providers?${connectionParams.toString()}`, { cache: "no-store" }),
         fetch("/api/provider-nodes", { cache: "no-store" }),
         fetch("/api/proxy-pools?isActive=true", { cache: "no-store" }),
         fetch("/api/settings", { cache: "no-store" }),
+        fetch("/api/proxy-groups", { cache: "no-store" }),
       ]);
       const connectionsData = await connectionsRes.json();
       const nodesData = await nodesRes.json();
       const proxyPoolsData = await proxyPoolsRes.json();
       const settingsData = settingsRes.ok ? await settingsRes.json() : {};
+      const proxyGroupsData = proxyGroupsRes?.ok ? await proxyGroupsRes.json() : null;
       if (connectionsRes.ok) {
         setConnections(connectionsData.connections || []);
         if (connectionsData.pagination) {
@@ -377,6 +380,9 @@ export default function ProviderDetailPage() {
       }
       if (proxyPoolsRes.ok) {
         setProxyPools(proxyPoolsData.proxyPools || []);
+      }
+      if (proxyGroupsData) {
+        setProxyGroups(proxyGroupsData);
       }
       // Load per-provider strategy override
       const override = (settingsData.providerStrategies || {})[providerId] || {};
@@ -896,6 +902,28 @@ export default function ProviderDetailPage() {
     });
   };
 
+  const handleBulkToggleActive = async (isActive) => {
+    const count = selectedConnectionIds.length;
+    if (count === 0) return;
+    const targetIds = [...selectedConnectionIds];
+    try {
+      const res = await fetch("/api/providers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: targetIds, isActive }),
+      });
+      if (res.ok) {
+        setConnections(prev => prev.map(c => targetIds.includes(c.id) ? { ...c, isActive } : c));
+        notify.success(`${isActive ? "Enabled" : "Disabled"} ${targetIds.length} connection(s)`);
+      } else {
+        notify.error(`Failed to ${isActive ? "enable" : "disable"} connections`);
+      }
+    } catch (err) {
+      console.log("Error bulk toggling active status:", err);
+      notify.error(`Failed to ${isActive ? "enable" : "disable"} connections`);
+    }
+  };
+
   const handleOAuthSuccess = () => {
     fetchConnections();
     setShowOAuthModal(false);
@@ -1137,6 +1165,7 @@ export default function ProviderDetailPage() {
               <ConnectionRow
                 connection={conn}
                 proxyPools={proxyPools}
+                proxyGroups={proxyGroups}
                 isOAuth={isOAuth}
                 isFirst={index === 0}
                 isLast={index === connections.length - 1}
@@ -1263,28 +1292,81 @@ export default function ProviderDetailPage() {
 
           {/* Group Options */}
           {(() => {
+            const defaultList = proxyGroups?.defaultGroups || [
+              { id: "default-cloudflare", key: "cloudflare", name: "Cloudflare Relay", type: "cloudflare" },
+              { id: "default-http", key: "http", name: "HTTP", type: "http" },
+              { id: "default-vercel", key: "vercel", name: "Vercel", type: "vercel" },
+              { id: "default-deno", key: "deno", name: "Deno", type: "deno" },
+            ];
+            const customList = proxyGroups?.customGroups || [];
+
             const grpSet = new Set();
             (proxyPools || []).forEach(p => { if (p.group?.trim()) grpSet.add(p.group.trim()); });
-            const groups = [...grpSet].sort();
-            if (groups.length === 0) return null;
+            const legacyGroups = [...grpSet].filter(
+              (lg) => !customList.some((cg) => cg.name.toLowerCase() === lg.toLowerCase())
+            ).sort();
+
             return (
-              <div className="my-1 border-y border-border py-1">
-                <p className="px-3 py-1 text-[11px] font-medium text-text-muted uppercase">Bind by Group</p>
-                {groups.map(grp => {
-                  const cnt = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === grp.toLowerCase()).length;
+              <div className="my-1 border-y border-border py-1 flex flex-col gap-1">
+                <p className="px-3 py-1 text-[11px] font-medium text-text-muted uppercase">Default Groups (Auto Round-Robin)</p>
+                {defaultList.map(def => {
+                  const cnt = (proxyPools || []).filter(p => p.type === def.type && p.isActive).length;
                   return (
                     <button
-                      key={grp}
-                      onClick={() => handleApplyGroup(grp)}
+                      key={def.id}
+                      onClick={() => handleApplyGroup(def.key)}
                       disabled={bulkUpdatingProxy}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-500/10 text-blue-600 dark:text-blue-400"
                     >
-                      <span className="material-symbols-outlined text-[18px]">folder_special</span>
-                      <span className="truncate text-sm font-medium">Group: {grp}</span>
-                      <span className="ml-auto text-xs opacity-75">({cnt} pools)</span>
+                      <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                      <span className="truncate text-sm font-medium">{def.name}</span>
+                      <span className="ml-auto text-xs opacity-75 font-mono">({cnt} active)</span>
                     </button>
                   );
                 })}
+
+                {customList.length > 0 && (
+                  <>
+                    <p className="px-3 pt-2 pb-1 text-[11px] font-medium text-text-muted uppercase">Custom Groups</p>
+                    {customList.map(cg => {
+                      const poolCount = (cg.poolIds || []).length;
+                      const stickyLabel = cg.isSticky ? `Sticky ${cg.stickyLimit || 3}x` : "Round Robin";
+                      return (
+                        <button
+                          key={cg.id}
+                          onClick={() => handleApplyGroup(cg.name)}
+                          disabled={bulkUpdatingProxy}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">folder_special</span>
+                          <span className="truncate text-sm font-medium">{cg.name}</span>
+                          <span className="ml-auto text-xs opacity-75 font-mono">({poolCount} pools, {stickyLabel})</span>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {legacyGroups.length > 0 && (
+                  <>
+                    <p className="px-3 pt-2 pb-1 text-[11px] font-medium text-text-muted uppercase">Tagged Groups</p>
+                    {legacyGroups.map(grp => {
+                      const cnt = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === grp.toLowerCase()).length;
+                      return (
+                        <button
+                          key={grp}
+                          onClick={() => handleApplyGroup(grp)}
+                          disabled={bulkUpdatingProxy}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] text-text-muted"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">label</span>
+                          <span className="truncate text-sm font-medium">{grp}</span>
+                          <span className="ml-auto text-xs opacity-75 font-mono">({cnt} pools)</span>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             );
           })()}
@@ -1711,14 +1793,34 @@ export default function ProviderDetailPage() {
               {connections.length > 0 && (
                 <>
                   {selectedConnectionIds.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      icon="delete"
-                      onClick={handleBulkDelete}
-                    >
-                      Delete Selected ({selectedConnectionIds.length})
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="toggle_on"
+                        onClick={() => handleBulkToggleActive(true)}
+                        title="Enable selected connections"
+                      >
+                        Enable ({selectedConnectionIds.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="toggle_off"
+                        onClick={() => handleBulkToggleActive(false)}
+                        title="Disable selected connections"
+                      >
+                        Disable ({selectedConnectionIds.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        icon="delete"
+                        onClick={handleBulkDelete}
+                      >
+                        Delete Selected ({selectedConnectionIds.length})
+                      </Button>
+                    </>
                   )}
                   <Button
                     size="sm"

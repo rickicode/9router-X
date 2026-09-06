@@ -489,6 +489,18 @@ export async function countProxyPoolBoundConnections(proxyPoolId) {
   return Number(row?.count || 0);
 }
 
+export async function countProxyGroupBoundConnections(groupIdOrName) {
+  if (!groupIdOrName) return 0;
+  const db = await getAdapter();
+  const row = await db.get(
+    `SELECT COUNT(*)::int AS count
+       FROM provider_connections
+      WHERE data->'providerSpecificData'->>'proxyGroup' = $1`,
+    [groupIdOrName],
+  );
+  return Number(row?.count || 0);
+}
+
 export async function getUnavailableOrLockedConnections() {
   const db = await getAdapter();
   const rows = await db.all(`
@@ -805,6 +817,24 @@ export async function setProviderConnectionsActive(provider, authTypes, isActive
   );
   invalidateCachedConnections(provider).catch(() => {});
   return Number(result?.changes ?? 0);
+}
+
+export async function setConnectionsActiveByIds(ids, isActive) {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  const db = await getAdapter();
+  const rows = await db.all(
+    `UPDATE provider_connections
+        SET is_active = $1, updated_at = NOW()
+      WHERE id = ANY($2::text[])
+      RETURNING DISTINCT provider`,
+    [Boolean(isActive), ids],
+  );
+  for (const row of rows) {
+    if (row?.provider) {
+      invalidateCachedConnections(row.provider).catch(() => {});
+    }
+  }
+  return rows.length;
 }
 
 export async function deleteProviderConnection(id) {

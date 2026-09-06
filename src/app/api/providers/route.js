@@ -4,6 +4,7 @@ import {
   countProviderConnections,
   createProviderConnection,
   setProviderConnectionsActive,
+  setConnectionsActiveByIds,
   getProviderNodeById,
   getProviderNodes,
   getProxyPoolById,
@@ -162,13 +163,22 @@ export async function GET(request) {
   }
 }
 
-// PATCH /api/providers - Batch toggle active status for provider
+// PATCH /api/providers - Batch toggle active status for provider or by connection IDs
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { provider, authType, isActive } = body;
+    const { provider, authType, isActive, ids } = body;
+
+    if (Array.isArray(ids)) {
+      if (ids.length === 0) {
+        return NextResponse.json({ success: true, updatedCount: 0 });
+      }
+      const updatedCount = await setConnectionsActiveByIds(ids, isActive);
+      return NextResponse.json({ success: true, updatedCount });
+    }
+
     if (!provider) {
-      return NextResponse.json({ error: "provider is required" }, { status: 400 });
+      return NextResponse.json({ error: "provider or ids is required" }, { status: 400 });
     }
     const authTypes = Array.isArray(authType) ? authType : (authType ? [authType] : ["oauth", "apikey", "api_key", "cookie"]);
     const updatedCount = await setProviderConnectionsActive(provider, authTypes, isActive);

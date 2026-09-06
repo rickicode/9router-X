@@ -68,6 +68,14 @@ export default function ProxyPoolsPage() {
   const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
+  const [activeTab, setActiveTab] = useState("pools"); // "pools" | "groups"
+  const [proxyGroups, setProxyGroups] = useState({ defaultGroups: [], customGroups: [] });
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [groupForm, setGroupForm] = useState({ name: "", description: "", isSticky: false, stickyLimit: 3, poolIds: [] });
+  const [groupPoolSearch, setGroupPoolSearch] = useState("");
+  const [savingGroup, setSavingGroup] = useState(false);
   const relayMenuRef = useRef(null);
   const notify = useNotificationStore();
 
@@ -97,9 +105,109 @@ export default function ProxyPoolsPage() {
     }
   }, []);
 
+  const fetchProxyGroups = useCallback(async () => {
+    setLoadingGroups(true);
+    try {
+      const res = await fetch("/api/proxy-groups", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setProxyGroups({
+          defaultGroups: data.defaultGroups || [],
+          customGroups: data.customGroups || [],
+        });
+      }
+    } catch (error) {
+      console.log("Error fetching proxy groups:", error);
+    } finally {
+      setLoadingGroups(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProxyPools();
-  }, [fetchProxyPools]);
+    fetchProxyGroups();
+  }, [fetchProxyPools, fetchProxyGroups]);
+
+  const openCreateGroupModal = () => {
+    setEditingGroup(null);
+    setGroupForm({ name: "", description: "", isSticky: false, stickyLimit: 3, poolIds: [] });
+    setGroupPoolSearch("");
+    setShowGroupModal(true);
+  };
+
+  const openEditGroupModal = (group) => {
+    setEditingGroup(group);
+    setGroupForm({
+      name: group.name || "",
+      description: group.description || "",
+      isSticky: group.isSticky === true,
+      stickyLimit: group.stickyLimit || 3,
+      poolIds: Array.isArray(group.poolIds) ? [...group.poolIds] : [],
+    });
+    setGroupPoolSearch("");
+    setShowGroupModal(true);
+  };
+
+  const closeGroupModal = () => {
+    if (savingGroup) return;
+    setShowGroupModal(false);
+    setEditingGroup(null);
+  };
+
+  const handleSaveGroup = async () => {
+    if (!groupForm.name.trim()) {
+      notify.error("Group name is required");
+      return;
+    }
+
+    setSavingGroup(true);
+    try {
+      const isEdit = !!editingGroup;
+      const url = isEdit ? `/api/proxy-groups/${editingGroup.id}` : "/api/proxy-groups";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(groupForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify.success(isEdit ? "Proxy group updated" : "Proxy group created");
+        setShowGroupModal(false);
+        await fetchProxyGroups();
+      } else {
+        notify.error(data.error || "Failed to save proxy group");
+      }
+    } catch (error) {
+      console.log("Error saving proxy group:", error);
+      notify.error("Failed to save proxy group");
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const handleDeleteGroup = (group) => {
+    setConfirmState({
+      title: "Delete Proxy Group",
+      message: `Are you sure you want to delete custom group "${group.name}"?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const res = await fetch(`/api/proxy-groups/${group.id}`, { method: "DELETE" });
+          const data = await res.json();
+          if (res.ok) {
+            notify.success(`Proxy group "${group.name}" deleted`);
+            await fetchProxyGroups();
+          } else {
+            notify.error(data.error || "Failed to delete proxy group");
+          }
+        } catch (error) {
+          console.log("Error deleting proxy group:", error);
+          notify.error("Failed to delete proxy group");
+        }
+      },
+    });
+  };
 
   const resetForm = () => {
     setEditingProxyPool(null);
@@ -145,6 +253,7 @@ export default function ProxyPoolsPage() {
 
       if (res.ok) {
         await fetchProxyPools();
+        await fetchProxyGroups();
         closeFormModal();
         notify.success(editingProxyPool ? "Proxy pool updated" : "Proxy pool created");
       } else {
@@ -765,75 +874,122 @@ export default function ProxyPoolsPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-1 sm:gap-6 sm:px-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold sm:text-2xl">Proxy Pools</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">
+            {activeTab === "pools" ? "Proxy Pools" : "Proxy Groups"}
+          </h1>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {activeTab === "pools"
+              ? "Manage proxy endpoints, relay deployments, and egress fitness"
+              : "Route connections across auto-gathered default groups or custom groups with sticky round-robin"}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-          <div className="relative" ref={relayMenuRef}>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon="rocket_launch"
-              onClick={() => setShowRelayMenu(!showRelayMenu)}
-            >
-              Deploy Relay
-              <span className="material-symbols-outlined ml-1 text-[18px]">
-                {showRelayMenu ? "expand_less" : "expand_more"}
-              </span>
+        {activeTab === "pools" ? (
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+            <div className="relative" ref={relayMenuRef}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon="rocket_launch"
+                onClick={() => setShowRelayMenu(!showRelayMenu)}
+              >
+                Deploy Relay
+                <span className="material-symbols-outlined ml-1 text-[18px]">
+                  {showRelayMenu ? "expand_less" : "expand_more"}
+                </span>
+              </Button>
+
+              {showRelayMenu && (
+                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-zinc-900 sm:left-auto sm:right-0">
+                  <button
+                    onClick={() => {
+                      openCloudflareModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-orange-500">cloud</span>
+                    Cloudflare Relay
+                  </button>
+                  <button
+                    onClick={() => {
+                      openCloudflareBulkModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-orange-500">playlist_add</span>
+                    CF Bulk
+                  </button>
+                  <button
+                    onClick={() => {
+                      openVercelModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-blue-500">cloud_upload</span>
+                    Vercel Relay
+                  </button>
+                  <button
+                    onClick={() => {
+                      openDenoModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-green-500">terminal</span>
+                    Deno Relay
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
+              Batch Import
             </Button>
-
-            {showRelayMenu && (
-              <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-zinc-900 sm:left-auto sm:right-0">
-                <button
-                  onClick={() => {
-                    openCloudflareModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-orange-500">cloud</span>
-                  Cloudflare Relay
-                </button>
-                <button
-                  onClick={() => {
-                    openCloudflareBulkModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-orange-500">playlist_add</span>
-                  CF Bulk
-                </button>
-                <button
-                  onClick={() => {
-                    openVercelModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-blue-500">cloud_upload</span>
-                  Vercel Relay
-                </button>
-                <button
-                  onClick={() => {
-                    openDenoModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-green-500">terminal</span>
-                  Deno Relay
-                </button>
-              </div>
-            )}
+            <Button size="sm" icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
           </div>
-
-          <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
-            Batch Import
-          </Button>
-          <Button size="sm" icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button size="sm" icon="add" onClick={openCreateGroupModal}>Add Custom Group</Button>
+          </div>
+        )}
       </div>
+
+      {/* Tabs navigation */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("pools")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "pools"
+              ? "border-primary text-primary font-semibold"
+              : "border-transparent text-text-muted hover:text-text-main"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[18px]">lan</span>
+          <span>Proxy Pools</span>
+          <span className="rounded-full bg-black/5 dark:bg-white/5 px-2 py-0.5 text-xs text-text-muted">
+            {proxyPools.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("groups")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "groups"
+              ? "border-primary text-primary font-semibold"
+              : "border-transparent text-text-muted hover:text-text-main"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[18px]">folder_special</span>
+          <span>Proxy Groups</span>
+          <span className="rounded-full bg-black/5 dark:bg-white/5 px-2 py-0.5 text-xs text-text-muted">
+            {(proxyGroups.defaultGroups?.length || 4) + (proxyGroups.customGroups?.length || 0)}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "pools" ? (
 
       <Card>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1041,6 +1197,130 @@ export default function ProxyPoolsPage() {
           </div>
         )}
       </Card>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {/* Default Automatic Groups */}
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-text-main flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary">auto_awesome</span>
+                <span>Default Groups (Automatic by Type)</span>
+              </h2>
+              <p className="text-xs text-text-muted">
+                Active proxy pools are grouped automatically by relay/protocol type with per-request round-robin rotation.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(proxyGroups.defaultGroups || []).map((grp) => {
+                const icon = grp.type === "cloudflare" ? "cloud" : grp.type === "vercel" ? "cloud_upload" : grp.type === "deno" ? "terminal" : "lan";
+                const color = grp.type === "cloudflare" ? "text-orange-500 bg-orange-500/10" : grp.type === "vercel" ? "text-blue-500 bg-blue-500/10" : grp.type === "deno" ? "text-green-500 bg-green-500/10" : "text-primary bg-primary/10";
+                return (
+                  <Card key={grp.id} className="flex flex-col justify-between p-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className={`flex size-8 items-center justify-center rounded-lg ${color}`}>
+                          <span className="material-symbols-outlined text-[18px]">{icon}</span>
+                        </div>
+                        <Badge variant="success">Auto Round-Robin</Badge>
+                      </div>
+                      <h3 className="font-medium text-sm text-text-main">{grp.name}</h3>
+                      <p className="mt-1 text-xs text-text-muted">{grp.description}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
+                      <span className="text-text-muted">Active Pools</span>
+                      <span className="font-semibold text-text-main font-mono">
+                        {grp.activeCount} / {grp.poolCount}
+                      </span>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom Groups */}
+          <Card>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div>
+                <h2 className="text-base font-semibold text-text-main flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-primary">folder_special</span>
+                  <span>Custom Groups</span>
+                </h2>
+                <p className="text-xs text-text-muted">
+                  Custom groups allow bundling specific proxies with configurable sticky session limits.
+                </p>
+              </div>
+              <Button size="sm" icon="add" onClick={openCreateGroupModal}>Add Custom Group</Button>
+            </div>
+
+            {loadingGroups ? (
+              <div className="py-12 text-center text-sm text-text-muted">Loading proxy groups...</div>
+            ) : (proxyGroups.customGroups || []).length === 0 ? (
+              <div className="py-12 text-center">
+                <span className="material-symbols-outlined text-4xl text-text-muted/50 mb-2">folder_off</span>
+                <p className="font-medium text-sm text-text-main">No custom proxy groups yet</p>
+                <p className="text-xs text-text-muted mt-1 mb-4 max-w-sm mx-auto">
+                  Create a custom group to bundle selected proxies and choose between strict round-robin or sticky sessions.
+                </p>
+                <Button size="sm" icon="add" onClick={openCreateGroupModal}>Create Custom Group</Button>
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-border">
+                {proxyGroups.customGroups.map((grp) => {
+                  const poolNames = (grp.poolIds || [])
+                    .map((id) => proxyPools.find((p) => p.id === id)?.name)
+                    .filter(Boolean);
+
+                  return (
+                    <div key={grp.id} className="py-4 first:pt-0 last:pb-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm text-text-main">{grp.name}</span>
+                          {grp.isSticky ? (
+                            <Badge variant="success">Sticky ({grp.stickyLimit} reqs / proxy)</Badge>
+                          ) : (
+                            <Badge variant="default">Round-Robin (Every req)</Badge>
+                          )}
+                          <span className="text-xs text-text-muted font-mono">
+                            {grp.activeCount} active / {grp.poolCount} total
+                          </span>
+                        </div>
+                        {grp.description && (
+                          <p className="text-xs text-text-muted mb-2">{grp.description}</p>
+                        )}
+                        {poolNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {poolNames.slice(0, 8).map((name) => (
+                              <span key={name} className="inline-flex items-center rounded-md bg-black/5 dark:bg-white/5 px-2 py-0.5 text-[11px] text-text-muted">
+                                {name}
+                              </span>
+                            ))}
+                            {poolNames.length > 8 && (
+                              <span className="inline-flex items-center rounded-md bg-black/5 dark:bg-white/5 px-2 py-0.5 text-[11px] text-text-muted">
+                                +{poolNames.length - 8} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 self-end sm:self-center">
+                        <Button size="sm" variant="ghost" icon="edit" onClick={() => openEditGroupModal(grp)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost" icon="delete" onClick={() => handleDeleteGroup(grp)} className="text-red-500 hover:text-red-600">
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
       <Modal
         isOpen={showBatchImportModal}
@@ -1440,6 +1720,151 @@ export default function ProxyPoolsPage() {
               {saving ? "Saving..." : "Save"}
             </Button>
             <Button fullWidth variant="ghost" onClick={closeFormModal} disabled={saving}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Create/Edit Custom Group */}
+      <Modal
+        isOpen={showGroupModal}
+        title={editingGroup ? "Edit Custom Proxy Group" : "Create Custom Proxy Group"}
+        onClose={closeGroupModal}
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Group Name"
+            value={groupForm.name}
+            onChange={(e) => setGroupForm((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g. US-Fast, Residential-East"
+            hint="Unique name for this proxy group."
+          />
+          <Input
+            label="Description"
+            value={groupForm.description}
+            onChange={(e) => setGroupForm((prev) => ({ ...prev, description: e.target.value }))}
+            placeholder="Optional group description"
+          />
+
+          <div className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-sm text-text-main">Sticky Proxy Session</p>
+              <p className="text-xs text-text-muted">
+                Keep consecutive requests from the same account on the same proxy before rotating to the next.
+              </p>
+            </div>
+            <Toggle
+              checked={groupForm.isSticky === true}
+              onChange={() => setGroupForm((prev) => ({ ...prev, isSticky: !prev.isSticky }))}
+              disabled={savingGroup}
+            />
+          </div>
+
+          {groupForm.isSticky && (
+            <Input
+              label="Sticky Request Limit"
+              type="number"
+              min="1"
+              max="100"
+              value={groupForm.stickyLimit}
+              onChange={(e) => setGroupForm((prev) => ({ ...prev, stickyLimit: e.target.value }))}
+              hint="Number of consecutive requests to send through the same proxy before rotating (default: 3)."
+            />
+          )}
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-text-muted">
+                Assign Proxies ({groupForm.poolIds.length} selected)
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activePoolIds = proxyPools.filter((p) => p.isActive === true).map((p) => p.id);
+                    setGroupForm((prev) => ({ ...prev, poolIds: activePoolIds }));
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Select All Active
+                </button>
+                <span className="text-xs text-text-muted">|</span>
+                <button
+                  type="button"
+                  onClick={() => setGroupForm((prev) => ({ ...prev, poolIds: [] }))}
+                  className="text-xs text-text-muted hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <input
+                type="text"
+                value={groupPoolSearch}
+                onChange={(e) => setGroupPoolSearch(e.target.value)}
+                placeholder="Filter proxy pools..."
+                className="w-full rounded-md border border-border bg-background py-1.5 px-3 text-xs text-text-main focus:border-primary focus:outline-none"
+              />
+            </div>
+
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {proxyPools
+                .filter((pool) => {
+                  if (!groupPoolSearch.trim()) return true;
+                  const q = groupPoolSearch.toLowerCase();
+                  return (pool.name || "").toLowerCase().includes(q) || (pool.proxyUrl || "").toLowerCase().includes(q) || (pool.type || "").toLowerCase().includes(q);
+                })
+                .map((pool) => {
+                  const checked = groupForm.poolIds.includes(pool.id);
+                  return (
+                    <label
+                      key={pool.id}
+                      className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+                        checked ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setGroupForm((prev) => ({
+                            ...prev,
+                            poolIds: checked
+                              ? prev.poolIds.filter((id) => id !== pool.id)
+                              : [...prev.poolIds, pool.id],
+                          }));
+                        }}
+                        className="size-4 rounded border-border text-primary focus:ring-primary"
+                      />
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                        <span className="truncate font-medium text-text-main">{pool.name}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-text-muted">
+                            {pool.type || "http"}
+                          </span>
+                          {!pool.isActive && (
+                            <span className="text-[10px] text-red-500 font-medium">(inactive)</span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-2">
+            <Button
+              fullWidth
+              onClick={handleSaveGroup}
+              disabled={!groupForm.name.trim() || savingGroup}
+            >
+              {savingGroup ? "Saving..." : "Save Group"}
+            </Button>
+            <Button fullWidth variant="ghost" onClick={closeGroupModal} disabled={savingGroup}>
               Cancel
             </Button>
           </div>

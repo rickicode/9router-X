@@ -177,6 +177,10 @@ export async function getProxyPools(filter = {}) {
     params.push(filter.group);
     where.push(`"group" = $${params.length}`);
   }
+  if (filter.type) {
+    params.push(filter.type);
+    where.push(`type = $${params.length}`);
+  }
 
   const rows = await db.all(
     `SELECT id, name, proxy_url, no_proxy, type, "group", is_active, strict_proxy,

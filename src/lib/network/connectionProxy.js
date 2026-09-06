@@ -1,4 +1,9 @@
-import { getProxyPoolById, getProxyPools } from "@/models";
+import {
+  getProxyPoolById,
+  getProxyPools,
+  getProxyGroupByName,
+  getProxyGroupById,
+} from "@/models";
 import { ensurePoolFitnessHydrated, fitPoolIds } from "open-sse/services/proxyPoolFitness.js";
 
 // Safely normalize any value into a trimmed string.
@@ -7,8 +12,25 @@ function normalizeString(value) {
   return String(value).trim();
 }
 
+/**
+ * Match default group name/alias to canonical proxy type.
+ * e.g. "cloudflare", "Cloudflare Relay", "cf" → "cloudflare"
+ *      "http", "httpp" → "http"
+ *      "vercel" → "vercel"
+ *      "deno", "dino" → "deno"
+ */
+export function matchDefaultGroupType(input) {
+  if (!input) return null;
+  const n = String(input).toLowerCase().trim().replace(/^default-/, "");
+  if (n === "cloudflare" || n === "cloudflare relay" || n === "cf") return "cloudflare";
+  if (n === "http" || n === "httpp") return "http";
+  if (n === "vercel") return "vercel";
+  if (n === "deno" || n === "dino") return "deno";
+  return null;
+}
+
 // ─── Proxy pool rotation state (in-memory, globalThis-backed for Turbopack/Next dev) ───
-const rotateState = (globalThis.__9routerProxyRotateState__ ??= new Map()); // providerId → { index }
+const rotateState = (globalThis.__9routerProxyRotateState__ ??= new Map()); // stateKey → { index, count, currentPoolId }
 
 /**
  * Pick one proxy pool ID from a list based on strategy.
@@ -23,7 +45,13 @@ const rotateState = (globalThis.__9routerProxyRotateState__ ??= new Map()); // p
  */
 export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   if (!poolIds || poolIds.length === 0) return null;
-  const { scope = null, excludeIds = [] } = opts || {};
+  const {
+    scope = null,
+    excludeIds = [],
+    isSticky = false,
+    stickyLimit = 3,
+    groupId = null,
+  } = opts || {};
 
   const uniquePoolIds = [...new Set(poolIds)];
   const excludeSet = new Set(excludeIds || []);
@@ -42,10 +70,43 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   }
   if (eligible.length === 1) return eligible[0];
 
-  const stateKey = providerId || "default";
+  const stateKey = providerId
+    ? `${providerId}${groupId ? `:${groupId}` : ""}`
+    : (groupId ? `group:${groupId}` : "default");
+
+  // ─── Sticky Round-Robin ──────────────────────────────────────────
+  if (isSticky) {
+    const limit = Math.max(1, Number(stickyLimit) || 3);
+    const state = rotateState.get(stateKey) || { index: -1, currentPoolId: null, stickCount: 0 };
+
+    // If current sticky pool is still eligible and count < limit, stick with it
+    if (
+      state.currentPoolId &&
+      eligible.includes(state.currentPoolId) &&
+      state.stickCount < limit
+    ) {
+      state.stickCount += 1;
+      rotateState.set(stateKey, state);
+      return state.currentPoolId;
+    }
+
+    // Otherwise advance to next eligible candidate in round-robin order
+    let prevIdx = state.currentPoolId ? eligible.indexOf(state.currentPoolId) : state.index;
+    if (prevIdx === -1) prevIdx = state.index;
+    const nextIdx = (prevIdx + 1) % eligible.length;
+
+    state.index = nextIdx;
+    state.currentPoolId = eligible[nextIdx];
+    state.stickCount = 1;
+    rotateState.set(stateKey, state);
+    return state.currentPoolId;
+  }
+
   if (strategy === "round-robin" || strategy === "smart") {
     const state = rotateState.get(stateKey) || { index: -1 };
     state.index = (state.index + 1) % eligible.length;
+    state.currentPoolId = eligible[state.index];
+    state.stickCount = 1;
     rotateState.set(stateKey, state);
     return eligible[state.index];
   }
@@ -100,20 +161,66 @@ export async function resolveConnectionProxyConfig(
     let proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
     const proxyGroup = normalizeString(providerSpecificData?.proxyGroup);
     let groupPoolMap = null;
+    let isSticky = false;
+    let stickyLimit = 3;
+    let resolvedGroupId = null;
 
     if (proxyGroup) {
-      // Query group directly to leverage PostgreSQL partial index: idx_pp_group ON proxy_pools ("group") WHERE is_active = true
-      let groupPools = await getProxyPools({ isActive: true, group: proxyGroup });
-      if (groupPools.length === 0) {
-        // Case-insensitive fallback if exact casing differs
-        const allPools = await getProxyPools({ isActive: true });
-        groupPools = allPools.filter((p) => normalizeString(p.group).toLowerCase() === proxyGroup.toLowerCase());
-      }
-      if (groupPools.length > 0) {
-        proxyPoolIds = groupPools.map((p) => p.id);
-        groupPoolMap = new Map(groupPools.map((p) => [p.id, p]));
-        if (proxyRotationStrategy === "none") {
-          proxyRotationStrategy = "round-robin";
+      // 1. Check if it matches a default automatic group (cloudflare, http, vercel, deno)
+      const defaultType = matchDefaultGroupType(proxyGroup);
+      if (defaultType) {
+        resolvedGroupId = `default-${defaultType}`;
+        const defaultPools = await getProxyPools({ isActive: true, type: defaultType });
+        if (defaultPools.length > 0) {
+          proxyPoolIds = defaultPools.map((p) => p.id);
+          groupPoolMap = new Map(defaultPools.map((p) => [p.id, p]));
+          if (proxyRotationStrategy === "none") {
+            proxyRotationStrategy = "round-robin";
+          }
+        }
+      } else {
+        // 2. Check if it matches a custom group from proxy_groups
+        let customGroup = null;
+        try {
+          if (typeof getProxyGroupByName === "function") {
+            customGroup = await getProxyGroupByName(proxyGroup);
+            if (!customGroup && typeof getProxyGroupById === "function") {
+              customGroup = await getProxyGroupById(proxyGroup);
+            }
+          }
+        } catch { /* fail-open to legacy match */ }
+
+        if (customGroup) {
+          resolvedGroupId = customGroup.id;
+          isSticky = customGroup.isSticky === true;
+          stickyLimit = customGroup.stickyLimit || 3;
+          const assignedIds = new Set(customGroup.poolIds || []);
+
+          if (assignedIds.size > 0) {
+            const allActive = await getProxyPools({ isActive: true });
+            const matchingPools = allActive.filter((p) => assignedIds.has(p.id));
+            if (matchingPools.length > 0) {
+              proxyPoolIds = matchingPools.map((p) => p.id);
+              groupPoolMap = new Map(matchingPools.map((p) => [p.id, p]));
+            }
+          }
+          if (proxyRotationStrategy === "none") {
+            proxyRotationStrategy = "round-robin";
+          }
+        } else {
+          // 3. Fallback to legacy string match on proxy_pools."group"
+          let groupPools = await getProxyPools({ isActive: true, group: proxyGroup });
+          if (groupPools.length === 0) {
+            const allPools = await getProxyPools({ isActive: true });
+            groupPools = allPools.filter((p) => normalizeString(p.group).toLowerCase() === proxyGroup.toLowerCase());
+          }
+          if (groupPools.length > 0) {
+            proxyPoolIds = groupPools.map((p) => p.id);
+            groupPoolMap = new Map(groupPools.map((p) => [p.id, p]));
+            if (proxyRotationStrategy === "none") {
+              proxyRotationStrategy = "round-robin";
+            }
+          }
         }
       }
     }
@@ -134,7 +241,13 @@ export async function resolveConnectionProxyConfig(
     if (proxyPoolIds.length > 0) {
       let candidateIds = proxyPoolIds.filter((id) => !(excludePoolIds || []).includes(id));
       while (candidateIds.length > 0) {
-        selectedPoolId = pickProxyPoolId(candidateIds, proxyRotationStrategy, connectionId, { scope: multiPoolScope, excludeIds: excludePoolIds });
+        selectedPoolId = pickProxyPoolId(candidateIds, proxyRotationStrategy, connectionId, {
+          scope: multiPoolScope,
+          excludeIds: excludePoolIds,
+          isSticky,
+          stickyLimit,
+          groupId: resolvedGroupId,
+        });
         if (!selectedPoolId) break;
 
         const proxyPool = groupPoolMap?.get(selectedPoolId) || await getProxyPoolById(selectedPoolId);

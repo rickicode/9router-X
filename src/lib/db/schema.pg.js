@@ -82,6 +82,20 @@ CREATE TABLE IF NOT EXISTS proxy_pools (
 CREATE INDEX IF NOT EXISTS idx_pp_group ON proxy_pools ("group") WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_pp_active ON proxy_pools (is_active);
 
+-- Proxy Groups
+CREATE TABLE IF NOT EXISTS proxy_groups (
+  id TEXT PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT DEFAULT '',
+  is_sticky BOOLEAN DEFAULT FALSE,
+  sticky_limit INTEGER DEFAULT 3,
+  pool_ids JSONB DEFAULT '[]'::jsonb,
+  data JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pg_name ON proxy_groups (name);
+
 -- API Keys
 CREATE TABLE IF NOT EXISTS api_keys (
   id TEXT PRIMARY KEY,

@@ -10,8 +10,9 @@ export {
 // Provider connections
 export {
   getProviderConnections, countProviderConnections, getProviderConnectionById, getProviderSummaryStats,
-  setProviderConnectionsActive,
+  setProviderConnectionsActive, setConnectionsActiveByIds,
   getProxyPoolBoundCounts, countProxyPoolBoundConnections,
+  countProxyGroupBoundConnections,
   getUnavailableOrLockedConnections,
   getClientUsageConnections, getClientUsageMeta,
   getAvailableAccountsForRouting, touchAccountLastUsed,
@@ -31,7 +32,15 @@ export {
 export {
   getProxyPools, getProxyPoolById,
   createProxyPool, updateProxyPool, deleteProxyPool,
+  invalidateProxyPoolCache,
 } from "./repos/proxyPoolsRepo.js";
+
+// Proxy groups
+export {
+  getProxyGroups, getProxyGroupById, getProxyGroupByName,
+  createProxyGroup, updateProxyGroup, deleteProxyGroup,
+  invalidateProxyGroupCache,
+} from "./repos/proxyGroupsRepo.js";
 
 // API keys
 export {
@@ -89,6 +98,7 @@ export async function exportDb() {
     rawConnections,
     rawNodes,
     rawPools,
+    rawGroups,
     rawKeys,
     rawCombos,
     rawKv,
@@ -97,6 +107,7 @@ export async function exportDb() {
     db.all(`SELECT * FROM provider_connections`),
     db.all(`SELECT * FROM provider_nodes`),
     db.all(`SELECT * FROM proxy_pools`),
+    db.all(`SELECT * FROM proxy_groups`),
     db.all(`SELECT * FROM api_keys`),
     db.all(`SELECT * FROM combos`),
     db.all(`SELECT scope, key, value FROM kv WHERE scope IN ('modelAliases', 'customModels', 'mitmAlias', 'pricing')`),
@@ -155,6 +166,20 @@ export async function exportDb() {
         updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
       };
     }),
+    proxyGroups: (rawGroups || []).map((r) => {
+      const extra = parseJson(r.data, {});
+      return {
+        ...extra,
+        id: r.id,
+        name: r.name,
+        description: r.description || "",
+        isSticky: r.is_sticky === true || r.is_sticky === 1,
+        stickyLimit: r.sticky_limit || 3,
+        poolIds: parseJson(r.pool_ids, []),
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+      };
+    }),
     apiKeys: rawKeys.map((r) => ({
       id: r.id,
       key: r.key,
@@ -202,6 +227,7 @@ export async function importDb(payload) {
         provider_connections,
         provider_nodes,
         proxy_pools,
+        proxy_groups,
         api_keys,
         combos,
         settings,
@@ -366,7 +392,34 @@ export async function importDb(payload) {
       `;
     }
 
-    // 5. API Keys
+    // 5. Proxy Groups
+    const groups = payload.proxyGroups || [];
+    if (groups.length > 0) {
+      const groupValues = groups.map((g) => ({
+        id: String(g.id),
+        name: String(g.name),
+        description: g.description || "",
+        is_sticky: g.isSticky === true || g.is_sticky === true,
+        sticky_limit: Number(g.stickyLimit || g.sticky_limit) || 3,
+        pool_ids: tx.raw.json(g.poolIds || g.pool_ids || []),
+        data: tx.raw.json(g.data || {}),
+        created_at: g.createdAt ? new Date(g.createdAt) : new Date(),
+        updated_at: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+      }));
+      await tx.raw`
+        INSERT INTO proxy_groups ${tx.raw(groupValues)}
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          is_sticky = EXCLUDED.is_sticky,
+          sticky_limit = EXCLUDED.sticky_limit,
+          pool_ids = EXCLUDED.pool_ids,
+          data = EXCLUDED.data,
+          updated_at = EXCLUDED.updated_at
+      `;
+    }
+
+    // 6. API Keys
     const keys = payload.apiKeys || [];
     if (keys.length > 0) {
       const keyValues = keys.map((k) => ({
