@@ -160,6 +160,8 @@ export async function PUT(request, { params }) {
     if (testStatus !== undefined) updateData.testStatus = testStatus;
     if (lastError !== undefined) updateData.lastError = lastError;
     if (lastErrorAt !== undefined) updateData.lastErrorAt = lastErrorAt;
+    if (body.lockedToModel !== undefined) updateData.lockedToModel = body.lockedToModel;
+    if (body.lockedToModelUntil !== undefined) updateData.lockedToModelUntil = body.lockedToModelUntil;
 
     if (
       shouldMergeProviderSpecificData(

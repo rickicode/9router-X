@@ -21,6 +21,8 @@ export async function POST(request, { params }) {
       backoffLevel: 0,
       rateLimitedUntil: null,
       lockedAllUntil: null,
+      lockedToModel: null,
+      lockedToModelUntil: null,
       modelLocks: {},
     };
 

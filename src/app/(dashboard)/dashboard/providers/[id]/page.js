@@ -510,6 +510,23 @@ export default function ProviderDetailPage() {
     }
   };
 
+  const handleUnlockModel = async (connectionId) => {
+    try {
+      const res = await fetch(`/api/providers/${connectionId}/unlock-model`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        notify.success("Model lock released");
+        await fetchConnections();
+      } else {
+        notify.error("Failed to unlock model");
+      }
+    } catch (e) {
+      console.log("Error unlocking model:", e);
+      notify.error("Failed to unlock model");
+    }
+  };
+
   const handleRoundRobinToggle = (enabled) => {
     const strategy = enabled ? "round-robin" : null;
     const sticky = enabled ? (providerStickyLimit || "1") : providerStickyLimit;
@@ -1229,6 +1246,7 @@ export default function ProviderDetailPage() {
                 oneByOneStatus={oneByOneResults[conn.id] || null}
                 modelAssignmentOptions={providerId === "freebuff" ? assignmentModels : null}
                 onModelAssignmentChange={providerId === "freebuff" ? (model) => handleModelAssignment(conn.id, model) : null}
+                onUnlockModel={providerId === "freebuff" ? () => handleUnlockModel(conn.id) : null}
                 strictModelAssignment={strictModelAssignment}
               />
             </div>

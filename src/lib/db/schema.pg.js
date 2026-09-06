@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS provider_connections (
   test_status VARCHAR(32) DEFAULT 'active',
   locked_all_until TIMESTAMPTZ,
   rate_limited_until TIMESTAMPTZ,
+  locked_to_model TEXT,
+  locked_to_model_until TIMESTAMPTZ,
   token_expires_at TIMESTAMPTZ,
   last_used_at TIMESTAMPTZ,
   model_locks JSONB DEFAULT '{}'::jsonb,
@@ -27,6 +29,9 @@ CREATE TABLE IF NOT EXISTS provider_connections (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model TEXT;
+ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model_until TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_pc_routing ON provider_connections (provider, priority, last_used_at NULLS FIRST)
 WHERE is_active = true;

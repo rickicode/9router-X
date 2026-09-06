@@ -16,6 +16,8 @@ const CONNECTION_FIELDS = new Set([
   "testStatus",
   "lockedAllUntil",
   "rateLimitedUntil",
+  "lockedToModel",
+  "lockedToModelUntil",
   "tokenExpiresAt",
   "lastUsedAt",
   "modelLocks",
@@ -32,6 +34,8 @@ const CONNECTION_SNAKE_FIELDS = {
   test_status: "testStatus",
   locked_all_until: "lockedAllUntil",
   rate_limited_until: "rateLimitedUntil",
+  locked_to_model: "lockedToModel",
+  locked_to_model_until: "lockedToModelUntil",
   token_expires_at: "tokenExpiresAt",
   last_used_at: "lastUsedAt",
   model_locks: "modelLocks",
@@ -126,6 +130,8 @@ function rowToConnection(row) {
     testStatus: row.test_status,
     lockedAllUntil: row.locked_all_until,
     rateLimitedUntil: row.rate_limited_until,
+    lockedToModel: row.locked_to_model || data.lockedToModel || null,
+    lockedToModelUntil: row.locked_to_model_until ? new Date(row.locked_to_model_until).toISOString() : (data.lockedToModelUntil || null),
     tokenExpiresAt: row.token_expires_at,
     lastUsedAt: row.last_used_at,
     modelLocks,
@@ -189,6 +195,8 @@ function connectionValues(connection, { createdAt } = {}) {
     testStatus: connection.testStatus ?? "active",
     lockedAllUntil: connection.lockedAllUntil ?? null,
     rateLimitedUntil: connection.rateLimitedUntil ?? null,
+    lockedToModel: connection.lockedToModel ?? null,
+    lockedToModelUntil: connection.lockedToModelUntil ?? null,
     tokenExpiresAt: connection.tokenExpiresAt ?? null,
     lastUsedAt: connection.lastUsedAt ?? null,
     modelLocks: modelLocksFromConnection(connection),
@@ -206,10 +214,11 @@ async function writeConnection(db, connection, options = {}) {
   const row = await db.get(
     `INSERT INTO provider_connections
        (id, provider, auth_type, name, email, priority, is_active, test_status,
-        locked_all_until, rate_limited_until, token_expires_at, last_used_at,
-        model_locks, last_error, error_code, last_error_at, data, created_at, updated_at)
+        locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+        token_expires_at, last_used_at, model_locks, last_error, error_code,
+        last_error_at, data, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-             $13, $14, $15, $16, $17, $18, $19)
+             $13, $14, $15, $16, $17, $18, $19, $20, $21)
      ON CONFLICT (id) DO UPDATE SET
        provider = EXCLUDED.provider,
        auth_type = EXCLUDED.auth_type,
@@ -220,6 +229,8 @@ async function writeConnection(db, connection, options = {}) {
        test_status = EXCLUDED.test_status,
        locked_all_until = EXCLUDED.locked_all_until,
        rate_limited_until = EXCLUDED.rate_limited_until,
+       locked_to_model = EXCLUDED.locked_to_model,
+       locked_to_model_until = EXCLUDED.locked_to_model_until,
        token_expires_at = EXCLUDED.token_expires_at,
        last_used_at = EXCLUDED.last_used_at,
        model_locks = EXCLUDED.model_locks,
@@ -240,6 +251,8 @@ async function writeConnection(db, connection, options = {}) {
       values.testStatus,
       values.lockedAllUntil,
       values.rateLimitedUntil,
+      values.lockedToModel,
+      values.lockedToModelUntil,
       values.tokenExpiresAt,
       values.lastUsedAt,
       values.modelLocks,
@@ -285,7 +298,7 @@ function deriveConnectionName(data, fallbackName) {
   return fallbackName;
 }
 
-const FATAL_CONNECTION_ERROR_SQL = "(last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
+const FATAL_CONNECTION_ERROR_SQL = "(last_error IS NOT NULL AND last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
 const CONNECTION_UNAVAILABLE_DATA_SQL = "(COALESCE(data->'providerSpecificData'->>'refreshBlocked', 'false') = 'true')";
 const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
 const FUTURE_ACCOUNT_LOCK_SQL = `(
@@ -293,42 +306,47 @@ const FUTURE_ACCOUNT_LOCK_SQL = `(
   OR (COALESCE(${safeTimestampSql("model_locks->>'__all'")}, '-infinity'::timestamptz) > NOW())
   OR (rate_limited_until IS NOT NULL AND rate_limited_until > NOW())
 )`;
+// Per-model locks only exhaust the affected model. Account-wide locks make
+// account unavailable because no model can safely use it until reset.
 const FUTURE_MODEL_LOCK_SQL = `EXISTS (
   SELECT 1 FROM jsonb_each_text(
     CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END
   ) AS kv(k, v)
   WHERE k <> '__all' AND COALESCE(${safeTimestampSql('kv.v')}, '-infinity'::timestamptz) > NOW()
 )`;
+// Status semantics (per-model credit providers like antigravity):
+// per-model locks NEVER demote the account status — the account stays
+// "active" while any model still has quota; routing simply skips the
+// locked (model, account) pair. "exhausted" is reserved for an account-wide
+// lock, i.e. every model is exhausted until the reset. "unavailable" is for
+// permanent failures only (fatal errors, bad test_status, refreshBlocked).
+const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid')";
+const PERMANENT_UNAVAILABLE_SQL = `(
+  ${BAD_TEST_STATUS_SQL}
+  OR ${CONNECTION_UNAVAILABLE_DATA_SQL}
+  OR ${FATAL_CONNECTION_ERROR_SQL}
+)`;
 const ACTIVE_CONNECTION_SQL = `(
   is_active = true
-  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
-  AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
-  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${PERMANENT_UNAVAILABLE_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
   AND NOT ${FUTURE_MODEL_LOCK_SQL}
 )`;
 const EXHAUSTED_CONNECTION_SQL = `(
   is_active = true
-  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
-  AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
-  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${PERMANENT_UNAVAILABLE_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
   AND ${FUTURE_MODEL_LOCK_SQL}
 )`;
 const UNAVAILABLE_CONNECTION_SQL = `(
   is_active = true
-  AND (
-    ${FUTURE_ACCOUNT_LOCK_SQL}
-    OR COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid')
-    OR ${CONNECTION_UNAVAILABLE_DATA_SQL}
-    OR ${FATAL_CONNECTION_ERROR_SQL}
-  )
+  AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL})
 )`;
 const ROUTABLE_CONNECTION_SQL = `(
   is_active = true
-  AND COALESCE(test_status, 'active') NOT IN ('unavailable', 'error', 'expired', 'invalid')
+  AND NOT ${BAD_TEST_STATUS_SQL}
   AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
-  AND (last_error IS NULL OR NOT ${FATAL_CONNECTION_ERROR_SQL})
+  AND NOT ${FATAL_CONNECTION_ERROR_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
 )`;
 
@@ -390,8 +408,9 @@ export async function getProviderConnections(filter = {}) {
 
   const rows = await db.all(
     `SELECT ${distinctClause} id, provider, auth_type, name, email, priority, is_active, test_status,
-            locked_all_until, rate_limited_until, token_expires_at, last_used_at,
-            model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
+            locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+            token_expires_at, last_used_at, model_locks, last_error, error_code,
+            last_error_at, data, created_at, updated_at
        FROM provider_connections
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ${orderClause}
@@ -419,8 +438,9 @@ export async function getProviderConnectionById(id) {
   const db = await getAdapter();
   const row = await db.get(
     `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
-            locked_all_until, rate_limited_until, token_expires_at, last_used_at,
-            model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
+            locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+            token_expires_at, last_used_at, model_locks, last_error, error_code,
+            last_error_at, data, created_at, updated_at
        FROM provider_connections
       WHERE id = $1`,
     [id],
@@ -583,8 +603,9 @@ export async function getClientUsageConnections({
 
   const rows = await db.all(
     `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
-            locked_all_until, rate_limited_until, token_expires_at, last_used_at,
-            model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
+            locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+            token_expires_at, last_used_at, model_locks, last_error, error_code,
+            last_error_at, data, created_at, updated_at
        FROM provider_connections
       ${whereSql}
       ${orderClause}
@@ -717,8 +738,9 @@ export async function createProviderConnection(data = {}) {
   return db.transaction(async (tx) => {
     const rows = await tx.all(
       `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
-              locked_all_until, rate_limited_until, token_expires_at, last_used_at,
-              model_locks, last_error, error_code, last_error_at, data, created_at, updated_at
+              locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+              token_expires_at, last_used_at, model_locks, last_error, error_code,
+              last_error_at, data, created_at, updated_at
          FROM provider_connections WHERE provider = $1`,
       [input.provider],
     );
@@ -847,6 +869,47 @@ export async function deleteProviderConnection(id) {
     invalidateCachedConnections(row.provider).catch(() => {});
     return true;
   });
+}
+
+export async function lockAccountToModel(connectionId, model, durationMs = 3600000) {
+  if (!connectionId || !model) return null;
+  const db = await getAdapter();
+  const until = new Date(Date.now() + durationMs).toISOString();
+
+  const row = await db.get(
+    `UPDATE provider_connections
+        SET locked_to_model = $2,
+            locked_to_model_until = $3,
+            updated_at = NOW()
+      WHERE id = $1
+  RETURNING *`,
+    [connectionId, model, until],
+  );
+
+  if (row?.provider) {
+    invalidateCachedConnections(row.provider).catch(() => {});
+  }
+  return rowToConnection(row);
+}
+
+export async function unlockAccountModel(connectionId) {
+  if (!connectionId) return null;
+  const db = await getAdapter();
+
+  const row = await db.get(
+    `UPDATE provider_connections
+        SET locked_to_model = NULL,
+            locked_to_model_until = NULL,
+            updated_at = NOW()
+      WHERE id = $1
+  RETURNING *`,
+    [connectionId],
+  );
+
+  if (row?.provider) {
+    invalidateCachedConnections(row.provider).catch(() => {});
+  }
+  return rowToConnection(row);
 }
 
 export async function deleteProviderConnectionsByProvider(provider) {

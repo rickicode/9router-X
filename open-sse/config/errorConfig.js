@@ -113,6 +113,11 @@ export const ERROR_RULES = [
   { text: "quota exceeded",            backoff: true },
   { text: "quota_exhausted",           backoff: true },
   { text: "resource_exhausted",        backoff: true },
+  // MODEL_CAPACITY_EXHAUSTED (antigravity 503): no upstream reset time exists,
+  // lock just the affected model long enough to stop retry-storming (15m),
+  // account stays usable for other models.
+  { text: "model_capacity_exhausted", cooldownMs: 15 * 60 * 1000, lockAll: false },
+  { text: "no capacity available for model", cooldownMs: 15 * 60 * 1000, lockAll: false },
   { text: "capacity",                  backoff: true },
   { text: "overloaded",                backoff: true },
 

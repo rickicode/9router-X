@@ -12,6 +12,7 @@ import {
   getBatchCooldowns,
   getCachedConnections,
   setCachedConnections,
+  invalidateCachedConnections,
 } from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
 
@@ -133,11 +134,11 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const cooledDownIds = await getBatchCooldowns(candidateIds, model);
 
     // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
-    const availableConnections = connections.filter(c => {
+    let availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
       if (c.isActive === false) return false;
-      if (c.testStatus === "unavailable" || c.testStatus === "error" || c.testStatus === "expired" || c.testStatus === "invalid" || c.testStatus === "disabled") return false;
+      if (["unavailable", "error", "expired", "invalid", "disabled"].includes(c.testStatus)) return false;
       if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
       if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
       if (isModelLockActive(c, model)) return false;
@@ -152,6 +153,56 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       }
       return true;
     });
+
+    // Freebuff 1-hour dynamic model affinity lock:
+    // 1 account can only serve 1 model at a time. If locked to model X, it can only serve model X.
+    // Accounts with no active lock can serve any model. Prioritize matching locked accounts.
+    if (providerId === "freebuff" && model) {
+      const now = Date.now();
+      const affinityCandidates = availableConnections;
+      const matchingLocked = [];
+      const unlocked = [];
+
+      for (const c of affinityCandidates) {
+        const isLocked = Boolean(
+          c.lockedToModel &&
+          c.lockedToModelUntil &&
+          new Date(c.lockedToModelUntil).getTime() > now
+        );
+
+        if (isLocked) {
+          if (c.lockedToModel === model) {
+            matchingLocked.push(c);
+          }
+          // Account locked to another model -> excluded!
+        } else {
+          unlocked.push(c);
+        }
+      }
+
+      if (matchingLocked.length > 0) {
+        // Prioritize accounts already locked to this model to prevent lock fragmentation
+        availableConnections = matchingLocked;
+      } else if (unlocked.length > 0) {
+        // Fall back to clean/unlocked accounts
+        availableConnections = unlocked;
+      } else {
+        // All accounts are currently locked to other models!
+        const lockedExpiries = affinityCandidates
+          .filter((c) => c.lockedToModel && c.lockedToModelUntil && new Date(c.lockedToModelUntil).getTime() > now)
+          .map((c) => c.lockedToModelUntil)
+          .sort();
+        const earliestExpiry = lockedExpiries[0] || null;
+        log.warn("AUTH", `Freebuff | all ${affinityCandidates.length} eligible accounts locked to other models — requested: ${model}`);
+        return {
+          allRateLimited: true,
+          retryAfter: earliestExpiry,
+          retryAfterHuman: earliestExpiry ? formatRetryAfter(earliestExpiry) : "1h",
+          lastError: `All Freebuff accounts are currently locked to other models. Next session releases in ${earliestExpiry ? formatRetryAfter(earliestExpiry) : "1h"}.`,
+          lastErrorCode: "FREEBUFF_MODEL_LOCKED",
+        };
+      }
+    }
 
     log.debug("AUTH", `${provider} | available: ${availableConnections.length}/${connections.length}`);
     connections.forEach(c => {
@@ -345,8 +396,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       lastErrorAt: new Date().toISOString(),
       backoffLevel: 0,
       modelLock___all: null,
+      modelLocks: {},
+      lockedAllUntil: null,
+      lockedToModel: null,
+      lockedToModelUntil: null,
       rateLimitedUntil: null,
     });
+    await invalidateCachedConnections(providerId).catch(() => {});
     // Long L2 cooldown so the Redis-cached path also stops returning it.
     redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);

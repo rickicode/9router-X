@@ -8,7 +8,7 @@ import {
   isValidApiKey,
 } from "../services/auth.js";
 import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
-import { getSettings } from "@/lib/localDb";
+import { getSettings, lockAccountToModel } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -323,6 +323,11 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         await clearAccountError(credentials.connectionId, credentials, model);
         // "Consecutive" strikes: a success clears the breaker for this pair.
         clearAntigravityStrikes(credentials.connectionId, model);
+
+        // Freebuff 1-hour model affinity lock: lock account to the successful model
+        if (provider === "freebuff" && model && credentials.connectionId) {
+          await lockAccountToModel(credentials.connectionId, model, 60 * 60 * 1000);
+        }
       }
     });
 
@@ -353,9 +358,22 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // Preserve upstream status/kind because chatCore returns thrown upstream
     // errors as a 502 gateway response.
     const upstreamStatus = result.extra?.upstreamStatus || result.status;
+
+    // When Freebuff upstream reports model_locked, immediately bind account to currentModel
+    if (provider === "freebuff") {
+      let currentLockedModel = result.extra?.currentModel;
+      if (!currentLockedModel) {
+        const match = String(result.error || "").match(/"currentModel"\s*:\s*"([^"]+)"/);
+        if (match) currentLockedModel = match[1];
+      }
+      if (currentLockedModel && credentials?.connectionId) {
+        log.warn("AUTH", `Freebuff account ${credentials.connectionName} locked to "${currentLockedModel}" upstream — updating local lock for 1h`);
+        await lockAccountToModel(credentials.connectionId, currentLockedModel, 60 * 60 * 1000);
+      }
+    }
+
     // A banned Freebuff account is permanently disabled (not "unavailable") —
-    // the handler returns its 502 to the client and the account drops out of
-    // routing (is_active=false) instead of entering the fallback loop.
+    // return a 403 to the client and drop account out of routing
     if (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || "")))) {
       await markAccountUnavailable(
         credentials.connectionId,
@@ -366,7 +384,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         resetsAtMs,
         "banned",
       );
-      return result.response;
+      // Preserve permanent ban semantics for clients: this is a 403 account
+      // failure, not a transient 502/503 gateway failure.
+      return errorResponse(HTTP_STATUS.FORBIDDEN, result.error);
     }
 
     const shouldFallback = (await markAccountUnavailable(

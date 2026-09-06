@@ -17,6 +17,7 @@ export {
   getClientUsageConnections, getClientUsageMeta,
   getAvailableAccountsForRouting, touchAccountLastUsed,
   setModelCooldown, clearModelCooldown,
+  lockAccountToModel, unlockAccountModel,
   createProviderConnection, updateProviderConnection,
   deleteProviderConnection, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,

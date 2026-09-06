@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
 
-export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, oneByOneStatus = null, autoPing = null, modelAssignmentOptions = null, onModelAssignmentChange = null, strictModelAssignment = false }) {
+export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, onUnlockModel = null, oneByOneStatus = null, autoPing = null, modelAssignmentOptions = null, onModelAssignmentChange = null, strictModelAssignment = false }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const [resettingStatus, setResettingStatus] = useState(false);
@@ -289,12 +289,12 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!accountLockUntil) return;
+    if (!accountLockUntil && !connection.lockedToModelUntil) return;
     const updateTime = () => setCurrentTime(Date.now());
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [accountLockUntil]);
+  }, [accountLockUntil, connection.lockedToModelUntil]);
 
   const now = currentTime;
   const hasAccountLock = Boolean(
@@ -302,13 +302,26 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
   );
   const hasModelLock = activeLocks.some((lock) => lock.model !== "__all");
 
+  const isFreebuff = connection.provider === "freebuff";
+  const hasModelAffinityLock = Boolean(
+    isFreebuff &&
+    connection.lockedToModel &&
+    connection.lockedToModelUntil &&
+    new Date(connection.lockedToModelUntil).getTime() > now
+  );
+  const affinityMinutesRemaining = hasModelAffinityLock
+    ? Math.max(1, Math.ceil((new Date(connection.lockedToModelUntil).getTime() - now) / 60000))
+    : null;
+
   const effectiveStatus = connection.isActive === false
     ? "disabled"
-    : (hasAccountLock || hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
+    : (hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
       ? "unavailable"
-      : hasModelLock
-        ? "exhausted"
-        : (connection.testStatus || "active");
+      : hasAccountLock
+        ? "unavailable"
+        : hasModelLock
+          ? "exhausted"
+          : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
@@ -368,6 +381,34 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
               <Badge variant={proxyBadgeVariant} size="sm">
                 Proxy
               </Badge>
+            )}
+            {isFreebuff && connection.isActive !== false && (
+              hasModelAffinityLock ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <span className="material-symbols-outlined text-[13px]">lock</span>
+                  <span className="font-medium">Locked: {connection.lockedToModel}</span>
+                  {affinityMinutesRemaining !== null && (
+                    <span className="opacity-75 font-mono text-[11px]">({affinityMinutesRemaining}m)</span>
+                  )}
+                  {typeof onUnlockModel === "function" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUnlockModel();
+                      }}
+                      className="ml-0.5 hover:text-amber-700 dark:hover:text-amber-300"
+                      title="Release model lock"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">lock_open</span>
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <Badge variant="success" size="sm">
+                  Unlocked
+                </Badge>
+              )
             )}
             {isCooldown && connection.isActive !== false && (
               <div className="flex flex-wrap items-center gap-1.5">
@@ -639,7 +680,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
               </button>
             </Tooltip>
           )}
-          {onResetStatus && (isCooldown || connection.testStatus === "unavailable" || connection.lastError) && (
+          {onResetStatus && (isCooldown || connection.testStatus === "unavailable" || connection.lastError || hasModelAffinityLock) && (
             <Tooltip text="Reset exhausted/cooldown status">
               <button
                 onClick={async () => {
@@ -709,6 +750,8 @@ ConnectionRow.propTypes = {
   onUpdateProxy: PropTypes.func,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onUnlockModel: PropTypes.func,
+  proxyGroups: PropTypes.object,
   modelAssignmentOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string.isRequired, name: PropTypes.string })),
   onModelAssignmentChange: PropTypes.func,
   strictModelAssignment: PropTypes.bool,

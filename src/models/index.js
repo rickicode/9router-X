@@ -20,6 +20,8 @@ export {
   touchAccountLastUsed,
   setModelCooldown,
   clearModelCooldown,
+  lockAccountToModel,
+  unlockAccountModel,
   createProviderConnection,
   updateProviderConnection,
   deleteProviderConnection,
