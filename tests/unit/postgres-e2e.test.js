@@ -38,6 +38,8 @@ import { getChartData } from "@/lib/db/repos/usageRepo.js";
 import { GET as healthGet } from "@/app/api/health/route.js";
 import { GET as quotasGet } from "@/app/api/usage/quotas/route.js";
 import { GET as clientGet } from "@/app/api/providers/client/route.js";
+import { checkFallbackError, isFatalAuthError } from "open-sse/services/accountFallback.js";
+import { markAccountUnavailable } from "@/sse/services/auth.js";
 
 describe("Postgres & Redis L2 Architecture E2E", () => {
   beforeAll(async () => {
@@ -369,6 +371,44 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       for (const id of testIds) {
         await deleteProviderConnection(id);
       }
+    }
+  });
+
+  it("should detect fatal auth errors and disable accounts permanently", async () => {
+    // Check fallback error classification for fatal vs non-fatal
+    expect(checkFallbackError(401, "").disableAccount).toBe(true);
+    expect(checkFallbackError(403, "invalid_api_key").disableAccount).toBe(true);
+    expect(checkFallbackError(400, "account has been banned").disableAccount).toBe(true);
+    expect(checkFallbackError(429, "rate limit exceeded").disableAccount).toBe(false);
+    expect(checkFallbackError(500, "internal error").disableAccount).toBe(false);
+
+    expect(isFatalAuthError(401, "")).toBe(true);
+    expect(isFatalAuthError(403, "invalid_grant")).toBe(true);
+    expect(isFatalAuthError(429, "rate limit")).toBe(false);
+
+    // Create a connection and mark it with a fatal auth error
+    const fatalConn = await createProviderConnection({
+      id: "fatal-auth-conn",
+      provider: "openai",
+      authType: "apikey",
+      name: "Fatal Auth Test",
+      apiKey: "sk-fatal-invalid",
+      priority: 1,
+      isActive: true,
+    });
+    expect(fatalConn.isActive).toBe(true);
+
+    try {
+      const result = await markAccountUnavailable("fatal-auth-conn", 401, "invalid_api_key: The API key provided is invalid", "openai");
+      expect(result.shouldFallback).toBe(true);
+
+      const updated = await getProviderConnections({ provider: "openai" });
+      const found = updated.find((c) => c.id === "fatal-auth-conn");
+      expect(found).toBeDefined();
+      expect(found.isActive).toBe(false);
+      expect(found.testStatus).toBe("disabled");
+    } finally {
+      await deleteProviderConnection("fatal-auth-conn");
     }
   });
 });

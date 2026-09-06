@@ -370,6 +370,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   // (executor.execute) and non-ok responses declared poolScoped via
   // parseError — poolId/scope are completed here from proxyOptions.
   let parsedNonOk = null;
+  const failedPoolIds = new Set();
 
   const tryNextPool = async (poolScoped, reasonMsg) => {
     const failed = {
@@ -377,10 +378,11 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       scope: poolScoped?.scope || proxyScope,
       reason: poolScoped?.reason || "pool-scoped",
     };
+    if (failed.poolId) failedPoolIds.add(failed.poolId);
     markPoolUnfit(failed.poolId, failed.scope, undefined, failed.reason);
     log?.warn?.("PROXY", `${provider.toUpperCase()} | pool ${failed.poolId || "?"} unfit for ${failed.scope} (${failed.reason}) — retry with another pool. ${reasonMsg || ""}`);
     try {
-      const resolved = await resolveProxyConfig(credentials, [failed.poolId]);
+      const resolved = await resolveProxyConfig(credentials, [...failedPoolIds]);
       if (resolved?.proxyPoolId) {
         credentials.providerSpecificData = { ...(credentials.providerSpecificData || {}), ...resolved };
         proxyOptions = buildProxyOptions(credentials.providerSpecificData);

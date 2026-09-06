@@ -1,6 +1,6 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
-import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
+import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
@@ -136,8 +136,10 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
-      if (c.testStatus === "unavailable" || c.testStatus === "error" || c.testStatus === "expired" || c.testStatus === "invalid") return false;
+      if (c.isActive === false) return false;
+      if (c.testStatus === "unavailable" || c.testStatus === "error" || c.testStatus === "expired" || c.testStatus === "invalid" || c.testStatus === "disabled") return false;
       if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
+      if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
       if (isModelLockActive(c, model)) return false;
       // Antigravity: skip if live quota exhausted for this model
       if (isAntigravity && model && antigravityQuotaCache) {
@@ -360,7 +362,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
-  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false;
+  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false;
   if (githubResetAtMs) {
     shouldFallback = true;
     cooldownMs = githubResetAtMs - Date.now();
@@ -372,18 +374,45 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     newBackoffLevel = 0;
     if (isPooledQuotaProvider) lockAll = true;
   } else {
-    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll } = checkFallbackError(status, errorText, backoffLevel));
+    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
+
+  // Fatal auth/account failure: permanently disable connection from routing
+  if (disableAccount || isFatalAuthError(status, errorText)) {
+    const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
+    await updateProviderConnection(connectionId, {
+      isActive: false,
+      testStatus: "disabled",
+      lastError: reason,
+      errorCode: status,
+      lastErrorAt: new Date().toISOString(),
+      backoffLevel: 0,
+      modelLock___all: null,
+      lockedAllUntil: null,
+      rateLimitedUntil: null,
+    });
+    // Long L2 cooldown so the Redis-cached path also stops returning it
+    redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+    const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
+    log.warn("AUTH", `${connName} account auth fatal error — DISABLED (is_active=false), removed from routing`);
+    if (provider && status && reason) {
+      console.error(`❌ ${provider} [${status}]: ${reason}`);
+    }
+    return { shouldFallback: true, cooldownMs: 0 };
+  }
+
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
   const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Provider error");
   const isAccountWideLock = Boolean(lockAll || githubResetAtMs);
   const lockTargetModel = isAccountWideLock ? null : model;
   const lockUpdate = buildModelLockUpdate(lockTargetModel, cooldownMs);
+  const lockExpiryIso = new Date(Date.now() + cooldownMs).toISOString();
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
+    ...(isAccountWideLock ? { lockedAllUntil: lockExpiryIso } : {}),
     testStatus: isAccountWideLock ? "unavailable" : (conn?.testStatus || "active"),
     lastError: reason,
     errorCode: status,
@@ -445,10 +474,16 @@ export async function clearAccountError(connectionId, currentConnection, model =
 
   const clearObj = Object.fromEntries(keysToClear.map(k => [k, null]));
 
-  // Reset testStatus to active if no account-wide lock (modelLock___all) is active
-  const hasActiveAccountLock = Boolean(conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now);
+  // Reset testStatus to active if no account-wide lock (modelLock___all or lockedAllUntil) is active
+  const hasActiveAccountLock = Boolean(
+    (conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now)
+    || (conn.lockedAllUntil && new Date(conn.lockedAllUntil).getTime() > now)
+    || (conn.rateLimitedUntil && new Date(conn.rateLimitedUntil).getTime() > now)
+  );
   if (!hasActiveAccountLock) {
     clearObj.testStatus = "active";
+    clearObj.lockedAllUntil = null;
+    clearObj.rateLimitedUntil = null;
     if (remainingActiveLocks.length === 0) {
       Object.assign(clearObj, {
         lastError: null,
@@ -457,6 +492,10 @@ export async function clearAccountError(connectionId, currentConnection, model =
         backoffLevel: 0
       });
     }
+    redisSetAccountCooldown(connectionId, 0).catch(() => {});
+  }
+  if (model) {
+    redisSetModelCooldown(connectionId, model, 0).catch(() => {});
   }
 
   await updateProviderConnection(connectionId, clearObj);

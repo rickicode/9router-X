@@ -148,7 +148,10 @@ export async function GET(request, { params }) {
     }
 
     // Resolve connection proxy config; force strictProxy=false so quota/refresh fall back to direct on failure
-    const proxyConfig = await resolveConnectionProxyConfig(connection.providerSpecificData, connection.id);
+    const psdForProxy = connection.provider
+      ? { ...(connection.providerSpecificData || {}), proxyPoolScope: `${connection.provider}::*` }
+      : connection.providerSpecificData;
+    const proxyConfig = await resolveConnectionProxyConfig(psdForProxy, connection.id);
     const proxyOptions = {
       connectionProxyEnabled: proxyConfig.connectionProxyEnabled === true,
       connectionProxyUrl: proxyConfig.connectionProxyUrl || "",

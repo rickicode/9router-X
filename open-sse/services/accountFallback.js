@@ -30,20 +30,20 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     if (rule.text && lowerError && lowerError.includes(rule.text)) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll };
+        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount };
       }
       const canFallback = rule.shouldFallback !== false;
-      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll };
+      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount };
     }
 
     // Status-based rule: match HTTP status code
     if (rule.status && rule.status === status) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll };
+        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount };
       }
       const canFallback = rule.shouldFallback !== false;
-      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll };
+      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount };
     }
   }
 
@@ -51,12 +51,24 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
   // lock briefly so we retry, but DO NOT treat as request-level (400/404/413)
   // which are handled by explicit rules above.
   if (status >= 500) {
-    return { shouldFallback: true, cooldownMs: TRANSIENT_COOLDOWN_MS };
+    return { shouldFallback: true, cooldownMs: TRANSIENT_COOLDOWN_MS, disableAccount: false };
   }
 
   // Default: do NOT lock for any other unmatched status (e.g. 400/413 from
   // custom providers). The account is fine; the request was bad.
-  return { shouldFallback: false, cooldownMs: 0 };
+  return { shouldFallback: false, cooldownMs: 0, disableAccount: false };
+}
+
+/**
+ * Detect permanent/fatal authentication failure that requires re-auth.
+ * Such accounts must be disabled (isActive: false, testStatus: "disabled").
+ */
+export function isFatalAuthError(status, errorText) {
+  if (status === 401) return true;
+  const str = typeof errorText === "string" ? errorText : (errorText ? JSON.stringify(errorText) : "");
+  if (!str) return false;
+  return /\b(invalid_grant|invalid_api_key|invalid api key|invalid token|token revoked|revoked|unauthenticated|unauthorized|unrecoverable_refresh_error|refresh_token_reused|account has been banned|account has been deleted|user has been suspended|account suspended|banned|suspended)\b/i.test(str)
+    || /invalid authentication credential/i.test(str);
 }
 
 /**
