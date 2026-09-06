@@ -50,6 +50,14 @@ describe("proxy pool fitness registry", () => {
       "freebuff",
       { scope: "freebuff::openai/gpt-5.6-luna" },
     )).toBeNull();
+
+    // Also when connectionId (UUID) is passed instead of "freebuff":
+    expect(pickProxyPoolId(
+      ["p1", "p2"],
+      "smart",
+      "conn-uuid-9999",
+      { scope: "freebuff::openai/gpt-5.6-luna" },
+    )).toBeNull();
   });
 
   it("preserves fail-open smart fallback for non-Freebuff providers", () => {

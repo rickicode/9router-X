@@ -332,6 +332,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     vercelRelayUrl: psd?.vercelRelayUrl || "",
     strictProxy: psd?.strictProxy === true,
     proxyPoolId: psd?.proxyPoolId || psd?.connectionProxyPoolId || null,
+    noFitPool: psd?.noFitPool === true,
   });
 
   const proxyScope = `${provider}::${model}`;

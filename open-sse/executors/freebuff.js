@@ -551,6 +551,12 @@ export class FreebuffExecutor extends BaseExecutor {
       err.poolScoped = { poolId, scope, reason: "limited_ip" };
       throw err;
     }
+    if (proxyOptions?.noFitPool) {
+      const err = new Error(`Freebuff smart proxy found no available fit pool for ${scope} (all pools in cooldown)`);
+      err.status = 503;
+      err.poolScoped = { poolId: null, scope, reason: "no_fit_pool" };
+      throw err;
+    }
 
     let session;
     try {

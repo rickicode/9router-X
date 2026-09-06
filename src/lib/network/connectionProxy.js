@@ -33,7 +33,8 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
     // Freebuff must never reuse a limited-IP egress. Other providers retain
     // the previous fail-open behavior when every smart candidate is marked
     // unfit; their executors may have their own pool fallback semantics.
-    if (providerId === "freebuff" && strategy === "smart") return null;
+    const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
+    if (isFreebuff && strategy === "smart") return null;
     eligible = poolIds.filter((id) => !(excludeIds || []).includes(id));
     if (eligible.length === 0) return null;
   }
