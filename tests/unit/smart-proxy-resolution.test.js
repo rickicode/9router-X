@@ -17,6 +17,7 @@ import {
 } from "open-sse/services/proxyPoolFitness.js";
 import { resolveConnectionProxyConfig } from "../../src/lib/network/connectionProxy.js";
 import { proxyAwareFetch } from "open-sse/utils/proxyFetch.js";
+import { refreshTokenByProvider } from "open-sse/services/tokenRefresh.js";
 
 describe("Smart Proxy Resolution & Multi-Pool Candidate Failover", () => {
   beforeEach(() => {
@@ -120,5 +121,25 @@ describe("Smart Proxy Resolution & Multi-Pool Candidate Failover", () => {
         connectionProxyUrl: "",
       }),
     ).rejects.toThrow(/\[ProxyFetch\] Proxy required but no proxy URL configured or available/);
+  });
+
+  it("passes connection proxyOptions into refreshTokenByProvider", async () => {
+    const creds = {
+      refreshToken: "rt-test-token",
+      providerSpecificData: {
+        connectionProxyEnabled: true,
+        connectionProxyUrl: "http://127.0.0.1:9999",
+        strictProxy: true,
+      },
+    };
+
+    const mockLog = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const res = await refreshTokenByProvider("codex", creds, mockLog);
+    expect(res).toBeNull();
+    // Verify it failed with network/proxy connection error, not leaking to direct
+    expect(mockLog.error).toHaveBeenCalledWith(
+      "TOKEN_REFRESH",
+      expect.stringMatching(/Network error refreshing Codex token|ECONNREFUSED|connect/i),
+    );
   });
 });

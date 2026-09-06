@@ -243,7 +243,7 @@ export async function checkAndRefreshToken(provider, credentials, options = {}) 
       lastRefreshAt: creds.lastRefreshAt || null,
     });
 
-    const newCreds = await _refreshProviderCredentials(provider, creds, log);
+    const newCreds = await _refreshProviderCredentials(provider, creds, log, options?.proxyOptions);
     if (isUnrecoverableRefreshError(newCreds)) {
       // Refresh token is dead (revoked/reused/expired) — retrying forever just
       // spams xAI's endpoint every tick. Tag the result so the background

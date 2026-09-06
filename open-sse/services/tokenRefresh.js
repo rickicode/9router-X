@@ -132,55 +132,71 @@ function vertexRefreshHandler(c, log) {
   return refreshVertexToken(saJson, log);
 }
 
+function extractProxyOptions(credentials) {
+  const psd = credentials?.providerSpecificData;
+  if (!psd) return null;
+  if (!psd.connectionProxyEnabled && !psd.vercelRelayUrl && !psd.connectionProxyUrl) return null;
+  return {
+    connectionProxyEnabled: psd.connectionProxyEnabled === true,
+    connectionProxyUrl: psd.connectionProxyUrl || "",
+    connectionNoProxy: psd.connectionNoProxy || "",
+    vercelRelayUrl: psd.vercelRelayUrl || "",
+    strictProxy: psd.strictProxy === true,
+    proxyPoolId: psd.proxyPoolId || psd.connectionProxyPoolId || null,
+  };
+}
+
 const REFRESH_HANDLERS = {
-  "gemini-cli": (c, log) => refreshGoogleToken(c.refreshToken, PROVIDERS["gemini-cli"].clientId, PROVIDERS["gemini-cli"].clientSecret, log),
-  antigravity: (c, log) => refreshGoogleToken(c.refreshToken, PROVIDERS.antigravity.clientId, PROVIDERS.antigravity.clientSecret, log),
-  claude: (c, log) => refreshClaudeOAuthToken(c.refreshToken, log),
-  codex: (c, log) => refreshCodexToken(c.refreshToken, log),
-  iflow: (c, log) => refreshIflowToken(c.refreshToken, log),
-  github: (c, log) => refreshGitHubToken(c.refreshToken, log),
-  kiro: (c, log) => refreshKiroToken(c.refreshToken, c.providerSpecificData, log),
-  xai: (c, log) => refreshXaiToken(c.refreshToken, log),
+  "gemini-cli": (c, log, proxy) => refreshGoogleToken(c.refreshToken, PROVIDERS["gemini-cli"].clientId, PROVIDERS["gemini-cli"].clientSecret, log, proxy),
+  antigravity: (c, log, proxy) => refreshGoogleToken(c.refreshToken, PROVIDERS.antigravity.clientId, PROVIDERS.antigravity.clientSecret, log, proxy),
+  claude: (c, log, proxy) => refreshClaudeOAuthToken(c.refreshToken, log, proxy),
+  codex: (c, log, proxy) => refreshCodexToken(c.refreshToken, log, proxy),
+  iflow: (c, log, proxy) => refreshIflowToken(c.refreshToken, log, proxy),
+  github: (c, log, proxy) => refreshGitHubToken(c.refreshToken, log, proxy),
+  kiro: (c, log, proxy) => refreshKiroToken(c.refreshToken, c.providerSpecificData, log, proxy),
+  xai: (c, log, proxy) => refreshXaiToken(c.refreshToken, log),
   // Grok CLI shares xAI OAuth client + token endpoint (device-code tokens refresh the same way)
-  "grok-cli": (c, log) => refreshXaiToken(c.refreshToken, log),
-  gcli: (c, log) => refreshXaiToken(c.refreshToken, log),
-  "codebuddy-cn": (c, log) => refreshCodebuddyToken(c.refreshToken, log),
-  "codebuddy-intl": (c, log) => refreshCodebuddyIntlToken(c.refreshToken, log),
-  trae: (c, log) => refreshTraeToken(c.refreshToken, c, log),
-  cline: (c, log) => refreshClineToken(c.refreshToken, log),
+  "grok-cli": (c, log, proxy) => refreshXaiToken(c.refreshToken, log),
+  gcli: (c, log, proxy) => refreshXaiToken(c.refreshToken, log),
+  "codebuddy-cn": (c, log, proxy) => refreshCodebuddyToken(c.refreshToken, log, proxy),
+  "codebuddy-intl": (c, log, proxy) => refreshCodebuddyIntlToken(c.refreshToken, log, proxy),
+  trae: (c, log, proxy) => refreshTraeToken(c.refreshToken, c, log, proxy),
+  cline: (c, log, proxy) => refreshClineToken(c.refreshToken, log, proxy),
   zed: () => refreshZedToken(),
-  windsurf: (c, log) => refreshWindsurfToken(c, log),
+  windsurf: (c, log, proxy) => refreshWindsurfToken(c, log),
   // Kimi Code OAuth (merged into id `kimi`); legacy id still routes here
-  kimi: (c, log) => refreshKimiToken(c.refreshToken, c, log),
-  "kimi-coding": (c, log) => refreshKimiToken(c.refreshToken, c, log),
+  kimi: (c, log, proxy) => refreshKimiToken(c.refreshToken, c, log, proxy),
+  "kimi-coding": (c, log, proxy) => refreshKimiToken(c.refreshToken, c, log, proxy),
   vertex: vertexRefreshHandler,
   "vertex-partner": vertexRefreshHandler
 };
 
-export async function getAccessToken(provider, credentials, log) {
+export async function getAccessToken(provider, credentials, log, proxyOptions = null) {
   if (!credentials || !credentials.refreshToken || typeof credentials.refreshToken !== "string") {
     log?.warn?.("TOKEN_REFRESH", `No valid refresh token available for provider: ${provider}`);
     return null;
   }
-  return _getAccessTokenInternal(provider, credentials, log);
+  return _getAccessTokenInternal(provider, credentials, log, proxyOptions);
 }
 
-async function _getAccessTokenInternal(provider, credentials, log) {
+async function _getAccessTokenInternal(provider, credentials, log, proxyOptions = null) {
+  const proxy = proxyOptions || credentials?.proxyOptions || extractProxyOptions(credentials);
   if (provider === "gemini") {
-    return refreshGoogleToken(credentials.refreshToken, PROVIDERS.gemini.clientId, PROVIDERS.gemini.clientSecret, log);
+    return refreshGoogleToken(credentials.refreshToken, PROVIDERS.gemini.clientId, PROVIDERS.gemini.clientSecret, log, proxy);
   }
   const handler = REFRESH_HANDLERS[provider];
   if (!handler) {
     log?.warn?.("TOKEN_REFRESH", `Unsupported provider for token refresh: ${provider}`);
     return null;
   }
-  return handler(credentials, log);
+  return handler(credentials, log, proxy);
 }
 
-export async function refreshTokenByProvider(provider, credentials, log) {
+export async function refreshTokenByProvider(provider, credentials, log, proxyOptions = null) {
   if (!credentials.refreshToken) return null;
+  const proxy = proxyOptions || credentials?.proxyOptions || extractProxyOptions(credentials);
   const handler = REFRESH_HANDLERS[provider];
-  return handler ? handler(credentials, log) : refreshAccessToken(provider, credentials.refreshToken, credentials, log);
+  return handler ? handler(credentials, log, proxy) : refreshAccessToken(provider, credentials.refreshToken, credentials, log, proxy);
 }
 
 export function formatProviderCredentials(provider, credentials, log) {
