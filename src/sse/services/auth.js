@@ -19,18 +19,6 @@ import * as log from "../utils/logger.js";
 // Per-provider mutex map to prevent race conditions during account selection without blocking unrelated providers
 const selectionMutexes = new Map();
 
-export function filterConnectionsForModel(providerId, connections, model, settings = {}) {
-  const override = (settings.providerStrategies || {})[providerId] || {};
-  if (override.strictModelAssignment !== true || !model) {
-    return connections;
-  }
-  return connections.filter((connection) => {
-    const assignedModel = connection.providerSpecificData?.assignedModel
-      || (providerId === "freebuff" ? connection.providerSpecificData?.freebuffModel : null);
-    return assignedModel === model;
-  });
-}
-
 const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
 
 function githubMonthlyResetMs(status, errorText, provider) {
@@ -117,7 +105,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     const settings = await getSettings();
     const providerOverride = (settings.providerStrategies || {})[providerId] || {};
-    connections = filterConnectionsForModel(providerId, connections, model, settings);
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
 
     if (connections.length === 0) {

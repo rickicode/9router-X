@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
 
-export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, onUnlockModel = null, oneByOneStatus = null, autoPing = null, modelAssignmentOptions = null, onModelAssignmentChange = null, strictModelAssignment = false }) {
+export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, onUnlockModel = null, oneByOneStatus = null, autoPing = null }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const [resettingStatus, setResettingStatus] = useState(false);
@@ -438,19 +438,6 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
               </Badge>
             )}
           </div>
-           {modelAssignmentOptions && onModelAssignmentChange && (
-             <select
-               value={connection.providerSpecificData?.assignedModel || connection.providerSpecificData?.freebuffModel || ""}
-              onChange={(e) => onModelAssignmentChange(e.target.value)}
-               className="mt-2 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-text-main"
-               title="Model assignment"
-             >
-               <option value="">Unassigned</option>
-               {modelAssignmentOptions.map((model) => (
-                <option key={model.id} value={model.id}>{model.name || model.id}</option>
-              ))}
-            </select>
-          )}
           {hasAnyProxy && (
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <span className="max-w-full truncate text-[11px] text-text-muted sm:max-w-[420px]" title={proxyDisplayText}>
@@ -752,9 +739,6 @@ ConnectionRow.propTypes = {
   onDelete: PropTypes.func.isRequired,
   onUnlockModel: PropTypes.func,
   proxyGroups: PropTypes.object,
-  modelAssignmentOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string.isRequired, name: PropTypes.string })),
-  onModelAssignmentChange: PropTypes.func,
-  strictModelAssignment: PropTypes.bool,
   oneByOneStatus: PropTypes.shape({
     state: PropTypes.string,
     error: PropTypes.string,
