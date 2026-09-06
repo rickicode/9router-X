@@ -395,6 +395,26 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     return false;
   };
 
+  const isProxyNetworkError = (err) => {
+    if (!err) return false;
+    const msg = String(err.message || "").toLowerCase();
+    const code = String(err.code || "").toLowerCase();
+    return (
+      msg.includes("[proxyfetch]") ||
+      msg.includes("proxy required but failed") ||
+      msg.includes("econnrefused") ||
+      msg.includes("etimedout") ||
+      msg.includes("econnreset") ||
+      msg.includes("und_err_socket") ||
+      msg.includes("und_err_connect_timeout") ||
+      msg.includes("socket connection failed") ||
+      code === "econnrefused" ||
+      code === "etimedout" ||
+      code === "econnreset" ||
+      code === "und_err_connect_timeout"
+    );
+  };
+
   const executeWithPoolFallback = async (attempt = 0) => {
     let result;
     try {
@@ -411,7 +431,10 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       });
     } catch (error) {
       if (typeof resolveProxyConfig === "function" && attempt < MAX_POOL_RETRIES) {
-        const poolScoped = executor.parseError ? executor.parseError(error).poolScoped : null;
+        let poolScoped = executor.parseError ? executor.parseError(error)?.poolScoped : null;
+        if (!poolScoped && proxyOptions?.proxyPoolId && isProxyNetworkError(error)) {
+          poolScoped = { poolId: proxyOptions.proxyPoolId, scope: proxyScope, reason: "proxy_connection_failed" };
+        }
         if (poolScoped && await tryNextPool(poolScoped, error.message)) {
           return executeWithPoolFallback(attempt + 1);
         }
