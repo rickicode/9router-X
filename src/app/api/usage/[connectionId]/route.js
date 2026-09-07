@@ -188,6 +188,26 @@ export async function GET(request, { params }) {
       }
     }
 
+    // Persistent quota-API auth failure (e.g. Antigravity 401 "authentication
+    // expired") means token refresh cannot fix it — disable account so
+    // Providers/Quota views and routing agree. Chat may still work, but
+    // account needs re-auth.
+    if (isAuthExpiredMessage(usage)) {
+      const disableReason = usage?.message || "Quota API authentication expired. Re-authorize account.";
+      try {
+        await updateProviderConnection(connection.id, {
+          isActive: false,
+          testStatus: "disabled",
+          lastError: disableReason,
+          errorCode: 401,
+          lastErrorAt: new Date().toISOString(),
+        });
+        connection = await getProviderConnectionById(connection.id) || connection;
+      } catch (disableError) {
+        console.warn(`[Usage] ${connection.provider}: failed to disable expired-auth connection: ${disableError.message}`);
+      }
+    }
+
     // Persist usage snapshot to PostgreSQL and publish to Redis speed layer (Decision #10)
     if (usage && !usage.error) {
       const remainingPct = typeof usage.remainingPercentage === "number" ? usage.remainingPercentage : null;

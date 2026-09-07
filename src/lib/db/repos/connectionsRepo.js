@@ -315,11 +315,11 @@ const FUTURE_MODEL_LOCK_SQL = `EXISTS (
   WHERE k <> '__all' AND COALESCE(${safeTimestampSql('kv.v')}, '-infinity'::timestamptz) > NOW()
 )`;
 // Status semantics (per-model credit providers like antigravity):
-// per-model locks NEVER demote the account status — the account stays
-// "active" while any model still has quota; routing simply skips the
-// locked (model, account) pair. "exhausted" is reserved for an account-wide
-// lock, i.e. every model is exhausted until the reset. "unavailable" is for
-// permanent failures only (fatal errors, bad test_status, refreshBlocked).
+// per-model locks -> "exhausted", account remains usable for other models;
+// routing skips only locked (model, account) pair. Account-wide lock
+// (locked_all_until, model_locks.__all, rate_limited_until) -> "unavailable".
+// Permanent failures (fatal errors, bad test_status, refreshBlocked) ->
+// "unavailable". Active only when none apply.
 const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid')";
 const PERMANENT_UNAVAILABLE_SQL = `(
   ${BAD_TEST_STATUS_SQL}
