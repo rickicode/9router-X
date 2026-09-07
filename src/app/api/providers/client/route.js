@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { NextResponse } from "next/server";
 import { getClientUsageConnections, getClientUsageMeta } from "@/lib/localDb";
 import { backfillCodexEmails } from "@/lib/oauth/providers";
@@ -9,6 +12,7 @@ const SAFE_FIELDS = [
   "testStatus", "lastError", "lastErrorAt", "errorCode",
   "expiresAt", "lastUsedAt", "consecutiveUseCount",
   "lockedAllUntil", "rateLimitedUntil", "modelLocks",
+  "disabledReason", "previousStatus", "disabledAt", "disabledBy",
   "createdAt", "updatedAt",
 ];
 
@@ -108,6 +112,12 @@ export async function GET(request) {
       totals: {
         eligibleConnections: meta.eligibleCount,
         providerFilteredConnections: total,
+      },
+    }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (error) {

@@ -230,8 +230,10 @@ export default function ProviderLimits() {
           params.set("search", debouncedSearch);
         }
 
+        params.set("_t", String(Date.now()));
         const response = await fetch(
           `/api/providers/client?${params.toString()}`,
+          { cache: "no-store" },
         );
         if (!response.ok) throw new Error("Failed to fetch connections");
 
@@ -783,13 +785,15 @@ export default function ProviderLimits() {
   const sortedConnections = useMemo(
     () =>
       sortVisibleConnections(
-        connections,
+        accountFilter === "disabled"
+          ? connections
+          : connections.filter((c) => c.isActive !== false),
         quotaData,
         expiringFirst,
         providerFilter,
         quotaSortMode,
       ),
-    [connections, quotaData, expiringFirst, providerFilter, quotaSortMode],
+    [connections, quotaData, expiringFirst, providerFilter, quotaSortMode, accountFilter],
   );
 
   // Connection is depleted when any quota entry hit the threshold
@@ -1328,9 +1332,20 @@ export default function ProviderLimits() {
                           variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn))}
                           size="sm"
                           dot
+                          title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString()}` : ""}` : undefined}
                         >
-                          {conn.isActive === false ? "disabled" : getEffectiveConnectionStatus(conn)}
+                          {conn.isActive === false
+                            ? (conn.previousStatus && conn.previousStatus !== "disabled" ? `disabled (was: ${conn.previousStatus})` : "disabled")
+                            : getEffectiveConnectionStatus(conn)}
                         </Badge>
+                        {conn.isActive === false && (conn.disabledReason || conn.lastError) && (
+                          <span
+                            className="max-w-full truncate text-xs text-amber-600 dark:text-amber-400 sm:max-w-[260px]"
+                            title={`Reason: ${conn.disabledReason || conn.lastError}${conn.disabledAt ? ` (${new Date(conn.disabledAt).toLocaleString()})` : ""}`}
+                          >
+                            {conn.disabledReason || conn.lastError}
+                          </span>
+                        )}
                         {conn.providerSpecificData?.validationUrl && (
                           <div className="inline-flex flex-wrap items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
                             <span className="font-semibold">⚠️ Verify:</span>
