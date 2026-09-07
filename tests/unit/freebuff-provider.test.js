@@ -8,6 +8,7 @@ vi.mock("../../open-sse/utils/proxyFetch.js", () => ({
 }));
 
 import { FreebuffExecutor, __test__ } from "../../open-sse/executors/freebuff.js";
+import { checkFallbackError } from "../../open-sse/services/accountFallback.js";
 
 const {
   ensureSession,
@@ -779,5 +780,21 @@ describe("freebuff executor parseError", () => {
     expect(parsed.status).toBe(500);
     expect(parsed.message).toContain("bad");
     expect(parsed.resetsAtMs).toBeUndefined();
+  });
+
+  it("classifies fetch connect timeout as 15s transient cooldown without disabling account", () => {
+    const result = checkFallbackError(502, "fetch connect timeout", 0);
+    expect(result.shouldFallback).toBe(true);
+    expect(result.cooldownMs).toBe(15000);
+    expect(result.lockAll).toBe(false);
+    expect(result.disableAccount).toBe(false);
+  });
+
+  it("classifies connect timeout substring as 15s transient cooldown", () => {
+    const result = checkFallbackError(502, "[freebuff/z-ai/glm-5.3-flash] [502]: connect timeout", 0);
+    expect(result.shouldFallback).toBe(true);
+    expect(result.cooldownMs).toBe(15000);
+    expect(result.lockAll).toBe(false);
+    expect(result.disableAccount).toBe(false);
   });
 });

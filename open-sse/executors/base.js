@@ -159,7 +159,11 @@ export class BaseExecutor {
       } catch (error) {
         clearTimeout(connectTimer);
         lastError = error;
-        const isConnectTimeout = connectCtrl.signal.aborted && error.name === "AbortError";
+        const isConnectTimeout = connectCtrl.signal.aborted && (error.name === "AbortError" || !signal?.aborted);
+        if (isConnectTimeout && !error.message?.toLowerCase().includes("timeout")) {
+          error = new Error("fetch connect timeout");
+          error.status = HTTP_STATUS.BAD_GATEWAY;
+        }
         dbg("FETCH", `${this.provider.toUpperCase()} ✖ ${error.name}: ${error.message}${isConnectTimeout ? " (connect timeout)" : ""}`);
         // Connect timeout is internal — convert to retryable network error, don't propagate AbortError
         if (error.name === "AbortError" && !isConnectTimeout) throw error;

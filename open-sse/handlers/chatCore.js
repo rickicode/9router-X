@@ -402,6 +402,9 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     return (
       msg.includes("[proxyfetch]") ||
       msg.includes("proxy required but failed") ||
+      msg.includes("fetch connect timeout") ||
+      msg.includes("connect timeout") ||
+      msg.includes("connection timeout") ||
       msg.includes("econnrefused") ||
       msg.includes("etimedout") ||
       msg.includes("econnreset") ||

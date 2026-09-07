@@ -92,6 +92,11 @@ export const ERROR_RULES = [
   { text: "anonymous_network",              cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
   { text: "rotating proxy",                 cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
 
+  // Connect timeout errors: transient 15s cooldown, never lock account or disable
+  { text: "fetch connect timeout",           cooldownMs: 15 * 1000, lockAll: false, disableAccount: false },
+  { text: "connect timeout",                 cooldownMs: 15 * 1000, lockAll: false, disableAccount: false },
+  { text: "connection timeout",              cooldownMs: 15 * 1000, lockAll: false, disableAccount: false },
+
   { text: "invalid authentication credential",   cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "invalid_grant",                       cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "invalid_api_key",                     cooldownMs: 0, lockAll: true, disableAccount: true },

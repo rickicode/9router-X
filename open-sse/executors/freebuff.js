@@ -644,10 +644,13 @@ export class FreebuffExecutor extends BaseExecutor {
           response = await proxyAwareFetch(url, { method: "POST", headers, body: bodyStr, signal: mergedSignal }, proxyOptions);
         } catch (error) {
           // A caller/stream abort (AbortError) is genuine — never retry it. A
-          // transient socket/TLS reset (same class as the run-registration
-          // failure in the field) gets a couple of quick retries so a network
-          // blip doesn't fail the request and lock the model for 30s.
-          const aborted = error?.name === "AbortError";
+          // connect timeout is internal: convert to 502 retryable error.
+          const isConnectTimeout = connectCtrl.signal.aborted && !signal?.aborted;
+          if (isConnectTimeout) {
+            error = new Error("fetch connect timeout");
+            error.status = 502;
+          }
+          const aborted = error?.name === "AbortError" && !isConnectTimeout;
           if (aborted || networkAttempts >= MAX_NETWORK_ATTEMPTS) throw error;
           networkAttempts += 1;
           log?.debug?.("RETRY", `network error on ${url} (${error.message}), retry ${networkAttempts}/${MAX_NETWORK_ATTEMPTS}`);
