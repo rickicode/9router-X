@@ -73,10 +73,8 @@ def get_active_providers_from_prod():
     """Query production DB to get providers with active, healthy accounts."""
     try:
         cmd = [
-            "sshpass", "-p", "kasep", "ssh", "-o", "StrictHostKeyChecking=no",
-            "root@192.168.90.101",
-            'docker exec 9router-postgres psql -U 9router -d 9router -t -A -c '
-            '"SELECT provider FROM provider_connections WHERE is_active = true AND test_status = \'active\' GROUP BY provider;"'
+            "docker", "exec", "9router-postgres", "psql", "-U", "9router", "-d", "9router", "-t", "-A", "-c",
+            "SELECT provider FROM provider_connections WHERE is_active = true AND test_status = 'active' GROUP BY provider;"
         ]
         out = subprocess.check_output(cmd, timeout=15).decode().split()
         active = set(out) | FREE_PROVIDERS
