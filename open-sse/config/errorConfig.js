@@ -120,6 +120,11 @@ export const ERROR_RULES = [
   { text: "no credentials",            cooldownMs: COOLDOWN.long },
   { text: "request not allowed",       cooldownMs: COOLDOWN.short },
   { text: "improperly formed request",  cooldownMs: COOLDOWN.long },
+  // Freebuff limited tier rate limit on proxy IP: transient cooldown (30s), do NOT lock account
+  { text: '"accesstier":"limited"', cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: 'accesstier: "limited"', cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: '"pool":"freebucks"', cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: "limited tier rate limited on this proxy", cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
   { text: "rate limit",                backoff: true },
   { text: "too many requests",         backoff: true },
   { text: "quota exceeded",            backoff: true },

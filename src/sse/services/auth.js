@@ -513,6 +513,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     return { shouldFallback: true, cooldownMs: 0 };
   }
 
+  // Freebuff limited IP tier (rate limited on proxy IP, e.g. Freebucks 25/25 limit)
+  // is NOT an account fault — set 30s Redis cooldown only, do NOT lock model in DB.
+  const freebuffLimitedIp = providerIdEarly === "freebuff"
+    && (freebuffKind === "limited_ip"
+      || /accesstier["']?\s*:\s*["']?limited|pool["']?\s*:\s*["']?freebucks|limited-tier|limited_ip/i.test(String(errorText || "")));
+  if (freebuffLimitedIp) {
+    if (model) {
+      redisSetModelCooldown(connectionId, model, 30).catch(() => {});
+    }
+    const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
+    log.warn("AUTH", `${connName} Freebuff limited IP tier (proxy-bound) — setting 30s in-memory/Redis cooldown for ${model || "all"} (no DB model lock)`);
+    return { shouldFallback: true, cooldownMs: 30000 };
+  }
+
   // A Freebuff account the backend reports as banned is permanently dead:
   // take it out of routing entirely (is_active=false, status disabled) rather
   // than a timed cooldown that would re-select it after the window lapses.

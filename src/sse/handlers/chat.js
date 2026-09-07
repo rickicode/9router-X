@@ -364,8 +364,14 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       );
       if (quotaResetMs) resetsAtMs = quotaResetMs;
     }
-    // Freebuff 403/429: refresh live quota to get exact resetAt before locking
-    if (provider === "freebuff" && (result.status === 403 || result.status === 429) && !resetsAtMs) {
+    // Freebuff 403/429: refresh live quota to get exact resetAt before locking (unless limited tier on proxy IP)
+    const isFreebuffLimitedIp = provider === "freebuff" && (
+      result.extra?.freebuffKind === "limited_ip" ||
+      /accesstier["']?\s*:\s*["']?limited|pool["']?\s*:\s*["']?freebucks|limited-tier|limited_ip/i.test(String(result.error || ""))
+    );
+    if (isFreebuffLimitedIp) {
+      resetsAtMs = null;
+    } else if (provider === "freebuff" && (result.status === 403 || result.status === 429) && !resetsAtMs) {
       const fbResetMs = await handleFreebuffQuotaError(
         credentials.connectionId, model,
         refreshedCredentials.accessToken, credentials.providerSpecificData,
@@ -413,7 +419,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     // A banned Freebuff account is permanently disabled (is_active=false, test_status="disabled")
     // and gateway falls back to the next healthy account
-    if (!isFreebuffProxyRefusal && (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || ""))))) {
+    if (!isFreebuffProxyRefusal && !isFreebuffLimitedIp && (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || ""))))) {
       const connName = credentials.connectionName || credentials.name || credentials.email || credentials.connectionId?.slice(0, 8) || "account";
       const rawError = String(result.error || '{"status":"banned"}');
       const banReason = rawError.includes(connName)

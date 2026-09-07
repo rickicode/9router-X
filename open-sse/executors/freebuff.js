@@ -186,9 +186,26 @@ function proxyKeyOf(proxyOptions) {
 }
 
 function sessionGateFromText(text) {
+  const raw = String(text || "");
   let parsed = {};
-  try { parsed = JSON.parse(String(text || "")); } catch { parsed = {}; }
-  return classifySessionGate(parsed.error || parsed.error_type || parsed.status || "", parsed.message || "", parsed.currentModel || null);
+  try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+  if (
+    parsed.accessTier === "limited" ||
+    parsed.accesstier === "limited" ||
+    parsed.pool === "freebucks" ||
+    parsed.error === "limited_ip" ||
+    parsed.status === "limited_ip" ||
+    parsed.error === "freebucks" ||
+    /accesstier["']?\s*:\s*["']limited|["']pool["']?\s*:\s*["']freebucks/i.test(raw)
+  ) {
+    return { kind: "limited_ip" };
+  }
+  return classifySessionGate(
+    parsed.error || parsed.error_type || parsed.status || "",
+    parsed.message || "",
+    parsed.currentModel || null,
+    parsed,
+  );
 }
 
 // Parse a 409/428/410 body into { kind, currentModel }. `msg` may be a whole
@@ -200,42 +217,99 @@ function sessionGateFromError(error) {
     if (error.code === "model_locked") return { kind: "model_locked", currentModel: error.currentModel };
     if (error.code === "banned") return { kind: "banned" };
     if (error.code === "country_blocked") return { kind: "country_blocked" };
-    // IP-tier refusals are the egress IP's fault, not the account's — mark the
-    // pool unfit and rotate to another relay (ip_capped = too many active
-    // sessions on this IP; free_mode_unavailable = anonymous_network on proxy egress).
-    if (error.code === "limited_ip" || error.code === "ip_capped" || error.code === "free_mode_unavailable") return { kind: "free_mode_unavailable" };
+    if (error.code === "limited_ip" || error.code === "ip_capped" || error.code === "freebucks") {
+      return { kind: "limited_ip" };
+    }
+    if (error.code === "free_mode_unavailable") return { kind: "free_mode_unavailable" };
     if (error.code === "rate_limited" || error.code === "spend_limited") {
+      const msg = String(error?.message || "");
+      if (
+        error.accessTier === "limited" ||
+        error.pool === "freebucks" ||
+        /accesstier["']?\s*:\s*["']limited|["']pool["']?\s*:\s*["']freebucks|limited_ip/i.test(msg)
+      ) {
+        return { kind: "limited_ip" };
+      }
       return { kind: "quota", resetsAtMs: error.resetsAtMs };
     }
   }
+  if (error?.freebuffKind === "limited_ip") return { kind: "limited_ip" };
+  if (error?.freebuffKind === "free_mode_unavailable") return { kind: "free_mode_unavailable" };
+
   const msg = String(error?.message || "");
   const start = msg.indexOf("{");
-  if (start < 0) return null;
-  try {
-    const parsed = JSON.parse(msg.slice(start));
-    return classifySessionGate(parsed.error || parsed.status || "", parsed.message || "", parsed.currentModel || null);
-  } catch {
-    return null;
+  if (start >= 0) {
+    try {
+      const parsed = JSON.parse(msg.slice(start));
+      if (
+        parsed.accessTier === "limited" ||
+        parsed.accesstier === "limited" ||
+        parsed.pool === "freebucks" ||
+        parsed.error === "limited_ip" ||
+        parsed.status === "limited_ip" ||
+        parsed.error === "freebucks" ||
+        /accesstier["']?\s*:\s*["']limited|["']pool["']?\s*:\s*["']freebucks/i.test(msg)
+      ) {
+        return { kind: "limited_ip" };
+      }
+      return classifySessionGate(
+        parsed.error || parsed.error_type || parsed.status || "",
+        parsed.message || "",
+        parsed.currentModel || null,
+        parsed,
+      );
+    } catch {
+      // fall through
+    }
   }
+  if (/accesstier["']?\s*:\s*["']limited|["']pool["']?\s*:\s*["']freebucks|limited_ip/i.test(msg)) {
+    return { kind: "limited_ip" };
+  }
+  return null;
 }
 
-function classifySessionGate(code, message, currentModel) {
-  if (code === "banned") return { kind: "banned" };
-  if (code === "country_blocked") return { kind: "country_blocked" };
-  if (code === "session_superseded") return { kind: "superseded" };
-  if (code === "model_locked") return { kind: "model_locked", currentModel };
-  // IP-tier refusals (limited-tier mismatch or per-IP cap) are the egress's
+function classifySessionGate(code, message, currentModel, meta = null) {
+  if (typeof code === "object" && code !== null) {
+    meta = code;
+    code = meta.error || meta.error_type || meta.status || "";
+    message = meta.message || "";
+    currentModel = meta.currentModel || null;
+  }
+  const codeStr = String(code || "").toLowerCase();
+  const accessTier = String(meta?.accessTier || meta?.accesstier || "").toLowerCase();
+  const pool = String(meta?.pool || "").toLowerCase();
+  const metaStr = meta ? JSON.stringify(meta) : "";
+  const msgStr = String(message || "");
+
+  if (codeStr === "banned") return { kind: "banned" };
+  if (codeStr === "country_blocked") return { kind: "country_blocked" };
+  if (codeStr === "session_superseded") return { kind: "superseded" };
+  if (codeStr === "model_locked") return { kind: "model_locked", currentModel };
+
+  // Check limited tier / IP cap before quota
+  if (
+    codeStr === "limited_ip" ||
+    codeStr === "ip_capped" ||
+    codeStr === "freebucks" ||
+    accessTier === "limited" ||
+    pool === "freebucks" ||
+    /limited/i.test(msgStr) ||
+    /freebucks/i.test(msgStr) ||
+    /accesstier["']?\s*:\s*["']limited|["']pool["']?\s*:\s*["']freebucks/i.test(metaStr)
+  ) {
+    return { kind: "limited_ip" };
+  }
+
   // IP-tier refusals (limited-tier mismatch, anonymous_network proxy, or per-IP cap)
   // are the egress's fault — pool fitness must see them so the bad relay/IP stops being reused.
-  if (code === "free_mode_unavailable" || /anonymous_network|proxy traffic/i.test(String(message || ""))) {
+  if (codeStr === "free_mode_unavailable" || /anonymous_network|proxy traffic/i.test(msgStr)) {
     return { kind: "free_mode_unavailable" };
   }
-  if (code === "limited_ip" || code === "ip_capped") return { kind: "limited_ip" };
-  if (code === "rate_limited" || code === "spend_limited") return { kind: "quota" };
+  if (codeStr === "rate_limited" || codeStr === "spend_limited") return { kind: "quota" };
   // session_model_mismatch with the limited-tier message is an IP-tier refusal;
   // without it (or unknown) treat it as a model lock so we don't reclaim in a loop.
-  if (code === "session_model_mismatch") {
-    return /limited/i.test(String(message || ""))
+  if (codeStr === "session_model_mismatch") {
+    return /limited/i.test(msgStr)
       ? { kind: "limited_ip" }
       : { kind: "model_locked", currentModel };
   }
@@ -310,9 +384,12 @@ function throwSessionGateError(gate, { token, model, proxyKey, poolId, log }) {
     // Pool-scoped, not account-scoped: the caller retries via another pool
     // instead of locking the account (resetsAtMs intentionally absent).
     const err = new Error(
-      `Freebuff limited-mode IP rejected ${model} — this IP only allows DeepSeek V4 Flash / MiMo 2.5. Use a full-access proxy or a different model.`,
+      `Freebuff limited-mode IP rejected ${model} — rotating proxy.`,
     );
-    err.status = 409;
+    err.status = 429;
+    err.code = "limited_ip";
+    err.freebuffKind = "limited_ip";
+    err.cooldownMs = 30000;
     err.poolScoped = { poolId, scope, reason: "limited_ip" };
     log?.warn?.("AUTH", `Freebuff limited-IP refused ${model} (proxy=${proxyKey.slice(0, 40)}…) — cooldown ${POOL_LIMITED_COOLDOWN_MS / 60000}min`);
     throw err;
@@ -442,6 +519,31 @@ async function requestSession(token, model, proxyOptions) {
       };
       throw err;
     }
+
+    if (
+      statusText === "rate_limited" ||
+      errorName === "rate_limited" ||
+      response.status === 429
+    ) {
+      if (
+        data?.accessTier === "limited" ||
+        data?.pool === "freebucks" ||
+        bodyText.includes('"accessTier":"limited"') ||
+        bodyText.includes('"pool":"freebucks"')
+      ) {
+        const err = new Error(`Freebuff limited tier rate limited on this proxy (limited accessTier/freebucks) — rotating proxy. ${bodyText.slice(0, 160)}`);
+        err.status = 429;
+        err.code = "limited_ip";
+        err.freebuffKind = "limited_ip";
+        err.poolScoped = {
+          poolId: proxyOptions?.proxyPoolId || null,
+          scope: `freebuff::${model}`,
+          reason: "limited_ip",
+        };
+        err.cooldownMs = 30000;
+        throw err;
+      }
+    }
     const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
     err.status = response.status;
     throw err;
@@ -473,6 +575,27 @@ async function requestSession(token, model, proxyOptions) {
     model_unavailable: "This model is not available on Freebuff right now.",
     premium_slot_taken: "Freebuff premium slot is taken — try another model.",
   };
+  if (status === "rate_limited") {
+    const bodyText = JSON.stringify(data || {});
+    if (
+      data?.accessTier === "limited" ||
+      data?.pool === "freebucks" ||
+      bodyText.includes('"accessTier":"limited"') ||
+      bodyText.includes('"pool":"freebucks"')
+    ) {
+      const err = new Error(`Freebuff limited tier rate limited on this proxy (limited accessTier/freebucks) — rotating proxy. ${bodyText.slice(0, 160)}`);
+      err.status = 429;
+      err.code = "limited_ip";
+      err.freebuffKind = "limited_ip";
+      err.poolScoped = {
+        poolId: proxyOptions?.proxyPoolId || null,
+        scope: `freebuff::${model}`,
+        reason: "limited_ip",
+      };
+      err.cooldownMs = 30000;
+      throw err;
+    }
+  }
   if (GATE_MESSAGES[status]) {
     const message = data?.message ? `${GATE_MESSAGES[status]} ${data.message}` : GATE_MESSAGES[status];
     const err = new Error(message);
@@ -1019,6 +1142,8 @@ export const __test__ = {
   isConnectTimeoutAbort,
   sessionGateFromText,
   sessionGateFromError,
+  classifySessionGate,
+  throwSessionGateError,
   OFFER_GATED_MODELS,
   FREEBUFF_SYSTEM_MARKER,
   SESSION_STALE_CODES,
