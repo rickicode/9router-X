@@ -215,9 +215,13 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     // Legacy single-proxy mode (backwards compatibility)
     setUpdatingProxy(true);
     try {
+      setSelectedGroup("");
+      setSelectedProxyIds(poolId === "__none__" ? [] : [poolId]);
+      setRotationStrategy("none");
       await onUpdateProxy({
         proxyPoolIds: poolId === "__none__" ? [] : [poolId],
         proxyRotationStrategy: "none",
+        proxyGroup: null,
       });
     } finally {
       setUpdatingProxy(false);
