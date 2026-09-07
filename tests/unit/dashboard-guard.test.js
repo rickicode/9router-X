@@ -285,6 +285,72 @@ describe("dashboard guard local-only access", () => {
 
     expect(response).toBe(mocks.nextResponse);
   });
+
+  it("allows local-only route from private LAN / Docker when authenticated via JWT", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+
+    const response = await proxy({
+      ...request("/api/tunnel/tailscale-check", {
+        "x-9r-peer-token": PEER_TOKEN,
+        "x-9r-real-ip": "192.168.90.101",
+        host: "192.168.90.101:10128",
+        origin: "http://192.168.90.101:10128",
+      }),
+      cookies: { get: vi.fn(() => ({ value: "valid-jwt" })) },
+    });
+
+    expect(response).toBe(mocks.nextResponse);
+  });
+
+  it("allows local-only route from Docker bridge network (172.20.0.1) when authenticated", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+
+    const response = await proxy({
+      ...request("/api/tunnel/enable", {
+        "x-9r-peer-token": PEER_TOKEN,
+        "x-9r-real-ip": "172.20.0.1",
+        host: "192.168.90.101:10128",
+        origin: "http://192.168.90.101:10128",
+      }),
+      cookies: { get: vi.fn(() => ({ value: "valid-jwt" })) },
+    });
+
+    expect(response).toBe(mocks.nextResponse);
+  });
+
+  it("rejects local-only route from private LAN if not authenticated", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+
+    const response = await proxy({
+      ...request("/api/tunnel/enable", {
+        "x-9r-peer-token": PEER_TOKEN,
+        "x-9r-real-ip": "192.168.90.101",
+        host: "192.168.90.101:10128",
+        origin: "http://192.168.90.101:10128",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("Local only: CLI token required");
+  });
+
+  it("rejects local-only route from public tunnel even if authenticated", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+
+    const response = await proxy({
+      ...request("/api/tunnel/enable", {
+        "x-9r-peer-token": PEER_TOKEN,
+        "x-9r-real-ip": "127.0.0.1",
+        "x-9r-via-proxy": "1",
+        host: "my-tunnel.trycloudflare.com",
+        origin: "https://my-tunnel.trycloudflare.com",
+      }),
+      cookies: { get: vi.fn(() => ({ value: "valid-jwt" })) },
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("Local only: CLI token required");
+  });
 });
 
 describe("dashboard guard helpers", () => {

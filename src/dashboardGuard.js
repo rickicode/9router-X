@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSettings, validateApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
-import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer";
+import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer.js";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
 const CLI_TOKEN_SALT = "9r-cli-auth";
@@ -107,6 +107,34 @@ function isLoopbackHostname(h) {
   return LOOPBACK_HOSTS.has(name);
 }
 
+export function isPrivateNetworkHostname(h) {
+  if (!h) return false;
+  let name = String(h).trim().toLowerCase();
+  if (name.startsWith("[")) {
+    const end = name.indexOf("]");
+    if (end === -1) return false;
+    name = name.slice(1, end);
+  } else if (name.indexOf(":") !== -1 && name.indexOf(":") === name.lastIndexOf(":")) {
+    name = name.slice(0, name.indexOf(":"));
+  }
+  if (name.startsWith("::ffff:")) name = name.slice(7);
+  if (LOOPBACK_HOSTS.has(name)) return true;
+  if (name.endsWith(".local") || name.endsWith(".lan") || name.endsWith(".internal")) return true;
+
+  const parts = name.split(".");
+  if (parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p))) {
+    const [a, b, c, d] = parts.map(Number);
+    if (a > 255 || b > 255 || c > 255 || d > 255) return false;
+    if (a === 127) return true; // 127.0.0.0/8 loopback
+    if (a === 10) return true; // 10.0.0.0/8 private network
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private / Docker bridge
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16 LAN
+    if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 Tailscale CGNAT
+    if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local
+  }
+  return false;
+}
+
 function isLoopbackPeer(request) {
   if (hasTrustedPeerHeaders(request)) {
     return isLoopbackHostname(request.headers.get("x-9r-real-ip"));
@@ -158,11 +186,33 @@ async function canAccessPublicLlmApi(request) {
   if (await hasValidCliToken(request)) return true;
   return await hasValidApiKey(request);
 }
+function isLocalOrPrivatePeer(request) {
+  if (hasTrustedPeerHeaders(request)) {
+    return isPrivateNetworkHostname(request.headers.get("x-9r-real-ip"));
+  }
+  if (process.env.NODE_ENV === "development") {
+    return isPrivateNetworkHostname(request.headers.get("host"));
+  }
+  return false;
+}
+
+export function isDirectPrivateRequest(request) {
+  if (request.headers.get("x-9r-via-proxy")) return false;
+  if (!isLocalOrPrivatePeer(request)) return false;
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      if (!isPrivateNetworkHostname(new URL(origin).hostname)) return false;
+    } catch { return false; }
+  }
+  return true;
+}
 
 async function canAccessLocalOnlyRoute(request) {
   if (await hasValidCliToken(request)) return true;
-  // Browser on host: loopback Host + Origin (blocks tunnel/CSRF) + auth (JWT or requireLogin=false)
-  if (isLocalRequest(request) && await isAuthenticated(request)) return true;
+  // Browser on host or private LAN / Docker:
+  // Origin + peer must be private/loopback, not proxied through public tunnel, and authenticated
+  if (isDirectPrivateRequest(request) && await isAuthenticated(request)) return true;
   return false;
 }
 
