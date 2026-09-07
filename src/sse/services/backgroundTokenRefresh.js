@@ -103,6 +103,10 @@ async function refreshOne(connection) {
       await updateProviderConnection(connection.id, {
         isActive: false,
         testStatus: "disabled",
+        previousStatus: connection.testStatus || "active",
+        disabledReason: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
+        disabledAt: result.refreshErrorAt || new Date().toISOString(),
+        disabledBy: "system",
         lastError: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
         errorCode: 401,
         lastErrorAt: new Date().toISOString(),

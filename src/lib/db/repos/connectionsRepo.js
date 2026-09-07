@@ -299,7 +299,7 @@ function deriveConnectionName(data, fallbackName) {
 }
 
 const FATAL_CONNECTION_ERROR_SQL = "(last_error IS NOT NULL AND last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
-const CONNECTION_UNAVAILABLE_DATA_SQL = "(COALESCE(data->'providerSpecificData'->>'refreshBlocked', 'false') = 'true')";
+const CONNECTION_UNAVAILABLE_DATA_SQL = "(data->'providerSpecificData'->>'refreshBlocked' IS NOT NULL AND data->'providerSpecificData'->>'refreshBlocked' <> 'false' AND data->'providerSpecificData'->>'refreshBlocked' <> '')";
 const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
 const FUTURE_ACCOUNT_LOCK_SQL = `(
   (locked_all_until IS NOT NULL AND locked_all_until > NOW())
@@ -851,12 +851,39 @@ export async function updateProviderConnection(id, data = {}) {
 export async function setProviderConnectionsActive(provider, authTypes, isActive) {
   const db = await getAdapter();
   const types = Array.isArray(authTypes) ? authTypes : [authTypes];
-  const result = await db.run(
-    `UPDATE provider_connections
-        SET is_active = $1, updated_at = NOW()
-      WHERE provider = $2 AND auth_type = ANY($3::text[])`,
-    [Boolean(isActive), provider, types],
-  );
+  const now = new Date().toISOString();
+  let result;
+
+  if (!isActive) {
+    result = await db.run(
+      `UPDATE provider_connections
+          SET is_active = false,
+              data = jsonb_set(
+                jsonb_set(
+                  jsonb_set(
+                    jsonb_set(COALESCE(data, '{}'::jsonb), '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
+                    '{disabledReason}', '"Manually disabled by user"'::jsonb, true
+                  ),
+                  '{disabledAt}', to_jsonb($3::text), true
+                ),
+                '{disabledBy}', '"user"'::jsonb, true
+              ),
+              updated_at = NOW()
+        WHERE provider = $1 AND auth_type = ANY($2::text[])`,
+      [provider, types, now],
+    );
+  } else {
+    result = await db.run(
+      `UPDATE provider_connections
+          SET is_active = true,
+              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE(data->>'previousStatus', 'active') ELSE test_status END,
+              data = (COALESCE(data, '{}'::jsonb) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
+              updated_at = NOW()
+        WHERE provider = $1 AND auth_type = ANY($2::text[])`,
+      [provider, types],
+    );
+  }
+
   invalidateCachedConnections(provider).catch(() => {});
   return Number(result?.changes ?? 0);
 }
@@ -864,13 +891,41 @@ export async function setProviderConnectionsActive(provider, authTypes, isActive
 export async function setConnectionsActiveByIds(ids, isActive) {
   if (!Array.isArray(ids) || ids.length === 0) return 0;
   const db = await getAdapter();
-  const rows = await db.all(
-    `UPDATE provider_connections
-        SET is_active = $1, updated_at = NOW()
-      WHERE id = ANY($2::text[])
-      RETURNING DISTINCT provider`,
-    [Boolean(isActive), ids],
-  );
+  const now = new Date().toISOString();
+  let rows;
+
+  if (!isActive) {
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET is_active = false,
+              data = jsonb_set(
+                jsonb_set(
+                  jsonb_set(
+                    jsonb_set(COALESCE(data, '{}'::jsonb), '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
+                    '{disabledReason}', '"Manually disabled by user"'::jsonb, true
+                  ),
+                  '{disabledAt}', to_jsonb($2::text), true
+                ),
+                '{disabledBy}', '"user"'::jsonb, true
+              ),
+              updated_at = NOW()
+        WHERE id = ANY($1::text[])
+        RETURNING DISTINCT provider`,
+      [ids, now],
+    );
+  } else {
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET is_active = true,
+              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE(data->>'previousStatus', 'active') ELSE test_status END,
+              data = (COALESCE(data, '{}'::jsonb) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
+              updated_at = NOW()
+        WHERE id = ANY($1::text[])
+        RETURNING DISTINCT provider`,
+      [ids],
+    );
+  }
+
   for (const row of rows) {
     if (row?.provider) {
       invalidateCachedConnections(row.provider).catch(() => {});

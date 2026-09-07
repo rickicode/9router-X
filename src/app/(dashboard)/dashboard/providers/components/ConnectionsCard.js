@@ -146,13 +146,28 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{displayName}</p>
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <Badge variant={getStatusVariant()} size="sm" dot>
-              {connection.isActive === false ? "disabled" : (effectiveStatus || "Unknown")}
+            <Badge
+              variant={getStatusVariant()}
+              size="sm"
+              dot
+              title={connection.isActive === false && connection.previousStatus && connection.previousStatus !== "disabled" ? `Status before disabled: ${connection.previousStatus}${connection.disabledAt ? ` at ${new Date(connection.disabledAt).toLocaleString()}` : ""}` : undefined}
+            >
+              {connection.isActive === false
+                ? (connection.previousStatus && connection.previousStatus !== "disabled" ? `disabled (was: ${connection.previousStatus})` : "disabled")
+                : (effectiveStatus || "Unknown")}
             </Badge>
             {hasAnyProxy && <Badge variant={proxyBadgeVariant} size="sm">Proxy</Badge>}
             {isCooldown && connection.isActive !== false && <CooldownTimer until={modelLockUntil} />}
             {connection.lastError && connection.isActive !== false && (
               <span className="text-xs text-red-500 truncate max-w-[300px]" title={connection.lastError}>{connection.lastError}</span>
+            )}
+            {connection.isActive === false && (connection.disabledReason || connection.lastError) && (
+              <span
+                className="text-xs text-amber-600 dark:text-amber-400 truncate max-w-[320px]"
+                title={`Reason: ${connection.disabledReason || connection.lastError}${connection.disabledAt ? ` (${new Date(connection.disabledAt).toLocaleString()})` : ""}`}
+              >
+                Reason: {connection.disabledReason || connection.lastError}
+              </span>
             )}
             <span className="text-xs text-text-muted">#{connection.priority}</span>
           </div>

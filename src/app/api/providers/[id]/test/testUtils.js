@@ -890,6 +890,10 @@ export async function testSingleConnection(id) {
     const banData = {
       isActive: false,
       testStatus: "disabled",
+      previousStatus: connection.testStatus || "active",
+      disabledReason: `Freebuff account "${connName}" banned (test probe)`,
+      disabledAt: new Date().toISOString(),
+      disabledBy: "system",
       lastError: `Freebuff account "${connName}" banned (test probe)`,
       errorCode: 403,
       lastErrorAt: new Date().toISOString(),

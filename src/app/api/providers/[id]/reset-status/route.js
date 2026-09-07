@@ -24,6 +24,10 @@ export async function POST(request, { params }) {
       lockedToModel: null,
       lockedToModelUntil: null,
       modelLocks: {},
+      disabledReason: null,
+      previousStatus: null,
+      disabledAt: null,
+      disabledBy: null,
     };
 
     for (const key of Object.keys(connection)) {
@@ -41,6 +45,11 @@ export async function POST(request, { params }) {
           delete psdUpdates[k];
           changed = true;
         }
+      }
+      if (psdUpdates.refreshBlocked !== undefined || psdUpdates.refreshBlockedAt !== undefined) {
+        delete psdUpdates.refreshBlocked;
+        delete psdUpdates.refreshBlockedAt;
+        changed = true;
       }
       if (changed) updates.providerSpecificData = psdUpdates;
     }

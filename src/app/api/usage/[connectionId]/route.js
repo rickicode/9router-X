@@ -198,6 +198,10 @@ export async function GET(request, { params }) {
         await updateProviderConnection(connection.id, {
           isActive: false,
           testStatus: "disabled",
+          previousStatus: connection.testStatus || "active",
+          disabledReason: disableReason,
+          disabledAt: new Date().toISOString(),
+          disabledBy: "system",
           lastError: disableReason,
           errorCode: 401,
           lastErrorAt: new Date().toISOString(),

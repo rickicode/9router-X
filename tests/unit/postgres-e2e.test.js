@@ -366,8 +366,8 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       expect(dataAll.statusCounts.unavailable).toBeGreaterThanOrEqual(1);
       expect(dataAll.statusCounts.disabled).toBeGreaterThanOrEqual(1);
 
-      // Verify accountStatus=exhausted filtering
-      const reqExhausted = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=exhausted");
+      // Verify accountStatus=exhausted filtering (pageSize=500: fixture must not be cut off by existing accounts)
+      const reqExhausted = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=exhausted&pageSize=500");
       const resExhausted = await clientGet(reqExhausted);
       const dataExhausted = await resExhausted.json();
       const exhaustedIds = dataExhausted.connections.map((c) => c.id);
@@ -376,8 +376,8 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       expect(exhaustedIds).not.toContain(testIds[2]);
       expect(exhaustedIds).not.toContain(testIds[3]);
 
-      // Verify accountStatus=unavailable filtering
-      const reqUnavailable = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=unavailable");
+      // Verify accountStatus=unavailable filtering (pageSize=500: fixture must not be cut off by existing accounts)
+      const reqUnavailable = new Request("http://localhost/api/providers/client?provider=antigravity&accountStatus=unavailable&pageSize=500");
       const resUnavailable = await clientGet(reqUnavailable);
       const dataUnavailable = await resUnavailable.json();
       const unavailableIds = dataUnavailable.connections.map((c) => c.id);

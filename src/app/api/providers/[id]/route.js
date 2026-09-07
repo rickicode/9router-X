@@ -155,7 +155,22 @@ export async function PUT(request, { params }) {
     if (priority !== undefined) updateData.priority = priority;
     if (globalPriority !== undefined) updateData.globalPriority = globalPriority;
     if (defaultModel !== undefined) updateData.defaultModel = defaultModel;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+      if (isActive === false && existing.isActive !== false) {
+        updateData.previousStatus = existing.testStatus || "active";
+        updateData.disabledReason = body.disabledReason || "Manually disabled by user";
+        updateData.disabledAt = new Date().toISOString();
+        updateData.disabledBy = "user";
+      } else if (isActive === true && existing.isActive === false) {
+        updateData.disabledReason = null;
+        updateData.disabledAt = null;
+        updateData.disabledBy = null;
+        if (existing.testStatus === "disabled") {
+          updateData.testStatus = existing.previousStatus || "active";
+        }
+      }
+    }
     if (apiKey && existing.authType === "apikey") updateData.apiKey = apiKey;
     if (testStatus !== undefined) updateData.testStatus = testStatus;
     if (lastError !== undefined) updateData.lastError = lastError;

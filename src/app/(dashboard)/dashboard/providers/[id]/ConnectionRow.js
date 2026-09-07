@@ -373,8 +373,15 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
             <p className="text-xs text-text-muted truncate">{secondaryDisplayName}</p>
           )}
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-            <Badge variant={getStatusVariant()} size="sm" dot>
-              {connection.isActive === false ? "disabled" : (effectiveStatus || "Unknown")}
+            <Badge
+              variant={getStatusVariant()}
+              size="sm"
+              dot
+              title={connection.isActive === false && connection.previousStatus && connection.previousStatus !== "disabled" ? `Status before disabled: ${connection.previousStatus}${connection.disabledAt ? ` at ${new Date(connection.disabledAt).toLocaleString()}` : ""}` : undefined}
+            >
+              {connection.isActive === false
+                ? (connection.previousStatus && connection.previousStatus !== "disabled" ? `disabled (was: ${connection.previousStatus})` : "disabled")
+                : (effectiveStatus || "Unknown")}
             </Badge>
             <Badge variant="default" size="sm">
               {authLabel}
@@ -425,6 +432,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
             {connection.lastError && connection.isActive !== false && (
               <span className="max-w-full truncate text-xs text-red-500 sm:max-w-[300px]" title={connection.lastError}>
                 {connection.lastError}
+              </span>
+            )}
+            {connection.isActive === false && (connection.disabledReason || connection.lastError) && (
+              <span
+                className="max-w-full truncate text-xs text-amber-600 dark:text-amber-400 sm:max-w-[340px]"
+                title={`Reason: ${connection.disabledReason || connection.lastError}${connection.disabledAt ? ` (${new Date(connection.disabledAt).toLocaleString()})` : ""}`}
+              >
+                Reason: {connection.disabledReason || connection.lastError}
               </span>
             )}
             <span className="text-xs text-text-muted">#{connection.priority}</span>
