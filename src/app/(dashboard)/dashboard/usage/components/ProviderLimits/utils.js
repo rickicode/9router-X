@@ -11,7 +11,7 @@ export const CONNECTIONS_PAGE_SIZE = 20;
 export const ACCOUNT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 export const ACCOUNT_PAGE_SIZE_MAX = 500;
 export const ACCOUNT_FILTER_OPTIONS = [
-  { value: "all", label: "All accounts" },
+  { value: "all", label: "All enabled" },
   { value: "active", label: "Active" },
   { value: "exhausted", label: "Exhausted" },
   { value: "unavailable", label: "Unavailable" },
