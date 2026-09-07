@@ -185,13 +185,15 @@ export function getConnectionsEmptyMessage(totals, providerFilter, accountFilter
             ? "exhausted"
             : accountFilter === "unavailable"
               ? "unavailable"
-              : "matching";
+              : "enabled";
     return {
       icon: "filter_alt_off",
       title: "No Accounts Match Current Filters",
       description:
         providerFilter === "all"
-          ? "Try changing the account status filter to see more quota trackers."
+          ? (accountFilter === "all"
+              ? "No enabled accounts found. Check the Turned off tab to see disabled accounts."
+              : "Try changing the account status filter to see more quota trackers.")
           : `No ${statusLabel} accounts found for ${providerFilter}.`,
     };
   }

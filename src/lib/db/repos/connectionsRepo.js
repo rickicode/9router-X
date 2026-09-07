@@ -580,6 +580,9 @@ export async function getClientUsageConnections({
     where.push(UNAVAILABLE_CONNECTION_SQL);
   } else if (accountStatus === "disabled" || accountStatus === "inactive") {
     where.push(`is_active = false`);
+  } else if (accountStatus !== "all_with_disabled") {
+    // Default / "all": only show accounts that are NOT disabled (is_active = true)
+    where.push(`is_active = true`);
   }
 
   if (search && typeof search === "string" && search.trim()) {
@@ -664,7 +667,7 @@ export async function getClientUsageMeta({
 
   const statsRow = await db.get(
     `SELECT
-       COUNT(*)::int AS total,
+       COUNT(CASE WHEN is_active = true THEN 1 END)::int AS total,
        COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active,
        COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted,
        COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable,

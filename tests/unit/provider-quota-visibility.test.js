@@ -97,4 +97,15 @@ describe("provider quota visibility", () => {
     expect(msg.title).toBe("No Accounts Match Current Filters");
     expect(msg.description).toContain("codex");
   });
+
+  it("returns enabled-specific guidance when 'all' filter has no enabled accounts", () => {
+    const msg = getConnectionsEmptyMessage(
+      { eligibleConnections: 5, providerFilteredConnections: 0 },
+      "all",
+      "all",
+      ""
+    );
+    expect(msg.icon).toBe("filter_alt_off");
+    expect(msg.description).toContain("Turned off tab");
+  });
 });
