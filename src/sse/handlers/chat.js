@@ -326,7 +326,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
         // Freebuff 1-hour model affinity lock: lock account to the successful model
         if (provider === "freebuff" && model && credentials.connectionId) {
-          await lockAccountToModel(credentials.connectionId, model, 60 * 60 * 1000);
+          lockAccountToModel(credentials.connectionId, model, 60 * 60 * 1000).catch((e) => {
+            log.warn("AUTH", `Failed to lock Freebuff account to model ${model}:`, e);
+          });
         }
       }
     });
@@ -359,7 +361,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // errors as a 502 gateway response.
     const upstreamStatus = result.extra?.upstreamStatus || result.status;
 
-    // When Freebuff upstream reports model_locked, immediately bind account to currentModel
+    // When Freebuff upstream reports model_locked, immediately bind account to currentModel and fallback to next account
     if (provider === "freebuff") {
       let currentLockedModel = result.extra?.currentModel;
       if (!currentLockedModel) {
@@ -368,25 +370,49 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       }
       if (currentLockedModel && credentials?.connectionId) {
         log.warn("AUTH", `Freebuff account ${credentials.connectionName} locked to "${currentLockedModel}" upstream — updating local lock for 1h`);
-        await lockAccountToModel(credentials.connectionId, currentLockedModel, 60 * 60 * 1000);
+        lockAccountToModel(credentials.connectionId, currentLockedModel, 60 * 60 * 1000).catch((e) => {
+          log.warn("AUTH", `Failed to record Freebuff upstream lock for model ${currentLockedModel}:`, e);
+        });
+      }
+      if (upstreamStatus === 409 || /(model_locked|session_model_mismatch|locked to another model)/i.test(String(result.error || ""))) {
+        log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} Freebuff model locked to other model (${currentLockedModel || "other"}) → NEXT ACCOUNT`);
+        excludeConnectionIds.add(credentials.connectionId);
+        lastError = result.error;
+        lastStatus = 409;
+        if (excludeConnectionIds.size >= MAX_FALLBACK_ATTEMPTS) {
+          log.warn("FALLBACK", `Reached maximum fallback attempts (${MAX_FALLBACK_ATTEMPTS}), stopping`);
+          return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, `Max fallback attempts (${MAX_FALLBACK_ATTEMPTS}) reached: ${lastError}`);
+        }
+        continue;
       }
     }
 
-    // A banned Freebuff account is permanently disabled (not "unavailable") —
-    // return a 403 to the client and drop account out of routing
+    // A banned Freebuff account is permanently disabled (is_active=false, test_status="disabled")
+    // and gateway falls back to the next healthy account
     if (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || "")))) {
+      const connName = credentials.connectionName || credentials.name || credentials.email || credentials.connectionId?.slice(0, 8) || "account";
+      const rawError = String(result.error || '{"status":"banned"}');
+      const banReason = rawError.includes(connName)
+        ? rawError
+        : `Freebuff account "${connName}" banned (403): ${rawError}`;
       await markAccountUnavailable(
         credentials.connectionId,
-        upstreamStatus,
-        result.error,
+        upstreamStatus || 403,
+        banReason,
         provider,
         model,
         resetsAtMs,
         "banned",
       );
-      // Preserve permanent ban semantics for clients: this is a 403 account
-      // failure, not a transient 502/503 gateway failure.
-      return errorResponse(HTTP_STATUS.FORBIDDEN, result.error);
+      log.warn("FALLBACK", `⇄ ACC:${connName} BANNED & DISABLED → NEXT ACCOUNT`);
+      excludeConnectionIds.add(credentials.connectionId);
+      lastError = banReason;
+      lastStatus = HTTP_STATUS.FORBIDDEN;
+      if (excludeConnectionIds.size >= MAX_FALLBACK_ATTEMPTS) {
+        log.warn("FALLBACK", `Reached maximum fallback attempts (${MAX_FALLBACK_ATTEMPTS}), stopping`);
+        return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, `Max fallback attempts (${MAX_FALLBACK_ATTEMPTS}) reached: ${lastError}`);
+      }
+      continue;
     }
 
     const shouldFallback = (await markAccountUnavailable(

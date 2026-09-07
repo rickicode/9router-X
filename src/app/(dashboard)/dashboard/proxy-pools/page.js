@@ -42,6 +42,9 @@ export default function ProxyPoolsPage() {
   const [formData, setFormData] = useState(normalizeFormData());
   const [batchImportText, setBatchImportText] = useState("");
   const [batchImportGroup, setBatchImportGroup] = useState("");
+  const [batchGroupOption, setBatchGroupOption] = useState("none"); // "none" | "existing" | "new"
+  const [batchExistingGroupId, setBatchExistingGroupId] = useState("");
+  const [batchNewGroupName, setBatchNewGroupName] = useState("");
   const [vercelForm, setVercelForm] = useState({ vercelToken: "", projectName: "vercel-relay" });
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: "", apiToken: "", projectName: "cloudflare-relay" });
   const [cloudflareBulkPoolName, setCloudflareBulkPoolName] = useState("cloudflare-relay");
@@ -491,6 +494,10 @@ export default function ProxyPoolsPage() {
 
   const openBatchImportModal = () => {
     setBatchImportText("");
+    setBatchGroupOption("none");
+    setBatchExistingGroupId("");
+    setBatchNewGroupName("");
+    setBatchImportGroup("");
     setShowBatchImportModal(true);
   };
 
@@ -806,6 +813,44 @@ export default function ProxyPoolsPage() {
       return;
     }
 
+    // Determine target group name and linkage
+    let targetGroupName = "";
+    let targetCustomGroupId = null;
+    let shouldCreateCustomGroup = false;
+
+    if (batchGroupOption === "existing") {
+      const found = (proxyGroups.customGroups || []).find((g) => g.id === batchExistingGroupId);
+      if (!found) {
+        notify.error("Please select an existing custom group");
+        return;
+      }
+      targetGroupName = found.name;
+      targetCustomGroupId = found.id;
+    } else if (batchGroupOption === "new") {
+      const trimmed = batchNewGroupName.trim();
+      if (!trimmed) {
+        notify.error("Please enter a group name");
+        return;
+      }
+      const RESERVED_NAMES = new Set([
+        "cloudflare", "cloudflare relay", "http", "vercel", "deno",
+        "default-cloudflare", "default-http", "default-vercel", "default-deno",
+      ]);
+      if (RESERVED_NAMES.has(trimmed.toLowerCase())) {
+        notify.error(`"${trimmed}" is a reserved system default group name`);
+        return;
+      }
+      targetGroupName = trimmed;
+      const existingGroup = (proxyGroups.customGroups || []).find(
+        (g) => g.name.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (existingGroup) {
+        targetCustomGroupId = existingGroup.id;
+      } else {
+        shouldCreateCustomGroup = true;
+      }
+    }
+
     setImporting(true);
     try {
       const existingKeys = new Set(
@@ -815,6 +860,7 @@ export default function ProxyPoolsPage() {
       let created = 0;
       let skipped = 0;
       let failed = 0;
+      const createdPoolIds = [];
 
       for (const entry of parsedEntries) {
         const dedupeKey = `${entry.proxyUrl}|||`;
@@ -830,7 +876,7 @@ export default function ProxyPoolsPage() {
             name: entry.name,
             proxyUrl: entry.proxyUrl,
             noProxy: "",
-            group: batchImportGroup.trim(),
+            group: targetGroupName,
             isActive: true,
           }),
         });
@@ -838,12 +884,53 @@ export default function ProxyPoolsPage() {
         if (res.ok) {
           created += 1;
           existingKeys.add(dedupeKey);
+          try {
+            const data = await res.json();
+            if (data?.proxyPool?.id) {
+              createdPoolIds.push(data.proxyPool.id);
+            }
+          } catch {}
         } else {
           failed += 1;
         }
       }
 
+      // Link newly created pools to custom group if requested
+      if (createdPoolIds.length > 0) {
+        if (targetCustomGroupId) {
+          const targetGroup = (proxyGroups.customGroups || []).find((g) => g.id === targetCustomGroupId);
+          const currentPoolIds = Array.isArray(targetGroup?.poolIds) ? targetGroup.poolIds : [];
+          const updatedPoolIds = [...new Set([...currentPoolIds, ...createdPoolIds])];
+          try {
+            await fetch(`/api/proxy-groups/${targetCustomGroupId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ poolIds: updatedPoolIds }),
+            });
+          } catch (err) {
+            console.log("Failed to update custom group with new pools:", err);
+          }
+        } else if (shouldCreateCustomGroup && targetGroupName) {
+          try {
+            await fetch("/api/proxy-groups", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: targetGroupName,
+                description: `Created during batch import (${createdPoolIds.length} proxies)`,
+                poolIds: createdPoolIds,
+                isSticky: false,
+                stickyLimit: 3,
+              }),
+            });
+          } catch (err) {
+            console.log("Failed to create custom group for batch import:", err);
+          }
+        }
+      }
+
       await fetchProxyPools();
+      await fetchProxyGroups();
       setShowBatchImportModal(false);
       notify.success(`Batch import completed: Created ${created}, Skipped ${skipped}, Failed ${failed}`);
     } catch (error) {
@@ -1342,18 +1429,85 @@ export default function ProxyPoolsPage() {
         onClose={closeBatchImportModal}
       >
         <div className="flex flex-col gap-4">
+          {/* Group Assignment Option */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-text-muted">Group Option</label>
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-black/5 dark:bg-white/5">
+              <button
+                type="button"
+                onClick={() => setBatchGroupOption("none")}
+                className={`py-1 px-2 text-xs font-medium rounded-md transition-all ${
+                  batchGroupOption === "none"
+                    ? "bg-white dark:bg-zinc-800 text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main"
+                }`}
+              >
+                No Group
+              </button>
+              <button
+                type="button"
+                onClick={() => setBatchGroupOption("existing")}
+                disabled={(proxyGroups.customGroups || []).length === 0}
+                className={`py-1 px-2 text-xs font-medium rounded-md transition-all ${
+                  batchGroupOption === "existing"
+                    ? "bg-white dark:bg-zinc-800 text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main disabled:opacity-40 disabled:cursor-not-allowed"
+                }`}
+                title={(proxyGroups.customGroups || []).length === 0 ? "No custom groups created yet" : undefined}
+              >
+                Existing Group {(proxyGroups.customGroups || []).length > 0 ? `(${(proxyGroups.customGroups || []).length})` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBatchGroupOption("new")}
+                className={`py-1 px-2 text-xs font-medium rounded-md transition-all ${
+                  batchGroupOption === "new"
+                    ? "bg-white dark:bg-zinc-800 text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main"
+                }`}
+              >
+                New Group
+              </button>
+            </div>
+
+            {batchGroupOption === "existing" && (
+              <div className="mt-1">
+                <select
+                  value={batchExistingGroupId}
+                  onChange={(e) => setBatchExistingGroupId(e.target.value)}
+                  className="w-full py-1.5 px-3 text-xs text-text-main bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md focus:border-primary focus:outline-none"
+                >
+                  <option value="">-- Select custom group --</option>
+                  {(proxyGroups.customGroups || []).map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.poolCount || g.poolIds?.length || 0} pools)
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-text-muted">
+                  Imported proxies will be automatically added to this custom group.
+                </p>
+              </div>
+            )}
+
+            {batchGroupOption === "new" && (
+              <div className="mt-1">
+                <input
+                  type="text"
+                  value={batchNewGroupName}
+                  onChange={(e) => setBatchNewGroupName(e.target.value)}
+                  placeholder="Enter new group name (e.g. residential-sg, fast-us)"
+                  className="w-full py-1.5 px-3 text-xs text-text-main bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md focus:border-primary focus:outline-none"
+                />
+                <p className="mt-1 text-[11px] text-text-muted">
+                  A new custom proxy group will be created with all imported proxies.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-sm font-medium text-text-main mb-1 block">Paste Proxy List (One per line)</label>
-            <div className="mb-3">
-              <label className="text-xs font-medium text-text-muted mb-1 block">Group Name (Optional)</label>
-              <input
-                type="text"
-                value={batchImportGroup}
-                onChange={(e) => setBatchImportGroup(e.target.value)}
-                placeholder="e.g. indo, us, residential"
-                className="w-full py-1.5 px-3 text-xs text-text-main bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md focus:border-primary focus:outline-none"
-              />
-            </div>
             <textarea
               value={batchImportText}
               onChange={(e) => setBatchImportText(e.target.value)}
@@ -1366,7 +1520,16 @@ export default function ProxyPoolsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button fullWidth onClick={handleBatchImport} disabled={!batchImportText.trim() || importing}>
+            <Button
+              fullWidth
+              onClick={handleBatchImport}
+              disabled={
+                !batchImportText.trim() ||
+                importing ||
+                (batchGroupOption === "existing" && !batchExistingGroupId) ||
+                (batchGroupOption === "new" && !batchNewGroupName.trim())
+              }
+            >
               {importing ? "Importing..." : "Import"}
             </Button>
             <Button fullWidth variant="ghost" onClick={closeBatchImportModal} disabled={importing}>

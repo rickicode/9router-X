@@ -880,6 +880,27 @@ export async function testSingleConnection(id) {
 
   const latencyMs = Date.now() - start;
 
+  // Freebuff banned detection during test — auto-disable account (is_active=false)
+  // so it's removed from routing immediately, same as runtime ban handler in chat.js
+  if (connection.provider === "freebuff" && !result.valid
+      && /\b(banned|account has been banned)\b/i.test(result.error || "")) {
+    const connName = connection.displayName || connection.name || connection.email || id.slice(0, 8);
+    const banData = {
+      isActive: false,
+      testStatus: "disabled",
+      lastError: `Freebuff account "${connName}" banned (test probe)`,
+      errorCode: 403,
+      lastErrorAt: new Date().toISOString(),
+      lockedToModel: null,
+      lockedToModelUntil: null,
+      rateLimitedUntil: null,
+      lockedAllUntil: null,
+      modelLocks: {},
+    };
+    await updateProviderConnection(id, banData);
+    return { valid: false, error: banData.lastError, refreshed: false, latencyMs, testedAt: new Date().toISOString() };
+  }
+
   // Soft success (e.g. Grok CLI 402 spending-limit): credentials are good, account is
   // out of credits. Keep testStatus active; surface the message as lastError so the
   // dashboard can show a warning without marking the connection broken.

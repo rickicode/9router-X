@@ -404,19 +404,16 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
                     </button>
                   )}
                 </span>
-              ) : (
+              ) : effectiveStatus === "active" ? (
                 <Badge variant="success" size="sm">
                   Unlocked
                 </Badge>
-              )
+              ) : null
             )}
             {isCooldown && connection.isActive !== false && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant="error" size="sm">
-                  exhausted
-                </Badge>
                 {activeLocks.map((lock) => (
-                  <span key={lock.model} className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-xs text-red-500">
+                  <span key={lock.model} className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-600 dark:text-amber-400">
                     <span className="font-medium">{lock.model === "__all" ? "all models" : lock.model}</span>
                     <CooldownTimer until={lock.until} />
                   </span>

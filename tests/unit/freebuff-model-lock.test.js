@@ -236,4 +236,60 @@ describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
     expect(creds.lastErrorCode).toBe("FREEBUFF_MODEL_LOCKED");
     expect(creds.retryAfter).not.toBe(bannedUntil);
   });
+
+  it("dynamic lock via lockAccountToModel immediately causes subsequent different-model requests to bypass it", async () => {
+    connectionsDb.set("fb-1", {
+      id: "fb-1",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Account 1",
+      accessToken: "token-1",
+      isActive: true,
+      testStatus: "active",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+    connectionsDb.set("fb-2", {
+      id: "fb-2",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Account 2",
+      accessToken: "token-2",
+      isActive: true,
+      testStatus: "active",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+
+    const creds1 = await getProviderCredentials("freebuff", null, "model-A");
+    expect(["fb-1", "fb-2"]).toContain(creds1.connectionId);
+
+    const { lockAccountToModel } = await import("@/lib/localDb");
+    await lockAccountToModel("fb-1", "model-A", 3600000);
+
+    const creds2 = await getProviderCredentials("freebuff", null, "model-B");
+    expect(creds2.connectionId).toBe("fb-2");
+
+    const creds3 = await getProviderCredentials("freebuff", null, "model-A");
+    expect(creds3.connectionId).toBe("fb-1");
+  });
+
+  it("does not falsely return FREEBUFF_MODEL_LOCKED when 0 accounts are available (disabled/unavailable)", async () => {
+    // All accounts disabled
+    connectionsDb.set("fb-disabled", {
+      id: "fb-disabled",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Disabled Account",
+      accessToken: "token-d",
+      isActive: false,
+      testStatus: "disabled",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+
+    const creds = await getProviderCredentials("freebuff", null, "openai/gpt-5.6-luna");
+    // Must NOT be FREEBUFF_MODEL_LOCKED! Should be null (standard no available credentials)
+    expect(creds).toBeNull();
+  });
 });

@@ -677,17 +677,21 @@ export async function getClientUsageMeta({
 export async function getAvailableAccountsForRouting({ provider, model, limit = 5 }) {
   const db = await getAdapter();
   const rows = await db.all(
-    `SELECT id, provider, auth_type, name, priority, last_used_at, model_locks, data
+    `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
+            locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+            token_expires_at, last_used_at, model_locks, last_error, error_code,
+            last_error_at, data, created_at, updated_at
        FROM provider_connections
       WHERE provider = $1 AND ${ROUTABLE_CONNECTION_SQL}
         AND (
-          model_locks->>$2 IS NULL
+          $2::text IS NULL
+          OR model_locks->>$2 IS NULL
           OR ${safeTimestampSql('model_locks->>$2')} IS NULL
           OR ${safeTimestampSql('model_locks->>$2')} <= NOW()
         )
       ORDER BY priority ASC, last_used_at ASC NULLS FIRST
       LIMIT $3`,
-    [provider, model, limit],
+    [provider, model ?? null, limit],
   );
   return rows.map(rowToConnection);
 }

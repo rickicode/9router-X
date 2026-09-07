@@ -464,11 +464,12 @@ export default function ProviderDetailPage() {
         notify.success("Model lock released");
         await fetchConnections();
       } else {
-        notify.error("Failed to unlock model");
+        const d = await res.json().catch(() => ({}));
+        notify.error(d?.error || "Failed to release model lock");
       }
     } catch (e) {
       console.log("Error unlocking model:", e);
-      notify.error("Failed to unlock model");
+      notify.error("Failed to release model lock");
     }
   };
 
@@ -803,7 +804,12 @@ export default function ProviderDetailPage() {
 
   const handleBulkResetStatus = async () => {
     const exhaustedConns = connections.filter(
-      (c) => c.testStatus === "unavailable" || c.lastError || Object.keys(c).some((k) => k.startsWith("modelLock_") && c[k])
+      (c) =>
+        c.testStatus === "unavailable" ||
+        c.lastError ||
+        c.lockedToModel ||
+        (c.lockedToModelUntil && new Date(c.lockedToModelUntil).getTime() > Date.now()) ||
+        Object.keys(c).some((k) => k.startsWith("modelLock_") && c[k])
     );
     if (exhaustedConns.length === 0) {
       notify.info("No exhausted or locked connections found");

@@ -183,6 +183,7 @@ describe("DB SQLite layer — public API parity", () => {
   });
 
   it("disabledModels: add/remove per provider", async () => {
+    await sqliteDb.enableModels("openai", []);
     await sqliteDb.disableModels("openai", ["gpt-3", "gpt-4"]);
     expect(await sqliteDb.getDisabledByProvider("openai")).toEqual(expect.arrayContaining(["gpt-3", "gpt-4"]));
     await sqliteDb.enableModels("openai", ["gpt-3"]);

@@ -54,24 +54,41 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
   try {
     await currentMutex;
 
-    // Inject a virtual connection for no-auth free providers (with optional proxy pool from settings)
+    // Inject a virtual connection for no-auth free providers (with optional proxy pool or proxy group from settings)
     if (FREE_PROVIDERS[providerId]?.noAuth) {
       const settings = await getSettings();
       const override = (settings.providerStrategies || {})[providerId] || {};
       const strategy = override.rotateStrategy || "none";
+      const proxyGroup = override.proxyGroup || null;
       let pickedId = override.proxyPoolId || null;
       let poolIds = [];
-      if (strategy !== "none") {
+      let resolvedProxy = null;
+
+      if (proxyGroup) {
+        const groupStrategy = strategy !== "none" ? strategy : "round-robin";
+        resolvedProxy = await resolveConnectionProxyConfig(
+          {
+            proxyGroup,
+            proxyRotationStrategy: groupStrategy,
+            proxyPoolScope: `${providerId}::${model || "*"}`,
+          },
+          `noauth-${providerId}`
+        );
+      } else if (strategy !== "none") {
         const allPools = await getProxyPools({ isActive: true });
         poolIds = allPools.filter(p => p.proxyUrl).map(p => p.id);
         // Scope region-aware ("smart") filtering to this provider/model so
         // pools marked unfit here are skipped.
         const scope = `${providerId}::${model || "*"}`;
         pickedId = pickProxyPoolId(poolIds, strategy, providerId, { scope });
+        resolvedProxy = await resolveConnectionProxyConfig({ proxyPoolId: pickedId || "" });
       } else if (override.proxyPoolId) {
         poolIds = [override.proxyPoolId];
+        resolvedProxy = await resolveConnectionProxyConfig({ proxyPoolId: override.proxyPoolId });
+      } else {
+        resolvedProxy = await resolveConnectionProxyConfig({});
       }
-      const resolvedProxy = await resolveConnectionProxyConfig({ proxyPoolId: pickedId || "" });
+
       return {
         id: "noauth",
         connectionName: "Public",
@@ -85,10 +102,11 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
           vercelRelayUrl: resolvedProxy.vercelRelayUrl || "",
           proxyPoolId: resolvedProxy.proxyPoolId || null,
           strictProxy: resolvedProxy.strictProxy === true,
+          proxyGroup: proxyGroup || undefined,
           // Let chatCore's pool-scoped retry rotate across the same candidate
           // pool set (excluding the failed pool) instead of reusing it — this
           // is what makes per-IP limit retries work for no-auth providers.
-          proxyPoolIds: poolIds,
+          proxyPoolIds: poolIds.length > 0 ? poolIds : undefined,
           proxyRotationStrategy: strategy,
         },
       };
@@ -144,7 +162,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // Freebuff 1-hour dynamic model affinity lock:
     // 1 account can only serve 1 model at a time. If locked to model X, it can only serve model X.
     // Accounts with no active lock can serve any model. Prioritize matching locked accounts.
-    if (providerId === "freebuff" && model) {
+    if (providerId === "freebuff" && model && availableConnections.length > 0) {
       const now = Date.now();
       const affinityCandidates = availableConnections;
       const matchingLocked = [];
@@ -374,7 +392,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const freebuffBanned = providerId === "freebuff"
     && (freebuffKind === "banned" || /(^|[^a-z])banned([^a-z]|$)/i.test(String(errorText || "")));
   if (freebuffBanned) {
-    const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Freebuff account banned");
+    const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
+    const rawReason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Freebuff account banned");
+    const reason = rawReason.includes(connName) ? rawReason : `Freebuff account "${connName}" banned (403): ${rawReason}`;
     await updateProviderConnection(connectionId, {
       isActive: false,
       testStatus: "disabled",
@@ -392,10 +412,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     await invalidateCachedConnections(providerId).catch(() => {});
     // Long L2 cooldown so the Redis-cached path also stops returning it.
     redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
-    const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
     log.warn("AUTH", `${connName} Freebuff account banned — DISABLED (is_active=false), removed from routing`);
     console.error(`❌ ${provider} [${status}]: ${reason}`);
-    return { shouldFallback: false, cooldownMs: 0 };
+    return { shouldFallback: true, cooldownMs: 0 };
   }
 
   // GitHub premium-request exhaustion is account-wide until the next UTC month.
@@ -435,6 +454,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       modelLock___all: null,
       lockedAllUntil: null,
       rateLimitedUntil: null,
+      lockedToModel: null,
+      lockedToModelUntil: null,
+      modelLocks: {},
     });
     // Long L2 cooldown so the Redis-cached path also stops returning it
     redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});

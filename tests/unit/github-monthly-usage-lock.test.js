@@ -187,7 +187,7 @@ describe("Freebuff banned/country-blocked accounts", () => {
         rateLimitedUntil: null,
       }),
     );
-    expect(res).toEqual({ shouldFallback: false, cooldownMs: 0 });
+    expect(res).toEqual({ shouldFallback: true, cooldownMs: 0 });
   });
 
   it("disables a banned Freebuff account even when freebuffKind is absent (regex fallback)", async () => {

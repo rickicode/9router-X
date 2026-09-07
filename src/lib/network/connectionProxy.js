@@ -282,6 +282,7 @@ export async function resolveConnectionProxyConfig(
               connectionNoProxy: noProxy,
               strictProxy: proxyPool.strictProxy === true,
               vercelRelayUrl: proxyUrl,
+              proxyPoolIds: proxyPoolIds.length > 0 ? proxyPoolIds : undefined,
             };
           }
 
@@ -296,6 +297,7 @@ export async function resolveConnectionProxyConfig(
             connectionProxyUrl: proxyUrl,
             connectionNoProxy: noProxy,
             strictProxy: proxyPool.strictProxy === true,
+            proxyPoolIds: proxyPoolIds.length > 0 ? proxyPoolIds : undefined,
           };
         }
 

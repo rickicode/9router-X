@@ -562,6 +562,12 @@ export class FreebuffExecutor extends BaseExecutor {
     try {
       session = await ensureSession(token, model, proxyOptions);
     } catch (error) {
+      if (error?.freebuffKind === "banned") {
+        const accountIdent = credentials?.connectionName || credentials?.name || credentials?.email || "";
+        if (accountIdent && !error.message.includes(`"${accountIdent}"`)) {
+          error.message = error.message.replace(/^Freebuff account\b/i, `Freebuff account "${accountIdent}"`);
+        }
+      }
       const gate = sessionGateFromError(error);
       if (gate) throwSessionGateError(gate, { token, model, proxyKey, poolId, log });
       log?.error?.("AUTH", `Freebuff session failed: ${error.message}`);
