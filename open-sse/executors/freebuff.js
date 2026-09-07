@@ -202,8 +202,8 @@ function sessionGateFromError(error) {
     if (error.code === "country_blocked") return { kind: "country_blocked" };
     // IP-tier refusals are the egress IP's fault, not the account's — mark the
     // pool unfit and rotate to another relay (ip_capped = too many active
-    // sessions on this IP; a different egress fixes both).
-    if (error.code === "limited_ip" || error.code === "ip_capped") return { kind: "limited_ip" };
+    // sessions on this IP; free_mode_unavailable = anonymous_network on proxy egress).
+    if (error.code === "limited_ip" || error.code === "ip_capped" || error.code === "free_mode_unavailable") return { kind: "free_mode_unavailable" };
     if (error.code === "rate_limited" || error.code === "spend_limited") {
       return { kind: "quota", resetsAtMs: error.resetsAtMs };
     }
@@ -225,7 +225,11 @@ function classifySessionGate(code, message, currentModel) {
   if (code === "session_superseded") return { kind: "superseded" };
   if (code === "model_locked") return { kind: "model_locked", currentModel };
   // IP-tier refusals (limited-tier mismatch or per-IP cap) are the egress's
-  // fault — pool fitness must see them so the bad relay/IP stops being reused.
+  // IP-tier refusals (limited-tier mismatch, anonymous_network proxy, or per-IP cap)
+  // are the egress's fault — pool fitness must see them so the bad relay/IP stops being reused.
+  if (code === "free_mode_unavailable" || /anonymous_network|proxy traffic/i.test(String(message || ""))) {
+    return { kind: "free_mode_unavailable" };
+  }
   if (code === "limited_ip" || code === "ip_capped") return { kind: "limited_ip" };
   if (code === "rate_limited" || code === "spend_limited") return { kind: "quota" };
   // session_model_mismatch with the limited-tier message is an IP-tier refusal;
@@ -282,6 +286,20 @@ function throwSessionGateError(gate, { token, model, proxyKey, poolId, log }) {
     err.status = 409;
     err.resetsAtMs = until;
     log?.warn?.("AUTH", `Freebuff model_locked (session=${label}, requested=${model}) — model cooldown ${MODEL_LOCK_COOLDOWN_MS / 60000}min`);
+    throw err;
+  }
+  if (gate.kind === "free_mode_unavailable") {
+    const until = Date.now() + POOL_LIMITED_COOLDOWN_MS;
+    setCooldown(poolLimitCooldowns, `${proxyKey}::${model}`, until);
+    const scope = `freebuff::${model}`;
+    if (poolId) markPoolUnfit(poolId, scope, until, "free_mode_unavailable");
+    const err = new Error(
+      `Freebuff free mode unavailable from this proxy egress (anonymous_network) — rotating proxy.`,
+    );
+    err.status = 403;
+    err.freebuffKind = "free_mode_unavailable";
+    err.poolScoped = { poolId, scope, reason: "free_mode_unavailable" };
+    log?.warn?.("AUTH", `Freebuff free_mode_unavailable on proxy (${proxyKey.slice(0, 40)}…) — pool unfit for ${POOL_LIMITED_COOLDOWN_MS / 60000}min`);
     throw err;
   }
   if (gate.kind === "limited_ip") {
@@ -415,6 +433,7 @@ async function requestSession(token, model, proxyOptions) {
       || /anonymous_network|proxy traffic/i.test(bodyText)) {
       const err = new Error(`Freebuff free mode unavailable from this proxy egress (anonymous_network) — rotating proxy. ${bodyText.slice(0, 160)}`);
       err.status = 403;
+      err.code = "free_mode_unavailable";
       err.freebuffKind = "free_mode_unavailable";
       err.poolScoped = {
         poolId: proxyOptions?.proxyPoolId || null,
