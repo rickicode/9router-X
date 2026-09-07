@@ -5,6 +5,7 @@ import {
   parseQuotaData,
   trimHiddenQuotaKeys,
   getConnectionsEmptyMessage,
+  sortVisibleConnections,
 } from "@/app/(dashboard)/dashboard/usage/components/ProviderLimits/utils.js";
 
 describe("provider quota visibility", () => {
@@ -107,5 +108,21 @@ describe("provider quota visibility", () => {
     );
     expect(msg.icon).toBe("filter_alt_off");
     expect(msg.description).toContain("Turned off tab");
+  });
+
+  it("sorts disabled accounts to the very bottom regardless of priority", () => {
+    const conns = [
+      { id: "1", provider: "freebuff", isActive: false, priority: 1, name: "disabled-1" },
+      { id: "2", provider: "freebuff", isActive: true, priority: 10, name: "active-1" },
+      { id: "3", provider: "freebuff", isActive: false, priority: 2, name: "disabled-2" },
+      { id: "4", provider: "freebuff", isActive: true, priority: 5, name: "active-2" },
+    ];
+    const sorted = sortVisibleConnections(conns, {}, false, "all", "default");
+    expect(sorted.map((c) => c.name)).toEqual([
+      "active-1",
+      "active-2",
+      "disabled-1",
+      "disabled-2",
+    ]);
   });
 });

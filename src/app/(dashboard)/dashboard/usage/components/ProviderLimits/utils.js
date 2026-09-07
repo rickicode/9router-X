@@ -56,44 +56,51 @@ export function sortVisibleConnections(
   providerFilter,
   quotaSortMode,
 ) {
-  if (providerFilter === "codex" && quotaSortMode !== "default") {
-    return [...connections].sort((a, b) => {
-      const remainingA = getConnectionQuotaRemaining(a, quotaData);
-      const remainingB = getConnectionQuotaRemaining(b, quotaData);
-      const remainingDiff =
-        quotaSortMode === "remaining-asc"
-          ? remainingA - remainingB
-          : remainingB - remainingA;
-      if (remainingDiff !== 0) return remainingDiff;
-      return (getConnectionLabel(a) || "").localeCompare(
-        getConnectionLabel(b) || "",
+  const active = connections.filter((c) => c.isActive !== false);
+  const disabled = connections.filter((c) => c.isActive === false);
+
+  const sortGroup = (items) => {
+    if (providerFilter === "codex" && quotaSortMode !== "default") {
+      return [...items].sort((a, b) => {
+        const remainingA = getConnectionQuotaRemaining(a, quotaData);
+        const remainingB = getConnectionQuotaRemaining(b, quotaData);
+        const remainingDiff =
+          quotaSortMode === "remaining-asc"
+            ? remainingA - remainingB
+            : remainingB - remainingA;
+        if (remainingDiff !== 0) return remainingDiff;
+        return (getConnectionLabel(a) || "").localeCompare(
+          getConnectionLabel(b) || "",
+        );
+      });
+    }
+
+    if (!expiringFirst) return groupByProviderStable(items);
+
+    const getEarliestResetTime = (connection) => {
+      const resetTimes = (quotaData[connection.id]?.quotas || [])
+        .map((quota) =>
+          quota.resetAt
+            ? new Date(quota.resetAt).getTime()
+            : Number.POSITIVE_INFINITY,
+        )
+        .filter((time) => Number.isFinite(time));
+      return resetTimes.length > 0
+        ? Math.min(...resetTimes)
+        : Number.POSITIVE_INFINITY;
+    };
+
+    return [...items].sort((a, b) => {
+      const expiryDiff = getEarliestResetTime(a) - getEarliestResetTime(b);
+      if (expiryDiff !== 0) return expiryDiff;
+      return (
+        (a.provider || "").localeCompare(b.provider || "") ||
+        (getConnectionLabel(a) || "").localeCompare(getConnectionLabel(b) || "")
       );
     });
-  }
-
-  if (!expiringFirst) return groupByProviderStable(connections);
-
-  const getEarliestResetTime = (connection) => {
-    const resetTimes = (quotaData[connection.id]?.quotas || [])
-      .map((quota) =>
-        quota.resetAt
-          ? new Date(quota.resetAt).getTime()
-          : Number.POSITIVE_INFINITY,
-      )
-      .filter((time) => Number.isFinite(time));
-    return resetTimes.length > 0
-      ? Math.min(...resetTimes)
-      : Number.POSITIVE_INFINITY;
   };
 
-  return [...connections].sort((a, b) => {
-    const expiryDiff = getEarliestResetTime(a) - getEarliestResetTime(b);
-    if (expiryDiff !== 0) return expiryDiff;
-    return (
-      (a.provider || "").localeCompare(b.provider || "") ||
-      (getConnectionLabel(a) || "").localeCompare(getConnectionLabel(b) || "")
-    );
-  });
+  return [...sortGroup(active), ...sortGroup(disabled)];
 }
 
 export function buildLoadingState(connections) {

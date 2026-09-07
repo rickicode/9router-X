@@ -403,8 +403,8 @@ export async function getProviderConnections(filter = {}) {
 
   const distinctClause = filter.distinctByProvider ? "DISTINCT ON (provider)" : "";
   const orderClause = filter.distinctByProvider
-    ? "ORDER BY provider, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
-    : "ORDER BY priority ASC NULLS LAST, updated_at DESC NULLS LAST";
+    ? "ORDER BY provider, is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
+    : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST";
 
   const rows = await db.all(
     `SELECT ${distinctClause} id, provider, auth_type, name, email, priority, is_active, test_status,
@@ -591,9 +591,9 @@ export async function getClientUsageConnections({
     where.push(`(name ILIKE $${searchIdx} OR email ILIKE $${searchIdx} OR id ILIKE $${searchIdx} OR provider ILIKE $${searchIdx} OR data->>'displayName' ILIKE $${searchIdx} OR data->>'username' ILIKE $${searchIdx} OR data->>'githubLogin' ILIKE $${searchIdx})`);
   }
 
-  let orderClause = `ORDER BY priority ASC NULLS LAST, provider ASC, updated_at DESC NULLS LAST`;
+  let orderClause = `ORDER BY is_active DESC, priority ASC NULLS LAST, provider ASC, updated_at DESC NULLS LAST`;
   if (sort === "provider") {
-    orderClause = `ORDER BY provider ASC, priority ASC NULLS LAST, updated_at DESC NULLS LAST`;
+    orderClause = `ORDER BY is_active DESC, provider ASC, priority ASC NULLS LAST, updated_at DESC NULLS LAST`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
