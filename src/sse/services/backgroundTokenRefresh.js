@@ -95,19 +95,24 @@ async function refreshOne(connection) {
     const { checkAndRefreshToken } = await import("./tokenRefresh.js");
     const result = await checkAndRefreshToken(connection.provider, connection, { force: true });
 
-    // Dead refresh token (revoked/reused/expired): persist the block marker so
-    // future ticks skip it, then surface the re-login requirement. The marker is
-    // lifted by checkAndRefreshToken on the next successful refresh.
+    // Dead refresh token (revoked/reused/expired): persist the block marker and
+    // disable the connection from routing so it does not stay "active". The marker is
+    // lifted by checkAndRefreshToken on the next successful re-auth.
     if (result?.refreshError) {
       const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
       await updateProviderConnection(connection.id, {
+        isActive: false,
+        testStatus: "disabled",
+        lastError: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
+        errorCode: 401,
+        lastErrorAt: new Date().toISOString(),
         providerSpecificData: {
           ...(connection.providerSpecificData || {}),
           refreshBlocked: result.refreshError,
           refreshBlockedAt: result.refreshErrorAt,
         },
       });
-      log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — auto-refresh stopped, re-login required", {
+      log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection DISABLED, re-login required", {
         id: connection.id,
         provider: connection.provider,
         error: result.refreshError,
