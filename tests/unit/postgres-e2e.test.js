@@ -472,7 +472,7 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
 
   it("should handle malformed lock values safely and populate candidate fields", async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const testIds = ["malformed-test-1", "malformed-test-2", "rate-limit-test"];
+    const testIds = ["malformed-test-1", "malformed-test-2", "rate-limit-test", "test-status-unavail"];
 
     try {
       await createProviderConnection({
@@ -504,14 +504,26 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
         rateLimitedUntil: future,
       });
 
+      await createProviderConnection({
+        id: testIds[3],
+        provider: "malformed-test-provider",
+        authType: "apikey",
+        name: "Test Status Unavail Conn",
+        isActive: true,
+        testStatus: "unavailable",
+      });
+
       // Status query shouldn't crash with invalid date strings
       const activeConns = await getProviderConnections({ provider: "malformed-test-provider", status: "active" });
+      expect(activeConns.map((c) => c.id)).toContain(testIds[0]); // fails open
       expect(activeConns.map((c) => c.id)).toContain(testIds[1]);
+      expect(activeConns.map((c) => c.id)).not.toContain(testIds[3]);
 
       const unavailableConns = await getProviderConnections({ provider: "malformed-test-provider", status: "unavailable" });
       expect(unavailableConns.map((c) => c.id)).toContain(testIds[2]);
+      expect(unavailableConns.map((c) => c.id)).toContain(testIds[3]);
 
-      // Routing candidates must exclude rate-limited connection and provide full properties
+      // Routing candidates must exclude rate-limited & unavailable-test-status connection and provide full properties
       const candidates = await getAvailableAccountsForRouting({
         provider: "malformed-test-provider",
         model: "gpt-4o",
@@ -519,6 +531,7 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       });
 
       expect(candidates.some((c) => c.id === testIds[2])).toBe(false);
+      expect(candidates.some((c) => c.id === testIds[3])).toBe(false);
       const cleanCandidate = candidates.find((c) => c.id === testIds[1]);
       expect(cleanCandidate).toBeDefined();
       expect(cleanCandidate.isActive).toBe(true);

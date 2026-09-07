@@ -106,7 +106,7 @@ export async function getBatchProviderQuotas(provider) {
        c.priority,
        c.is_active,
        c.locked_all_until,
-       c.provider_specific_data
+       c.data->'providerSpecificData' AS provider_specific_data
      FROM usage_snapshots AS s
      INNER JOIN provider_connections AS c ON c.id = s.connection_id
      WHERE s.provider = $1
