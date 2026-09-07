@@ -21,6 +21,7 @@ export {
   invalidateProxyPoolCache,
   getProxyGroups, getProxyGroupById, getProxyGroupByName,
   createProxyGroup, updateProxyGroup, deleteProxyGroup,
+  lockProxyPoolForScope,
   invalidateProxyGroupCache,
   getApiKeys, getApiKeyById, createApiKey, updateApiKey, deleteApiKey, validateApiKey,
   getCombos, getComboById, getComboByName,

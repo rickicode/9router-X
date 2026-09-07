@@ -41,6 +41,7 @@ export {
   getProxyGroups, getProxyGroupById, getProxyGroupByName,
   createProxyGroup, updateProxyGroup, deleteProxyGroup,
   invalidateProxyGroupCache,
+  lockProxyPoolForScope,
 } from "./repos/proxyGroupsRepo.js";
 
 // API keys

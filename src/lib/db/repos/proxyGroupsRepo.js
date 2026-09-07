@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+export { lockProxyPoolForScope } from "../../network/connectionProxy.js";
 
 const GROUP_CACHE_TTL_MS = 5000;
 const groupCache = new Map(); // id/name -> { group, expiresAt }

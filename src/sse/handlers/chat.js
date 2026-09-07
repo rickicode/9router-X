@@ -9,7 +9,7 @@ import {
 } from "../services/auth.js";
 import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
 import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
-import { getSettings, lockAccountToModel } from "@/lib/localDb";
+import { getSettings, lockAccountToModel, lockProxyPoolForScope } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -330,6 +330,13 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
           lockAccountToModel(credentials.connectionId, model, 60 * 60 * 1000).catch((e) => {
             log.warn("AUTH", `Failed to lock Freebuff account to model ${model}:`, e);
           });
+        }
+
+        // Lock working proxy pool: lock the successful proxy for this provider/scope
+        // until it fails or becomes unfit.
+        const successfulPoolId = credentials?.providerSpecificData?.proxyPoolId || credentials?.providerSpecificData?.connectionProxyPoolId;
+        if (successfulPoolId) {
+          lockProxyPoolForScope(provider, successfulPoolId, credentials?.providerSpecificData?.proxyGroup || null);
         }
       }
     });

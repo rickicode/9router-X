@@ -35,7 +35,7 @@ import { markPoolUnfit, clearPoolUnfit } from "../services/proxyPoolFitness.js";
 // Pool-scoped failure retry: when an executor tags an error as belonging to a
 // proxy pool (region gate, dead proxy, …), re-resolve the proxy config
 // excluding that pool and retry instead of failing the whole account.
-const MAX_POOL_RETRIES = 2;
+const MAX_POOL_RETRIES = 5;
 
 /**
  * Core chat handler - shared between SSE and Worker

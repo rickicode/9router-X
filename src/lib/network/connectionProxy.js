@@ -57,15 +57,17 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   const uniquePoolIds = [...new Set(poolIds)];
   const excludeSet = new Set(excludeIds || []);
   let eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
-  // Region-aware filtering is opt-in via the "smart" strategy.
-  if (strategy === "smart" && scope) eligible = fitPoolIds(eligible, scope);
+  // Region/provider-aware filtering:
+  // Always filter out unfit pools for Freebuff or when strategy is "smart".
+  // A pool flagged as anonymous_network or limited must NOT be reused.
+  const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
+  if ((strategy === "smart" || isFreebuff) && scope) {
+    eligible = fitPoolIds(eligible, scope);
+  }
 
   if (eligible.length === 0) {
-    // Freebuff must never reuse a limited-IP egress. Other providers retain
-    // the previous fail-open behavior when every smart candidate is marked
-    // unfit; their executors may have their own pool fallback semantics.
-    const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
-    if (isFreebuff && strategy === "smart") return null;
+    // If every pool is marked unfit, Freebuff fails fast so caller can rotate or direct-fallback
+    if (isFreebuff) return null;
     eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
     if (eligible.length === 0) return null;
   }
@@ -77,7 +79,9 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
 
   // ─── Sticky Round-Robin ──────────────────────────────────────────
   if (isSticky) {
-    const limit = Math.max(1, Number(stickyLimit) || 3);
+    // If stickyLimit is 0 or negative, stick indefinitely until the pool becomes unfit/excluded
+    const unlimitedSticky = Number(stickyLimit) <= 0;
+    const limit = unlimitedSticky ? Infinity : Math.max(1, Number(stickyLimit) || 3);
     const state = rotateState.get(stateKey) || { index: -1, currentPoolId: null, stickCount: 0 };
 
     // If current sticky pool is still eligible and count < limit, stick with it
@@ -90,7 +94,6 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
       rotateState.set(stateKey, state);
       return state.currentPoolId;
     }
-
     // Otherwise advance to next eligible candidate in round-robin order
     let prevIdx = state.currentPoolId ? eligible.indexOf(state.currentPoolId) : state.index;
     if (prevIdx === -1) prevIdx = state.index;
@@ -111,12 +114,26 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
     rotateState.set(stateKey, state);
     return eligible[state.index];
   }
-
   if (strategy === "random") {
     return eligible[Math.floor(Math.random() * eligible.length)];
   }
 
   return eligible[0]; // "none" or unknown
+}
+
+/**
+ * Lock a working proxy pool for a scope (e.g. Freebuff) so subsequent
+ * requests stay on this proxy until it fails/becomes unfit.
+ */
+export function lockProxyPoolForScope(providerId, poolId, groupId = null) {
+  if (!poolId) return;
+  const stateKey = providerId
+    ? `${providerId}${groupId ? `:${groupId}` : ""}`
+    : (groupId ? `group:${groupId}` : "default");
+  const state = rotateState.get(stateKey) || { index: -1, currentPoolId: null, stickCount: 0 };
+  state.currentPoolId = poolId;
+  state.stickCount = 0; // Fresh lock
+  rotateState.set(stateKey, state);
 }
 
 /**
