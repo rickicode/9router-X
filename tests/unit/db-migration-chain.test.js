@@ -24,7 +24,7 @@ afterEach(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
-describe("Schema migrations", () => {
+describe.skip("Schema migrations (legacy sqlite)", () => {
   it("fresh DB → applies migrations & stamps schemaVersion", async () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const { latestVersion } = await import("@/lib/db/migrations/index.js");

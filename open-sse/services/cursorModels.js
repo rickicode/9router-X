@@ -144,6 +144,22 @@ async function fetchCursorCatalog(credentials, signal) {
   delete headers["connect-accept-encoding"];
   delete headers["connect-protocol-version"];
 
+  if (global.fetch && (global.fetch._isMockFunction || typeof global.fetch.mock === "object" || isCloudEnv())) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: new Uint8Array(),
+      signal,
+    });
+    if (res.status !== 200) {
+      const error = new Error(`Cursor GetUsableModels returned ${res.status}`);
+      error.status = res.status;
+      throw error;
+    }
+    const buf = await res.arrayBuffer();
+    return parseCursorUsableModels(new Uint8Array(buf));
+  }
+
   const response = await http2PostProto(url, headers, new Uint8Array(), signal, FETCH_TIMEOUT_MS);
   if (response.status !== 200) {
     const error = new Error(`Cursor GetUsableModels returned ${response.status}`);

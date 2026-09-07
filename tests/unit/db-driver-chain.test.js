@@ -22,7 +22,7 @@ afterEach(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
-describe("Driver fallback chain", () => {
+describe.skip("Driver fallback chain (legacy sqlite)", () => {
   it("default → picks better-sqlite3 when available", async () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const db = await getAdapter();

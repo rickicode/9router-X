@@ -158,6 +158,7 @@ export function normalizeClaudePassthrough(body, model = "") {
   // every request. Folding in place keeps the cached prefix stable.
   if (Array.isArray(body.messages)) {
     const messages = [];
+    const systemBlocks = [];
     for (const msg of body.messages) {
       if (msg.role !== ROLE.SYSTEM) {
         messages.push(msg);
@@ -169,19 +170,16 @@ export function normalizeClaudePassthrough(body, model = "") {
           ? msg.content.map(b => (typeof b === "string" ? b : b?.text || "")).join("\n")
           : "";
       if (!text.trim()) continue;
-
-      // Copy-on-write: the caller's body is reused across account-fallback
-      // attempts, so folding must never mutate the original message.
-      const block = { type: CLAUDE_BLOCK.TEXT, text };
-      const prev = messages[messages.length - 1];
-      if (prev?.role === ROLE.USER) {
-        const content = typeof prev.content === "string"
-          ? [{ type: CLAUDE_BLOCK.TEXT, text: prev.content }]
-          : Array.isArray(prev.content) ? [...prev.content] : [];
-        messages[messages.length - 1] = { ...prev, content: [...content, block] };
-        continue;
+      systemBlocks.push({ type: CLAUDE_BLOCK.TEXT, text });
+    }
+    if (systemBlocks.length > 0) {
+      if (typeof body.system === "string") {
+        body.system = [{ type: CLAUDE_BLOCK.TEXT, text: body.system }, ...systemBlocks];
+      } else if (Array.isArray(body.system)) {
+        body.system = [...body.system, ...systemBlocks];
+      } else {
+        body.system = systemBlocks;
       }
-      messages.push({ role: ROLE.USER, content: [block] });
     }
     body.messages = messages;
   }

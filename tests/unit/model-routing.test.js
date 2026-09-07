@@ -10,13 +10,17 @@ async function setupDb() {
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
 
-  const { createProviderNode } = await import("@/models/index.js");
+  const { createProviderNode, deleteProviderNode } = await import("@/models/index.js");
   const { getModelInfo } = await import("@/sse/services/model.js");
+  await deleteProviderNode("openai-compatible-chat-test").catch(() => {});
+  await deleteProviderNode("openai-compatible-test").catch(() => {});
 
   return {
     createProviderNode,
     getModelInfo,
-    cleanup() {
+    async cleanup() {
+      await deleteProviderNode("openai-compatible-chat-test").catch(() => {});
+      await deleteProviderNode("openai-compatible-test").catch(() => {});
       fs.rmSync(tempDir, { recursive: true, force: true });
     },
   };

@@ -188,7 +188,8 @@ describe("Gemini native v1beta endpoint", () => {
       504,
       expect.stringContaining("UND_ERR_HEADERS_TIMEOUT"),
       "gemini",
-      "gemini-3.1-flash-tts-preview"
+      "gemini-3.1-flash-tts-preview",
+      null
     );
     expect(mocks.clearAccountError).toHaveBeenCalledWith(
       "second-conn",
@@ -215,7 +216,8 @@ describe("Gemini native v1beta endpoint", () => {
       502,
       expect.stringContaining("ECONNRESET"),
       "gemini",
-      "gemini-3.1-flash-tts-preview"
+      "gemini-3.1-flash-tts-preview",
+      null
     );
   });
 

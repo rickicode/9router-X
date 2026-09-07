@@ -887,6 +887,147 @@ export function extractTextFromResponse(payload) {
   }
 }
 
+export function encodeAgentValue(val) {
+  if (val === null || val === undefined) {
+    return encodeField(1, WIRE_TYPE.VARINT, 0);
+  }
+  if (typeof val === "boolean") {
+    return encodeField(4, WIRE_TYPE.VARINT, val ? 1 : 0);
+  }
+  if (typeof val === "number") {
+    const buf = Buffer.alloc(8);
+    buf.writeDoubleLE(val, 0);
+    const tag = (2 << 3) | 1;
+    return concatArrays(encodeVarint(tag), new Uint8Array(buf));
+  }
+  if (typeof val === "string") {
+    return encodeField(3, WIRE_TYPE.LEN, val);
+  }
+  if (Array.isArray(val)) {
+    const items = val.map((item) => encodeField(1, WIRE_TYPE.LEN, encodeAgentValue(item)));
+    const listBytes = concatArrays(...items);
+    return encodeField(6, WIRE_TYPE.LEN, listBytes);
+  }
+  if (typeof val === "object") {
+    const entries = Object.entries(val).map(([k, v]) => {
+      const entryBytes = concatArrays(
+        encodeField(1, WIRE_TYPE.LEN, k),
+        encodeField(2, WIRE_TYPE.LEN, encodeAgentValue(v))
+      );
+      return encodeField(1, WIRE_TYPE.LEN, entryBytes);
+    });
+    const structBytes = concatArrays(...entries);
+    return encodeField(5, WIRE_TYPE.LEN, structBytes);
+  }
+  return encodeField(1, WIRE_TYPE.VARINT, 0);
+}
+
+export function decodeAgentValue(bytes) {
+  if (!bytes || bytes.length === 0) return null;
+  const msg = decodeMessage(bytes);
+  if (msg.has(1)) return null;
+  if (msg.has(2)) {
+    const buf = Buffer.from(msg.get(2)[0].value);
+    return buf.readDoubleLE(0);
+  }
+  if (msg.has(3)) {
+    return Buffer.from(msg.get(3)[0].value).toString("utf8");
+  }
+  if (msg.has(4)) {
+    return Boolean(msg.get(4)[0].value);
+  }
+  if (msg.has(5)) {
+    const structMsg = decodeMessage(msg.get(5)[0].value);
+    const result = {};
+    const entries = structMsg.get(1) || [];
+    for (const entryItem of entries) {
+      const entryMsg = decodeMessage(entryItem.value);
+      const key = entryMsg.get(1)?.[0]?.value ? Buffer.from(entryMsg.get(1)[0].value).toString("utf8") : "";
+      const valBytes = entryMsg.get(2)?.[0]?.value;
+      result[key] = valBytes ? decodeAgentValue(valBytes) : null;
+    }
+    return result;
+  }
+  if (msg.has(6)) {
+    const listMsg = decodeMessage(msg.get(6)[0].value);
+    const items = listMsg.get(1) || [];
+    return items.map((item) => decodeAgentValue(item.value));
+  }
+  return null;
+}
+
+export function encodeMcpToolDefinition(tool) {
+  const name = tool.function?.name || tool.name || "";
+  const desc = tool.function?.description || tool.description || "";
+  const schema = tool.function?.parameters || tool.inputSchema || tool.input_schema || { type: "object" };
+  const provider = tool.provider || "9router";
+  const toolName = tool.tool_name || name;
+
+  return concatArrays(
+    encodeField(1, WIRE_TYPE.LEN, name),
+    encodeField(2, WIRE_TYPE.LEN, desc),
+    encodeField(3, WIRE_TYPE.LEN, encodeAgentValue(schema)),
+    encodeField(4, WIRE_TYPE.LEN, provider),
+    encodeField(5, WIRE_TYPE.LEN, toolName),
+  );
+}
+
+export function encodeMcpTools(tools) {
+  if (!tools || !Array.isArray(tools) || tools.length === 0) return new Uint8Array(0);
+  const defs = tools.map((t) => encodeField(1, WIRE_TYPE.LEN, encodeMcpToolDefinition(t)));
+  return concatArrays(...defs);
+}
+
+export function decodeMcpArgs(buffer) {
+  const msg = decodeMessage(buffer);
+  const name = msg.get(1)?.[0]?.value ? Buffer.from(msg.get(1)[0].value).toString("utf8") : "";
+  const toolCallId = msg.get(3)?.[0]?.value ? Buffer.from(msg.get(3)[0].value).toString("utf8") : "";
+  const toolName = msg.get(5)?.[0]?.value ? Buffer.from(msg.get(5)[0].value).toString("utf8") : "";
+  const args = {};
+  const entries = msg.get(2) || [];
+  for (const entry of entries) {
+    const entryMsg = decodeMessage(entry.value);
+    const k = entryMsg.get(1)?.[0]?.value ? Buffer.from(entryMsg.get(1)[0].value).toString("utf8") : "";
+    const vBytes = entryMsg.get(2)?.[0]?.value;
+    if (k && vBytes) {
+      args[k] = decodeAgentValue(vBytes);
+    }
+  }
+  return { name, toolName, toolCallId, args };
+}
+
+export function encodeMcpResultSuccess({ textItems = [], imageItems = [], isError = false } = {}) {
+  const items = [];
+  for (const text of textItems) {
+    const textContent = encodeField(1, WIRE_TYPE.LEN, text);
+    const item = encodeField(1, WIRE_TYPE.LEN, textContent);
+    items.push(encodeField(1, WIRE_TYPE.LEN, item));
+  }
+  for (const img of imageItems) {
+    const imgContent = concatArrays(
+      encodeField(1, WIRE_TYPE.LEN, img.data),
+      encodeField(2, WIRE_TYPE.LEN, img.mimeType || "image/png"),
+    );
+    const item = encodeField(2, WIRE_TYPE.LEN, imgContent);
+    items.push(encodeField(1, WIRE_TYPE.LEN, item));
+  }
+  const successBytes = concatArrays(
+    ...items,
+    encodeField(2, WIRE_TYPE.VARINT, isError ? 1 : 0),
+  );
+  return encodeField(1, WIRE_TYPE.LEN, successBytes);
+}
+
+export function encodeMcpResultError(errorString) {
+  const errBytes = encodeField(1, WIRE_TYPE.LEN, errorString || "Error");
+  return encodeField(2, WIRE_TYPE.LEN, errBytes);
+}
+
+export function encodeMcpResultToolNotFound(toolName) {
+  const tnfBytes = encodeField(1, WIRE_TYPE.LEN, toolName || "");
+  return encodeField(5, WIRE_TYPE.LEN, tnfBytes);
+}
+
 // ==================== EXPORTS ====================
 
 export default {
