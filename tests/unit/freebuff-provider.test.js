@@ -16,6 +16,7 @@ const {
   startRun,
   resetSessionCache,
   rootAgentIdForModel,
+  canonicalFreebuffModel,
   injectFreebuffMarker,
   FREEBUFF_SYSTEM_MARKER,
 } = __test__;
@@ -796,5 +797,18 @@ describe("freebuff executor parseError", () => {
     expect(result.cooldownMs).toBe(15000);
     expect(result.lockAll).toBe(false);
     expect(result.disableAccount).toBe(false);
+  });
+
+  it("resolves canonical model and root agent for short model names without prefix", () => {
+    expect(canonicalFreebuffModel("glm-5.3-flash")).toBe("z-ai/glm-5.3-flash");
+    expect(canonicalFreebuffModel("freebuff/glm-5.3-flash")).toBe("z-ai/glm-5.3-flash");
+    expect(canonicalFreebuffModel("fb/z-ai/glm-5.3-flash")).toBe("z-ai/glm-5.3-flash");
+    expect(canonicalFreebuffModel("deepseek-v4-flash")).toBe("deepseek/deepseek-v4-flash");
+    expect(canonicalFreebuffModel("gpt-5.6-luna")).toBe("openai/gpt-5.6-luna");
+    expect(canonicalFreebuffModel("mimo-v2.5")).toBe("mimo/mimo-v2.5");
+
+    expect(rootAgentIdForModel("glm-5.3-flash")).toBe("base3-free-glm-5-3-flash");
+    expect(rootAgentIdForModel("freebuff/glm-5.3-flash")).toBe("base3-free-glm-5-3-flash");
+    expect(rootAgentIdForModel("z-ai/glm-5.3-flash")).toBe("base3-free-glm-5-3-flash");
   });
 });

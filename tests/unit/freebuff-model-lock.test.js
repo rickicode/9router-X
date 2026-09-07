@@ -356,4 +356,42 @@ describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
     const creds = await getProviderCredentials("freebuff", null, "deepseek/deepseek-v4-flash");
     expect(creds.connectionId).toBe("fb-unmetered");
   });
+
+  it("prioritizes an account locked to canonical model even when requested with short model name", async () => {
+    // Account 1: locked to z-ai/glm-5.3-flash
+    connectionsDb.set("fb-glm-locked", {
+      id: "fb-glm-locked",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "GLM Locked Account",
+      accessToken: "token-glm",
+      isActive: true,
+      testStatus: "active",
+      priority: 2,
+      lockedToModel: "z-ai/glm-5.3-flash",
+      lockedToModelUntil: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+    });
+
+    // Account 2: unlocked / clean (higher priority)
+    connectionsDb.set("fb-clean-high-prio", {
+      id: "fb-clean-high-prio",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Clean Account",
+      accessToken: "token-clean",
+      isActive: true,
+      testStatus: "active",
+      priority: 1,
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+
+    // Requesting short name "glm-5.3-flash" MUST match "z-ai/glm-5.3-flash" and pick fb-glm-locked
+    const creds1 = await getProviderCredentials("freebuff", null, "glm-5.3-flash");
+    expect(creds1.connectionId).toBe("fb-glm-locked");
+
+    // Requesting with prefix "freebuff/glm-5.3-flash" or "fb/z-ai/glm-5.3-flash" also matches
+    const creds2 = await getProviderCredentials("freebuff", null, "freebuff/glm-5.3-flash");
+    expect(creds2.connectionId).toBe("fb-glm-locked");
+  });
 });

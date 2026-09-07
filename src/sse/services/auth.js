@@ -5,6 +5,7 @@ import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
+import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
   setAccountCooldown as redisSetAccountCooldown,
   isAccountInCooldown as redisIsAccountInCooldown,
@@ -28,6 +29,20 @@ function githubMonthlyResetMs(status, errorText, provider) {
   const now = new Date();
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
 }
+function isSameFreebuffModel(connModel, targetModel) {
+  if (!connModel || !targetModel) return false;
+  if (connModel === targetModel) return true;
+  const canonicalConn = canonicalFreebuffModel(connModel);
+  const canonicalTarget = canonicalFreebuffModel(targetModel);
+  if (canonicalConn === canonicalTarget) return true;
+  const cleanA = String(connModel).replace(/^(freebuff|fb)\//i, "");
+  const cleanB = String(targetModel).replace(/^(freebuff|fb)\//i, "");
+  if (cleanA === cleanB) return true;
+  const baseA = cleanA.split("/").pop();
+  const baseB = cleanB.split("/").pop();
+  return baseA === baseB;
+}
+
 
 /**
  * Get provider credentials from localDb
@@ -162,7 +177,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       }
       // Freebuff: skip if live quota exhausted for this model
       if (isFreebuff && model && freebuffQuotaCache) {
-        const quota = freebuffQuotaCache.get(c.id)?.[model];
+        const cacheMap = freebuffQuotaCache.get(c.id);
+        const canonical = canonicalFreebuffModel(model);
+        const quota = cacheMap?.[canonical] || cacheMap?.[model];
         if (quota && !quota.unlimited && quota.remaining !== null && quota.remaining <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
           const account = c.id?.slice(0, 8) || "unknown";
           log.info("FB_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
@@ -189,7 +206,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         );
 
         if (isLocked) {
-          if (c.lockedToModel === model) {
+          if (isSameFreebuffModel(c.lockedToModel, model)) {
             matchingLocked.push(c);
           }
           // Account locked to another model -> excluded!
@@ -588,6 +605,27 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
+  // Model-level restrictions (e.g. OpenRouter free model agentic harness gate,
+  // or error message explicitly references the model or model restriction) must
+  // NEVER lock the entire account — only lock the specific model!
+  const lowerErr = String(errorText || "").toLowerCase();
+  const modelShortName = model ? (model.split("/").pop() || "").toLowerCase() : "";
+  const isModelSpecificRestriction = Boolean(
+    model &&
+    !isPooledQuotaProvider &&
+    !isFatalAuthError(status, errorText) &&
+    (
+      (modelShortName && lowerErr.includes(modelShortName)) ||
+      lowerErr.includes(model.toLowerCase()) ||
+      /agentic harness|routing_funnel|failed_routing_step|only available|not supported for|upgrade to access|model not supported|model is restricted|endpoint is not available|gate free endpoints/i.test(lowerErr)
+    )
+  );
+
+  if (isModelSpecificRestriction) {
+    lockAll = false;
+    disableAccount = false;
+  }
+
 
   // Fatal auth/account failure: permanently disable connection from routing
   if (disableAccount || isFatalAuthError(status, errorText)) {

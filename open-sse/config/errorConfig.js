@@ -85,6 +85,24 @@ export const ERROR_RULES = [
   { text: "model not supported for tier",          cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
   { text: "not available in your region",  cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
   { text: "country_blocked",                cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  // OpenRouter & generic model gating (agentic harness gate, routing funnel, model-specific access)
+  { text: "only available on agentic harnesses",   cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "agentic harness",                       cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "gate free endpoints",                   cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "failed_routing_step",                   cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "routing_funnel",                        cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "is only available",                     cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "only available on",                     cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "only available to",                     cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "only accessible to",                    cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "model is not available",                cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "model not available",                   cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "endpoint is not available",             cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "not allowed for this model",            cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "model is not allowed",                  cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "model is restricted",                   cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "requires a paid",                       cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
+  { text: "requires a subscription",               cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
   // Freebuff proxy-egress refusal (NOT an account fault): the proxy IP is
   // anonymous/blocked, so the pool must rotate — never lock the account.
   // Must stay ABOVE the "session request failed: 403" and status-403 rules.

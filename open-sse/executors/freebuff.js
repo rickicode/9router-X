@@ -430,8 +430,21 @@ function sessionCacheKey(token, model) {
   return `${token}::${model}`;
 }
 
+export function canonicalFreebuffModel(model) {
+  if (!model) return model;
+  const clean = String(model).replace(/^(freebuff|fb)\//i, "");
+  if (FREE_ROOT_AGENT_BY_MODEL[clean]) return clean;
+  for (const canonical of Object.keys(FREE_ROOT_AGENT_BY_MODEL)) {
+    if (canonical.endsWith(`/${clean}`) || canonical === clean) {
+      return canonical;
+    }
+  }
+  return clean;
+}
+
 function rootAgentIdForModel(model) {
-  return FREE_ROOT_AGENT_BY_MODEL[model] || "base2-free";
+  const canonical = canonicalFreebuffModel(model);
+  return FREE_ROOT_AGENT_BY_MODEL[canonical] || "base2-free";
 }
 
 // Retry transient network errors (ECONNRESET, TLS reset, …) on the session/
@@ -457,7 +470,8 @@ async function fetchWithNetworkRetry(url, options, proxyOptions, attempts = 3, t
   throw lastError;
 }
 
-async function requestSession(token, model, proxyOptions) {
+async function requestSession(token, rawModel, proxyOptions) {
+  const model = canonicalFreebuffModel(rawModel);
   // Offer-gated models (Fable) refuse claims while their wave pool is closed —
   // checked before the POST so a closed offer never burns a claim attempt.
   await guardOfferClaim(token, model, proxyOptions);
@@ -687,7 +701,8 @@ async function guardOfferClaim(token, model, proxyOptions) {
   return offer;
 }
 
-async function ensureSession(token, model, proxyOptions, force = false) {
+async function ensureSession(token, rawModel, proxyOptions, force = false) {
+  const model = canonicalFreebuffModel(rawModel);
   const key = sessionCacheKey(token, model);
   // Lazy prune: drop stale rows so the cache never accumulates expired entries.
   const cached = sessionCache.get(key);
@@ -711,11 +726,11 @@ async function ensureSession(token, model, proxyOptions, force = false) {
 }
 
 // Register an agent run so the chat backend can resolve the run_id we send.
-async function startRun(token, model, proxyOptions) {
+async function startRun(token, rawModel, proxyOptions) {
+  const model = canonicalFreebuffModel(rawModel);
   const response = await fetchWithNetworkRetry(`${sessionOrigin()}${RUN_PATH}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       "User-Agent": getCodebuffUserAgent(),
     },
@@ -871,8 +886,8 @@ export class FreebuffExecutor extends BaseExecutor {
     return super.parseError(response, bodyText);
   }
 
-  transformRequest(model, body, stream, credentials) {
-    // Top-level wire shape — see header comment. `run_id` and
+  transformRequest(rawModel, body, stream, credentials) {
+    const model = canonicalFreebuffModel(rawModel);
     // `freebuff_instance_id` are attached by execute() (they need the async
     // run/session registration), so this only sets the static parts.
     body.codebuff_metadata = {
@@ -894,7 +909,8 @@ export class FreebuffExecutor extends BaseExecutor {
     return injectEndTurnTool(body);
   }
 
-  async execute({ model, body, stream, credentials, signal, log, proxyOptions = null }) {
+  async execute({ model: rawModel, body, stream, credentials, signal, log, proxyOptions = null }) {
+    const model = canonicalFreebuffModel(rawModel);
     const token = credentials?.accessToken;
     if (!token) {
       throw new Error("Freebuff requires a connected Freebuff login (no access token found)");
@@ -1131,6 +1147,7 @@ export const __test__ = {
   ensureSession,
   requestSession,
   startRun,
+  canonicalFreebuffModel,
   resetSessionCache,
   rootAgentIdForModel,
   injectFreebuffMarker,

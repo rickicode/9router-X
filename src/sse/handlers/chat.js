@@ -9,6 +9,7 @@ import {
 } from "../services/auth.js";
 import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
 import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
+import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import { getSettings, lockAccountToModel, lockProxyPoolForScope } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
@@ -327,8 +328,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
         // Freebuff 1-hour model affinity lock: lock account to the successful model
         if (provider === "freebuff" && model && credentials.connectionId) {
-          lockAccountToModel(credentials.connectionId, model, 60 * 60 * 1000).catch((e) => {
-            log.warn("AUTH", `Failed to lock Freebuff account to model ${model}:`, e);
+          const canonical = canonicalFreebuffModel(model);
+          lockAccountToModel(credentials.connectionId, canonical, 60 * 60 * 1000).catch((e) => {
+            log.warn("AUTH", `Failed to lock Freebuff account to model ${canonical}:`, e);
           });
         }
 
@@ -392,9 +394,10 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         if (match) currentLockedModel = match[1];
       }
       if (currentLockedModel && credentials?.connectionId) {
-        log.warn("AUTH", `Freebuff account ${credentials.connectionName} locked to "${currentLockedModel}" upstream — updating local lock for 1h`);
-        lockAccountToModel(credentials.connectionId, currentLockedModel, 60 * 60 * 1000).catch((e) => {
-          log.warn("AUTH", `Failed to record Freebuff upstream lock for model ${currentLockedModel}:`, e);
+        const canonical = canonicalFreebuffModel(currentLockedModel);
+        log.warn("AUTH", `Freebuff account ${credentials.connectionName} locked to "${canonical}" upstream — updating local lock for 1h`);
+        lockAccountToModel(credentials.connectionId, canonical, 60 * 60 * 1000).catch((e) => {
+          log.warn("AUTH", `Failed to record Freebuff upstream lock for model ${canonical}:`, e);
         });
       }
       if (upstreamStatus === 409 || /(model_locked|session_model_mismatch|locked to another model)/i.test(String(result.error || ""))) {

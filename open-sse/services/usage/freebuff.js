@@ -20,7 +20,7 @@
 import REGISTRY from "../../providers/registry/index.js";
 import { U, fetchWithTimeout } from "./shared.js";
 import { getCodebuffUserAgent } from "../freebuffVersion.js";
-
+import { canonicalFreebuffModel } from "../../executors/freebuff.js";
 // Friendly labels from the registry model list (mirrors the CLI picker).
 const freebuffRegistry = REGISTRY.find((r) => r.id === "freebuff") || {};
 const MODEL_LABELS = Object.fromEntries(
@@ -103,8 +103,9 @@ export async function verifyFreebuffAccountDirect(accessToken) {
  */
 export async function handleFreebuffQuotaError(connectionId, model, accessToken, providerSpecificData, proxyOptions = null) {
   try {
+    const canonical = canonicalFreebuffModel(model);
     const quotas = await refreshFreebuffQuota(connectionId, accessToken, providerSpecificData, proxyOptions);
-    const resetAt = quotas?.[model]?.resetAt;
+    const resetAt = quotas?.[canonical]?.resetAt || quotas?.[model]?.resetAt;
     if (!resetAt) return null;
     const ms = new Date(resetAt).getTime();
     return Number.isFinite(ms) && ms > Date.now() ? ms : null;

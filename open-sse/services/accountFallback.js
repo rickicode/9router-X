@@ -145,7 +145,10 @@ export function isModelLockActive(connection, model) {
   if (connection.providerSpecificData?.refreshBlocked) {
     return true;
   }
-  const fatalPattern = /\b(banned|account has been banned|account has been deleted|suspended|account suspended|revoked|token revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i;
+  if (connection.isActive === false || connection.testStatus === "disabled") {
+    return true;
+  }
+  const fatalPattern = /\b(account has been banned|account has been deleted|suspended|account suspended|token revoked|invalid_grant|invalid api key)\b/i;
   if (connection.lastError && fatalPattern.test(connection.lastError)) {
     return true;
   }
