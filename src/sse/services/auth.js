@@ -4,7 +4,7 @@ import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActi
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
-import { getFreebuffQuotaCache } from "open-sse/services/usage/freebuff.js";
+import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import {
   setAccountCooldown as redisSetAccountCooldown,
   isAccountInCooldown as redisIsAccountInCooldown,
@@ -474,6 +474,38 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     && (freebuffKind === "free_mode_unavailable"
       || /free_mode_unavailable|anonymous_network|rotating proxy/i.test(String(errorText || "")));
   if (freebuffProxyRefusal) {
+    // The proxy egress was refused, but the account itself may still be
+    // banned upstream — the refusal masks it. Verify via direct egress
+    // (GET /session, no quota burned) so a truly banned account gets
+    // disabled immediately instead of cycling through fallback forever.
+    if (conn) {
+      const accessToken = conn.accessToken || null;
+      verifyFreebuffAccountDirect(accessToken).then((verdict) => {
+        if (verdict !== "banned") return;
+        const connName = conn.displayName || conn.name || conn.email || connectionId.slice(0, 8);
+        const reason = `Freebuff account "${connName}" banned (403, verified via direct egress after proxy refusal): {"status":"banned"}`;
+        updateProviderConnection(connectionId, {
+          isActive: false,
+          testStatus: "disabled",
+          lastError: reason,
+          errorCode: 403,
+          lastErrorAt: new Date().toISOString(),
+          backoffLevel: 0,
+          modelLock___all: null,
+          modelLocks: {},
+          lockedAllUntil: null,
+          lockedToModel: null,
+          lockedToModelUntil: null,
+          rateLimitedUntil: null,
+        }).then(() => {
+          invalidateCachedConnections(providerIdEarly).catch(() => {});
+          redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+          log.warn("AUTH", `${connName} Freebuff account banned (verified direct) — DISABLED (is_active=false), removed from routing`);
+        }).catch((e) => {
+          log.warn("AUTH", `Failed to disable banned Freebuff account ${connName}:`, e);
+        });
+      }).catch(() => {});
+    }
     return { shouldFallback: true, cooldownMs: 0 };
   }
 

@@ -52,6 +52,51 @@ export async function refreshFreebuffQuota(connectionId, accessToken, providerSp
 }
 
 /**
+ * Verify the true account status via direct egress (no proxy).
+ * Proxy-egress refusals (free_mode_unavailable / anonymous_network) mask the
+ * real account state (banned / rate_limited). GET /session never claims a
+ * session, so this check burns no quota.
+ * @returns {Promise<"banned"|"active"|"quota"|"unknown">}
+ */
+export async function verifyFreebuffAccountDirect(accessToken) {
+  if (!accessToken) return "unknown";
+  try {
+    const response = await fetchWithTimeout(
+      sessionUrl(),
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": getCodebuffUserAgent(),
+          Accept: "application/json",
+        },
+      },
+      15000,
+      // Direct egress intentionally: proxies are known-flagged as
+      // anonymous_network, `vercelRelayUrl: ""` prevents relay rewrite
+      // and `noFitPool: true` opts out of any pool binding.
+      {
+        connectionProxyEnabled: false,
+        connectionProxyUrl: "",
+        vercelRelayUrl: "",
+        proxyPoolId: null,
+        noFitPool: true,
+      },
+    );
+
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 401) return "unknown";
+    if (body?.status === "banned") return "banned";
+    if (body?.status === "country_blocked") return "unknown";
+    if (body?.status === "rate_limited") return "quota";
+    if (response.ok) return "active";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * After a 403/429 chat/session error, refresh the quota and return the exact
  * resetAt (ms) for the failed model so the account lock runs until the real
  * Pacific-day/week reset instead of an exponential backoff.
@@ -67,7 +112,6 @@ export async function handleFreebuffQuotaError(connectionId, model, accessToken,
     return null;
   }
 }
-
 function sessionUrl() {
   return U("freebuff").url;
 }
