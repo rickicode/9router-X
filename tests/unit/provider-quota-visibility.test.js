@@ -4,6 +4,7 @@ import {
   getHiddenQuotaRows,
   parseQuotaData,
   trimHiddenQuotaKeys,
+  getConnectionsEmptyMessage,
 } from "@/app/(dashboard)/dashboard/usage/components/ProviderLimits/utils.js";
 
 describe("provider quota visibility", () => {
@@ -71,5 +72,29 @@ describe("provider quota visibility", () => {
       codex: { hidden: ["gemini"] },
     };
     expect(filterQuotasByVisibility("antigravity", quotas, visibility)).toHaveLength(2);
+  });
+
+  it("returns search-specific empty message when search query is provided", () => {
+    const msg = getConnectionsEmptyMessage(
+      { eligibleConnections: 5, providerFilteredConnections: 0 },
+      "all",
+      "all",
+      "my-account@example.com"
+    );
+    expect(msg.icon).toBe("search_off");
+    expect(msg.title).toBe("No Accounts Found");
+    expect(msg.description).toContain("my-account@example.com");
+  });
+
+  it("returns filter-specific empty message when search query is empty", () => {
+    const msg = getConnectionsEmptyMessage(
+      { eligibleConnections: 5, providerFilteredConnections: 0 },
+      "codex",
+      "active",
+      ""
+    );
+    expect(msg.icon).toBe("filter_alt_off");
+    expect(msg.title).toBe("No Accounts Match Current Filters");
+    expect(msg.description).toContain("codex");
   });
 });

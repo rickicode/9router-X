@@ -40,11 +40,11 @@ import {
   QUOTA_SORT_OPTIONS,
 } from "./utils";
 import Card from "@/shared/components/Card";
-import { ConfirmModal, EditConnectionModal, Badge } from "@/shared/components";
+import { ConfirmModal, EditConnectionModal, Badge, CardSkeleton } from "@/shared/components";
 import { getStatusVariant } from "@/shared/utils/connectionStatus";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-
+import { useHeaderSearchStore } from "@/store/headerSearchStore";
 // Maps the stored providerSpecificData.authMethod to a human label for Kiro.
 // Values come from the Kiro connect flows: builder-id/idc (device code),
 // google/github (social), imported (refresh-token paste), api_key (headless).
@@ -155,6 +155,37 @@ export default function ProviderLimits() {
   const [expiringFirst, setExpiringFirst] = useState(false);
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [bulkToggling, setBulkToggling] = useState(false);
+  const [openMenuConnectionId, setOpenMenuConnectionId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const headerSearchQuery = useHeaderSearchStore((s) => s.query);
+  const registerSearch = useHeaderSearchStore((s) => s.register);
+  const unregisterSearch = useHeaderSearchStore((s) => s.unregister);
+  const setHeaderSearchQuery = useHeaderSearchStore((s) => s.setQuery);
+
+  useEffect(() => {
+    registerSearch("Search accounts...");
+    return () => unregisterSearch();
+  }, [registerSearch, unregisterSearch]);
+
+  useEffect(() => {
+    if (headerSearchQuery !== searchQuery) {
+      setSearchQuery(headerSearchQuery);
+    }
+  }, [headerSearchQuery, searchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const trimmed = searchQuery.trim();
+      setDebouncedSearch((prev) => {
+        if (prev !== trimmed) {
+          setPage(1);
+        }
+        return trimmed;
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(CONNECTIONS_PAGE_SIZE);
   const [customPageSizeInput, setCustomPageSizeInput] = useState(
@@ -191,9 +222,12 @@ export default function ProviderLimits() {
           accountStatus: accountFilter,
           sort: "priority",
         });
-
         if (providerFilter !== "all") {
           params.set("provider", providerFilter);
+        }
+
+        if (debouncedSearch) {
+          params.set("search", debouncedSearch);
         }
 
         const response = await fetch(
@@ -231,7 +265,7 @@ export default function ProviderLimits() {
         return [];
       }
     },
-    [accountFilter, expiringFirst, page, pageSize, providerFilter],
+    [accountFilter, page, pageSize, providerFilter, debouncedSearch],
   );
 
   // Fetch quota for a specific connection
@@ -814,6 +848,7 @@ export default function ProviderLimits() {
     totals,
     providerFilter,
     accountFilter,
+    debouncedSearch,
   );
   const connectionsPageSummary = getConnectionsPaginationSummary(pagination);
   const isCustomPageSize = !ACCOUNT_PAGE_SIZE_OPTIONS.includes(pageSize);
@@ -838,263 +873,342 @@ export default function ProviderLimits() {
     );
   }
 
-  if (!connectionsLoading && !hasVisibleConnections) {
-    return (
-      <Card padding="lg">
-        <div className="text-center py-12">
-          <span className="material-symbols-outlined text-[64px] text-text-muted opacity-20">
-            {emptyState.icon}
-          </span>
-          <h3 className="mt-4 text-lg font-semibold text-text-primary">
-            {emptyState.title}
-          </h3>
-          <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
-            {emptyState.description}
-          </p>
-        </div>
-      </Card>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      {/* Header Controls */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        {/* Status Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { key: "all", label: "All", count: statusCounts.total },
-            { key: "active", label: "Active", count: statusCounts.active },
-            { key: "exhausted", label: "Exhausted", count: statusCounts.exhausted },
-            { key: "unavailable", label: "Unavailable", count: statusCounts.unavailable },
-            { key: "disabled", label: "Turned off", count: statusCounts.disabled },
-          ].map((tab) => {
-            const isSelected = accountFilter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  if (accountFilter !== tab.key) {
-                    setPage(1);
-                  }
-                  setAccountFilter(tab.key);
-                }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                  isSelected
-                    ? "bg-primary text-white shadow-sm"
-                    : "bg-black/[0.03] text-text-muted hover:bg-black/[0.06] hover:text-text-main dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold tabular-nums ${
+    <div className="space-y-4">
+      {/* Header & Filter Controls */}
+      <div className="space-y-3">
+        {/* Top Bar: Status Tabs + Search */}
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+          {/* Status Filter Tabs */}
+          <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-black/10 bg-black/[0.02] p-1 dark:border-white/10 dark:bg-white/[0.03]">
+            {[
+              { key: "all", label: "All", count: statusCounts.total, dot: null },
+              { key: "active", label: "Active", count: statusCounts.active, dot: "bg-emerald-500" },
+              { key: "exhausted", label: "Exhausted", count: statusCounts.exhausted, dot: "bg-red-500" },
+              { key: "unavailable", label: "Unavailable", count: statusCounts.unavailable, dot: "bg-amber-500" },
+              { key: "disabled", label: "Turned off", count: statusCounts.disabled, dot: "bg-zinc-400" },
+            ].map((tab) => {
+              const isSelected = accountFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    if (accountFilter !== tab.key) {
+                      setPage(1);
+                    }
+                    setAccountFilter(tab.key);
+                  }}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                     isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-black/5 text-text-muted dark:bg-white/10"
+                      ? "bg-primary text-white shadow-xs"
+                      : "text-text-muted hover:bg-black/5 hover:text-text-main dark:hover:bg-white/5"
                   }`}
                 >
-                  {tab.count ?? 0}
-                </span>
+                  {tab.dot && (
+                    <span
+                      className={`size-1.5 rounded-full shrink-0 ${isSelected ? "bg-white" : tab.dot}`}
+                    />
+                  )}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none ${
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-black/5 text-text-muted dark:bg-white/10"
+                    }`}
+                  >
+                    {tab.count ?? 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Account Search Input */}
+          <div className="relative w-full sm:w-72 lg:w-80">
+            <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                setHeaderSearchQuery(val);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const trimmed = searchQuery.trim();
+                  if (trimmed !== debouncedSearch) {
+                    setPage(1);
+                    setDebouncedSearch(trimmed);
+                  }
+                }
+              }}
+              placeholder="Search accounts..."
+              aria-label="Search accounts"
+              className="h-9 w-full rounded-xl border border-black/10 bg-surface pl-8.5 pr-8 text-xs text-text-primary placeholder:text-text-muted outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/40 dark:border-white/10"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setHeaderSearchQuery("");
+                  if (debouncedSearch !== "") {
+                    setPage(1);
+                    setDebouncedSearch("");
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-muted hover:text-text-main transition-colors"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <span className="material-symbols-outlined text-[15px]">close</span>
               </button>
-            );
-          })}
+            )}
+          </div>
         </div>
 
-        {/* Action Controls & Dropdowns */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setProviderMenuOpen((prev) => !prev)}
-              className="flex h-8 items-center justify-between gap-1 rounded-lg border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
-              aria-haspopup="menu"
-              aria-expanded={providerMenuOpen}
-              title="Filter quota providers"
-            >
-              <span className="flex min-w-0 items-center gap-1.5">
-                {providerFilter === "all" ? (
-                  <span className="material-symbols-outlined text-[14px] text-text-muted">
-                    apps
-                  </span>
-                ) : (
-                  <ProviderIcon
-                    src={`/providers/${providerFilter}.png`}
-                    alt={providerFilter}
-                    size={18}
-                    className="size-[18px] rounded object-contain"
-                    fallbackText={providerFilter.slice(0, 2).toUpperCase()}
-                  />
-                )}
-                <span className="truncate capitalize hidden lg:inline">
-                  {selectedProviderLabel}
-                </span>
-              </span>
-              <span className="material-symbols-outlined text-[14px] text-text-muted">
-                expand_more
-              </span>
-            </button>
-
-            {providerMenuOpen && (
-              <>
-                <button
-                  type="button"
-                  className="fixed inset-0 z-30 bg-transparent"
-                  aria-label="Close provider filter"
-                  onClick={() => setProviderMenuOpen(false)}
-                />
-                <div className="absolute left-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-black/10 bg-surface/95 p-1.5 shadow-xl shadow-black/10 backdrop-blur dark:border-white/10 dark:bg-surface/95 sm:w-72">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (shouldResetPage(providerFilter, "all")) {
-                        setPage(1);
-                      }
-                      setProviderFilter("all");
-                      setProviderMenuOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === "all" ? "bg-primary/10 text-primary" : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"}`}
-                  >
-                    <span className="material-symbols-outlined text-[22px]">
+        {/* Secondary Toolbar: Filters & Sorting (Left) + Actions & Utilities (Right) */}
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-black/[0.06] bg-black/[0.01] px-2.5 py-2 dark:border-white/[0.06] dark:bg-white/[0.01]">
+          {/* Left: Provider & Sorting Controls */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Provider Filter Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProviderMenuOpen((prev) => !prev)}
+                className={`flex h-8 items-center justify-between gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors ${
+                  providerFilter !== "all"
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-black/10 bg-surface text-text-primary hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={providerMenuOpen}
+                title="Filter quota providers"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {providerFilter === "all" ? (
+                    <span className="material-symbols-outlined text-[15px] text-text-muted">
                       apps
                     </span>
-                    <span className="font-medium">All providers</span>
-                    {providerFilter === "all" && (
-                      <span className="material-symbols-outlined ml-auto text-[20px]">
-                        check
+                  ) : (
+                    <ProviderIcon
+                      src={`/providers/${providerFilter}.png`}
+                      alt={providerFilter}
+                      size={16}
+                      className="size-4 rounded object-contain"
+                      fallbackText={providerFilter.slice(0, 2).toUpperCase()}
+                    />
+                  )}
+                  <span className="truncate capitalize">
+                    {selectedProviderLabel}
+                  </span>
+                </span>
+                <span className="material-symbols-outlined text-[14px] text-text-muted">
+                  expand_more
+                </span>
+              </button>
+
+              {providerMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-30 bg-transparent"
+                    aria-label="Close provider filter"
+                    onClick={() => setProviderMenuOpen(false)}
+                  />
+                  <div className="absolute left-0 z-40 mt-1.5 w-64 overflow-hidden rounded-2xl border border-black/10 bg-surface/95 p-1.5 shadow-xl shadow-black/10 backdrop-blur dark:border-white/10 dark:bg-surface/95 sm:w-72">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (shouldResetPage(providerFilter, "all")) {
+                          setPage(1);
+                        }
+                        setProviderFilter("all");
+                        setProviderMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium transition-colors ${
+                        providerFilter === "all"
+                          ? "bg-primary/10 text-primary"
+                          : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        apps
                       </span>
-                    )}
-                  </button>
-                  <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
-                  <div className="max-h-72 overflow-y-auto pr-1">
-                    {providerOptions.map((provider) => (
-                      <button
-                        key={provider}
-                        type="button"
-                        onClick={() => {
-                          if (shouldResetPage(providerFilter, provider)) {
-                            setPage(1);
-                          }
-                          setProviderFilter(provider);
-                          setProviderMenuOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === provider ? "bg-primary/10 text-primary" : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"}`}
-                      >
-                        <ProviderIcon
-                          src={`/providers/${provider}.png`}
-                          alt={provider}
-                          size={24}
-                          className="size-6 rounded-md object-contain"
-                          fallbackText={provider.slice(0, 2).toUpperCase()}
-                        />
-                        <span className="font-medium capitalize">
-                          {provider}
+                      <span>All providers</span>
+                      {providerFilter === "all" && (
+                        <span className="material-symbols-outlined ml-auto text-[18px]">
+                          check
                         </span>
-                        {providerFilter === provider && (
-                          <span className="material-symbols-outlined ml-auto text-[20px]">
-                            check
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                      )}
+                    </button>
+                    <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
+                    <div className="max-h-72 overflow-y-auto pr-1">
+                      {providerOptions.map((provider) => (
+                        <button
+                          key={provider}
+                          type="button"
+                          onClick={() => {
+                            if (shouldResetPage(providerFilter, provider)) {
+                              setPage(1);
+                            }
+                            setProviderFilter(provider);
+                            setProviderMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium transition-colors ${
+                            providerFilter === provider
+                              ? "bg-primary/10 text-primary"
+                              : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"
+                          }`}
+                        >
+                          <ProviderIcon
+                            src={`/providers/${provider}.png`}
+                            alt={provider}
+                            size={20}
+                            className="size-5 rounded object-contain"
+                            fallbackText={provider.slice(0, 2).toUpperCase()}
+                          />
+                          <span className="capitalize">{provider}</span>
+                          {providerFilter === provider && (
+                            <span className="material-symbols-outlined ml-auto text-[18px]">
+                              check
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </>
+                </>
+              )}
+            </div>
+
+            {/* Codex Quota Sort */}
+            {providerFilter === "codex" && (
+              <select
+                value={quotaSortMode}
+                onChange={(event) => setQuotaSortMode(event.target.value)}
+                className="h-8 rounded-lg border border-black/10 bg-surface px-2 text-xs font-medium text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
+                aria-label="Sort Codex quotas by remaining"
+              >
+                {QUOTA_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Expiring First Toggle */}
+            <button
+              type="button"
+              onClick={() => setExpiringFirst((prev) => !prev)}
+              aria-pressed={expiringFirst}
+              className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors ${
+                expiringFirst
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold"
+                  : "border-black/10 bg-surface text-text-primary hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+              }`}
+              title="Sort accounts by earliest quota reset time"
+            >
+              <span className="material-symbols-outlined text-[15px]">
+                hourglass_top
+              </span>
+              <span>Expiring first</span>
+            </button>
+
+            {/* Reset active filters */}
+            {(debouncedSearch || providerFilter !== "all" || accountFilter !== "all" || expiringFirst) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setDebouncedSearch("");
+                  setHeaderSearchQuery("");
+                  setAccountFilter("all");
+                  setProviderFilter("all");
+                  setExpiringFirst(false);
+                  setPage(1);
+                }}
+                className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium text-text-muted hover:text-text-main transition-colors"
+                title="Reset all filters"
+              >
+                <span className="material-symbols-outlined text-[14px]">restart_alt</span>
+                <span>Reset</span>
+              </button>
             )}
           </div>
 
-          {providerFilter === "codex" && (
-            <select
-              value={quotaSortMode}
-              onChange={(event) => setQuotaSortMode(event.target.value)}
-              className="h-8 rounded-lg border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
-              aria-label="Sort Codex quotas by remaining"
+          {/* Right: Actions & Utilities */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Bulk: Disable depleted */}
+            <button
+              type="button"
+              onClick={handleDisableDepleted}
+              disabled={bulkToggling}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-2.5 text-xs font-medium text-red-600 dark:text-red-400 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+              title="Disable connections with depleted quota on the current page"
             >
-              {QUOTA_SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          )}
+              <span className="material-symbols-outlined text-[14px]">block</span>
+              <span>Turn off Empty</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setExpiringFirst((prev) => !prev)}
-            aria-pressed={expiringFirst}
-            className={`flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2 text-xs transition-colors ${expiringFirst ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-black/10 text-text-primary hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"}`}
-            title="Sort accounts by earliest quota reset time"
-          >
-            <span className="material-symbols-outlined text-[14px]">
-              hourglass_top
-            </span>
-            <span className="hidden sm:inline">Expiring first</span>
-          </button>
-
-          {/* Bulk: disable depleted */}
-          <button
-            type="button"
-            onClick={handleDisableDepleted}
-            disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-500/30 px-2 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
-            title="Disable connections with depleted quota on the current page"
-          >
-            <span className="material-symbols-outlined text-[14px]">block</span>
-            <span className="hidden sm:inline">Turn off Empty</span>
-          </button>
-
-          {/* Bulk: enable available */}
-          <button
-            type="button"
-            onClick={handleEnableAvailable}
-            disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-emerald-500/30 px-2 text-xs text-emerald-500 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
-            title="Enable connections that still have quota on the current page"
-          >
-            <span className="material-symbols-outlined text-[14px]">
-              check_circle
-            </span>
-            <span className="hidden sm:inline">Turn on Available</span>
-          </button>
-
-          {/* Auto-refresh toggle */}
-          <button
-            onClick={() => setAutoRefresh((prev) => !prev)}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-black/10 px-2 text-xs transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-            title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
-          >
-            <span
-              className={`material-symbols-outlined text-[14px] ${
-                autoRefresh ? "text-primary" : "text-text-muted"
-              }`}
+            {/* Bulk: Enable available */}
+            <button
+              type="button"
+              onClick={handleEnableAvailable}
+              disabled={bulkToggling}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500/15 disabled:opacity-50"
+              title="Enable connections that still have quota on the current page"
             >
-              {autoRefresh ? "toggle_on" : "toggle_off"}
-            </span>
-            <span className="hidden text-text-primary sm:inline">
-              Auto-refresh
-            </span>
-            {autoRefresh && (
-              <span className="text-[10px] text-text-muted tabular-nums">
-                ({countdown}s)
+              <span className="material-symbols-outlined text-[14px]">check_circle</span>
+              <span>Turn on Available</span>
+            </button>
+
+            <div className="hidden h-4 w-px bg-black/10 dark:bg-white/10 sm:block mx-0.5" />
+
+            {/* Auto-refresh toggle */}
+            <button
+              type="button"
+              onClick={() => setAutoRefresh((prev) => !prev)}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-black/10 bg-surface px-2.5 text-xs font-medium text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+              title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
+            >
+              <span
+                className={`material-symbols-outlined text-[16px] ${
+                  autoRefresh ? "text-primary" : "text-text-muted"
+                }`}
+              >
+                {autoRefresh ? "toggle_on" : "toggle_off"}
               </span>
-            )}
-          </button>
+              <span>Auto-refresh</span>
+              {autoRefresh && (
+                <span className="text-[10px] text-text-muted tabular-nums">
+                  ({countdown}s)
+                </span>
+              )}
+            </button>
 
-
-          {/* Refresh all button */}
-          <button
-            type="button"
-            onClick={() => refreshAll(true)}
-            disabled={refreshingAll}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-black/10 px-2 text-xs text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5 disabled:opacity-50"
-            title="Refresh all"
-          >
-            <span
-              className={`material-symbols-outlined text-[14px] ${refreshingAll ? "animate-spin" : ""}`}
+            {/* Refresh all button */}
+            <button
+              type="button"
+              onClick={() => refreshAll(true)}
+              disabled={refreshingAll}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/10 bg-surface text-xs text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5 disabled:opacity-50"
+              title="Refresh all quotas"
             >
-              refresh
-            </span>
-          </button>
+              <span
+                className={`material-symbols-outlined text-[15px] ${refreshingAll ? "animate-spin" : ""}`}
+              >
+                refresh
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1106,7 +1220,48 @@ export default function ProviderLimits() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Main Content: Loading Skeleton, Empty State, or Card Grid */}
+      {connectionsLoading && !hasVisibleConnections ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : !hasVisibleConnections ? (
+        <Card padding="lg">
+          <div className="text-center py-12">
+            <span className="material-symbols-outlined text-[56px] text-text-muted opacity-25">
+              {emptyState.icon}
+            </span>
+            <h3 className="mt-3 text-base font-semibold text-text-primary">
+              {emptyState.title}
+            </h3>
+            <p className="mt-1.5 text-xs text-text-muted max-w-md mx-auto">
+              {emptyState.description}
+            </p>
+            {(debouncedSearch || accountFilter !== "all" || providerFilter !== "all" || expiringFirst) && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setDebouncedSearch("");
+                    setHeaderSearchQuery("");
+                    setAccountFilter("all");
+                    setProviderFilter("all");
+                    setExpiringFirst(false);
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-black/10 bg-surface px-3 py-1.5 text-xs font-medium text-text-primary shadow-xs hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[15px]">restart_alt</span>
+                  <span>Reset all filters</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {sortedConnections.map((conn) => {
           const quota = quotaData[conn.id];
           const isLoading = loading[conn.id];
@@ -1126,7 +1281,7 @@ export default function ProviderLimits() {
             <Card
               key={conn.id}
               padding="none"
-              className={`min-w-0 ${isInactive ? "opacity-60" : ""}`}
+              className={`min-w-0 ${isInactive ? "opacity-60" : ""} ${openMenuConnectionId === conn.id ? "relative z-20" : ""}`}
             >
               <div className="px-3 py-2 border-b border-black/10 dark:border-white/10">
                 <div className="flex items-center justify-between gap-2">
@@ -1176,6 +1331,30 @@ export default function ProviderLimits() {
                         >
                           {conn.isActive === false ? "disabled" : getEffectiveConnectionStatus(conn)}
                         </Badge>
+                        {conn.providerSpecificData?.validationUrl && (
+                          <div className="inline-flex flex-wrap items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                            <span className="font-semibold">⚠️ Verify:</span>
+                            <a
+                              href={conn.providerSpecificData.validationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold underline hover:text-amber-900 dark:hover:text-amber-100"
+                            >
+                              Action Required ↗
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => copy(conn.providerSpecificData.validationUrl, `val-${conn.id}`)}
+                              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-amber-800 hover:bg-amber-500/20 dark:text-amber-200"
+                              title="Copy validation URL"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">
+                                {copied === `val-${conn.id}` ? "check" : "content_copy"}
+                              </span>
+                              <span>{copied === `val-${conn.id}` ? "Copied" : "Copy"}</span>
+                            </button>
+                          </div>
+                        )}
                         {conn.provider === "kiro" && conn.providerSpecificData?.profileArn && (
                           <button
                             type="button"
@@ -1194,126 +1373,43 @@ export default function ProviderLimits() {
                       </div>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-1 shrink-0">
-                    {isCodex && (
-                      <>
-                        <Tooltip
-                          text={
-                            resetCreditCount > 0
-                              ? `Use one Codex reset credit. Available: ${resetCreditCount}`
-                              : "No Codex reset credits available"
-                          }
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setResetConfirmState({ connection: conn, resetCreditCount })}
-                            disabled={resetCreditCount <= 0 || isLoading || rowBusy}
-                            aria-label={
-                              resetCreditCount > 0
-                                ? `Use one Codex reset credit. ${resetCreditCount} available.`
-                                : "No Codex reset credits available"
-                            }
-                            className={`flex h-8 min-w-10 items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/60 disabled:cursor-not-allowed disabled:opacity-60 ${
-                              resetCreditCount > 0
-                                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                                : "border-black/10 bg-black/[0.02] text-text-muted dark:border-white/10 dark:bg-white/[0.03]"
-                            }`}
-                          >
-                            <span className={`material-symbols-outlined text-[15px] ${isResettingLimit ? "animate-spin" : ""}`}>
-                              {isResettingLimit ? "progress_activity" : "restart_alt"}
-                            </span>
-                            <span>{resetCreditCount}</span>
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="View Codex reset credit expiry">
-                          <button
-                            type="button"
-                            onClick={() => handleViewCodexResetCredits(conn)}
-                            disabled={isLoading || rowBusy}
-                            aria-label="View Codex reset credit expiry"
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 text-text-muted transition-colors hover:bg-black/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
-                          >
-                            <span className="material-symbols-outlined text-[17px]">schedule</span>
-                          </button>
-                        </Tooltip>
-                      </>
-                    )}
-                    {AUTO_PING_SETTINGS_KEYS[conn.provider] && conn.authType === "oauth" && (
-                      <Tooltip text={AUTO_PING_TOOLTIPS[conn.provider]}>
+                    {isCodex && resetCreditCount > 0 && (
+                      <Tooltip
+                        text={`Use one Codex reset credit. Available: ${resetCreditCount}`}
+                      >
                         <button
                           type="button"
-                          onClick={() => toggleAutoPing(conn.id, conn.provider, !(autoPingMaps[conn.provider]?.[conn.id] === true))}
-                          aria-label="Toggle auto-ping"
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${autoPingMaps[conn.provider]?.[conn.id] === true ? "text-primary" : "text-text-muted"}`}
+                          onClick={() => setResetConfirmState({ connection: conn, resetCreditCount })}
+                          disabled={isLoading || rowBusy}
+                          aria-label={`Use one Codex reset credit. ${resetCreditCount} available.`}
+                          className="flex h-7 min-w-9 items-center justify-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-1.5 text-[11px] font-medium tabular-nums text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <span className="material-symbols-outlined text-[18px]">bolt</span>
+                          <span className={`material-symbols-outlined text-[14px] ${isResettingLimit ? "animate-spin" : ""}`}>
+                            {isResettingLimit ? "progress_activity" : "restart_alt"}
+                          </span>
+                          <span>{resetCreditCount}</span>
                         </button>
                       </Tooltip>
                     )}
-                    <Tooltip text="Reset status & cooldown">
-                      <button
-                        type="button"
-                        onClick={() => handleResetConnectionStatus(conn.id, conn.provider)}
-                        disabled={isLoading || rowBusy || resettingStatusId === conn.id}
-                        aria-label="Reset status & cooldown"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-amber-500 transition-colors disabled:opacity-50"
-                      >
-                        <span
-                          className={`material-symbols-outlined text-[18px] ${resettingStatusId === conn.id ? "animate-spin text-amber-500" : ""}`}
-                        >
-                          restart_alt
-                        </span>
-                      </button>
-                    </Tooltip>
                     <Tooltip text="Refresh quota">
                       <button
                         type="button"
                         onClick={() => refreshProvider(conn.id, conn.provider)}
                         disabled={isLoading || rowBusy}
                         aria-label="Refresh quota"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-black/5 hover:text-text-main dark:hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
                         <span
-                          className={`material-symbols-outlined text-[18px] text-text-muted ${isLoading ? "animate-spin" : ""}`}
+                          className={`material-symbols-outlined text-[16px] ${isLoading ? "animate-spin" : ""}`}
                         >
                           refresh
                         </span>
                       </button>
                     </Tooltip>
-                    <Tooltip text="Edit connection">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedConnection(conn);
-                          setShowEditModal(true);
-                        }}
-                        disabled={rowBusy}
-                        aria-label="Edit connection"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          edit
-                        </span>
-                      </button>
-                    </Tooltip>
-                    <Tooltip text="Delete connection">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteConnection(conn.id)}
-                        disabled={rowBusy}
-                        aria-label="Delete connection"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors disabled:opacity-50"
-                      >
-                        <span
-                          className={`material-symbols-outlined text-[18px] ${deletingId === conn.id ? "animate-pulse" : ""}`}
-                        >
-                          delete
-                        </span>
-                      </button>
-                    </Tooltip>
+
                     <div
-                      className="inline-flex items-center pl-0.5"
+                      className="inline-flex items-center px-0.5"
                       title={
                         (conn.isActive ?? true)
                           ? "Disable connection"
@@ -1328,6 +1424,112 @@ export default function ProviderLimits() {
                           handleToggleConnectionActive(conn.id, nextActive)
                         }
                       />
+                    </div>
+
+                    {/* More actions menu */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenuConnectionId((prev) => (prev === conn.id ? null : conn.id))}
+                        aria-label="More actions"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-black/5 hover:text-text-main dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                      </button>
+
+                      {openMenuConnectionId === conn.id && (
+                        <>
+                          <button
+                            type="button"
+                            className="fixed inset-0 z-30 bg-transparent"
+                            aria-label="Close menu"
+                            onClick={() => setOpenMenuConnectionId(null)}
+                          />
+                          <div className="absolute right-0 top-full z-40 mt-1 w-48 overflow-hidden rounded-xl border border-black/10 bg-surface/95 p-1 shadow-xl shadow-black/10 backdrop-blur dark:border-white/10 dark:bg-surface/95">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuConnectionId(null);
+                                setSelectedConnection(conn);
+                                setShowEditModal(true);
+                              }}
+                              disabled={rowBusy}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[16px] text-text-muted">edit</span>
+                              <span>Edit connection</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuConnectionId(null);
+                                handleResetConnectionStatus(conn.id, conn.provider);
+                              }}
+                              disabled={isLoading || rowBusy || resettingStatusId === conn.id}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <span className={`material-symbols-outlined text-[16px] text-amber-500 ${resettingStatusId === conn.id ? "animate-spin" : ""}`}>
+                                restart_alt
+                              </span>
+                              <span>Reset status</span>
+                            </button>
+
+                            {isCodex && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuConnectionId(null);
+                                  handleViewCodexResetCredits(conn);
+                                }}
+                                disabled={isLoading || rowBusy}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                              >
+                                <span className="material-symbols-outlined text-[16px] text-text-muted">schedule</span>
+                                <span>Credit expiry</span>
+                              </button>
+                            )}
+
+                            {AUTO_PING_SETTINGS_KEYS[conn.provider] && conn.authType === "oauth" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuConnectionId(null);
+                                  toggleAutoPing(conn.id, conn.provider, !(autoPingMaps[conn.provider]?.[conn.id] === true));
+                                }}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`material-symbols-outlined text-[16px] ${autoPingMaps[conn.provider]?.[conn.id] === true ? "text-primary" : "text-text-muted"}`}>
+                                    bolt
+                                  </span>
+                                  <span>Auto-ping</span>
+                                </div>
+                                <span className="text-[10px] text-text-muted uppercase font-semibold">
+                                  {autoPingMaps[conn.provider]?.[conn.id] === true ? "ON" : "OFF"}
+                                </span>
+                              </button>
+                            )}
+
+                            <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuConnectionId(null);
+                                handleDeleteConnection(conn.id);
+                              }}
+                              disabled={rowBusy}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            >
+                              <span className={`material-symbols-outlined text-[16px] ${deletingId === conn.id ? "animate-pulse" : ""}`}>
+                                delete
+                              </span>
+                              <span>Delete connection</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1393,7 +1595,9 @@ export default function ProviderLimits() {
           );
         })}
       </div>
+      )}
 
+{hasVisibleConnections && (
       <div className="rounded-xl border border-black/10 bg-black/[0.02] px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-text-muted">{connectionsPageSummary}</span>
@@ -1516,6 +1720,7 @@ export default function ProviderLimits() {
             </div>
           </div>
         </div>
+)}
 
       <ConfirmModal
         isOpen={Boolean(resetConfirmState)}

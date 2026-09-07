@@ -105,7 +105,8 @@ export async function getBatchProviderQuotas(provider) {
        c.email,
        c.priority,
        c.is_active,
-       c.locked_all_until
+       c.locked_all_until,
+       c.provider_specific_data
      FROM usage_snapshots AS s
      INNER JOIN provider_connections AS c ON c.id = s.connection_id
      WHERE s.provider = $1
@@ -120,5 +121,6 @@ export async function getBatchProviderQuotas(provider) {
     priority: row.priority,
     isActive: row.is_active === true || row.is_active === 1,
     lockedAllUntil: row.locked_all_until,
+    providerSpecificData: row.provider_specific_data || {},
   }));
 }

@@ -8,6 +8,7 @@ import {
   isValidApiKey,
 } from "../services/auth.js";
 import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
+import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
 import { getSettings, lockAccountToModel } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
@@ -355,6 +356,15 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         refreshedCredentials.accessToken, credentials.providerSpecificData
       );
       if (quotaResetMs) resetsAtMs = quotaResetMs;
+    }
+    // Freebuff 403/429: refresh live quota to get exact resetAt before locking
+    if (provider === "freebuff" && (result.status === 403 || result.status === 429) && !resetsAtMs) {
+      const fbResetMs = await handleFreebuffQuotaError(
+        credentials.connectionId, model,
+        refreshedCredentials.accessToken, credentials.providerSpecificData,
+        credentials.proxyOptions,
+      );
+      if (fbResetMs) resetsAtMs = fbResetMs;
     }
 
     // Preserve upstream status/kind because chatCore returns thrown upstream

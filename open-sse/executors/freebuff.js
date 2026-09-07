@@ -37,9 +37,27 @@ const SESSION_PATH = "/api/v1/freebuff/session";
 const RUN_PATH = "/api/v1/agent-runs";
 const SESSION_DEFAULT_TTL_MS = 60 * 60 * 1000; // active sessions live ~1h
 
+// A terminal account state (403 banned / country_blocked) is re-confirmed at
+// most once per day: the server sweeps and can reverse wrongful bans, so a
+// long re-check window keeps us self-healing while still sending ~zero traffic
+// to a dead account (mirrors the official CLI: terminal, stop polling).
+const BANNED_ACCOUNT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 // Chat statuses that mean our claimed session is stale and must be re-claimed
 // before retrying (mirrors the CLI's FreebuffGateErrorKind statuses).
 const SESSION_STALE_CODES = new Set([428, 409, 410]);
+
+// Models the backend runs as a CAPACITY-LIMITED OFFER rather than a standing
+// picker row. Claude Fable 5 is not in the client catalog at all: the server
+// advertises it per-session-response (`limitedModelOffers`) only while its
+// shared wave pool has sessions left, and a request without a live offer is
+// refused. A claim must therefore peek at the current offers first instead of
+// POSTing blind (mirrors the CLI: the "Claude Fable 5 · N of M left" row only
+// renders from that payload). Offer state is per-account and cached briefly —
+// the pool can reopen at any time, so a closed offer must NOT set a long
+// cooldown.
+const OFFER_GATED_MODELS = new Set(["anthropic/claude-fable-5"]);
+const OFFER_CACHE_TTL_MS = 45_000;
 
 // The free tier rejects requests whose first system message doesn't open with
 // the canonical Freebuff CLI root prompt (server gate
@@ -105,12 +123,14 @@ function injectEndTurnTool(body) {
 // base3, and the backend can return 404 "No endpoints found" for the old
 // base2 roots during the transition).
 const FREE_ROOT_AGENT_BY_MODEL = {
+  "z-ai/glm-5.2": "base3-free-glm",
   "z-ai/glm-5.3-flash": "base3-free-glm-5-3-flash",
   "deepseek/deepseek-v4-flash": "base3-free-deepseek-flash",
   "mimo/mimo-v2.5": "base3-free-mimo",
   "openai/gpt-5.6-luna": "base3-free-luna",
   "upstage/solar-pro4": "base3-free-solar-pro4",
   "meta/muse-spark-1.3-contributor": "base3-free-muse-spark-1-3",
+  "anthropic/claude-fable-5": "base3-free-fable",
   // Retain roots for sessions from released clients while paused/retired models drain.
   "deepseek/deepseek-v4-pro": "base3-free-deepseek",
   "minimax/minimax-m3": "base3-free-minimax-m3",
@@ -127,11 +147,15 @@ const fbState = (globalThis[FB_STATE_KEY] ??= {
   inflight: new Map(),          // dedupe concurrent claims for the same key
   modelLockCooldowns: new Map(), // `${token}::${model}` -> expiresAt (ms)
   poolLimitCooldowns: new Map(), // `${proxyKey}::${model}` -> expiresAt (ms)
+  offerCache: new Map(),        // `${token}` -> { fetchedAt, offers: [] } (limited-offer rows)
+  bannedUntil: new Map(),       // `${token}` -> expiresAt (ms) — terminal banned/blocked accounts
 });
 const sessionCache = fbState.sessionCache;
 const inflight = fbState.inflight;
 const modelLockCooldowns = fbState.modelLockCooldowns;
 const poolLimitCooldowns = fbState.poolLimitCooldowns;
+const offerCache = fbState.offerCache;
+const bannedUntil = fbState.bannedUntil;
 
 const MODEL_LOCK_COOLDOWN_MS = 10 * 60 * 1000; // session bound to another model (~1h) — re-check every 10 min
 const POOL_LIMITED_COOLDOWN_MS = 5 * 60 * 1000; // IP tier refuses this model — try a different pool/relay
@@ -164,26 +188,46 @@ function proxyKeyOf(proxyOptions) {
 function sessionGateFromText(text) {
   let parsed = {};
   try { parsed = JSON.parse(String(text || "")); } catch { parsed = {}; }
-  return classifySessionGate(parsed.error || parsed.error_type || "", parsed.message || "", parsed.currentModel || null);
+  return classifySessionGate(parsed.error || parsed.error_type || parsed.status || "", parsed.message || "", parsed.currentModel || null);
 }
 
 // Parse a 409/428/410 body into { kind, currentModel }. `msg` may be a whole
 // error string containing a JSON tail (requestSession errors embed the body).
+// A structured code set by requestSession (terminal/ban/quota gates thrown
+// with err.code) wins before any JSON tail sniffing.
 function sessionGateFromError(error) {
+  if (error?.code) {
+    if (error.code === "model_locked") return { kind: "model_locked", currentModel: error.currentModel };
+    if (error.code === "banned") return { kind: "banned" };
+    if (error.code === "country_blocked") return { kind: "country_blocked" };
+    // IP-tier refusals are the egress IP's fault, not the account's — mark the
+    // pool unfit and rotate to another relay (ip_capped = too many active
+    // sessions on this IP; a different egress fixes both).
+    if (error.code === "limited_ip" || error.code === "ip_capped") return { kind: "limited_ip" };
+    if (error.code === "rate_limited" || error.code === "spend_limited") {
+      return { kind: "quota", resetsAtMs: error.resetsAtMs };
+    }
+  }
   const msg = String(error?.message || "");
   const start = msg.indexOf("{");
   if (start < 0) return null;
   try {
     const parsed = JSON.parse(msg.slice(start));
-    return classifySessionGate(parsed.error || "", parsed.message || "", parsed.currentModel || null);
+    return classifySessionGate(parsed.error || parsed.status || "", parsed.message || "", parsed.currentModel || null);
   } catch {
     return null;
   }
 }
 
 function classifySessionGate(code, message, currentModel) {
+  if (code === "banned") return { kind: "banned" };
+  if (code === "country_blocked") return { kind: "country_blocked" };
   if (code === "session_superseded") return { kind: "superseded" };
   if (code === "model_locked") return { kind: "model_locked", currentModel };
+  // IP-tier refusals (limited-tier mismatch or per-IP cap) are the egress's
+  // fault — pool fitness must see them so the bad relay/IP stops being reused.
+  if (code === "limited_ip" || code === "ip_capped") return { kind: "limited_ip" };
+  if (code === "rate_limited" || code === "spend_limited") return { kind: "quota" };
   // session_model_mismatch with the limited-tier message is an IP-tier refusal;
   // without it (or unknown) treat it as a model lock so we don't reclaim in a loop.
   if (code === "session_model_mismatch") {
@@ -196,6 +240,38 @@ function classifySessionGate(code, message, currentModel) {
 
 // Applies cooldowns and throws for non-reclaimable gates. Never returns for them.
 function throwSessionGateError(gate, { token, model, proxyKey, poolId, log }) {
+  if (gate.kind === "banned" || gate.kind === "country_blocked") {
+    const until = Date.now() + BANNED_ACCOUNT_COOLDOWN_MS;
+    setCooldown(bannedUntil, token, until);
+    const err = new Error(
+      gate.kind === "banned"
+        ? "Your Freebuff account has been banned (403) — this account is no longer usable. Remove it and connect a new Freebuff account."
+        : "Freebuff is not available in your region (country blocked).",
+    );
+    err.status = 403;
+    err.code = gate.kind;
+    err.terminalAccount = true;
+    err.resetsAtMs = until;
+    log?.warn?.("AUTH", `Freebuff account ${gate.kind} (token=${token.slice(0, 8)}…) — terminal; no further upstream calls for ${BANNED_ACCOUNT_COOLDOWN_MS / 3600000}h`);
+    throw err;
+  }
+  if (gate.kind === "quota") {
+    // Daily session quota exhausted. Lock token+model until the upstream
+    // resetAt (Pacific day/week) so we never poke an exhausted account —
+    // mirrors trefeon's zero-spam quota lock. Falls back to ~1h when the
+    // body carries no resetAt.
+    const resetsAtMs = gate.resetsAtMs && gate.resetsAtMs > Date.now()
+      ? gate.resetsAtMs
+      : Date.now() + 60 * 60 * 1000;
+    const err = new Error(
+      `Freebuff daily session quota exhausted for ${model} — try again after ${new Date(resetsAtMs).toLocaleString()}.`,
+    );
+    err.status = 429;
+    err.code = "rate_limited";
+    err.resetsAtMs = resetsAtMs;
+    log?.warn?.("AUTH", `Freebuff quota exhausted (${model}) — locked until ${new Date(resetsAtMs).toLocaleString()}`);
+    throw err;
+  }
   if (gate.kind === "model_locked") {
     const until = Date.now() + MODEL_LOCK_COOLDOWN_MS;
     setCooldown(modelLockCooldowns, `${token}::${model}`, until);
@@ -227,6 +303,32 @@ function throwSessionGateError(gate, { token, model, proxyKey, poolId, log }) {
 
 function sessionOrigin() {
   return new URL(PROVIDERS.freebuff.baseUrl).origin; // https://www.codebuff.com
+}
+
+// A network/connect failure while egressing through a relay/pool is the
+// egress's fault (dead relay, unreachable worker), not the account's — declare
+// it pool-scoped so chatCore marks the pool unfit and retries via another
+// pool instead of reusing the dead one. Gate errors (401/403/409/429 with
+// err.status) are never relay failures. No-op when not on a pool/relay.
+function markRelayFailure(err, proxyOptions) {
+  // Gate errors carry an HTTP status or a string code; DOMException has a
+  // numeric legacy .code (e.g. 20 = AbortError) which must NOT be treated as
+  // a gate code. Genuine caller/stream aborts are never relay failures —
+  // only OUR connect-timeout abort (silent stall) counts.
+  if (err?.status != null || typeof err?.code === "string") return err;
+  if (err?.name === "AbortError" && !isConnectTimeoutAbort(err)) return err;
+  if (!proxyOptions?.proxyPoolId && !proxyOptions?.vercelRelayUrl) return err;
+  err.poolScoped = { reason: "relay_unreachable" };
+  return err;
+}
+
+// Distinguish OUR connect-timeout abort (the relay held the connection without
+// answering — a silent stall) from a genuine caller/stream abort. The timeout
+// timer aborts with an Error reason carrying "fetch connect timeout".
+function isConnectTimeoutAbort(error) {
+  if (error?.name !== "AbortError") return false;
+  const msg = String(error?.cause?.message || error?.message || "");
+  return /fetch connect timeout/i.test(msg);
 }
 
 function sessionCacheKey(token, model) {
@@ -261,6 +363,10 @@ async function fetchWithNetworkRetry(url, options, proxyOptions, attempts = 3, t
 }
 
 async function requestSession(token, model, proxyOptions) {
+  // Offer-gated models (Fable) refuse claims while their wave pool is closed —
+  // checked before the POST so a closed offer never burns a claim attempt.
+  await guardOfferClaim(token, model, proxyOptions);
+
   const response = await fetchWithNetworkRetry(`${sessionOrigin()}${SESSION_PATH}`, {
     method: "POST",
     headers: {
@@ -367,6 +473,78 @@ async function requestSession(token, model, proxyOptions) {
   throw new Error(`Freebuff session rejected (${status || response.status}): ${JSON.stringify(data).slice(0, 200)}`);
 }
 
+// Fetch the account's current limited-model offers (GET — never claims).
+// Cached per token for OFFER_CACHE_TTL_MS: the wave pool changes on server
+// time, not ours, and a claim only needs to know "is it open right now".
+async function fetchSessionOffers(token, proxyOptions) {
+  const now = Date.now();
+  const cached = offerCache.get(token);
+  if (cached && now - cached.fetchedAt < OFFER_CACHE_TTL_MS) {
+    return cached.offers;
+  }
+
+  const response = await fetchWithNetworkRetry(`${sessionOrigin()}${SESSION_PATH}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "User-Agent": getCodebuffUserAgent(),
+      Accept: "application/json",
+    },
+  }, proxyOptions);
+
+  let data = {};
+  try { data = await response.json(); } catch { data = {}; }
+
+  if (response.status === 401) {
+    const err = new Error("Freebuff session auth failed (401) — re-login in the dashboard");
+    err.status = 401;
+    throw err;
+  }
+  if (!response.ok) {
+    const err = new Error(`Freebuff offer check failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
+    err.status = response.status;
+    throw err;
+  }
+
+  const offers = Array.isArray(data?.limitedModelOffers)
+    ? data.limitedModelOffers.filter((o) => o && typeof o.model === "string")
+    : [];
+  offerCache.set(token, { fetchedAt: now, offers });
+  return offers;
+}
+
+// For an offer-gated model (Fable), refuse the claim BEFORE the POST when the
+// backend is not currently advertising it. Returns the matching offer when the
+// claim may proceed. Throws a plain Error (no JSON tail) so the executor's
+// sessionGateFromError stays null and the cooldown maps are never touched —
+// a closed offer is availability, not a lock, and the pool can reopen any time.
+async function guardOfferClaim(token, model, proxyOptions) {
+  if (!OFFER_GATED_MODELS.has(model)) return null;
+
+  const offers = await fetchSessionOffers(token, proxyOptions);
+  const offer = offers.find((o) => o.model === model);
+  if (!offer || Number(offer.remaining) <= 0) {
+    const err = new Error(
+      `Claude Fable 5 is not being offered right now — it is a capacity-limited trial served in waves, and freebuff's shared Fable pool is currently empty. Watch the official freebuff CLI for the "Claude Fable 5 · N of M left" row, or retry later.`,
+    );
+    err.status = 409;
+    err.code = "offer_closed";
+    throw err;
+  }
+  const userLeft = Number(offer.userRemaining);
+  if (Number.isFinite(userLeft) && userLeft <= 0) {
+    const resetAt = Date.parse(offer.userResetAt || "");
+    const err = new Error(
+      `Your Freebuff account has used its Claude Fable 5 sessions for today (pool: ${offer.remaining} of ${offer.total} left)${Number.isFinite(resetAt) ? ` — next slot ${new Date(resetAt).toLocaleString()}` : ""}.`,
+    );
+    err.status = 409;
+    err.code = "offer_user_capped";
+    if (Number.isFinite(resetAt)) err.resetsAtMs = resetAt;
+    throw err;
+  }
+  return offer;
+}
+
 async function ensureSession(token, model, proxyOptions, force = false) {
   const key = sessionCacheKey(token, model);
   // Lazy prune: drop stale rows so the cache never accumulates expired entries.
@@ -448,6 +626,7 @@ async function finishRun(token, runId, status, proxyOptions) {
 export function resetSessionCache() {
   sessionCache.clear();
   inflight.clear();
+  offerCache.clear();
 }
 
 // Snapshot sizes of in-memory freebuff state (for the dashboard memory panel).
@@ -457,6 +636,7 @@ export function sessionStateSize() {
     inflight: inflight.size,
     modelLocks: modelLockCooldowns.size,
     poolLimits: poolLimitCooldowns.size,
+    offerCaches: offerCache.size,
   };
 }
 
@@ -468,6 +648,12 @@ export function pruneSessionState(now = Date.now()) {
   for (const [key, entry] of sessionCache) {
     if (entry?.expiresAt && entry.expiresAt <= now) {
       sessionCache.delete(key);
+      removed += 1;
+    }
+  }
+  for (const [key, entry] of offerCache) {
+    if (now - entry.fetchedAt >= OFFER_CACHE_TTL_MS) {
+      offerCache.delete(key);
       removed += 1;
     }
   }
@@ -512,6 +698,16 @@ export class FreebuffExecutor extends BaseExecutor {
       };
     }
     const text = String(bodyText || "");
+    if (response?.status === 504) {
+      // 504 = gateway timeout: the relay/worker layer died (the codebuff
+      // upstream itself answers 428/429/409/502/503, never 504). Declare the
+      // pool scoped so chatCore marks it unfit and rotates to a healthy relay.
+      return {
+        status: 504,
+        message: "Freebuff relay gateway timeout (504) — the proxy pool relay failed to reach codebuff.com. Retrying via another pool.",
+        poolScoped: { reason: "relay_gateway_timeout" },
+      };
+    }
     // Proxy-egress refusal on the chat path (same as session path): rotate
     // pool, never lock the account. poolId/scope completed by chatCore.
     if (/free_mode_unavailable|anonymous_network|proxy traffic/i.test(text)) {
@@ -582,10 +778,22 @@ export class FreebuffExecutor extends BaseExecutor {
       throw err;
     }
     if (proxyOptions?.noFitPool) {
-      const err = new Error(`Freebuff smart proxy found no available fit pool for ${scope} (all pools in cooldown)`);
-      err.status = 503;
-      err.poolScoped = { poolId: null, scope, reason: "no_fit_pool" };
-      throw err;
+      if (proxyOptions?.strictProxy) {
+        const err = new Error(`Freebuff smart proxy found no available fit pool for ${scope} (all pools in cooldown)`);
+        err.status = 503;
+        err.poolScoped = { poolId: null, scope, reason: "no_fit_pool" };
+        throw err;
+      }
+      log?.warn?.("PROXY", `Freebuff | all pools in cooldown for ${scope} — falling back to direct egress`);
+      proxyOptions = {
+        ...proxyOptions,
+        connectionProxyEnabled: false,
+        connectionProxyUrl: "",
+        connectionNoProxy: "",
+        vercelRelayUrl: "",
+        proxyPoolId: null,
+        noFitPool: false,
+      };
     }
 
     let session;
@@ -601,12 +809,15 @@ export class FreebuffExecutor extends BaseExecutor {
       const gate = sessionGateFromError(error);
       if (gate) throwSessionGateError(gate, { token, model, proxyKey, poolId, log });
       log?.error?.("AUTH", `Freebuff session failed: ${error.message}`);
-      throw error;
+      throw markRelayFailure(error, proxyOptions);
     }
 
     const url = this.buildUrl();
     const headers = this.buildHeaders(credentials, stream);
-    const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...this.config.retry };
+    // 504 from a relay is the egress dying, not a retriable upstream state —
+    // bail on the first 504 so pool rotation (via parseError) happens instead
+    // of burning more ~80s attempts on the same dead relay.
+    const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...this.config.retry, 504: { attempts: 0, delayMs: 0 } };
 
     // Registered run whose id the backend resolves on chat. Per-request, like
     // the CLI's one-run-per-prompt granularity; closure-local so concurrent
@@ -644,14 +855,21 @@ export class FreebuffExecutor extends BaseExecutor {
           response = await proxyAwareFetch(url, { method: "POST", headers, body: bodyStr, signal: mergedSignal }, proxyOptions);
         } catch (error) {
           // A caller/stream abort (AbortError) is genuine — never retry it. A
-          // connect timeout is internal: convert to 502 retryable error.
+          // transient socket/TLS reset gets a couple of quick retries so a network
+          // blip doesn't fail the request and lock the model for 30s. Once
+          // exhausted on a relay, blame the egress: mark the pool unfit and
+          // let chatCore rotate to another pool.
           const isConnectTimeout = connectCtrl.signal.aborted && !signal?.aborted;
           if (isConnectTimeout) {
             error = new Error("fetch connect timeout");
             error.status = 502;
           }
           const aborted = error?.name === "AbortError" && !isConnectTimeout;
-          if (aborted || networkAttempts >= MAX_NETWORK_ATTEMPTS) throw error;
+          if (aborted) {
+            if (isConnectTimeoutAbort(error)) throw markRelayFailure(error, proxyOptions);
+            throw error;
+          }
+          if (networkAttempts >= MAX_NETWORK_ATTEMPTS) throw markRelayFailure(error, proxyOptions);
           networkAttempts += 1;
           log?.debug?.("RETRY", `network error on ${url} (${error.message}), retry ${networkAttempts}/${MAX_NETWORK_ATTEMPTS}`);
           await new Promise((resolve) => setTimeout(resolve, 750));
@@ -688,7 +906,7 @@ export class FreebuffExecutor extends BaseExecutor {
         activeRunId = runId;
       } catch (error) {
         log?.error?.("AUTH", `Freebuff run start failed: ${error.message}`);
-        throw error;
+        throw markRelayFailure(error, proxyOptions);
       }
 
       let { response, transformedBody } = await doChat();
@@ -719,7 +937,7 @@ export class FreebuffExecutor extends BaseExecutor {
           const gate2 = sessionGateFromError(error);
           if (gate2) throwSessionGateError(gate2, { token, model, proxyKey, poolId, log });
           log?.error?.("AUTH", `Freebuff session re-claim failed: ${error.message}`);
-          throw error;
+          throw markRelayFailure(error, proxyOptions);
         }
         ({ response, transformedBody } = await doChat());
 
@@ -776,6 +994,13 @@ export const __test__ = {
   injectFreebuffMarker,
   injectEndTurnTool,
   fetchWithNetworkRetry,
+  fetchSessionOffers,
+  guardOfferClaim,
+  markRelayFailure,
+  isConnectTimeoutAbort,
+  sessionGateFromText,
+  sessionGateFromError,
+  OFFER_GATED_MODELS,
   FREEBUFF_SYSTEM_MARKER,
   SESSION_STALE_CODES,
   getCodebuffUserAgent,

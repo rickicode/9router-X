@@ -109,13 +109,19 @@ export default function QuotaTable({
 
   const totalPages = Math.max(1, Math.ceil(sortedQuotas.length / PAGE_SIZE));
 
-  useEffect(() => {
-    setPage(1);
-  }, [sortMode, quotas]);
+  const [prevSortMode, setPrevSortMode] = useState(sortMode);
+  const [prevQuotas, setPrevQuotas] = useState(quotas);
 
-  useEffect(() => {
-    setPage((currentPage) => Math.min(currentPage, totalPages));
-  }, [totalPages]);
+  if (sortMode !== prevSortMode || quotas !== prevQuotas) {
+    setPrevSortMode(sortMode);
+    setPrevQuotas(quotas);
+    setPage(1);
+  }
+
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  if (page > totalPages) {
+    setPage(totalPages);
+  }
 
   if (!quotas || quotas.length === 0) {
     return null;

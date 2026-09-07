@@ -311,6 +311,7 @@ export async function resolveConnectionProxyConfig(
       proxyRotationStrategy === "smart" &&
       multiPoolScope?.startsWith("freebuff::")
     ) {
+      const isStrict = providerSpecificData?.strictProxy === true;
       return {
         source: "pool",
         proxyPoolId: null,
@@ -319,7 +320,7 @@ export async function resolveConnectionProxyConfig(
         connectionProxyEnabled: false,
         connectionProxyUrl: "",
         connectionNoProxy: "",
-        strictProxy: true,
+        strictProxy: isStrict,
       };
     }
 

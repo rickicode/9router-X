@@ -1,4 +1,5 @@
 import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
+import { extractValidationUrl } from "@/sse/services/auth.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { testProxyUrl } from "@/lib/network/proxyTest";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
@@ -236,6 +237,7 @@ async function probeCloudCodeAssistAccess(connection, accessToken, effectiveProx
     valid: false,
     error: parseProviderErrorMessage(bodyText, `API returned ${res.status}`),
     status: res.status,
+    rawBody: bodyText,
   };
 }
 
@@ -382,12 +384,12 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
       if (tokens?.accessToken) {
         const retry = await probeCloudCodeAssistAccess(connection, tokens.accessToken, effectiveProxy);
         if (retry.valid) return { valid: true, error: null, refreshed: true, newTokens: tokens };
-        return { valid: false, error: retry.error, refreshed: true, newTokens: tokens };
+        return { valid: false, error: retry.error, status: retry.status, rawBody: retry.rawBody, refreshed: true, newTokens: tokens };
       }
       return { valid: false, error: "Token invalid or revoked", refreshed: false };
     }
 
-    return { valid: false, error: initial.error, refreshed };
+    return { valid: false, error: initial.error, status: initial.status, rawBody: initial.rawBody, refreshed };
   }
 
   if (connection.provider === "cline") {
@@ -932,6 +934,22 @@ export async function testSingleConnection(id) {
         ...result.newTokens.providerSpecificData,
       };
     }
+  }
+
+  const validationData = extractValidationUrl(result.rawBody || result.error);
+  if (validationData) {
+    updateData.providerSpecificData = {
+      ...(updateData.providerSpecificData || connection.providerSpecificData || {}),
+      validationUrl: validationData.url,
+      validationMessage: validationData.message,
+      validationAt: new Date().toISOString(),
+    };
+  } else if (result.valid && (connection.providerSpecificData?.validationUrl || updateData.providerSpecificData?.validationUrl)) {
+    const psd = { ...(updateData.providerSpecificData || connection.providerSpecificData || {}) };
+    delete psd.validationUrl;
+    delete psd.validationMessage;
+    delete psd.validationAt;
+    updateData.providerSpecificData = psd;
   }
 
   await updateProviderConnection(id, updateData);

@@ -4,6 +4,7 @@ import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActi
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
+import { getFreebuffQuotaCache } from "open-sse/services/usage/freebuff.js";
 import {
   setAccountCooldown as redisSetAccountCooldown,
   isAccountInCooldown as redisIsAccountInCooldown,
@@ -134,11 +135,14 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
 
+    const isFreebuff = providerId === "freebuff";
+    const freebuffQuotaCache = isFreebuff && model ? getFreebuffQuotaCache() : null;
+
     // Check Redis L2 Cooldown in 1 single BATCH call (O(1) roundtrip for 1000s of accounts)
     const candidateIds = connections.map(c => c.id).filter(id => !excludeSet.has(id));
     const cooledDownIds = await getBatchCooldowns(candidateIds, model);
 
-    // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
+    // Filter out model-locked, excluded, and Antigravity/Freebuff quota-exhausted connections.
     let availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
@@ -153,6 +157,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
           const account = c.id?.slice(0, 8) || "unknown";
           log.info("AG_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
+          return false;
+        }
+      }
+      // Freebuff: skip if live quota exhausted for this model
+      if (isFreebuff && model && freebuffQuotaCache) {
+        const quota = freebuffQuotaCache.get(c.id)?.[model];
+        if (quota && !quota.unlimited && quota.remaining !== null && quota.remaining <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
+          const account = c.id?.slice(0, 8) || "unknown";
+          log.info("FB_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
           return false;
         }
       }
@@ -226,6 +239,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       if (isAntigravity && model && antigravityQuotaCache) {
         connections.forEach((c) => {
           const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
+          if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
+        });
+      }
+      if (isFreebuff && model && freebuffQuotaCache) {
+        connections.forEach((c) => {
+          const resetAt = freebuffQuotaCache.get(c.id)?.[model]?.resetAt;
           if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
         });
       }
@@ -365,6 +384,70 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 }
 
 /**
+ * Extract validation URL and message from Antigravity/Google VALIDATION_REQUIRED 403 error.
+ * Supports Google RPC ErrorInfo (details[].metadata.validation_url), error.metadata.validation_url,
+ * and JSON/regex fallbacks.
+ * @param {string|object} errorText
+ * @returns {{ url: string, message: string }|null}
+ */
+export function extractValidationUrl(errorText) {
+  if (!errorText) return null;
+  const str = typeof errorText === "string" ? errorText : JSON.stringify(errorText);
+
+  if (!/validation_url|validationUrl|VALIDATION_REQUIRED/i.test(str)) {
+    return null;
+  }
+
+  try {
+    const jsonStart = str.indexOf("{");
+    if (jsonStart !== -1) {
+      const parsed = JSON.parse(str.slice(jsonStart));
+      const errorObj = parsed.error || parsed;
+
+      let validationUrl = null;
+      let validationMessage = errorObj.message || "Verification required by Google";
+
+      if (Array.isArray(errorObj.details)) {
+        for (const detail of errorObj.details) {
+          const meta = detail?.metadata;
+          if (meta?.validation_url || meta?.validationUrl) {
+            validationUrl = meta.validation_url || meta.validationUrl;
+            if (detail.reason === "VALIDATION_REQUIRED" && !errorObj.message) {
+              validationMessage = "Verification required by Google (VALIDATION_REQUIRED)";
+            }
+            break;
+          }
+        }
+      }
+
+      if (!validationUrl && errorObj.metadata) {
+        validationUrl = errorObj.metadata.validation_url || errorObj.metadata.validationUrl;
+      }
+
+      if (validationUrl && typeof validationUrl === "string") {
+        return {
+          url: validationUrl.trim(),
+          message: typeof validationMessage === "string" ? validationMessage.trim() : "Verification required by Google",
+        };
+      }
+    }
+  } catch {
+    // JSON parse failed, fallback to regex
+  }
+
+  const urlMatch = str.match(/(?:validation_url|validationUrl)["']?\s*[:=]\s*["'](https?:\/\/[^"'\s]+)["']/i);
+  if (urlMatch && urlMatch[1]) {
+    const msgMatch = str.match(/"message"\s*:\s*"([^"]+)"/i);
+    return {
+      url: urlMatch[1].trim(),
+      message: msgMatch ? msgMatch[1].trim() : "Verification required by Google",
+    };
+  }
+
+  return null;
+}
+
+/**
  * Mark account+model as unavailable — locks modelLock_${model} in DB.
  * All errors (429, 401, 5xx, etc.) lock per model, not per account.
  * @param {string} connectionId
@@ -456,6 +539,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // Fatal auth/account failure: permanently disable connection from routing
   if (disableAccount || isFatalAuthError(status, errorText)) {
     const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
+    const validationData = extractValidationUrl(reason);
     await updateProviderConnection(connectionId, {
       isActive: false,
       testStatus: "disabled",
@@ -469,6 +553,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       lockedToModel: null,
       lockedToModelUntil: null,
       modelLocks: {},
+      ...(validationData ? {
+        providerSpecificData: {
+          ...(conn?.providerSpecificData || {}),
+          validationUrl: validationData.url,
+          validationMessage: validationData.message,
+          validationAt: new Date().toISOString(),
+        },
+      } : {}),
     });
     // Long L2 cooldown so the Redis-cached path also stops returning it
     redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
@@ -488,6 +580,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const lockUpdate = buildModelLockUpdate(lockTargetModel, cooldownMs);
   const lockExpiryIso = new Date(Date.now() + cooldownMs).toISOString();
 
+  // Extract validation_url from VALIDATION_REQUIRED 403 responses (Antigravity/Google)
+  const validationData = extractValidationUrl(reason);
+
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
     ...(isAccountWideLock ? { lockedAllUntil: lockExpiryIso } : {}),
@@ -495,7 +590,15 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     lastError: reason,
     errorCode: status,
     lastErrorAt: new Date().toISOString(),
-    backoffLevel: newBackoffLevel ?? backoffLevel
+    backoffLevel: newBackoffLevel ?? backoffLevel,
+    ...(validationData ? {
+      providerSpecificData: {
+        ...(conn?.providerSpecificData || {}),
+        validationUrl: validationData.url,
+        validationMessage: validationData.message,
+        validationAt: new Date().toISOString(),
+      },
+    } : {}),
   });
 
   const lockKey = Object.keys(lockUpdate)[0];
@@ -569,6 +672,13 @@ export async function clearAccountError(connectionId, currentConnection, model =
         lastErrorAt: null,
         backoffLevel: 0
       });
+      if (conn?.providerSpecificData?.validationUrl) {
+        const psd = { ...(conn.providerSpecificData || {}) };
+        delete psd.validationUrl;
+        delete psd.validationMessage;
+        delete psd.validationAt;
+        clearObj.providerSpecificData = psd;
+      }
     }
     redisSetAccountCooldown(connectionId, 0).catch(() => {});
   }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { getStatusVariant as getConnectionStatusVariant } from "@/shared/utils/connectionStatus";
 import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
+import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import CooldownTimer from "./CooldownTimer";
 
 export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, onUnlockModel = null, oneByOneStatus = null, autoPing = null }) {
@@ -14,6 +15,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
   const [rotationStrategy, setRotationStrategy] = useState("none");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [fetchedProxyGroups, setFetchedProxyGroups] = useState(null);
+  const { copied, copy } = useCopyToClipboard();
   const proxyDropdownRef = useRef(null);
 
   const localProxyGroups = proxyGroups || fetchedProxyGroups;
@@ -450,6 +452,35 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
                   no_proxy: {noProxyText}
                 </span>
               )}
+            </div>
+          )}
+          {connection.providerSpecificData?.validationUrl && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-700 dark:text-amber-300">
+              <span className="font-semibold">⚠️ Action Required:</span>
+              <span className="max-w-[300px] truncate" title={connection.providerSpecificData.validationMessage || "Verification required by Google"}>
+                {connection.providerSpecificData.validationMessage || "Verification required by Google"}
+              </span>
+              <div className="inline-flex items-center gap-2">
+                <a
+                  href={connection.providerSpecificData.validationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold underline hover:text-amber-900 dark:hover:text-amber-100"
+                >
+                  Verify ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => copy(connection.providerSpecificData.validationUrl, `val-${connection.id}`)}
+                  className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-500/20 dark:text-amber-200"
+                  title="Copy validation URL"
+                >
+                  <span className="material-symbols-outlined text-[13px]">
+                    {copied === `val-${connection.id}` ? "check" : "content_copy"}
+                  </span>
+                  <span>{copied === `val-${connection.id}` ? "Copied" : "Copy Link"}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

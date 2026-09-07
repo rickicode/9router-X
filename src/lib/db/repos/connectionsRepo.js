@@ -550,6 +550,7 @@ export async function getClientUsageConnections({
   provider = "all",
   accountStatus = "all",
   sort = "priority",
+  search = "",
   limit = 20,
   offset = 0,
   supportedProviders = [],
@@ -579,6 +580,12 @@ export async function getClientUsageConnections({
     where.push(UNAVAILABLE_CONNECTION_SQL);
   } else if (accountStatus === "disabled" || accountStatus === "inactive") {
     where.push(`is_active = false`);
+  }
+
+  if (search && typeof search === "string" && search.trim()) {
+    params.push(`%${search.trim()}%`);
+    const searchIdx = params.length;
+    where.push(`(name ILIKE $${searchIdx} OR email ILIKE $${searchIdx} OR id ILIKE $${searchIdx} OR provider ILIKE $${searchIdx} OR data->>'displayName' ILIKE $${searchIdx} OR data->>'username' ILIKE $${searchIdx} OR data->>'githubLogin' ILIKE $${searchIdx})`);
   }
 
   let orderClause = `ORDER BY priority ASC NULLS LAST, provider ASC, updated_at DESC NULLS LAST`;
@@ -623,6 +630,7 @@ export async function getClientUsageMeta({
   supportedProviders = [],
   apiKeyProviders = [],
   provider = "all",
+  search = "",
 }) {
   const db = await getAdapter();
   const rows = await db.all(
@@ -646,6 +654,11 @@ export async function getClientUsageMeta({
   if (provider && provider !== "all") {
     statusParams.push(provider);
     statusWhere.push(`provider = $${statusParams.length}`);
+  }
+  if (search && typeof search === "string" && search.trim()) {
+    statusParams.push(`%${search.trim()}%`);
+    const searchIdx = statusParams.length;
+    statusWhere.push(`(name ILIKE $${searchIdx} OR email ILIKE $${searchIdx} OR id ILIKE $${searchIdx} OR provider ILIKE $${searchIdx} OR data->>'displayName' ILIKE $${searchIdx} OR data->>'username' ILIKE $${searchIdx} OR data->>'githubLogin' ILIKE $${searchIdx})`);
   }
   const statusWhereSql = `WHERE ${statusWhere.join(" AND ")}`;
 

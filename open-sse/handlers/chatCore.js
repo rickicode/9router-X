@@ -388,6 +388,25 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
         proxyOptions = buildProxyOptions(credentials.providerSpecificData);
         return true;
       }
+      // If no candidate pool remains (all pools failed/unfit), fall back
+      // to clean direct egress unless strictProxy was explicitly requested.
+      const isStrict = credentials?.providerSpecificData?.strictProxy === true || proxyOptions?.strictProxy === true;
+      if (!isStrict && !failedPoolIds.has("__direct__")) {
+        failedPoolIds.add("__direct__");
+        log?.warn?.("PROXY", `${provider.toUpperCase()} | all pools failed/unfit (${failed.reason}) — falling back to direct egress`);
+        credentials.providerSpecificData = {
+          ...(credentials.providerSpecificData || {}),
+          connectionProxyEnabled: false,
+          connectionProxyUrl: "",
+          connectionNoProxy: "",
+          vercelRelayUrl: "",
+          proxyPoolId: null,
+          strictProxy: false,
+          noFitPool: false,
+        };
+        proxyOptions = buildProxyOptions(credentials.providerSpecificData);
+        return true;
+      }
     } catch (resolverError) {
       // A resolver failure must not mask the original pool error.
       log?.warn?.("PROXY", `${provider.toUpperCase()} | pool re-resolve failed: ${resolverError.message}`);

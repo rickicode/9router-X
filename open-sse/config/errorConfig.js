@@ -112,6 +112,7 @@ export const ERROR_RULES = [
   { text: "suspended",                           cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "token revoked",                       cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "unauthorized",                        cooldownMs: 0, lockAll: true, disableAccount: true },
+  { text: "validation_required",                 cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "not eligible",              cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "session request failed: 403", cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
   { text: "permission_denied",         cooldownMs: COOLDOWN.permanentAuth, lockAll: true },

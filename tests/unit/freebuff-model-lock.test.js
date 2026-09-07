@@ -56,11 +56,13 @@ vi.mock("@/lib/network/connectionProxy", () => ({
 }));
 
 import { getProviderCredentials, markAccountUnavailable } from "../../src/sse/services/auth.js";
+import { getFreebuffQuotaCache } from "open-sse/services/usage/freebuff.js";
 
 describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
   beforeEach(() => {
     connectionsDb.clear();
     settingsDb = {};
+    getFreebuffQuotaCache().clear();
     vi.clearAllMocks();
   });
 
@@ -291,5 +293,67 @@ describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
     const creds = await getProviderCredentials("freebuff", null, "openai/gpt-5.6-luna");
     // Must NOT be FREEBUFF_MODEL_LOCKED! Should be null (standard no available credentials)
     expect(creds).toBeNull();
+  });
+
+  it("skips accounts whose live quota cache shows remaining <= 0 for the requested model", async () => {
+    connectionsDb.set("fb-quota-exhausted", {
+      id: "fb-quota-exhausted",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Exhausted Account",
+      accessToken: "token-ex",
+      isActive: true,
+      testStatus: "active",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+    connectionsDb.set("fb-quota-healthy", {
+      id: "fb-quota-healthy",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Healthy Account",
+      accessToken: "token-ok",
+      isActive: true,
+      testStatus: "active",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+
+    const resetAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    getFreebuffQuotaCache().set("fb-quota-exhausted", {
+      "openai/gpt-5.6-luna": {
+        remaining: 0,
+        unlimited: false,
+        resetAt,
+      },
+    });
+
+    const creds = await getProviderCredentials("freebuff", null, "openai/gpt-5.6-luna");
+    expect(creds.connectionId).toBe("fb-quota-healthy");
+  });
+
+  it("permits accounts whose live quota cache shows unlimited or remaining > 0", async () => {
+    connectionsDb.set("fb-unmetered", {
+      id: "fb-unmetered",
+      provider: "freebuff",
+      authType: "oauth",
+      name: "Unmetered Account",
+      accessToken: "token-unm",
+      isActive: true,
+      testStatus: "active",
+      lockedToModel: null,
+      lockedToModelUntil: null,
+    });
+
+    getFreebuffQuotaCache().set("fb-unmetered", {
+      "deepseek/deepseek-v4-flash": {
+        remaining: null,
+        unlimited: true,
+        resetAt: null,
+      },
+    });
+
+    const creds = await getProviderCredentials("freebuff", null, "deepseek/deepseek-v4-flash");
+    expect(creds.connectionId).toBe("fb-unmetered");
   });
 });

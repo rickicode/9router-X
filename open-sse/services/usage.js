@@ -59,7 +59,7 @@ const USAGE_HANDLERS = {
   kimi: (c) => getKimiUsage(c.accessToken, c.apiKey, c.proxyOptions, c.providerSpecificData),
   "opencode-go": (c) => getOpenCodeGoUsage(c.apiKey, c.proxyOptions),
   deepseek: (c) => getDeepseekUsage(c.apiKey, c.proxyOptions),
-  freebuff: (c) => getFreebuffUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
+  freebuff: (c) => getFreebuffUsage(c.accessToken, c.providerSpecificData, c.proxyOptions, c.connectionId),
   groq: (c) => getGroqUsage(c.apiKey, c.proxyOptions),
   zed: (c) => getZedUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
 };
@@ -81,5 +81,6 @@ export async function getUsageForProvider(connection, proxyOptions = null, optio
     providerDataWithProjectId,
     proxyOptions,
     force: options.force === true,
+    connectionId: connection.id,
   });
 }

@@ -18,7 +18,7 @@ const SAFE_PSD_FIELDS = [
   "connectionProxyEnabled", "connectionProxyUrl", "connectionNoProxy",
   "githubLogin", "githubName", "githubEmail", "githubUserId",
   "username", "firstName", "lastName", "authMethod", "authKind",
-  "profileArn",
+  "profileArn", "validationUrl", "validationMessage", "validationAt",
 ];
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -67,20 +67,22 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider") || "all";
     const accountStatus = searchParams.get("accountStatus") || "all";
+    const search = searchParams.get("search") || "";
     const sort = searchParams.get("sort") || "priority";
     const page = parsePositiveInt(searchParams.get("page"), 1);
     const pageSize = Math.min(parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
-
     const [meta, queryResult] = await Promise.all([
       getClientUsageMeta({
         supportedProviders: USAGE_SUPPORTED_PROVIDERS,
         apiKeyProviders: USAGE_APIKEY_PROVIDERS,
         provider,
+        search,
       }),
       getClientUsageConnections({
         provider,
         accountStatus,
         sort,
+        search,
         limit: pageSize,
         offset: (page - 1) * pageSize,
         supportedProviders: USAGE_SUPPORTED_PROVIDERS,

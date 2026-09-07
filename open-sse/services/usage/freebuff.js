@@ -27,11 +27,52 @@ const MODEL_LABELS = Object.fromEntries(
   (freebuffRegistry.models || []).map((m) => [m.id, m.name]),
 );
 
+// Live quota cache per connection (mirrors antigravityQuota.js): warmed by the
+// dashboard usage fetch and by 403/429 chat responses, read by the account
+// pre-filter in src/sse/services/auth.js so an exhausted account is skipped
+// before any upstream call. Lives on globalThis so Next dev (Turbopack) keeps
+// ONE copy across bundles.
+const FB_QUOTA_STATE_KEY = "__9routerFreebuffQuota__";
+const quotaCache = (globalThis[FB_QUOTA_STATE_KEY] ??= new Map()); // connectionId -> { [model]: quotaRow, __fetchedAt }
+
+/** Read-only handle for the auth pre-filter. */
+export function getFreebuffQuotaCache() {
+  return quotaCache;
+}
+
+/**
+ * Refresh a single connection's freebuff quota from upstream (GET /session —
+ * never POSTs, so no session is claimed and no quota is burned).
+ * @returns {Promise<Object|null>} model -> { used, total, remaining, resetAt, unlimited } map, or null.
+ */
+export async function refreshFreebuffQuota(connectionId, accessToken, providerSpecificData, proxyOptions = null) {
+  if (!connectionId) return null;
+  const usage = await getFreebuffUsage(accessToken, providerSpecificData, proxyOptions, connectionId);
+  return usage?.quotas || null;
+}
+
+/**
+ * After a 403/429 chat/session error, refresh the quota and return the exact
+ * resetAt (ms) for the failed model so the account lock runs until the real
+ * Pacific-day/week reset instead of an exponential backoff.
+ */
+export async function handleFreebuffQuotaError(connectionId, model, accessToken, providerSpecificData, proxyOptions = null) {
+  try {
+    const quotas = await refreshFreebuffQuota(connectionId, accessToken, providerSpecificData, proxyOptions);
+    const resetAt = quotas?.[model]?.resetAt;
+    if (!resetAt) return null;
+    const ms = new Date(resetAt).getTime();
+    return Number.isFinite(ms) && ms > Date.now() ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
 function sessionUrl() {
   return U("freebuff").url;
 }
 
-export async function getFreebuffUsage(accessToken, providerSpecificData, proxyOptions = null) {
+export async function getFreebuffUsage(accessToken, providerSpecificData, proxyOptions = null, connectionId = null) {
   if (!accessToken) {
     return { message: "Freebuff credential not available — connect a Freebuff login first." };
   }
@@ -91,16 +132,27 @@ export async function getFreebuffUsage(accessToken, providerSpecificData, proxyO
       if (!rl || typeof rl !== "object") continue;
       const used = Number(rl.recentCount);
       const total = Number(rl.limit);
+      const usedFinite = Number.isFinite(used) ? used : 0;
+      // A missing/zero limit means the model is unmetered on this account
+      // (MiMo / DeepSeek V4 Flash / GLM 5.3 Flash / Solar Pro 4) — show it as
+      // Unlimited instead of a misleading "0 of 0" bar.
+      const limited = Number.isFinite(total) && total > 0;
       quotas[model] = {
-        used: Number.isFinite(used) ? used : 0,
-        total: Number.isFinite(total) ? total : 0,
+        used: usedFinite,
+        total: limited ? total : 0,
+        remaining: limited ? Math.max(0, Math.round((total - usedFinite) * 100) / 100) : null,
         resetAt: rl.resetAt || null,
-        unlimited: false,
+        unlimited: !limited,
         // Daily/weekly Pacific session allowance replenishes at resetAt — the
         // UI must say "Resets in", not "Expires in".
         recurring: true,
+        period: rl.period || null,
         ...(MODEL_LABELS[model] ? { displayName: MODEL_LABELS[model] } : {}),
       };
+    }
+
+    if (connectionId) {
+      quotaCache.set(connectionId, { ...quotas, __fetchedAt: Date.now() });
     }
 
     const plan = data.accessTier === "limited" ? "Freebuff (Limited)" : "Freebuff";

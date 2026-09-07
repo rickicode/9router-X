@@ -67,7 +67,7 @@ export function isFatalAuthError(status, errorText) {
   if (status === 401) return true;
   const str = typeof errorText === "string" ? errorText : (errorText ? JSON.stringify(errorText) : "");
   if (!str) return false;
-  return /\b(invalid_grant|invalid_api_key|invalid api key|invalid token|token revoked|revoked|unauthenticated|unauthorized|unrecoverable_refresh_error|refresh_token_reused|account has been banned|account has been deleted|user has been suspended|account suspended|banned|suspended)\b/i.test(str)
+  return /\b(invalid_grant|invalid_api_key|invalid api key|invalid token|token revoked|revoked|unauthenticated|unauthorized|unrecoverable_refresh_error|refresh_token_reused|account has been banned|account has been deleted|user has been suspended|account suspended|banned|suspended|validation_required)\b/i.test(str)
     || /invalid authentication credential/i.test(str);
 }
 

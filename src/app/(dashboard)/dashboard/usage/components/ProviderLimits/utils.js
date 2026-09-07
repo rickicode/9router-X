@@ -159,13 +159,20 @@ export function getEffectiveConnectionStatus(connection, now = Date.now()) {
   return connection.testStatus || "active";
 }
 
-export function getConnectionsEmptyMessage(totals, providerFilter, accountFilter) {
+export function getConnectionsEmptyMessage(totals, providerFilter, accountFilter, search = "") {
   if (!totals.eligibleConnections) {
     return {
       icon: "cloud_off",
       title: "No Providers Connected",
       description:
         "Connect to providers with OAuth to track your API quota limits and usage.",
+    };
+  }
+  if (search && search.trim()) {
+    return {
+      icon: "search_off",
+      title: "No Accounts Found",
+      description: `No accounts match "${search.trim()}". Try checking your spelling or clearing the search filter.`,
     };
   }
   if (!totals.providerFilteredConnections) {
