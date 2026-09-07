@@ -853,19 +853,40 @@ export default function ProxyPoolsPage() {
 
     setImporting(true);
     try {
-      const existingKeys = new Set(
-        proxyPools.map((pool) => `${(pool.proxyUrl || "").trim()}|||${(pool.noProxy || "").trim()}`)
-      );
+      // Canonical key: URL-normalized (lowercase scheme+host, no trailing
+      // slash) so `http://HOST:port` in DB matches `http://host:port` pasted.
+      // Raw string compare caused false "Skipped" AND false "Created dupes".
+      const normalizeProxyKey = (url, noProxy = "") => {
+        let u = String(url || "").trim();
+        try {
+          const parsed = new URL(u);
+          parsed.hostname = parsed.hostname.toLowerCase();
+          u = parsed.toString();
+        } catch {
+          // Non-URL value — compare trimmed raw.
+        }
+        u = u.replace(/\/+$/, "");
+        return `${u}|||${String(noProxy || "").trim()}`;
+      };
+
+      const existingByKey = new Map();
+      for (const pool of proxyPools) {
+        existingByKey.set(normalizeProxyKey(pool.proxyUrl, pool.noProxy), pool);
+      }
 
       let created = 0;
       let skipped = 0;
       let failed = 0;
       const createdPoolIds = [];
+      const matchedPoolIds = []; // existing pools hit by import (also linked to group)
+      const seenBatchKeys = new Set(); // dupes inside pasted text itself
 
       for (const entry of parsedEntries) {
-        const dedupeKey = `${entry.proxyUrl}|||`;
-        if (existingKeys.has(dedupeKey)) {
+        const dedupeKey = normalizeProxyKey(entry.proxyUrl, "");
+        const existing = existingByKey.get(dedupeKey);
+        if (existing || seenBatchKeys.has(dedupeKey)) {
           skipped += 1;
+          if (existing?.id) matchedPoolIds.push(existing.id);
           continue;
         }
 
@@ -883,11 +904,12 @@ export default function ProxyPoolsPage() {
 
         if (res.ok) {
           created += 1;
-          existingKeys.add(dedupeKey);
+          seenBatchKeys.add(dedupeKey);
           try {
             const data = await res.json();
             if (data?.proxyPool?.id) {
               createdPoolIds.push(data.proxyPool.id);
+              existingByKey.set(dedupeKey, data.proxyPool);
             }
           } catch {}
         } else {
@@ -895,12 +917,15 @@ export default function ProxyPoolsPage() {
         }
       }
 
-      // Link newly created pools to custom group if requested
-      if (createdPoolIds.length > 0) {
+      // Link newly created pools (+ matched existing pools on "existing group"
+      // imports) to custom group if requested. Without this, imports into an
+      // existing group created orphan pools not linked to the group.
+      const linkPoolIds = [...new Set([...createdPoolIds, ...(targetCustomGroupId ? matchedPoolIds : [])])];
+      if (linkPoolIds.length > 0) {
         if (targetCustomGroupId) {
           const targetGroup = (proxyGroups.customGroups || []).find((g) => g.id === targetCustomGroupId);
           const currentPoolIds = Array.isArray(targetGroup?.poolIds) ? targetGroup.poolIds : [];
-          const updatedPoolIds = [...new Set([...currentPoolIds, ...createdPoolIds])];
+          const updatedPoolIds = [...new Set([...currentPoolIds, ...linkPoolIds])];
           try {
             await fetch(`/api/proxy-groups/${targetCustomGroupId}`, {
               method: "PUT",
@@ -917,8 +942,8 @@ export default function ProxyPoolsPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 name: targetGroupName,
-                description: `Created during batch import (${createdPoolIds.length} proxies)`,
-                poolIds: createdPoolIds,
+                description: `Created during batch import (${linkPoolIds.length} proxies)`,
+                poolIds: linkPoolIds,
                 isSticky: false,
                 stickyLimit: 3,
               }),

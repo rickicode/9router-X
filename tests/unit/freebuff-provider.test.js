@@ -354,6 +354,51 @@ describe("freebuff session pre-flight", () => {
     });
   });
 
+  it("classifies free_mode_unavailable (anonymous_network) as pool-scoped proxy refusal", async () => {
+    const body = {
+      error: "free_mode_unavailable",
+      message: "Freebuff cannot be used from proxy traffic. Please disable it and try again.",
+      countryCode: "US",
+      countryBlockReason: "anonymous_network",
+      ipPrivacySignals: ["datacenter"],
+    };
+    fetchMock.mockResolvedValue(jsonResponse(body, { ok: false, status: 403 }));
+
+    await expect(requestSession("tok-proxy", "z-ai/glm-5.3-flash", { proxyPoolId: "pool-9" })).rejects.toMatchObject({
+      status: 403,
+      freebuffKind: "free_mode_unavailable",
+      poolScoped: {
+        poolId: "pool-9",
+        scope: "freebuff::z-ai/glm-5.3-flash",
+        reason: "free_mode_unavailable",
+      },
+    });
+  });
+
+  it("classifies chat-path free_mode_unavailable body as pool-scoped via parseError", async () => {
+    const ex = new FreebuffExecutor();
+    const bodyText = JSON.stringify({
+      error: "free_mode_unavailable",
+      message: "Freebuff cannot be used from proxy traffic.",
+      countryBlockReason: "anonymous_network",
+    });
+    const parsed = await ex.parseError({ status: 403 }, bodyText);
+    expect(parsed.freebuffKind).toBe("free_mode_unavailable");
+    expect(parsed.poolScoped?.reason).toBe("free_mode_unavailable");
+  });
+
+  it("never reports the session-request-failed prefix for proxy refusals", async () => {
+    const body = {
+      error: "free_mode_unavailable",
+      message: "Freebuff cannot be used from proxy traffic.",
+      countryBlockReason: "anonymous_network",
+    };
+    fetchMock.mockResolvedValue(jsonResponse(body, { ok: false, status: 403 }));
+    await expect(requestSession("tok-proxy", "z-ai/glm-5.3-flash", null)).rejects.not.toThrow(
+      /session request failed: 403/i,
+    );
+  });
+
   it("preserves thrown Freebuff metadata in parseError", async () => {
     const ex = new FreebuffExecutor();
     const error = Object.assign(new Error("country blocked"), {

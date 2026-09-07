@@ -85,6 +85,12 @@ export const ERROR_RULES = [
   { text: "model not supported for tier",          cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },
   { text: "not available in your region",  cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
   { text: "country_blocked",                cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  // Freebuff proxy-egress refusal (NOT an account fault): the proxy IP is
+  // anonymous/blocked, so the pool must rotate — never lock the account.
+  // Must stay ABOVE the "session request failed: 403" and status-403 rules.
+  { text: "free_mode_unavailable",           cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: "anonymous_network",              cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
+  { text: "rotating proxy",                 cooldownMs: TRANSIENT_COOLDOWN_MS, lockAll: false },
 
   { text: "invalid authentication credential",   cooldownMs: 0, lockAll: true, disableAccount: true },
   { text: "invalid_grant",                       cooldownMs: 0, lockAll: true, disableAccount: true },

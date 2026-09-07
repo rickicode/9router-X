@@ -387,9 +387,16 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       }
     }
 
+    // A Freebuff proxy-egress refusal (free_mode_unavailable / anonymous_network)
+    // already rotated pools inside chatCore — never treat it as a ban even
+    // when the message embeds upstream JSON. Just fall back to next account.
+    const isFreebuffProxyRefusal = provider === "freebuff"
+      && (result.extra?.freebuffKind === "free_mode_unavailable"
+        || /free_mode_unavailable|anonymous_network/i.test(String(result.error || "")));
+
     // A banned Freebuff account is permanently disabled (is_active=false, test_status="disabled")
     // and gateway falls back to the next healthy account
-    if (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || "")))) {
+    if (!isFreebuffProxyRefusal && (result.extra?.freebuffKind === "banned" || (provider === "freebuff" && /(^|[^a-z])banned([^a-z]|$)/i.test(String(result.error || ""))))) {
       const connName = credentials.connectionName || credentials.name || credentials.email || credentials.connectionId?.slice(0, 8) || "account";
       const rawError = String(result.error || '{"status":"banned"}');
       const banReason = rawError.includes(connName)

@@ -373,7 +373,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
  * @param {string|null} provider
  * @param {string|null} model - The specific model that triggered the error
  * @param {number|null} resetsAtMs - Precise upstream reset time when known
- * @param {string} [freebuffKind] - Freebuff gate kind: "banned" | "country_blocked"
+ * @param {string} [freebuffKind] - Freebuff gate kind: "banned" | "country_blocked" | "free_mode_unavailable"
  * @returns {{ shouldFallback: boolean, cooldownMs: number }}
  */
 export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null, freebuffKind = null) {
@@ -381,6 +381,18 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const connections = await getProviderConnections({ provider });
   const conn = connections.find(c => c.id === connectionId);
   const backoffLevel = conn?.backoffLevel || 0;
+
+  // A Freebuff proxy-egress refusal (free_mode_unavailable / anonymous_network)
+  // is NOT an account fault — the pool already rotated in chatCore, so just
+  // fall back to the next account with zero cooldown. Must stay BEFORE the
+  // banned check so the bare "banned" substring rules can never touch it.
+  const providerIdEarly = resolveProviderId(provider);
+  const freebuffProxyRefusal = providerIdEarly === "freebuff"
+    && (freebuffKind === "free_mode_unavailable"
+      || /free_mode_unavailable|anonymous_network|rotating proxy/i.test(String(errorText || "")));
+  if (freebuffProxyRefusal) {
+    return { shouldFallback: true, cooldownMs: 0 };
+  }
 
   // A Freebuff account the backend reports as banned is permanently dead:
   // take it out of routing entirely (is_active=false, status disabled) rather

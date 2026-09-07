@@ -298,6 +298,25 @@ async function requestSession(token, model, proxyOptions) {
       };
       throw err;
     }
+    // Proxy-egress refusal (NOT an account fault): upstream rejects anonymous/
+    // proxy traffic with `free_mode_unavailable` + `anonymous_network`. Mark the
+    // pool unfit so chatCore rotates to another proxy instead of locking the
+    // account. Message deliberately avoids the "session request failed: 403"
+    // prefix so the 3-day lockAll rule in ERROR_RULES can never match it.
+    const errorName = String(data?.error || "").toLowerCase();
+    const bodyText = JSON.stringify(data || {});
+    if (statusText === "free_mode_unavailable" || errorName === "free_mode_unavailable"
+      || /anonymous_network|proxy traffic/i.test(bodyText)) {
+      const err = new Error(`Freebuff free mode unavailable from this proxy egress (anonymous_network) — rotating proxy. ${bodyText.slice(0, 160)}`);
+      err.status = 403;
+      err.freebuffKind = "free_mode_unavailable";
+      err.poolScoped = {
+        poolId: proxyOptions?.proxyPoolId || null,
+        scope: `freebuff::${model}`,
+        reason: "free_mode_unavailable",
+      };
+      throw err;
+    }
     const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
     err.status = response.status;
     throw err;
@@ -493,6 +512,17 @@ export class FreebuffExecutor extends BaseExecutor {
       };
     }
     const text = String(bodyText || "");
+    // Proxy-egress refusal on the chat path (same as session path): rotate
+    // pool, never lock the account. poolId/scope completed by chatCore.
+    if (/free_mode_unavailable|anonymous_network|proxy traffic/i.test(text)) {
+      return {
+        status: response?.status || 403,
+        message: `Freebuff free mode unavailable from this proxy egress (anonymous_network) — rotating proxy. ${text.slice(0, 160)}`,
+        poolScoped: { reason: "free_mode_unavailable" },
+        freebuffKind: "free_mode_unavailable",
+        upstreamStatus: response?.status || 403,
+      };
+    }
     if (response?.status === 404 && /No endpoints found/i.test(text)) {
       return {
         status: 404,
