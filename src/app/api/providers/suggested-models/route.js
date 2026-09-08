@@ -12,10 +12,11 @@ export async function GET(request) {
     return NextResponse.json({ error: "Missing url or type" }, { status: 400 });
   }
 
-  const filter = FILTERS[type];
-  if (!filter) {
-    return NextResponse.json({ error: "Unknown filter type" }, { status: 400 });
-  }
+  const filter = FILTERS[type] || ((models) =>
+    (Array.isArray(models) ? models : [])
+      .map((m) => ({ id: m.id || m.name, name: m.name || m.id, contextLength: m.context_length }))
+      .filter((m) => Boolean(m.id))
+  );
 
   try {
     const res = await fetch(url);

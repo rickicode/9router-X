@@ -1088,13 +1088,13 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
             model_locks = '{}'::jsonb,
             data = (
               CASE
-                WHEN data->'providerSpecificData' IS NOT NULL THEN
+                WHEN jsonb_typeof(data->'providerSpecificData') = 'object' THEN
                   jsonb_set(
-                    data - 'disabledReason' - 'disabledAt' - 'disabledBy',
+                    (CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END) - 'disabledReason' - 'disabledAt' - 'disabledBy',
                     '{providerSpecificData}',
                     (data->'providerSpecificData') - 'refreshBlocked' - 'refreshBlockedAt'
                   )
-                WHEN data IS NOT NULL THEN
+                WHEN jsonb_typeof(data) = 'object' THEN
                   data - 'disabledReason' - 'disabledAt' - 'disabledBy'
                 ELSE '{}'::jsonb
               END
@@ -1142,6 +1142,24 @@ export async function bulkUpdateProviderProxy({
   }
 
   let rows = [];
+  const safeData = `CASE
+    WHEN jsonb_typeof(data) = 'object' THEN data
+    WHEN jsonb_typeof(data) = 'string' AND (data #>> '{}') LIKE '{%' THEN (data #>> '{}')::jsonb
+    ELSE '{}'::jsonb
+  END`;
+  const safePsd = `CASE
+    WHEN jsonb_typeof(data->'providerSpecificData') = 'object' THEN data->'providerSpecificData'
+    ELSE '{}'::jsonb
+  END`;
+  const safePcData = `CASE
+    WHEN jsonb_typeof(pc.data) = 'object' THEN pc.data
+    WHEN jsonb_typeof(pc.data) = 'string' AND (pc.data #>> '{}') LIKE '{%' THEN (pc.data #>> '{}')::jsonb
+    ELSE '{}'::jsonb
+  END`;
+  const safePcPsd = `CASE
+    WHEN jsonb_typeof(pc.data->'providerSpecificData') = 'object' THEN pc.data->'providerSpecificData'
+    ELSE '{}'::jsonb
+  END`;
 
   if (action === "one-to-one") {
     if (!Array.isArray(activePoolIds) || activePoolIds.length === 0) {
@@ -1159,9 +1177,9 @@ export async function bulkUpdateProviderProxy({
       )
       UPDATE provider_connections pc
       SET data = jsonb_set(
-        COALESCE(pc.data, '{}'::jsonb),
+        ${safePcData},
         '{providerSpecificData}',
-        ((COALESCE(pc.data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', ($${poolArrParam}::text[])[numbered.pool_idx + 1]))
+        ((${safePcPsd} - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', ($${poolArrParam}::text[])[numbered.pool_idx + 1]))
       ),
       updated_at = NOW()
       FROM numbered
@@ -1177,9 +1195,9 @@ export async function bulkUpdateProviderProxy({
     rows = await db.all(
       `UPDATE provider_connections
           SET data = jsonb_set(
-            COALESCE(data, '{}'::jsonb),
+            ${safeData},
             '{providerSpecificData}',
-            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyPoolIds') || jsonb_build_object('proxyGroup', $${grpParam}::text, 'proxyRotationStrategy', $${stratParam}::text, 'proxyPoolIds', '[]'::jsonb))
+            ((${safePsd} - 'proxyPoolId' - 'proxyPoolIds') || jsonb_build_object('proxyGroup', $${grpParam}::text, 'proxyRotationStrategy', $${stratParam}::text, 'proxyPoolIds', '[]'::jsonb))
           ),
           updated_at = NOW()
         ${whereClause}
@@ -1195,9 +1213,9 @@ export async function bulkUpdateProviderProxy({
     rows = await db.all(
       `UPDATE provider_connections
           SET data = jsonb_set(
-            COALESCE(data, '{}'::jsonb),
+            ${safeData},
             '{providerSpecificData}',
-            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyGroup') || jsonb_build_object('proxyPoolIds', $${poolIdsParam}::jsonb, 'proxyRotationStrategy', $${stratParam}::text))
+            ((${safePsd} - 'proxyPoolId' - 'proxyGroup') || jsonb_build_object('proxyPoolIds', $${poolIdsParam}::jsonb, 'proxyRotationStrategy', $${stratParam}::text))
           ),
           updated_at = NOW()
         ${whereClause}
@@ -1208,9 +1226,9 @@ export async function bulkUpdateProviderProxy({
     rows = await db.all(
       `UPDATE provider_connections
           SET data = jsonb_set(
-            COALESCE(data, '{}'::jsonb),
+            ${safeData},
             '{providerSpecificData}',
-            (COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup' - 'connectionProxyEnabled' - 'connectionProxyUrl' - 'connectionNoProxy')
+            (${safePsd} - 'proxyPoolId' - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup' - 'connectionProxyEnabled' - 'connectionProxyUrl' - 'connectionNoProxy')
           ),
           updated_at = NOW()
         ${whereClause}
@@ -1227,9 +1245,9 @@ export async function bulkUpdateProviderProxy({
     rows = await db.all(
       `UPDATE provider_connections
           SET data = jsonb_set(
-            COALESCE(data, '{}'::jsonb),
+            ${safeData},
             '{providerSpecificData}',
-            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', $${poolParam}::text))
+            ((${safePsd} - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', $${poolParam}::text))
           ),
           updated_at = NOW()
         ${whereClause}

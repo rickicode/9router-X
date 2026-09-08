@@ -41,6 +41,6 @@ export async function POST(request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error bulk updating provider proxy:", error);
-    return NextResponse.json({ error: "Failed to update proxy" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Failed to update proxy" }, { status: 500 });
   }
 }

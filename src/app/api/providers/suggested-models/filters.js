@@ -5,6 +5,11 @@ const KNOWN_FREE_OPENCODE_MODELS = ["big-pickle"];
 const DEAD_FREE_OPENCODE_MODELS = new Set(["deepseek-v4-flash-free"]);
 
 export const FILTERS = {
+  "openai": (models) =>
+    (Array.isArray(models) ? models : [])
+      .map((m) => ({ id: m.id || m.name, name: m.name || m.id, contextLength: m.context_length }))
+      .filter((m) => Boolean(m.id)),
+
   "openrouter-free": (models) =>
     models
       .filter(
