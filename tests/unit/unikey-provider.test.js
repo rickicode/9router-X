@@ -22,12 +22,14 @@ describe("UniKey provider", () => {
   it("exposes default models including claude-opus-4-8 and distinct gemini models", () => {
     const defaultModels = unikey.models.map((m) => m.id);
     expect(defaultModels).toContain("claude-opus-4-8");
+    expect(defaultModels).toContain("claude-opus-4-6");
+    expect(defaultModels).toContain("claude-opus-4-7");
     expect(defaultModels).toContain("google/gemini-3.5-flash");
     expect(defaultModels).toContain("gemini-3.5-flash");
 
     // verify google/gemini-3.5-flash and gemini-3.5-flash are distinct
     expect("google/gemini-3.5-flash").not.toBe("gemini-3.5-flash");
-    expect(defaultModels.length).toBe(16);
+    expect(defaultModels.length).toBe(18);
   });
 
   it("configures modelsFetcher for dynamic discovery", () => {
