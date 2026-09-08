@@ -505,7 +505,10 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
       const res = await fetchWithConnectionProxy(`${modelsBase.replace(/\/$/, "")}/models`, {
         headers: { "Authorization": `Bearer ${connection.apiKey}` },
       }, effectiveProxy);
-      return { valid: res.ok, error: res.ok ? null : "Invalid API key or base URL" };
+      if (res.status === 524 || res.status === 502 || res.status === 503 || res.status === 504) {
+        return { valid: true, warning: `Temporary gateway response (${res.status}) - server may be down or overloaded`, status: res.status };
+      }
+      return { valid: res.ok, error: res.ok ? null : "Invalid API key or base URL", status: res.status };
     } catch (err) {
       return { valid: false, error: err.message };
     }
@@ -534,8 +537,11 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         }),
       }, effectiveProxy);
       // 400/529 still confirms key accepted; only 401/403 = bad key
+      if (res.status === 524 || res.status === 502 || res.status === 503 || res.status === 504) {
+        return { valid: true, warning: `Temporary gateway response (${res.status}) - server may be down or overloaded`, status: res.status };
+      }
       const valid = res.status !== 401 && res.status !== 403;
-      return { valid, error: valid ? null : "Invalid API key or base URL" };
+      return { valid, error: valid ? null : "Invalid API key or base URL", status: res.status };
     } catch (err) {
       return { valid: false, error: err.message };
     }
@@ -918,18 +924,28 @@ export async function testSingleConnection(id) {
     return { valid: false, error: banData.lastError, refreshed: false, latencyMs, testedAt: new Date().toISOString() };
   }
 
+  // 524 / Gateway Timeout / Server Down: upstream is temporarily unavailable, NOT an account failure.
+  // Never mark testStatus as "error", never set lastError, keep account active.
+  const is524OrGatewayTimeout = result.status === 524
+    || /524|gateway timeout|timeout occurred/i.test(result.error || result.warning || "");
+
+  if (is524OrGatewayTimeout) {
+    result.valid = true;
+    result.warning = result.warning || "Upstream temporary gateway response (524) - server may be down or overloaded";
+  }
+
   // Soft success (e.g. Grok CLI 402 spending-limit): credentials are good, account is
   // out of credits. Keep testStatus active; surface the message as lastError so the
   // dashboard can show a warning without marking the connection broken.
   const softWarning = result.valid && (result.warning || result.error);
   const updateData = {
-    testStatus: result.valid ? "active" : "error",
-    lastError: result.valid ? (softWarning || null) : result.error,
-    lastErrorAt: result.valid
-      ? softWarning
-        ? new Date().toISOString()
-        : null
-      : new Date().toISOString(),
+    testStatus: is524OrGatewayTimeout ? (connection.testStatus || "active") : (result.valid ? "active" : "error"),
+    lastError: is524OrGatewayTimeout ? null : (result.valid ? (softWarning || null) : result.error),
+    lastErrorAt: is524OrGatewayTimeout
+      ? null
+      : (result.valid
+        ? (softWarning ? new Date().toISOString() : null)
+        : new Date().toISOString()),
   };
 
   if (result.refreshed && result.newTokens) {

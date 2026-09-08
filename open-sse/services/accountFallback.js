@@ -25,6 +25,11 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     ? (typeof errorText === "string" ? errorText : JSON.stringify(errorText)).toLowerCase()
     : "";
 
+  // 524 / Gateway Timeout is transient upstream/server downtime — never lock or error the account
+  if (status === 524 || lowerError.includes("524") || lowerError.includes("gateway timeout") || lowerError.includes("a timeout occurred")) {
+    return { shouldFallback: true, cooldownMs: 0, lockAll: false, disableAccount: false };
+  }
+
   for (const rule of ERROR_RULES) {
     // Text-based rule: match substring in error message
     if (rule.text && lowerError && lowerError.includes(rule.text)) {

@@ -605,6 +605,16 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
+
+  // 524 / Gateway timeout: upstream server is temporarily slow or down.
+  // NEVER disable account, NEVER lock all models, cooldown capped at max 5 minutes (default 0).
+  const is524Timeout = status === 524 || /524|gateway timeout|timeout occurred/i.test(String(errorText || ""));
+  if (is524Timeout) {
+    lockAll = false;
+    disableAccount = false;
+    cooldownMs = Math.min(cooldownMs || 0, 5 * 60 * 1000);
+    newBackoffLevel = 0;
+  }
   // Model-level restrictions (e.g. OpenRouter free model agentic harness gate,
   // or error message explicitly references the model or model restriction) must
   // NEVER lock the entire account — only lock the specific model!
@@ -680,11 +690,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
     ...(isAccountWideLock ? { lockedAllUntil: lockExpiryIso } : {}),
-    testStatus: isAccountWideLock ? "unavailable" : (conn?.testStatus || "active"),
-    lastError: reason,
-    errorCode: status,
-    lastErrorAt: new Date().toISOString(),
-    backoffLevel: newBackoffLevel ?? backoffLevel,
+    testStatus: is524Timeout ? (conn?.testStatus || "active") : (isAccountWideLock ? "unavailable" : (conn?.testStatus || "active")),
+    lastError: is524Timeout ? (conn?.lastError || null) : reason,
+    errorCode: is524Timeout ? null : status,
+    lastErrorAt: is524Timeout ? (conn?.lastErrorAt || null) : new Date().toISOString(),
+    backoffLevel: is524Timeout ? 0 : (newBackoffLevel ?? backoffLevel),
     ...(validationData ? {
       providerSpecificData: {
         ...(conn?.providerSpecificData || {}),
@@ -697,14 +707,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
 
   const lockKey = Object.keys(lockUpdate)[0];
   const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
-  log.warn("AUTH", `${connName} locked ${lockKey} for ${Math.round(cooldownMs / 1000)}s [${status}]`);
+  if (is524Timeout) {
+    log.warn("AUTH", `${connName} temporary 524 gateway timeout (upstream slow/down) — transient fallback, no account error (cooldown ${Math.round(cooldownMs / 1000)}s)`);
+  } else {
+    log.warn("AUTH", `${connName} locked ${lockKey} for ${Math.round(cooldownMs / 1000)}s [${status}]`);
+  }
 
   // Sync with Redis L2 Cooldown Layer
   const cooldownSecs = Math.ceil(cooldownMs / 1000);
-  if (isAccountWideLock) {
-    redisSetAccountCooldown(connectionId, cooldownSecs).catch(() => {});
-  } else if (model) {
-    redisSetModelCooldown(connectionId, model, cooldownSecs).catch(() => {});
+  if (cooldownSecs > 0) {
+    if (isAccountWideLock) {
+      redisSetAccountCooldown(connectionId, cooldownSecs).catch(() => {});
+    } else if (model) {
+      redisSetModelCooldown(connectionId, model, cooldownSecs).catch(() => {});
+    }
   }
 
   if (provider && status && reason) {

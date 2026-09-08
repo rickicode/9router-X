@@ -166,6 +166,14 @@ export const ERROR_RULES = [
   { status: 401, cooldownMs: 0, lockAll: true, disableAccount: true },
   { status: 402, cooldownMs: COOLDOWN.long },
   { status: 403, cooldownMs: COOLDOWN.permanentAuth, lockAll: true },
+  // HTTP 524 / Gateway Timeout (upstream timeout / server down)
+  // Fallback to next account/provider, but NEVER lock account, NEVER disable, no cooldown
+  { status: 524, cooldownMs: 0, lockAll: false, shouldFallback: true, disableAccount: false },
+  { text: "524 a timeout occurred", cooldownMs: 0, lockAll: false, shouldFallback: true, disableAccount: false },
+  { text: "error 524", cooldownMs: 0, lockAll: false, shouldFallback: true, disableAccount: false },
+  { text: "gateway timeout", cooldownMs: 0, lockAll: false, shouldFallback: true, disableAccount: false },
+  { text: "a timeout occurred", cooldownMs: 0, lockAll: false, shouldFallback: true, disableAccount: false },
+
   // Rate limit — backoff
   { status: 429, backoff: true },
 ];
