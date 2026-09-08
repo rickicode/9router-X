@@ -295,6 +295,40 @@ describe("handleImageGenerationCore", () => {
     );
   });
 
+  it("handles UniKey image generation as OpenAI-compatible with nested model", async () => {
+    global.fetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          created: 1234567890,
+          data: [{ url: "https://example.com/unikey-gemini.png" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const result = await handleImageGenerationCore({
+      body: { prompt: "A glowing nebula", n: 1, size: "1024x1024" },
+      modelInfo: { provider: "unikey", model: "google/gemini-3-pro-image" },
+      credentials: { apiKey: "uk-test-key" },
+      log: null,
+    });
+
+    expect(result.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://www.getunikey.ai/v1/images/generations",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          Authorization: "Bearer uk-test-key",
+        }),
+        body: expect.stringContaining('"model":"google/gemini-3-pro-image"'),
+      })
+    );
+    const responseBody = await result.response.json();
+    expect(responseBody.data[0].url).toBe("https://example.com/unikey-gemini.png");
+  });
+
   it("handles HuggingFace binary response", async () => {
     const imageBuffer = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // PNG header
     global.fetch.mockResolvedValueOnce(

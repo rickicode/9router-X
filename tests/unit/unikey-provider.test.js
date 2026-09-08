@@ -4,6 +4,8 @@ import REGISTRY from "../../open-sse/providers/registry/index.js";
 import { PROVIDERS, PROVIDER_MODELS } from "../../open-sse/providers/index.js";
 import { getModelsByProviderId, getDefaultModel } from "../../open-sse/config/providerModels.js";
 import { resolveUnikeyModels, clearUnikeyCatalog } from "../../open-sse/services/unikeyModels.js";
+import { getImageAdapter, isImageProvider } from "../../open-sse/handlers/imageProviders/index.js";
+import { parseModel } from "../../open-sse/services/model.js";
 
 describe("UniKey provider", () => {
   const unikey = REGISTRY.find((e) => e.id === "unikey");
@@ -25,7 +27,7 @@ describe("UniKey provider", () => {
 
     // verify google/gemini-3.5-flash and gemini-3.5-flash are distinct
     expect("google/gemini-3.5-flash").not.toBe("gemini-3.5-flash");
-    expect(defaultModels.length).toBe(3);
+    expect(defaultModels.length).toBe(16);
   });
 
   it("configures modelsFetcher for dynamic discovery", () => {
@@ -41,19 +43,17 @@ describe("UniKey provider", () => {
     expect(PROVIDERS.unikey.format).toBe("openai");
 
     const models = getModelsByProviderId("unikey");
-    expect(models.map((m) => m.id)).toEqual([
-      "claude-opus-4-8",
-      "google/gemini-3.5-flash",
-      "gemini-3.5-flash",
-    ]);
+    expect(models.map((m) => m.id)).toContain("claude-opus-4-8");
+    expect(models.map((m) => m.id)).toContain("google/gemini-3.5-flash");
+    expect(models.map((m) => m.id)).toContain("gemini-3.5-flash");
+    expect(models.map((m) => m.id)).toContain("google/gemini-3-pro-image");
 
     // alias uk also resolves
     const ukModels = getModelsByProviderId("uk");
-    expect(ukModels.map((m) => m.id)).toEqual([
-      "claude-opus-4-8",
-      "google/gemini-3.5-flash",
-      "gemini-3.5-flash",
-    ]);
+    expect(ukModels.map((m) => m.id)).toContain("claude-opus-4-8");
+    expect(ukModels.map((m) => m.id)).toContain("google/gemini-3.5-flash");
+    expect(ukModels.map((m) => m.id)).toContain("gemini-3.5-flash");
+    expect(ukModels.map((m) => m.id)).toContain("google/gemini-3-pro-image");
 
     expect(getDefaultModel("unikey")).toBe("claude-opus-4-8");
     expect(getDefaultModel("uk")).toBe("claude-opus-4-8");
@@ -87,5 +87,44 @@ describe("UniKey provider", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
     clearUnikeyCatalog();
+  });
+
+  it("registers unikey image adapter and routes nested model correctly", () => {
+    expect(isImageProvider("unikey")).toBe(true);
+
+    const adapter = getImageAdapter("unikey");
+    expect(adapter).toBeDefined();
+    expect(typeof adapter.buildUrl).toBe("function");
+    expect(typeof adapter.buildHeaders).toBe("function");
+    expect(typeof adapter.buildBody).toBe("function");
+
+    expect(adapter.buildUrl("google/gemini-3-pro-image")).toBe(
+      "https://www.getunikey.ai/v1/images/generations"
+    );
+
+    const headers = adapter.buildHeaders({ apiKey: "test-unikey-key" });
+    expect(headers).toMatchObject({
+      "Content-Type": "application/json",
+      Authorization: "Bearer test-unikey-key",
+    });
+
+    const parsed = parseModel("uk/google/gemini-3-pro-image");
+    expect(parsed).toEqual({
+      provider: "unikey",
+      model: "google/gemini-3-pro-image",
+      isAlias: false,
+      providerAlias: "uk",
+    });
+
+    const body = adapter.buildBody(parsed.model, {
+      prompt: "generate a cute robot",
+      size: "1024x1024",
+    });
+    expect(body).toMatchObject({
+      model: "google/gemini-3-pro-image",
+      prompt: "generate a cute robot",
+      n: 1,
+      size: "1024x1024",
+    });
   });
 });
