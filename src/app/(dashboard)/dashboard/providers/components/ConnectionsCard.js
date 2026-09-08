@@ -87,7 +87,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
 
   const hasFatalError = Boolean(
     connection.providerSpecificData?.refreshBlocked ||
-    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
+    (connection.lastError && /\b(banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
   );
   const accountLockUntil = connection.lockedAllUntil
     || connection.rateLimitedUntil
@@ -111,13 +111,17 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
     ...Object.entries(connection.modelLocks || {}).map(([k, v]) => ({ model: k || "__all", until: v })),
   ].some((item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now);
 
+  const isExhausted = connection.testStatus === "exhausted" || hasModelLock;
+
   const effectiveStatus = connection.isActive === false
     ? "disabled"
-    : (hasAccountLock || hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
+    : (hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
       ? "unavailable"
-      : hasModelLock
+      : isExhausted
         ? "exhausted"
-        : (connection.testStatus || "active");
+        : hasAccountLock
+          ? "unavailable"
+          : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 

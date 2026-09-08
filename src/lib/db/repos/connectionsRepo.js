@@ -298,7 +298,7 @@ function deriveConnectionName(data, fallbackName) {
   return fallbackName;
 }
 
-const FATAL_CONNECTION_ERROR_SQL = "(last_error IS NOT NULL AND last_error ~* '(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
+const FATAL_CONNECTION_ERROR_SQL = "(last_error IS NOT NULL AND last_error ~* '(banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
 const CONNECTION_UNAVAILABLE_DATA_SQL = "(data->'providerSpecificData'->>'refreshBlocked' IS NOT NULL AND data->'providerSpecificData'->>'refreshBlocked' <> 'false' AND data->'providerSpecificData'->>'refreshBlocked' <> '')";
 const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
 const FUTURE_ACCOUNT_LOCK_SQL = `(
@@ -331,15 +331,19 @@ const ACTIVE_CONNECTION_SQL = `(
   AND NOT ${PERMANENT_UNAVAILABLE_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
   AND NOT ${FUTURE_MODEL_LOCK_SQL}
+  AND COALESCE(test_status, 'active') <> 'exhausted'
 )`;
 const EXHAUSTED_CONNECTION_SQL = `(
   is_active = true
   AND NOT ${PERMANENT_UNAVAILABLE_SQL}
-  AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
-  AND ${FUTURE_MODEL_LOCK_SQL}
+  AND (
+    COALESCE(test_status, 'active') = 'exhausted'
+    OR ${FUTURE_MODEL_LOCK_SQL}
+  )
 )`;
 const UNAVAILABLE_CONNECTION_SQL = `(
   is_active = true
+  AND COALESCE(test_status, 'active') <> 'exhausted'
   AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL})
 )`;
 const ROUTABLE_CONNECTION_SQL = `(
@@ -348,6 +352,7 @@ const ROUTABLE_CONNECTION_SQL = `(
   AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
   AND NOT ${FATAL_CONNECTION_ERROR_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
+  AND COALESCE(test_status, 'active') <> 'exhausted'
 )`;
 
 function buildConnectionFilterConditions(filter, params) {

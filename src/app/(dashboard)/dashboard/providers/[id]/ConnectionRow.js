@@ -286,7 +286,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
   // Determine effective status (override unavailable if cooldown expired)
   const hasFatalError = Boolean(
     connection.providerSpecificData?.refreshBlocked ||
-    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
+    (connection.lastError && /\b(banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
   );
   const accountLockUntil = connection.lockedAllUntil
     || connection.rateLimitedUntil
@@ -319,14 +319,16 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     ? Math.max(1, Math.ceil((new Date(connection.lockedToModelUntil).getTime() - now) / 60000))
     : null;
 
+  const isExhausted = connection.testStatus === "exhausted" || hasModelLock;
+
   const effectiveStatus = connection.isActive === false
     ? "disabled"
     : (hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus))
       ? "unavailable"
-      : hasAccountLock
-        ? "unavailable"
-        : hasModelLock
-          ? "exhausted"
+      : isExhausted
+        ? "exhausted"
+        : hasAccountLock
+          ? "unavailable"
           : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);

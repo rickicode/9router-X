@@ -938,14 +938,21 @@ export async function testSingleConnection(id) {
   // out of credits. Keep testStatus active; surface the message as lastError so the
   // dashboard can show a warning without marking the connection broken.
   const softWarning = result.valid && (result.warning || result.error);
+  const isQuotaExhausted = /insufficient_user_quota|预扣费额度失败|用户剩余额度|用户额度不足|credits exhausted|insufficient credits|insufficient balance|out of credits|insufficient_quota|exceeded your current quota/i.test(result.error || result.warning || "");
+
   const updateData = {
-    testStatus: is524OrGatewayTimeout ? (connection.testStatus || "active") : (result.valid ? "active" : "error"),
+    testStatus: is524OrGatewayTimeout
+      ? (connection.testStatus || "active")
+      : isQuotaExhausted
+        ? "exhausted"
+        : (result.valid ? "active" : "error"),
     lastError: is524OrGatewayTimeout ? null : (result.valid ? (softWarning || null) : result.error),
     lastErrorAt: is524OrGatewayTimeout
       ? null
       : (result.valid
         ? (softWarning ? new Date().toISOString() : null)
         : new Date().toISOString()),
+    ...(isQuotaExhausted ? { lockedAllUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } : {}),
   };
 
   if (result.refreshed && result.newTokens) {

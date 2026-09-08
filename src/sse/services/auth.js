@@ -590,7 +590,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
-  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false;
+  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false;
   if (githubResetAtMs) {
     shouldFallback = true;
     cooldownMs = githubResetAtMs - Date.now();
@@ -602,7 +602,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     newBackoffLevel = 0;
     if (isPooledQuotaProvider) lockAll = true;
   } else {
-    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount } = checkFallbackError(status, errorText, backoffLevel));
+    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
 
@@ -687,10 +687,16 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // Extract validation_url from VALIDATION_REQUIRED 403 responses (Antigravity/Google)
   const validationData = extractValidationUrl(reason);
 
+  const resolvedTestStatus = is524Timeout
+    ? (conn?.testStatus || "active")
+    : isExhausted
+      ? "exhausted"
+      : (isAccountWideLock ? "unavailable" : (conn?.testStatus || "active"));
+
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
     ...(isAccountWideLock ? { lockedAllUntil: lockExpiryIso } : {}),
-    testStatus: is524Timeout ? (conn?.testStatus || "active") : (isAccountWideLock ? "unavailable" : (conn?.testStatus || "active")),
+    testStatus: resolvedTestStatus,
     lastError: is524Timeout ? (conn?.lastError || null) : reason,
     errorCode: is524Timeout ? null : status,
     lastErrorAt: is524Timeout ? (conn?.lastErrorAt || null) : new Date().toISOString(),
@@ -709,6 +715,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
   if (is524Timeout) {
     log.warn("AUTH", `${connName} temporary 524 gateway timeout (upstream slow/down) — transient fallback, no account error (cooldown ${Math.round(cooldownMs / 1000)}s)`);
+  } else if (isExhausted) {
+    log.warn("AUTH", `${connName} account quota/credits exhausted — LOCKED for ${Math.round(cooldownMs / (1000 * 3600 * 24))}d (status: exhausted) [${status}]`);
   } else {
     log.warn("AUTH", `${connName} locked ${lockKey} for ${Math.round(cooldownMs / 1000)}s [${status}]`);
   }

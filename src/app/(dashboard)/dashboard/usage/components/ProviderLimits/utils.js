@@ -132,7 +132,7 @@ export function getEffectiveConnectionStatus(connection, now = Date.now()) {
 
   const hasFatalError = Boolean(
     connection.providerSpecificData?.refreshBlocked ||
-    (connection.lastError && /\b(credits exhausted|insufficient balance|insufficient credits|banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
+    (connection.lastError && /\b(banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError))
   );
 
   const accountLockUntil = connection.lockedAllUntil
@@ -144,7 +144,7 @@ export function getEffectiveConnectionStatus(connection, now = Date.now()) {
     accountLockUntil && new Date(accountLockUntil).getTime() > now
   );
 
-  if (hasAccountLock || hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus)) {
+  if (hasFatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus)) {
     return "unavailable";
   }
 
@@ -159,8 +159,12 @@ export function getEffectiveConnectionStatus(connection, now = Date.now()) {
     (item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now
   );
 
-  if (hasModelLock) {
+  if (connection.testStatus === "exhausted" || hasModelLock) {
     return "exhausted";
+  }
+
+  if (hasAccountLock) {
+    return "unavailable";
   }
 
   return connection.testStatus || "active";

@@ -48,6 +48,7 @@ export const MAX_FALLBACK_ATTEMPTS = 10;
 const COOLDOWN = {
   permanentAuth: 3 * 24 * 60 * 60 * 1000, // 3 days for auth/permission/ineligible errors
   quotaExhausted: 24 * 60 * 60 * 1000,    // 24 hours max for quota/credit exhaustion
+  monthlyExhausted: 30 * 24 * 60 * 60 * 1000, // 30 days for user quota / credit exhaustion
   long: 2 * 60 * 1000,
   short: 5 * 1000,
 };
@@ -70,12 +71,22 @@ export const ERROR_RULES = [
   { text: "request illegal",                       cooldownMs: 0, lockAll: false, shouldFallback: false },
   { text: "content filter",                        cooldownMs: 0, lockAll: false, shouldFallback: false },
 
-  // Credit / Balance exhaustion (Account-wide lock until refill, max 24 hours)
-  { text: "credits exhausted",                     cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
-  { text: "insufficient credits",                  cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
-  { text: "insufficient balance",                  cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
-  { text: "out of credits",                        cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
-  { text: "quota reached",                         cooldownMs: COOLDOWN.quotaExhausted, lockAll: true },
+  // Credit / Balance / User Quota exhaustion (Account-wide lock for 30 days, status: exhausted)
+  { text: "insufficient_user_quota",               cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "预扣费额度失败",                         cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "用户剩余额度",                           cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "用户额度不足",                           cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "user's credit limit is insufficient",   cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "quota is running low",                  cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "credits exhausted",                     cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "insufficient credits",                  cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "insufficient balance",                  cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "out of credits",                        cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "quota reached",                         cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "quota exhausted",                       cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "insufficient_quota",                    cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "insufficient quota",                    cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
+  { text: "exceeded your current quota",           cooldownMs: COOLDOWN.monthlyExhausted, lockAll: true, isExhausted: true },
 
   // Model-level restrictions (do NOT lock other models on the same account)
   { text: "not available on the workers free plan", cooldownMs: COOLDOWN.quotaExhausted, lockAll: false },

@@ -806,7 +806,9 @@ export default function ProviderDetailPage() {
     const exhaustedConns = connections.filter(
       (c) =>
         c.testStatus === "unavailable" ||
+        c.testStatus === "exhausted" ||
         c.lastError ||
+        c.lockedAllUntil ||
         c.lockedToModel ||
         (c.lockedToModelUntil && new Date(c.lockedToModelUntil).getTime() > Date.now()) ||
         Object.keys(c).some((k) => k.startsWith("modelLock_") && c[k])
