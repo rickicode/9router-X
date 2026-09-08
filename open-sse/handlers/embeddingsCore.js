@@ -125,7 +125,7 @@ export async function handleEmbeddingsCore({
 
   if (onRequestSuccess) await onRequestSuccess();
 
-  const normalized = adapter.normalize(responseBody, model);
+  const normalized = adapter.normalize(responseBody, model, { input: body.input });
   log?.debug?.("EMBEDDINGS", `Success | usage=${JSON.stringify(normalized.usage || {})}`);
 
   return {

@@ -32,7 +32,7 @@ export default {
       ...(hasOutputDimensionality ? { outputDimensionality } : {}),
     };
   },
-  normalize: (responseBody, model) => {
+  normalize: (responseBody, model, { input } = {}) => {
     if (responseBody.object === "list" && Array.isArray(responseBody.data)) return responseBody;
     let items = [];
     if (Array.isArray(responseBody.embeddings)) {
@@ -44,11 +44,18 @@ export default {
     } else if (responseBody.embedding?.values) {
       items = [{ object: "embedding", index: 0, embedding: responseBody.embedding.values }];
     }
+    const parts = Array.isArray(input) ? input : [input];
+    const chars = parts.reduce((n, t) => {
+      if (typeof t === "string") return n + t.length;
+      if (Array.isArray(t)) return n + t.length;
+      return n + JSON.stringify(t ?? "").length;
+    }, 0);
+    const tokens = Math.max(1, Math.ceil(chars / 4));
     return {
       object: "list",
       data: items,
       model,
-      usage: { prompt_tokens: 0, total_tokens: 0 },
+      usage: { prompt_tokens: tokens, total_tokens: tokens, estimated: true },
     };
   },
 };

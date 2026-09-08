@@ -15,13 +15,21 @@ import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { saveRequestUsage } from "@/lib/usageDb.js";
 
-function exactEmbeddingUsage(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.estimated === true) return null;
-  const promptTokens = raw.prompt_tokens ?? raw.input_tokens;
-  const completionTokens = raw.completion_tokens ?? raw.output_tokens ?? 0;
-  const totalTokens = raw.total_tokens;
-  if (!Number.isSafeInteger(promptTokens) || promptTokens <= 0 || completionTokens !== 0 || totalTokens !== promptTokens) return null;
-  return { prompt_tokens: promptTokens, completion_tokens: 0, total_tokens: totalTokens };
+function resolveEmbeddingUsage(raw, input) {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const promptTokens = raw.prompt_tokens ?? raw.input_tokens;
+    const completionTokens = raw.completion_tokens ?? raw.output_tokens ?? 0;
+    const totalTokens = raw.total_tokens ?? promptTokens;
+    if (Number.isSafeInteger(promptTokens) && promptTokens > 0) {
+      return {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        ...(raw.estimated ? { estimated: true } : {}),
+      };
+    }
+  }
+  return estimateEmbeddingTokens(input);
 }
 
 // Some providers (e.g. Cloudflare Workers AI embeddings) return no usage object at all.
@@ -149,7 +157,7 @@ export async function handleEmbeddings(request) {
     });
 
     if (result.success) {
-      const usage = exactEmbeddingUsage(result.usage) ?? estimateEmbeddingTokens(body.input);
+      const usage = resolveEmbeddingUsage(result.usage, body.input);
       if (usage) {
         saveRequestUsage({
           provider,

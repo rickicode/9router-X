@@ -74,7 +74,7 @@ describe("embedding usage persistence", () => {
     { prompt_tokens: 12, total_tokens: 13 },
     { prompt_tokens: 12, completion_tokens: 1, total_tokens: 12 },
     { prompt_tokens: 12, total_tokens: 12, estimated: true },
-  ])("does not record inexact usage %#", async (usage) => {
+  ])("records usage even when provider usage is inexact or missing %#", async (usage) => {
     mocks.handleEmbeddingsCore.mockResolvedValue({
       success: true,
       usage,
@@ -86,6 +86,14 @@ describe("embedding usage persistence", () => {
       body: JSON.stringify({ model: "openai/text-embedding-3-small", input: "hello" }),
     }));
 
-    expect(mocks.saveRequestUsage).not.toHaveBeenCalled();
+    expect(mocks.saveRequestUsage).toHaveBeenCalledWith(expect.objectContaining({
+      provider: "openai",
+      model: "text-embedding-3-small",
+      connectionId: "connection-a",
+      apiKey: "client-key",
+      endpoint: "/v1/embeddings",
+      status: "success",
+      tokens: expect.objectContaining({ prompt_tokens: expect.any(Number) }),
+    }));
   });
 });
