@@ -717,6 +717,17 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         const res = await fetch("https://ollama.com/api/tags", { headers: { Authorization: `Bearer ${connection.apiKey}` } });
         return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
       }
+      case "unikey":
+      case "uk": {
+        const baseUrl = connection.providerSpecificData?.baseUrl?.trim()?.replace(/\/$/, "") || "https://www.getunikey.ai/v1";
+        const res = await fetchWithConnectionProxy(`${baseUrl}/models`, {
+          headers: { Authorization: `Bearer ${connection.apiKey}` },
+        }, effectiveProxy);
+        if (res.status === 524 || res.status === 502 || res.status === 503 || res.status === 504) {
+          return { valid: true, warning: `UniKey temporary gateway response (${res.status}) - server may be down or overloaded` };
+        }
+        return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
+      }
       case "ollama-local": {
         const host = resolveOllamaLocalHost(connection);
         const res = await fetch(`${host}/api/tags`);
