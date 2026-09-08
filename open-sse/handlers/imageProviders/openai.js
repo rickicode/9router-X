@@ -15,8 +15,9 @@ export default function createOpenAIAdapter(providerId) {
       return headers;
     },
     buildBody: (model, body) => {
-      const { prompt, n = 1, size = "1024x1024", quality, style, response_format } = body;
+      const { prompt, n = 1, size = "1024x1024", quality, style, response_format, aspect_ratio } = body;
       const full = { model, prompt, n, size };
+      if (aspect_ratio && !(providerId === "unikey" && /^google\/gemini-/i.test(model))) full.aspect_ratio = aspect_ratio;
       if (quality) full.quality = quality;
       if (style) full.style = style;
       if (response_format) full.response_format = response_format;

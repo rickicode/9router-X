@@ -29,7 +29,7 @@ describe("UniKey provider", () => {
 
     // verify google/gemini-3.5-flash and gemini-3.5-flash are distinct
     expect("google/gemini-3.5-flash").not.toBe("gemini-3.5-flash");
-    expect(defaultModels.length).toBe(18);
+    expect(defaultModels.length).toBe(19);
   });
 
   it("configures modelsFetcher for dynamic discovery", () => {
