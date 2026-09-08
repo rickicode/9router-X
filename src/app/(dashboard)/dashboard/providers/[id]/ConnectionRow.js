@@ -34,7 +34,17 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
 
   // Initialize proxy state from connection
   useEffect(() => {
-    const proxyPoolIds = connection.providerSpecificData?.proxyPoolIds || [];
+    let proxyPoolIds = connection.providerSpecificData?.proxyPoolIds;
+    if (typeof proxyPoolIds === "string") {
+      try {
+        proxyPoolIds = JSON.parse(proxyPoolIds);
+      } catch {
+        proxyPoolIds = [];
+      }
+    }
+    if (!Array.isArray(proxyPoolIds)) {
+      proxyPoolIds = [];
+    }
     const legacyProxyPoolId = connection.providerSpecificData?.proxyPoolId;
     
     // Migrate legacy single proxy to array format
@@ -71,12 +81,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     return [...s].sort();
   }, [proxyPools]);
 
+  const safeSelectedProxyIds = Array.isArray(selectedProxyIds) ? selectedProxyIds : [];
+
   // Display logic - support both new (multi-proxy) and legacy (single proxy) formats
   const hasLegacyProxy = connection.providerSpecificData?.connectionProxyEnabled === true && !!connection.providerSpecificData?.connectionProxyUrl;
-  const hasAnyProxy = selectedProxyIds.length > 0 || hasLegacyProxy || !!selectedGroup;
+  const hasAnyProxy = safeSelectedProxyIds.length > 0 || hasLegacyProxy || !!selectedGroup;
 
   const getProxyDisplayText = () => {
-    if (selectedProxyIds.length === 0 && !hasLegacyProxy && !selectedGroup) return "";
+    if (safeSelectedProxyIds.length === 0 && !hasLegacyProxy && !selectedGroup) return "";
 
     if (selectedGroup) {
       const def = defaultGroupsList.find((g) => g.key === selectedGroup || g.name.toLowerCase() === selectedGroup.toLowerCase() || g.id === selectedGroup);
@@ -97,14 +109,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
       return `Group: ${selectedGroup} (${grpPools.length} pools, ${strategyLabel})`;
     }
 
-    if (selectedProxyIds.length === 1) {
-      const pool = proxyPoolMap.get(selectedProxyIds[0]);
-      return pool ? `Pool: ${pool.name}` : `Pool: ${selectedProxyIds[0]} (inactive/missing)`;
+    if (safeSelectedProxyIds.length === 1) {
+      const pool = proxyPoolMap.get(safeSelectedProxyIds[0]);
+      return pool ? `Pool: ${pool.name}` : `Pool: ${safeSelectedProxyIds[0]} (inactive/missing)`;
     }
 
-    if (selectedProxyIds.length > 1) {
+    if (safeSelectedProxyIds.length > 1) {
       const strategyLabel = rotationStrategy === "random" ? "Random" : rotationStrategy === "round-robin" ? "Round Robin" : rotationStrategy === "failover" ? "Failover" : rotationStrategy === "smart" ? "Smart" : "Multiple";
-      return `${selectedProxyIds.length} pools (${strategyLabel})`;
+      return `${safeSelectedProxyIds.length} pools (${strategyLabel})`;
     }
 
     if (hasLegacyProxy) {
@@ -120,8 +132,8 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     : "When your 5h quota runs out, auto-sends a request the moment it resets so a new window starts right away.";
 
   let maskedProxyUrl = "";
-  if (selectedProxyIds.length > 0) {
-    const selectedPools = selectedProxyIds.map(id => proxyPoolMap.get(id)).filter(Boolean);
+  if (safeSelectedProxyIds.length > 0) {
+    const selectedPools = safeSelectedProxyIds.map(id => proxyPoolMap.get(id)).filter(Boolean);
     if (selectedPools.length > 0) {
       try {
         const parsed = new URL(selectedPools[0].proxyUrl);
@@ -143,15 +155,15 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     }
   }
 
-  const noProxyText = selectedProxyIds.length > 0 
-    ? proxyPoolMap.get(selectedProxyIds[0])?.noProxy || ""
+  const noProxyText = safeSelectedProxyIds.length > 0 
+    ? proxyPoolMap.get(safeSelectedProxyIds[0])?.noProxy || ""
     : connection.providerSpecificData?.connectionNoProxy || "";
 
   let proxyBadgeVariant = "default";
   if (selectedGroup) {
     proxyBadgeVariant = "success";
-  } else if (selectedProxyIds.length > 0) {
-    const allActive = selectedProxyIds.every(id => proxyPoolMap.get(id)?.isActive === true);
+  } else if (safeSelectedProxyIds.length > 0) {
+    const allActive = safeSelectedProxyIds.every(id => proxyPoolMap.get(id)?.isActive === true);
     proxyBadgeVariant = allActive ? "success" : "error";
   } else if (hasLegacyProxy) {
     proxyBadgeVariant = "error";

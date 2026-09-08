@@ -116,6 +116,15 @@ function rowToConnection(row) {
   if (!row) return null;
 
   const rowData = jsonObject(row.data, {});
+  if (rowData.providerSpecificData && typeof rowData.providerSpecificData === "object") {
+    if (typeof rowData.providerSpecificData.proxyPoolIds === "string") {
+      try {
+        rowData.providerSpecificData.proxyPoolIds = JSON.parse(rowData.providerSpecificData.proxyPoolIds);
+      } catch {
+        rowData.providerSpecificData.proxyPoolIds = [];
+      }
+    }
+  }
   const { modelLocks: _dataModelLocks, ...data } = rowData;
   const modelLocks = modelLocksFromRow(row, rowData);
   const connection = {
