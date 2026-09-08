@@ -32,6 +32,7 @@ export function sanitizeSecrets(text, credentials = null) {
 
 function buildUpstreamUrl(config, action, requestId) {
   const base = config.baseUrl.replace(/\/$/, "");
+  if (config.singleEndpoint) return requestId ? `${base}/${encodeURIComponent(requestId)}` : base;
   return requestId ? `${base}/${encodeURIComponent(requestId)}` : `${base}/${action}`;
 }
 

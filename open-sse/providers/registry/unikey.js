@@ -22,7 +22,7 @@ export default {
     baseUrl: "https://www.getunikey.ai/v1/chat/completions",
     thinkingFormat: "openai",
   },
-  videoConfig: { baseUrl: "https://www.getunikey.ai/v1/videos" },
+  videoConfig: { baseUrl: "https://www.getunikey.ai/v1/videos", singleEndpoint: true },
   imageConfig: { baseUrl: "https://www.getunikey.ai/v1/images/generations" },
   models: [
     { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
