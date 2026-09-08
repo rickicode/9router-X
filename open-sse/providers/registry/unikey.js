@@ -40,7 +40,7 @@ export default {
     { id: "qwen/qwen-image-3", name: "Qwen Image 3", type: "image" },
     { id: "BAAI/bge-m3", name: "BAAI BGE-M3", type: "embedding" },
   ],
-  serviceKinds: ["llm", "imageToText", "embedding", "imageGeneration", "videoGeneration"],
+  serviceKinds: ["llm", "imageToText", "embedding", "image", "video"],
   modelsFetcher: { url: "https://www.getunikey.ai/v1/models", type: "openai" },
   passthroughModels: true,
   features: {
