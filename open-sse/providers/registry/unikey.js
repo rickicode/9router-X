@@ -25,6 +25,8 @@ export default {
   videoConfig: { baseUrl: "https://www.getunikey.ai/v1/videos" },
   imageConfig: { baseUrl: "https://www.getunikey.ai/v1/images/generations" },
   models: [
+    { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
+    { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
     { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
     { id: "google/gemini-3.5-flash", name: "Google Gemini 3.5 Flash" },
     { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
