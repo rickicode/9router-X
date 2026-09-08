@@ -1784,15 +1784,21 @@ export default function ProviderDetailPage() {
         <NoAuthProxyCard providerId={providerId} />
       ) : (
         <Card>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">Connections</h2>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-black/[0.05] pb-3 dark:border-white/[0.05]">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold">Connections</h2>
+              <span className="text-xs text-text-muted font-medium">
+                ({connectionStats.total ?? connections.length} total)
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               {connections.length > 0 && proxyPools.length > 0 && (
                 <Button
                   size="sm"
                   variant="secondary"
                   icon="lan"
                   onClick={() => setShowBulkProxyModal(true)}
+                  title="Apply proxy to all or selected connections"
                 >
                   Apply Proxy
                 </Button>
@@ -1803,43 +1809,13 @@ export default function ProviderDetailPage() {
                   variant="secondary"
                   icon="restart_alt"
                   onClick={handleBulkResetStatus}
-                  title="Clear all model locks, cooldowns, and error statuses for this provider"
+                  title="Clear all model locks, cooldowns, and error statuses for all or selected connections"
                 >
                   Reset Exhausted
                 </Button>
               )}
               {connections.length > 0 && (
-                <>
-                  {selectedConnectionIds.length > 0 && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        icon="toggle_on"
-                        onClick={() => handleBulkToggleActive(true)}
-                        title="Enable selected connections"
-                      >
-                        Enable ({selectedConnectionIds.length})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        icon="toggle_off"
-                        onClick={() => handleBulkToggleActive(false)}
-                        title="Disable selected connections"
-                      >
-                        Disable ({selectedConnectionIds.length})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        icon="delete"
-                        onClick={handleBulkDelete}
-                      >
-                        Delete Selected ({selectedConnectionIds.length})
-                      </Button>
-                    </>
-                  )}
+                <div className="flex items-center gap-1.5">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -1847,7 +1823,7 @@ export default function ProviderDetailPage() {
                     onClick={handleRunOneByOneTest}
                     disabled={oneByOneRunning}
                   >
-                    {oneByOneRunning ? "Testing Connection One-by-One..." : "Test Connection One-by-One"}
+                    {oneByOneRunning ? "Testing..." : "Test One-by-One"}
                   </Button>
                   {oneByOneRunning && (
                     <Button
@@ -1860,17 +1836,17 @@ export default function ProviderDetailPage() {
                       {oneByOneStopping ? "Stopping..." : "Stop"}
                     </Button>
                   )}
-                </>
+                </div>
               )}
               {/* Round Robin toggle */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-text-muted font-medium">Round Robin</span>
+              <div className="flex items-center gap-2 border-l border-black/[0.08] pl-2 dark:border-white/[0.08]">
+                <span className="text-xs text-text-muted font-medium whitespace-nowrap">Round Robin</span>
                 <Toggle
                   checked={providerStrategy === "round-robin"}
                   onChange={handleRoundRobinToggle}
                 />
                 {providerStrategy === "round-robin" && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span className="text-xs text-text-muted">Sticky:</span>
                     <input
                       type="number"
@@ -1878,7 +1854,7 @@ export default function ProviderDetailPage() {
                       value={providerStickyLimit}
                       onChange={(e) => handleStickyLimitChange(e.target.value)}
                       placeholder="1"
-                      className="w-14 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
+                      className="w-12 px-1.5 py-0.5 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
                     />
                   </div>
                 )}
@@ -2031,16 +2007,68 @@ export default function ProviderDetailPage() {
                 </div>
               )}
               {connections.length > 0 && (
-                <div className="mb-3 flex items-center gap-2 border-b border-black/[0.03] pb-2 dark:border-white/[0.03]">
-                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-text-muted hover:text-primary">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAllConnections}
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    Select All
-                  </label>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-text-muted hover:text-primary">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAllConnections}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      Select All ({connections.length} on page)
+                    </label>
+                    {selectedConnectionIds.length > 0 && (
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        {selectedConnectionIds.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedConnectionIds.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 animate-in fade-in duration-150">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="toggle_on"
+                        onClick={() => handleBulkToggleActive(true)}
+                        title="Enable selected connections"
+                        className="!py-1 !text-xs"
+                      >
+                        Enable
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="toggle_off"
+                        onClick={() => handleBulkToggleActive(false)}
+                        title="Disable selected connections"
+                        className="!py-1 !text-xs"
+                      >
+                        Disable
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        icon="delete"
+                        onClick={handleBulkDelete}
+                        title="Delete selected connections"
+                        className="!py-1 !text-xs"
+                      >
+                        Delete ({selectedConnectionIds.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon="close"
+                        onClick={clearSelection}
+                        title="Clear selection"
+                        className="!py-1 !text-xs"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
               {connectionsList}
