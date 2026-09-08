@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
-import { invalidateCachedConnections } from "../../redis/client.js";
+import { invalidateCachedConnections, setAccountCooldown } from "../../redis/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 const MODEL_LOCK_ALL = "__all";
@@ -1057,4 +1057,193 @@ export async function cleanupProviderConnections() {
     }
     return cleaned;
   });
+}
+
+export async function bulkResetProviderConnectionsStatus({ provider, ids } = {}) {
+  const db = await getAdapter();
+  const params = [];
+  let whereClause = "";
+
+  if (Array.isArray(ids) && ids.length > 0) {
+    params.push(ids);
+    whereClause = `WHERE id = ANY($${params.length}::text[])`;
+  } else if (provider) {
+    params.push(provider);
+    whereClause = `WHERE provider = $${params.length}`;
+  } else {
+    return { ok: true, count: 0 };
+  }
+
+  const rows = await db.all(
+    `UPDATE provider_connections
+        SET test_status = 'active',
+            last_error = NULL,
+            last_error_at = NULL,
+            error_code = NULL,
+            backoff_level = 0,
+            rate_limited_until = NULL,
+            locked_all_until = NULL,
+            locked_to_model = NULL,
+            locked_to_model_until = NULL,
+            model_locks = '{}'::jsonb,
+            data = (
+              CASE
+                WHEN data->'providerSpecificData' IS NOT NULL THEN
+                  jsonb_set(
+                    data - 'disabledReason' - 'disabledAt' - 'disabledBy',
+                    '{providerSpecificData}',
+                    (data->'providerSpecificData') - 'refreshBlocked' - 'refreshBlockedAt'
+                  )
+                WHEN data IS NOT NULL THEN
+                  data - 'disabledReason' - 'disabledAt' - 'disabledBy'
+                ELSE '{}'::jsonb
+              END
+            ),
+            updated_at = NOW()
+      ${whereClause}
+      RETURNING id, provider`,
+    params,
+  );
+
+  const affectedProviders = new Set(rows.map((r) => r.provider));
+  for (const p of affectedProviders) {
+    invalidateCachedConnections(p).catch(() => {});
+  }
+
+  for (const r of rows) {
+    setAccountCooldown(r.id, 0).catch(() => {});
+  }
+
+  return { ok: true, count: rows.length };
+}
+
+export async function bulkUpdateProviderProxy({
+  provider,
+  ids,
+  action,
+  proxyPoolId,
+  proxyGroup,
+  proxyRotationStrategy,
+  proxyPoolIds,
+  activePoolIds,
+} = {}) {
+  const db = await getAdapter();
+  const params = [];
+  let whereClause = "";
+
+  if (Array.isArray(ids) && ids.length > 0) {
+    params.push(ids);
+    whereClause = `WHERE id = ANY($${params.length}::text[])`;
+  } else if (provider) {
+    params.push(provider);
+    whereClause = `WHERE provider = $${params.length}`;
+  } else {
+    return { ok: false, error: "provider or ids is required" };
+  }
+
+  let rows = [];
+
+  if (action === "one-to-one") {
+    if (!Array.isArray(activePoolIds) || activePoolIds.length === 0) {
+      return { ok: false, error: "No active proxy pools provided" };
+    }
+    const poolCountParam = params.length + 1;
+    const poolArrParam = params.length + 2;
+    params.push(activePoolIds.length, activePoolIds);
+
+    rows = await db.all(
+      `WITH numbered AS (
+        SELECT id, ((row_number() OVER (ORDER BY priority ASC, created_at ASC) - 1) % $${poolCountParam}::int) AS pool_idx
+        FROM provider_connections
+        ${whereClause}
+      )
+      UPDATE provider_connections pc
+      SET data = jsonb_set(
+        COALESCE(pc.data, '{}'::jsonb),
+        '{providerSpecificData}',
+        ((COALESCE(pc.data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', ($${poolArrParam}::text[])[numbered.pool_idx + 1]))
+      ),
+      updated_at = NOW()
+      FROM numbered
+      WHERE pc.id = numbered.id
+      RETURNING pc.id, pc.provider`,
+      params,
+    );
+  } else if (action === "group") {
+    params.push(proxyGroup, proxyRotationStrategy || "round-robin");
+    const grpParam = params.length - 1;
+    const stratParam = params.length;
+
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET data = jsonb_set(
+            COALESCE(data, '{}'::jsonb),
+            '{providerSpecificData}',
+            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyPoolIds') || jsonb_build_object('proxyGroup', $${grpParam}::text, 'proxyRotationStrategy', $${stratParam}::text, 'proxyPoolIds', '[]'::jsonb))
+          ),
+          updated_at = NOW()
+        ${whereClause}
+        RETURNING id, provider`,
+      params,
+    );
+  } else if (action === "strategy") {
+    const poolIdsJson = JSON.stringify(proxyPoolIds || []);
+    params.push(poolIdsJson, proxyRotationStrategy || "round-robin");
+    const poolIdsParam = params.length - 1;
+    const stratParam = params.length;
+
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET data = jsonb_set(
+            COALESCE(data, '{}'::jsonb),
+            '{providerSpecificData}',
+            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyGroup') || jsonb_build_object('proxyPoolIds', $${poolIdsParam}::jsonb, 'proxyRotationStrategy', $${stratParam}::text))
+          ),
+          updated_at = NOW()
+        ${whereClause}
+        RETURNING id, provider`,
+      params,
+    );
+  } else if (action === "unbind") {
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET data = jsonb_set(
+            COALESCE(data, '{}'::jsonb),
+            '{providerSpecificData}',
+            (COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolId' - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup' - 'connectionProxyEnabled' - 'connectionProxyUrl' - 'connectionNoProxy')
+          ),
+          updated_at = NOW()
+        ${whereClause}
+        RETURNING id, provider`,
+      params,
+    );
+  } else if (action === "single") {
+    if (!proxyPoolId) {
+      return { ok: false, error: "proxyPoolId is required for single proxy action" };
+    }
+    params.push(proxyPoolId);
+    const poolParam = params.length;
+
+    rows = await db.all(
+      `UPDATE provider_connections
+          SET data = jsonb_set(
+            COALESCE(data, '{}'::jsonb),
+            '{providerSpecificData}',
+            ((COALESCE(data->'providerSpecificData', '{}'::jsonb) - 'proxyPoolIds' - 'proxyRotationStrategy' - 'proxyGroup') || jsonb_build_object('proxyPoolId', $${poolParam}::text))
+          ),
+          updated_at = NOW()
+        ${whereClause}
+        RETURNING id, provider`,
+      params,
+    );
+  } else {
+    return { ok: false, error: `Unsupported bulk proxy action: ${action}` };
+  }
+
+  const affectedProviders = new Set(rows.map((r) => r.provider));
+  for (const p of affectedProviders) {
+    invalidateCachedConnections(p).catch(() => {});
+  }
+
+  return { ok: true, updatedCount: rows.length };
 }

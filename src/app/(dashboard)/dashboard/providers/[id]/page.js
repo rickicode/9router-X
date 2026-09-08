@@ -37,6 +37,44 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getPaginationItems(currentPage, totalPages) {
+  if (totalPages <= 1) return [];
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const items = [];
+  items.push(1);
+
+  if (currentPage > 3) {
+    items.push("ellipsis-1");
+  }
+
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  let windowStart = start;
+  let windowEnd = end;
+  if (currentPage <= 3) {
+    windowStart = 2;
+    windowEnd = 4;
+  } else if (currentPage >= totalPages - 2) {
+    windowStart = totalPages - 3;
+    windowEnd = totalPages - 1;
+  }
+
+  for (let p = windowStart; p <= windowEnd; p++) {
+    items.push(p);
+  }
+
+  if (currentPage < totalPages - 2) {
+    items.push("ellipsis-2");
+  }
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function ProviderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -803,29 +841,27 @@ export default function ProviderDetailPage() {
   };
 
   const handleBulkResetStatus = async () => {
-    const exhaustedConns = connections.filter(
-      (c) =>
-        c.testStatus === "unavailable" ||
-        c.testStatus === "exhausted" ||
-        c.lastError ||
-        c.lockedAllUntil ||
-        c.lockedToModel ||
-        (c.lockedToModelUntil && new Date(c.lockedToModelUntil).getTime() > Date.now()) ||
-        Object.keys(c).some((k) => k.startsWith("modelLock_") && c[k])
-    );
-    if (exhaustedConns.length === 0) {
-      notify.info("No exhausted or locked connections found");
-      return;
+    const isSelectedMode = selectedConnectionIds.length > 0;
+    try {
+      const res = await fetch("/api/providers/bulk-reset-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: providerId,
+          ids: isSelectedMode ? selectedConnectionIds : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        notify.success(`Reset status and cooldown for ${data.count ?? (isSelectedMode ? selectedConnectionIds.length : (connectionPagination.total || connections.length))} connection(s)`);
+        await fetchConnections();
+        if (typeof fetchConnectionStats === "function") fetchConnectionStats();
+      } else {
+        notify.error(data.error || "Failed to reset status");
+      }
+    } catch {
+      notify.error("Failed to reset status");
     }
-    let success = 0;
-    for (const c of exhaustedConns) {
-      try {
-        const res = await fetch(`/api/providers/${c.id}/reset-status`, { method: "POST" });
-        if (res.ok) success++;
-      } catch {}
-    }
-    notify.success(`Reset status for ${success} connection(s)`);
-    await fetchConnections();
   };
 
   const handleDelete = async (id) => {
@@ -1044,49 +1080,53 @@ export default function ProviderDetailPage() {
     setShowBulkProxyModal(false);
   };
 
-  const applyProxyAssignments = async (assignments, rotationStrategy = "none", targetGroup = null) => {
+  const applyBulkProxy = async (payload) => {
     setBulkUpdatingProxy(true);
+    const isSelectedMode = selectedConnectionIds.length > 0;
     try {
-      let failed = 0;
-      const activePoolIds = proxyPools.filter((pool) => pool.isActive === true).map((pool) => pool.id);
-      for (const { connectionId, proxyPoolId } of assignments) {
-        try {
-          const payload = targetGroup
-            ? { proxyGroup: targetGroup, proxyRotationStrategy: rotationStrategy || "round-robin", proxyPoolIds: [] }
-            : (rotationStrategy === "none"
-              ? { proxyPoolId, proxyGroup: null }
-              : { proxyPoolIds: activePoolIds, proxyRotationStrategy: rotationStrategy, proxyGroup: null });
-          const res = await fetch("/api/providers/" + connectionId, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) failed += 1;
-        } catch (e) {
-          console.log("Error applying proxy for", connectionId, e);
-          failed += 1;
-        }
+      const res = await fetch("/api/providers/bulk-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: providerId,
+          ids: isSelectedMode ? selectedConnectionIds : undefined,
+          ...payload,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify.error(data.error || "Failed to apply proxy");
+      } else {
+        notify.success(`Applied proxy for ${data.updatedCount ?? (isSelectedMode ? selectedConnectionIds.length : (connectionPagination.total || connections.length))} connection(s)`);
+        await fetchConnections();
+        setShowBulkProxyModal(false);
       }
-      if (failed > 0) notify.error("Updated with " + failed + " failed request(s).");
-      else notify.success("Updated " + assignments.length + " connection(s).");
-      await fetchConnections();
-      setShowBulkProxyModal(false);
+    } catch (e) {
+      console.error("Error applying proxy:", e);
+      notify.error("Failed to apply proxy");
     } finally {
       setBulkUpdatingProxy(false);
     }
   };
 
   const handleApplyGroup = (groupName) => {
-    return applyProxyAssignments(
-      connections.map((c) => ({ connectionId: c.id })),
-      bulkProxyRotationStrategy === "none" ? "round-robin" : bulkProxyRotationStrategy,
-      groupName
-    );
+    return applyBulkProxy({
+      action: "group",
+      proxyGroup: groupName,
+      proxyRotationStrategy: bulkProxyRotationStrategy === "none" ? "round-robin" : bulkProxyRotationStrategy,
+    });
   };
 
   const handleApplySinglePool = (proxyPoolId) => {
-    const targets = connections.map((c) => ({ connectionId: c.id, proxyPoolId }));
-    return applyProxyAssignments(targets);
+    if (proxyPoolId === null) {
+      return applyBulkProxy({
+        action: "unbind",
+      });
+    }
+    return applyBulkProxy({
+      action: "single",
+      proxyPoolId,
+    });
   };
 
   const handleApplyOneToOne = () => {
@@ -1095,11 +1135,10 @@ export default function ProviderDetailPage() {
       notify.error("No active proxy pools available.");
       return;
     }
-    const targets = connections.map((c, i) => ({
-      connectionId: c.id,
-      proxyPoolId: activePools[i % activePools.length].id,
-    }));
-    return applyProxyAssignments(targets);
+    return applyBulkProxy({
+      action: "one-to-one",
+      activePoolIds: activePools.map((p) => p.id),
+    });
   };
 
   const handleApplyRotationStrategy = () => {
@@ -1107,12 +1146,16 @@ export default function ProviderDetailPage() {
       notify.error("Choose a rotation strategy first.");
       return;
     }
-    if (proxyPools.filter((pool) => pool.isActive === true).length === 0) {
+    const activePools = proxyPools.filter((p) => p.isActive === true);
+    if (activePools.length === 0) {
       notify.error("No active proxy pools available.");
       return;
     }
-    const targets = connections.map((connection) => ({ connectionId: connection.id }));
-    return applyProxyAssignments(targets, bulkProxyRotationStrategy);
+    return applyBulkProxy({
+      action: "strategy",
+      proxyPoolIds: activePools.map((p) => p.id),
+      proxyRotationStrategy: bulkProxyRotationStrategy,
+    });
   };
 
 
@@ -1211,9 +1254,16 @@ export default function ProviderDetailPage() {
     <Modal
       isOpen={showBulkProxyModal}
       onClose={closeBulkProxyModal}
-      title={`Apply Proxy (${connections.length} connections)`}
+      title={
+        selectedConnectionIds.length > 0
+          ? `Apply Proxy (${selectedConnectionIds.length} selected connections)`
+          : `Apply Proxy (All ${connectionPagination.total || connections.length} connections in ${providerId})`
+      }
     >
       <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary dark:border-primary/30 dark:bg-primary/10">
+          Target: <strong>{selectedConnectionIds.length > 0 ? `${selectedConnectionIds.length} selected connection(s)` : `All ${connectionPagination.total || connections.length} connections for ${providerId}`}</strong>
+        </div>
         <div className="rounded-lg border border-border bg-bg p-3">
           <label className="mb-2 block text-xs font-medium text-text-muted">Rotation Strategy</label>
           <select
@@ -1995,11 +2045,65 @@ export default function ProviderDetailPage() {
               )}
               {connectionsList}
               {connectionPagination.totalPages > 1 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.03] pt-3 text-xs text-text-muted dark:border-white/[0.03]">
-                  <span>Page {connectionPagination.page} of {connectionPagination.totalPages} · {connectionPagination.total} connections</span>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setConnectionPage((page) => Math.max(1, page - 1))} disabled={connectionPagination.page <= 1}>Previous</Button>
-                    <Button size="sm" variant="secondary" onClick={() => setConnectionPage((page) => Math.min(connectionPagination.totalPages, page + 1))} disabled={connectionPagination.page >= connectionPagination.totalPages}>Next</Button>
+                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-black/[0.05] pt-3 text-xs text-text-muted dark:border-white/[0.05]">
+                  <span>
+                    Showing{" "}
+                    <span className="font-semibold text-text-main">
+                      {(connectionPagination.page - 1) * connectionPagination.pageSize + 1}
+                    </span>
+                    -
+                    <span className="font-semibold text-text-main">
+                      {Math.min(connectionPagination.page * connectionPagination.pageSize, connectionPagination.total)}
+                    </span>{" "}
+                    of <span className="font-semibold text-text-main">{connectionPagination.total}</span> connections (Page {connectionPagination.page} of {connectionPagination.totalPages})
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setConnectionPage((page) => Math.max(1, page - 1))}
+                      disabled={connectionPagination.page <= 1}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                      title="Previous Page"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                      <span>Prev</span>
+                    </button>
+
+                    {getPaginationItems(connectionPagination.page, connectionPagination.totalPages).map((item, idx) => {
+                      if (typeof item === "string") {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-1 text-text-muted select-none">
+                            …
+                          </span>
+                        );
+                      }
+                      const isCurrent = item === connectionPagination.page;
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setConnectionPage(item)}
+                          className={`min-w-[28px] h-7 rounded-lg text-xs font-medium transition-colors px-1.5 flex items-center justify-center ${
+                            isCurrent
+                              ? "bg-primary text-white shadow-sm"
+                              : "border border-border bg-background text-text-main hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setConnectionPage((page) => Math.min(connectionPagination.totalPages, page + 1))}
+                      disabled={connectionPagination.page >= connectionPagination.totalPages}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                      title="Next Page"
+                    >
+                      <span>Next</span>
+                      <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </button>
                   </div>
                 </div>
               )}

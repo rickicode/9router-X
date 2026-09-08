@@ -28,6 +28,8 @@ export {
   deleteProviderConnectionsByProvider,
   reorderProviderConnections,
   cleanupProviderConnections,
+  bulkResetProviderConnectionsStatus,
+  bulkUpdateProviderProxy,
   getProviderNodes,
   getProviderNodeById,
   createProviderNode,

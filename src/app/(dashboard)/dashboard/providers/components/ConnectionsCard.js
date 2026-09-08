@@ -29,6 +29,44 @@ function CooldownTimer({ until }) {
 
 CooldownTimer.propTypes = { until: PropTypes.string.isRequired };
 
+function getPaginationItems(currentPage, totalPages) {
+  if (totalPages <= 1) return [];
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const items = [];
+  items.push(1);
+
+  if (currentPage > 3) {
+    items.push("ellipsis-1");
+  }
+
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  let windowStart = start;
+  let windowEnd = end;
+  if (currentPage <= 3) {
+    windowStart = 2;
+    windowEnd = 4;
+  } else if (currentPage >= totalPages - 2) {
+    windowStart = totalPages - 3;
+    windowEnd = totalPages - 1;
+  }
+
+  for (let p = windowStart; p <= windowEnd; p++) {
+    items.push(p);
+  }
+
+  if (currentPage < totalPages - 2) {
+    items.push("ellipsis-2");
+  }
+
+  items.push(totalPages);
+  return items;
+}
+
 // ── ConnectionRow ──────────────────────────────────────────────
 function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
@@ -523,11 +561,65 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
               <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add</Button>
             </div>
             {pagination.totalPages > 1 && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.03] pt-3 text-xs text-text-muted dark:border-white/[0.03]">
-                <span>Page {pagination.page} of {pagination.totalPages} · {pagination.total} connections</span>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={pagination.page <= 1}>Previous</Button>
-                  <Button size="sm" variant="secondary" onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))} disabled={pagination.page >= pagination.totalPages}>Next</Button>
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-black/[0.05] pt-3 text-xs text-text-muted dark:border-white/[0.05]">
+                <span>
+                  Showing{" "}
+                  <span className="font-semibold text-text-main">
+                    {(pagination.page - 1) * pagination.pageSize + 1}
+                  </span>
+                  -
+                  <span className="font-semibold text-text-main">
+                    {Math.min(pagination.page * pagination.pageSize, pagination.total)}
+                  </span>{" "}
+                  of <span className="font-semibold text-text-main">{pagination.total}</span> connections (Page {pagination.page} of {pagination.totalPages})
+                </span>
+                <div className="flex flex-wrap items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                    disabled={pagination.page <= 1}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                    title="Previous Page"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                    <span>Prev</span>
+                  </button>
+
+                  {getPaginationItems(pagination.page, pagination.totalPages).map((item, idx) => {
+                    if (typeof item === "string") {
+                      return (
+                        <span key={`ellipsis-${idx}`} className="px-1 text-text-muted select-none">
+                          …
+                        </span>
+                      );
+                    }
+                    const isCurrent = item === pagination.page;
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setPage(item)}
+                        className={`min-w-[28px] h-7 rounded-lg text-xs font-medium transition-colors px-1.5 flex items-center justify-center ${
+                          isCurrent
+                            ? "bg-primary text-white shadow-sm"
+                            : "border border-border bg-background text-text-main hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                    title="Next Page"
+                  >
+                    <span>Next</span>
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </button>
                 </div>
               </div>
             )}
