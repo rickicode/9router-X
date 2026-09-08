@@ -15,6 +15,7 @@ import { resolveClinepassModels } from "open-sse/services/clinepassModels.js";
 import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
 import { resolveCursorModels } from "open-sse/services/cursorModels.js";
 import { resolveZedModels } from "open-sse/shared/zedAuth.js";
+import { resolveUnikeyModels } from "open-sse/services/unikeyModels.js";
 import { updateProviderCredentials } from "@/sse/services/tokenRefresh";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { capabilitiesFromServiceKind, getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
@@ -122,6 +123,20 @@ const LIVE_MODEL_RESOLVERS = {
           capabilities: m.supportsTools ? { tools: true } : undefined,
         })),
     };
+  },
+  unikey: async (conn) => {
+    const result = await resolveUnikeyModels({
+      apiKey: conn.apiKey,
+      providerSpecificData: conn.providerSpecificData || {},
+    }, { log: console });
+    return result?.models?.length ? { models: result.models } : null;
+  },
+  uk: async (conn) => {
+    const result = await resolveUnikeyModels({
+      apiKey: conn.apiKey,
+      providerSpecificData: conn.providerSpecificData || {},
+    }, { log: console });
+    return result?.models?.length ? { models: result.models } : null;
   },
 };
 

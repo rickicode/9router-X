@@ -5,16 +5,17 @@ import { PROVIDER_MODELS } from "../providers/index.js";
 import { modelQuotaFamily, modelStrip, modelTargetFormat, modelSupportedFormats, normalizeModelId } from "../providers/models/schema.js";
 import { CODEX_REVIEW_SUFFIX, isMuseSparkModel } from "../providers/models/helpers.js";
 import { FORMATS } from "../translator/formats.js";
+import { resolveProviderAlias } from "../services/model.js";
 export { PROVIDER_MODELS };
 
 
 // Helper functions
 export function getProviderModels(aliasOrId) {
-  return PROVIDER_MODELS[aliasOrId] || [];
+  return PROVIDER_MODELS[aliasOrId] || PROVIDER_MODELS[resolveProviderAlias(aliasOrId)] || [];
 }
 
 export function getDefaultModel(aliasOrId) {
-  const models = PROVIDER_MODELS[aliasOrId];
+  const models = getProviderModels(aliasOrId);
   return models?.[0]?.id || null;
 }
 
@@ -112,7 +113,7 @@ export const PROVIDER_ID_TO_ALIAS = Object.fromEntries(
 
 export function getModelsByProviderId(providerId) {
   const alias = PROVIDER_ID_TO_ALIAS[providerId] || providerId;
-  return PROVIDER_MODELS[alias] || [];
+  return PROVIDER_MODELS[alias] || PROVIDER_MODELS[resolveProviderAlias(providerId)] || [];
 }
 
 // Get strip list for a model entry (explicit opt-in only)

@@ -22,7 +22,13 @@ export default {
     baseUrl: "https://www.getunikey.ai/v1/chat/completions",
     thinkingFormat: "openai",
   },
-  models: [],
+  models: [
+    { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
+    { id: "google/gemini-3.5-flash", name: "Google Gemini 3.5 Flash" },
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
+  ],
+  serviceKinds: ["llm", "imageToText"],
+  modelsFetcher: { url: "https://www.getunikey.ai/v1/models", type: "openai" },
   passthroughModels: true,
   features: {
     usage: true,
