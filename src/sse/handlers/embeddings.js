@@ -24,6 +24,19 @@ function exactEmbeddingUsage(raw) {
   return { prompt_tokens: promptTokens, completion_tokens: 0, total_tokens: totalTokens };
 }
 
+// Some providers (e.g. Cloudflare Workers AI embeddings) return no usage object at all.
+// Estimate from input length so usage_history still records the call (~4 chars/token).
+function estimateEmbeddingTokens(input) {
+  const parts = Array.isArray(input) ? input : [input];
+  const chars = parts.reduce((n, t) => {
+    if (typeof t === "string") return n + t.length;
+    if (Array.isArray(t)) return n + t.length;
+    return n + JSON.stringify(t ?? "").length;
+  }, 0);
+  const promptTokens = Math.max(1, Math.ceil(chars / 4));
+  return { prompt_tokens: promptTokens, completion_tokens: 0, total_tokens: promptTokens, estimated: true };
+}
+
 /**
  * Handle embeddings request for the SSE/Next.js server.
  * Follows the same auth + fallback pattern as handleChat.
@@ -136,7 +149,7 @@ export async function handleEmbeddings(request) {
     });
 
     if (result.success) {
-      const usage = exactEmbeddingUsage(result.usage);
+      const usage = exactEmbeddingUsage(result.usage) ?? estimateEmbeddingTokens(body.input);
       if (usage) {
         saveRequestUsage({
           provider,
