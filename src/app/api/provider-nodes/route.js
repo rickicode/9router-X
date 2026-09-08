@@ -5,6 +5,19 @@ import { generateId } from "@/shared/utils";
 
 export const dynamic = "force-dynamic";
 
+// Derive a stable, human-readable id from the user-supplied name:
+// "My Proxy (Prod)" → "my-proxy-prod". Falls back to generateId() only when
+// the name has no slug-safe characters at all.
+function slugifyName(name) {
+  const slug = String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || null;
+}
+
 const OPENAI_COMPATIBLE_DEFAULTS = {
   baseUrl: "https://api.openai.com/v1",
 };
@@ -45,13 +58,30 @@ export async function POST(request) {
     // Determine type
     const nodeType = type || "openai-compatible";
 
+    // Name-based id + duplicate validation: id derives from the name so it's
+    // recognizable (no random uuid), and a duplicate name/id/prefix is rejected
+    // instead of silently creating an ambiguous second node.
+    const slug = slugifyName(name);
+    const nodes = await getProviderNodes();
+    const duplicate = nodes.find(
+      (n) =>
+        n.name?.toLowerCase() === name.trim().toLowerCase() ||
+        n.prefix === prefix.trim(),
+    );
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `Provider node "${duplicate.name}" (prefix: ${duplicate.prefix}) already exists` },
+        { status: 409 },
+      );
+    }
+
     if (nodeType === "openai-compatible") {
       if (!apiType || !["chat", "responses"].includes(apiType)) {
         return NextResponse.json({ error: "Invalid OpenAI compatible API type" }, { status: 400 });
       }
 
       const node = await createProviderNode({
-        id: `${OPENAI_COMPATIBLE_PREFIX}${apiType}-${generateId()}`,
+        id: `${OPENAI_COMPATIBLE_PREFIX}${apiType}-${slug || generateId()}`,
         type: "openai-compatible",
         prefix: prefix.trim(),
         apiType,
@@ -69,7 +99,7 @@ export async function POST(request) {
       }
 
       const node = await createProviderNode({
-        id: `${CUSTOM_EMBEDDING_PREFIX}${generateId()}`,
+        id: `${CUSTOM_EMBEDDING_PREFIX}${slug || generateId()}`,
         type: "custom-embedding",
         prefix: prefix.trim(),
         baseUrl: sanitizedBaseUrl,
@@ -87,7 +117,7 @@ export async function POST(request) {
       }
 
       const node = await createProviderNode({
-        id: `${ANTHROPIC_COMPATIBLE_PREFIX}${generateId()}`,
+        id: `${ANTHROPIC_COMPATIBLE_PREFIX}${slug || generateId()}`,
         type: "anthropic-compatible",
         prefix: prefix.trim(),
         baseUrl: sanitizedBaseUrl,
