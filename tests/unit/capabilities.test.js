@@ -73,4 +73,28 @@ describe("getCapabilitiesForModel", () => {
       maxOutput: 128000,
     });
   });
+
+  // Regression: the dashboard and /api/models pass the routing alias ("cbai"),
+  // not the provider id. When the alias missed PROVIDER_CAPABILITIES the lookup
+  // fell through to the generic "*claude*opus*" pattern and wrongly advertised
+  // web search on CodeBuddy Intl Claude models.
+  it("resolves provider overrides through the routing alias as well as the id", () => {
+    const intlClaude = { search: false, tools: false, vision: false, reasoning: false };
+    for (const provider of ["codebuddy-intl", "cbai"]) {
+      expect(getCapabilitiesForModel(provider, "claude-opus-5")).toMatchObject(intlClaude);
+      expect(getCapabilitiesForModel(provider, "claude-sonnet-4.6")).toMatchObject(intlClaude);
+      expect(getCapabilitiesForModel(provider, "glm-5.3")).toMatchObject({
+        tools: true,
+        vision: true,
+        reasoning: true,
+        contextWindow: 1000000,
+      });
+    }
+  });
+
+  it("keeps web search on providers that really expose it", () => {
+    for (const provider of ["unikey", "kiro"]) {
+      expect(getCapabilitiesForModel(provider, "claude-opus-5")).toMatchObject({ search: true });
+    }
+  });
 });

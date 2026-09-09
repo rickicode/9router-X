@@ -34,6 +34,15 @@
 
 import { matchPattern } from "./pricing.js";
 import { looksLikeVisionModel } from "./visionPatterns.js";
+import REGISTRY from "./registry/index.js";
+
+// Callers reach this module with either a provider id ("codebuddy-intl") or its
+// routing alias ("cbai"); /api/models and the dashboard use the alias. Derive the
+// alias -> id map from the registry so PROVIDER_CAPABILITIES stays keyed by id
+// only, instead of silently falling through to the generic name patterns.
+const ALIAS_TO_PROVIDER_ID = Object.fromEntries(
+  REGISTRY.filter((r) => r?.alias && r.alias !== r.id).map((r) => [r.alias, r.id]),
+);
 
 /**
  * Safe floor — every resolved result is merged over this so consumers
@@ -465,9 +474,10 @@ export function getCapabilitiesForModel(provider, model) {
   // Canonical exact lookup strips vendor prefix: "anthropic/claude-opus-4.7" -> "claude-opus-4.7".
   const baseModel = model.includes("/") ? model.split("/").pop() : model;
 
-  // 1. Provider-specific override
+  // 1. Provider-specific override (accepts the provider id or its routing alias)
   if (provider) {
-    const providerCaps = PROVIDER_CAPABILITIES[provider];
+    const providerId = PROVIDER_CAPABILITIES[provider] ? provider : (ALIAS_TO_PROVIDER_ID[provider] || provider);
+    const providerCaps = PROVIDER_CAPABILITIES[providerId];
     if (providerCaps?.[model]) return { ...DEFAULT_CAPABILITIES, ...providerCaps[model] };
     if (providerCaps?.[baseModel]) return { ...DEFAULT_CAPABILITIES, ...providerCaps[baseModel] };
   }
