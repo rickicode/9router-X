@@ -39,6 +39,7 @@ export async function handleSearch(request) {
     modelOverride = providerInput.slice(slashIdx + 1);
     providerInput = providerInput.slice(0, slashIdx);
   }
+  const query = body.query;
 
   log.request("POST", `${url.pathname} | ${providerInput}${modelOverride ? "/" + modelOverride : ""}`);
 
