@@ -13,13 +13,13 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("open-sse/services/tokenRefresh.js", () => ({
+vi.mock("../../open-sse/services/tokenRefresh.js", () => ({
   refreshTokenByProvider: vi.fn(),
 }));
 
-import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets, VIDEO_ACTIONS } from "open-sse/handlers/videoCore.js";
-import { refreshTokenByProvider } from "open-sse/services/tokenRefresh.js";
-import { PROVIDER_MEDIA, PROVIDER_MODELS } from "open-sse/providers/index.js";
+import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets, VIDEO_ACTIONS } from "../../open-sse/handlers/videoCore.js";
+import { refreshTokenByProvider } from "../../open-sse/services/tokenRefresh.js";
+import { PROVIDER_MEDIA, PROVIDER_MODELS } from "../../open-sse/providers/index.js";
 
 const originalFetch = global.fetch;
 
