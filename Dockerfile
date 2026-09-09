@@ -17,8 +17,34 @@ COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM ${NODE_IMAGE} AS runner
+# Network-heavy runtime tools are independent of application sources/build output.
+# Keep each installer separate so a failed download can reuse completed layers.
+# Refresh moving Tailscale/Devin releases explicitly with:
+# docker buildx build --no-cache-filter runtime-deps --load -t 9router .
+FROM ${NODE_IMAGE} AS runtime-deps
 WORKDIR /app
+
+RUN apt-get -o Acquire::Retries=3 update && \
+  apt-get -o Acquire::Retries=3 install -y --no-install-recommends gosu curl tar ca-certificates iptables && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
+  curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list && \
+  apt-get -o Acquire::Retries=3 update && \
+  apt-get -o Acquire::Retries=3 install -y --no-install-recommends tailscale && \
+  rm -rf /var/lib/apt/lists/*
+
+# Download separately: shell pipelines can hide manifest/download failures.
+# Preserve the existing x86_64 Devin artifact selection.
+RUN curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://static.devin.ai/cli/current/manifest.json -o /tmp/devin-manifest.json && \
+  node -e 'const fs = require("node:fs"); const m = JSON.parse(fs.readFileSync("/tmp/devin-manifest.json", "utf8")); const url = m.platforms?.["x86_64-unknown-linux"]?.url; if (!url) throw new Error("Missing Devin x86_64 download URL"); fs.writeFileSync("/tmp/devin-url", url)' && \
+  curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL "$(cat /tmp/devin-url)" -o /tmp/devin.tar.gz && \
+  tar -xzf /tmp/devin.tar.gz -C /tmp && \
+  mv /tmp/bin/devin /usr/local/bin/devin && \
+  chmod +x /usr/local/bin/devin && \
+  rm -rf /tmp/bin /tmp/share /tmp/devin-manifest.json /tmp/devin-url /tmp/devin.tar.gz
+
+FROM runtime-deps AS runner
 
 LABEL org.opencontainers.image.title="9router"
 
@@ -45,17 +71,6 @@ COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machin
 RUN mkdir -p /app/data && chown -R node:node /app && \
   mkdir -p /app/data-home && chown node:node /app/data-home && \
   ln -sf /app/data-home /root/.9router 2>/dev/null || true
-
-# Install runtime utilities, Devin CLI, and Tailscale
-RUN apt-get update && apt-get install -y --no-install-recommends gosu curl tar ca-certificates iptables && \
-  curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
-  curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list && \
-  apt-get update && apt-get install -y --no-install-recommends tailscale && \
-  rm -rf /var/lib/apt/lists/* && \
-  curl -fsSL https://static.devin.ai/cli/current/manifest.json | grep -o '"x86_64-unknown-linux"[[:space:]]*:[[:space:]]*{[^}]*}' | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' | xargs curl -fsSL | tar -xz -C /tmp && \
-  mv /tmp/bin/devin /usr/local/bin/devin && \
-  chmod +x /usr/local/bin/devin && \
-  rm -rf /tmp/bin /tmp/share
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
