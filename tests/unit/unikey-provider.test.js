@@ -23,13 +23,15 @@ describe("UniKey provider", () => {
     const defaultModels = unikey.models.map((m) => m.id);
     expect(defaultModels).toContain("claude-opus-4-8");
     expect(defaultModels).toContain("claude-opus-4-6");
-    expect(defaultModels).toContain("claude-opus-4-7");
+    expect(defaultModels).toContain("gpt-5.6-sol");
+    expect(defaultModels).toContain("google/gemini-3.1-pro-preview");
+    expect(defaultModels).toContain("google/gemini-3.1-flash-lite");
     expect(defaultModels).toContain("google/gemini-3.5-flash");
     expect(defaultModels).toContain("gemini-3.5-flash");
 
     // verify google/gemini-3.5-flash and gemini-3.5-flash are distinct
     expect("google/gemini-3.5-flash").not.toBe("gemini-3.5-flash");
-    expect(defaultModels.length).toBe(19);
+    expect(defaultModels.length).toBe(22);
   });
 
   it("configures modelsFetcher for dynamic discovery", () => {

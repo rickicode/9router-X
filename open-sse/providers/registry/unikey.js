@@ -26,6 +26,9 @@ export default {
   imageConfig: { baseUrl: "https://www.getunikey.ai/v1/images/generations" },
   models: [
     { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
+    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", capabilities: ["vision"] },
+    { id: "google/gemini-3.1-pro-preview", name: "Google Gemini 3.1 Pro Preview", capabilities: ["vision"] },
+    { id: "google/gemini-3.1-flash-lite", name: "Google Gemini 3.1 Flash Lite", capabilities: ["vision"] },
     { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
     { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
     { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
