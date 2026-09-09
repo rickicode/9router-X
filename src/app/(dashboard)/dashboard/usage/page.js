@@ -2,8 +2,14 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { UsageStats, RequestLogger, CardSkeleton, SegmentedControl } from "@/shared/components";
+import {
+  UsageStats,
+  RequestLogger,
+  CardSkeleton,
+  SegmentedControl,
+} from "@/shared/components";
 import RequestDetailsTab from "./components/RequestDetailsTab";
+import AnalyticsTab from "./components/AnalyticsTab";
 
 const PERIODS = [
   { value: "today", label: "Today" },
@@ -28,9 +34,11 @@ function UsageContent() {
   const [period, setPeriod] = useState("today");
 
   const tabFromUrl = searchParams.get("tab");
-  const activeTab = tabFromUrl && ["overview", "logs", "details"].includes(tabFromUrl)
-    ? tabFromUrl
-    : "overview";
+  const activeTab =
+    tabFromUrl &&
+    ["overview", "logs", "details", "analytics"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "overview";
 
   const handleTabChange = (value) => {
     if (value === activeTab) return;
@@ -47,12 +55,13 @@ function UsageContent() {
           options={[
             { value: "overview", label: "Overview" },
             { value: "details", label: "Details" },
+            { value: "analytics", label: "Analytics" },
           ]}
           value={activeTab}
           onChange={handleTabChange}
           className="w-full sm:w-auto"
         />
-        {activeTab === "overview" && (
+        {(activeTab === "overview" || activeTab === "analytics") && (
           <SegmentedControl
             options={PERIODS}
             value={period}
@@ -65,11 +74,16 @@ function UsageContent() {
 
       {activeTab === "overview" && (
         <Suspense fallback={<CardSkeleton />}>
-          <UsageStats period={period} setPeriod={setPeriod} hidePeriodSelector />
+          <UsageStats
+            period={period}
+            setPeriod={setPeriod}
+            hidePeriodSelector
+          />
         </Suspense>
       )}
       {activeTab === "logs" && <RequestLogger />}
       {activeTab === "details" && <RequestDetailsTab />}
+      {activeTab === "analytics" && <AnalyticsTab period={period} />}
     </div>
   );
 }

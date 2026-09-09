@@ -137,6 +137,7 @@ export async function GET(request, { params }) {
     // Allow OAuth connections, plus whitelisted apikey providers (glm/minimax/kiro/...)
     // Kiro's headless api-key flow persists authType "api_key" (underscore) while
     // generic apikey providers persist "apikey" — accept both spellings here.
+    if (connection.provider === "unikey") { return Response.json({ supported: false, skipped: true, message: "Quota tracking is not supported for this provider" }); }
     const isOAuth = connection.authType === "oauth";
     const isApikeyAuth =
       connection.authType === "apikey" || connection.authType === "api_key";

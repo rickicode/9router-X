@@ -1,5 +1,6 @@
 import { createPostgresAdapter } from "./adapters/postgresAdapter.js";
 import { PG_SCHEMA_SQL, ensureMonthlyPartitions } from "./schema.pg.js";
+import { ANALYTICS_SCHEMA_SQL } from "./analyticsSchema.js";
 
 // Singleton adapter state
 if (!global._dbAdapter) global._dbAdapter = { instance: null, initPromise: null, logged: false };
@@ -16,6 +17,7 @@ async function initAdapter() {
   // Self-healing bootstrap: DDL & partitions
   try {
     await adapter.exec(PG_SCHEMA_SQL);
+    await adapter.exec(ANALYTICS_SCHEMA_SQL);
     await ensureMonthlyPartitions(adapter);
   } catch (err) {
     console.error(`[DB] Bootstrap schema error:`, err.message);
