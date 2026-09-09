@@ -14,6 +14,8 @@ import {
   formatMetric,
   fmtNumber,
   fmtTokens,
+  TIME_BUCKETS,
+  defaultTimeBucket,
 } from "./analyticsData";
 
 const ERROR_METADATA = {
@@ -88,6 +90,7 @@ export default function AnalyticsTab({ period }) {
   const [model, setModel] = useState("");
   const [errorCategory, setErrorCategory] = useState("");
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+  const [timeBucket, setTimeBucket] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -109,7 +112,7 @@ export default function AnalyticsTab({ period }) {
     setError("");
     setData(null);
     fetchAnalytics(
-      { period, provider, model, errorCategory },
+      { period, provider, model, errorCategory, timeBucket },
       controller.signal,
     )
       .then((value) => {
@@ -122,7 +125,7 @@ export default function AnalyticsTab({ period }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [period, provider, model, errorCategory, refresh]);
+  }, [period, provider, model, errorCategory, timeBucket, refresh]);
 
   // Model selection shortcut
   const handleSelectModel = useCallback((p, m) => {
@@ -221,6 +224,28 @@ export default function AnalyticsTab({ period }) {
               onChange={(e) => setModel(e.target.value)}
               className="w-full"
             />
+          </div>
+
+          {/* Granularity (Request Stream resolution) */}
+          <div className="flex items-center gap-1 bg-surface-2 rounded-[10px] p-1 border border-border-subtle">
+            <span className="material-symbols-outlined text-[16px] text-text-muted ml-1.5">
+              schedule
+            </span>
+            <select
+              value={timeBucket}
+              onChange={(e) => setTimeBucket(e.target.value)}
+              className="bg-transparent text-xs text-text-main font-medium py-1 px-1.5 outline-none cursor-pointer"
+              aria-label="Timeline granularity"
+            >
+              <option value="">
+                Auto ({defaultTimeBucket(period)})
+              </option>
+              {TIME_BUCKETS.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Auto Refresh Dropdown */}

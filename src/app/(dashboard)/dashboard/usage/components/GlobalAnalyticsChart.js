@@ -101,6 +101,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
+                  minTickGap={24}
                   tick={{
                     fontSize: 11,
                     fill: "currentColor",
@@ -182,6 +183,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
+                  minTickGap={24}
                   tick={{
                     fontSize: 11,
                     fill: "currentColor",
@@ -230,6 +232,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
+                  minTickGap={24}
                   tick={{
                     fontSize: 11,
                     fill: "currentColor",
@@ -318,6 +321,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
+                  minTickGap={24}
                   tick={{
                     fontSize: 11,
                     fill: "currentColor",

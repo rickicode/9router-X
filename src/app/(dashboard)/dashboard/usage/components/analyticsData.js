@@ -24,6 +24,7 @@ export function normalizeAnalytics(payload) {
     inputTokens: metric(row.total_input_tokens),
     outputTokens: metric(row.total_output_tokens),
     timestamp: row.bucket ? new Date(row.bucket).toLocaleString() : undefined,
+    bucketMs: row.bucket ? new Date(row.bucket).getTime() : null,
   });
   return {
     summary: payload.summary,
@@ -54,8 +55,32 @@ export function rankModels(models, mode, minSamples = MIN_SAMPLES) {
         `${a.provider}/${a.model}`.localeCompare(`${b.provider}/${b.model}`),
     );
 }
+export const TIME_BUCKETS = [
+  { value: "1 minute", label: "1 min", span: 60000 },
+  { value: "5 minutes", label: "5 min", span: 300000 },
+  { value: "1 hour", label: "1 hour", span: 3600000 },
+  { value: "1 day", label: "1 day", span: 86400000 },
+];
+
+export function defaultTimeBucket(period, now = new Date()) {
+  const end = new Date(now);
+  let start = new Date(end);
+  if (period === "today") start.setHours(0, 0, 0, 0);
+  else
+    start = new Date(
+      end.getTime() -
+        ({ "24h": 1, "7d": 7, "30d": 30, "60d": 60 }[period] ?? 7) * 86400000,
+    );
+  const span = end - start;
+  // Prefer the finest bucket that keeps the bucket count within the API's
+  // 2200-bucket validation ceiling (analyticsFilters.js).
+  for (const bucket of TIME_BUCKETS)
+    if (Math.ceil(span / bucket.span) <= 2200) return bucket.value;
+  return "1 day";
+}
+
 export function analyticsUrl(
-  { period, provider = "", model = "", errorCategory = "" },
+  { period, provider = "", model = "", errorCategory = "", timeBucket = "" },
   now = new Date(),
 ) {
   const end = new Date(now);
@@ -69,7 +94,7 @@ export function analyticsUrl(
   const params = new URLSearchParams({
     timeFrom: start.toISOString(),
     timeTo: end.toISOString(),
-    timeBucket: end - start > 7 * 86400000 ? "1 day" : "1 hour",
+    timeBucket: timeBucket || defaultTimeBucket(period, now),
   });
   if (provider && provider.trim()) params.set("provider", provider.trim());
   if (model && model.trim()) params.set("model", model.trim());
