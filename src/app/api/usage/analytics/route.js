@@ -14,6 +14,7 @@ export async function GET(request) {
       "provider",
       "model",
       "timeBucket",
+      "errorCategory",
     ]) {
       const val = searchParams.get(key);
       if (val !== null && val !== "") {

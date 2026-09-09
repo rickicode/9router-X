@@ -8,6 +8,7 @@
 import { pruneExpired } from "open-sse/services/proxyPoolFitness.js";
 import { pruneStaleGeo } from "open-sse/services/poolGeo.js";
 import { isNonServerRuntime } from "@/sse/services/backgroundTokenRefresh.js";
+import { pruneAnalyticsEvents } from "@/lib/db/repos/analyticsRepo.js";
 
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -23,6 +24,8 @@ async function sweep() {
     if (fitness || geo || sessions) {
       console.log(`[StateSweeper] pruned ${fitness} fitness, ${geo} geo, ${sessions} session/cooldown entries`);
     }
+    // Periodic database telemetry pruning (fail-open)
+    pruneAnalyticsEvents().catch(() => {});
   } catch {
     // fail-open: next tick retries
   }

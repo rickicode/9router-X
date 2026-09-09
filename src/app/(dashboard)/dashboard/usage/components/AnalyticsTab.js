@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import GlobalAnalyticsChart from "./GlobalAnalyticsChart";
 import AnalyticsTrendChart from "./AnalyticsTrendChart";
 import Card from "@/shared/components/Card";
@@ -86,17 +86,32 @@ const ERROR_METADATA = {
 export default function AnalyticsTab({ period }) {
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
+  const [errorCategory, setErrorCategory] = useState("");
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
 
+  // Periodic Auto-Refresh
+  useEffect(() => {
+    if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
+    const timer = setInterval(() => {
+      setRefresh((x) => x + 1);
+    }, autoRefreshInterval * 1000);
+    return () => clearInterval(timer);
+  }, [autoRefreshInterval]);
+
+  // Main Data Fetching
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError("");
     setData(null);
-    fetchAnalytics({ period, provider, model }, controller.signal)
+    fetchAnalytics(
+      { period, provider, model, errorCategory },
+      controller.signal,
+    )
       .then((value) => {
         if (!controller.signal.aborted) setData(value);
       })
@@ -107,19 +122,77 @@ export default function AnalyticsTab({ period }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [period, provider, model, refresh]);
+  }, [period, provider, model, errorCategory, refresh]);
+
+  // Model selection shortcut
+  const handleSelectModel = useCallback((p, m) => {
+    setProvider(p);
+    setModel(m);
+    window.scrollTo({ top: 120, behavior: "smooth" });
+  }, []);
+
+  // CSV Export
+  const handleExportCsv = () => {
+    if (!data?.models?.length) return;
+    const headers = [
+      "Provider",
+      "Model",
+      "Requests",
+      "Success",
+      "Failed",
+      "SuccessRate",
+      "P50_ms",
+      "P95_ms",
+      "InputTokens",
+      "OutputTokens",
+    ];
+    const rows = data.models.map((m) => [
+      `"${m.provider}"`,
+      `"${m.model}"`,
+      m.requests,
+      m.successes,
+      m.failures,
+      m.successRate != null ? `"${(m.successRate * 100).toFixed(2)}%"` : '""',
+      m.latencyMs ?? "",
+      m.p95 ?? "",
+      m.inputTokens ?? "",
+      m.outputTokens ?? "",
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `9router-analytics-${period || "7d"}-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const hasActiveFilters = Boolean(provider || model || errorCategory);
 
   return (
     <section className="flex flex-col gap-6">
       {/* Header & Subtitle */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-brand-500 text-2xl">
-            monitoring
-          </span>
-          <h2 className="text-xl font-semibold text-text-main">
-            Model Analytics
-          </h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-brand-500 text-2xl">
+              monitoring
+            </span>
+            <h2 className="text-xl font-semibold text-text-main">
+              Model Analytics
+            </h2>
+          </div>
+          {data?.summary && (
+            <span className="text-xs text-text-muted font-mono">
+              Last updated: {new Date().toLocaleTimeString()}
+            </span>
+          )}
         </div>
         <p className="text-sm text-text-muted">
           New routed LLM attempts only. Retries count separately. Reliability
@@ -129,50 +202,157 @@ export default function AnalyticsTab({ period }) {
       </div>
 
       {/* Filter Bar */}
-      <Card padding="sm" className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <Input
-            aria-label="Provider filter"
-            placeholder="Provider (exact ID)"
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <Input
-            aria-label="Model filter"
-            placeholder="Model (exact ID)"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="w-full"
-          />
-        </div>
-        {(provider || model) && (
+      <Card padding="sm" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+            <Input
+              aria-label="Provider filter"
+              placeholder="Provider (exact ID)"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+            <Input
+              aria-label="Model filter"
+              placeholder="Model (exact ID)"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Auto Refresh Dropdown */}
+          <div className="flex items-center gap-1 bg-surface-2 rounded-[10px] p-1 border border-border-subtle">
+            <span className="material-symbols-outlined text-[16px] text-text-muted ml-1.5">
+              timer
+            </span>
+            <select
+              value={autoRefreshInterval}
+              onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+              className="bg-transparent text-xs text-text-main font-medium py-1 px-1.5 outline-none cursor-pointer"
+              aria-label="Auto refresh interval"
+            >
+              <option value={0}>Auto: Off</option>
+              <option value={15}>Auto: 15s</option>
+              <option value={30}>Auto: 30s</option>
+              <option value={60}>Auto: 60s</option>
+            </select>
+            {autoRefreshInterval > 0 && (
+              <span className="relative flex h-2 w-2 mr-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+              </span>
+            )}
+          </div>
+
+          {/* Export CSV */}
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
-            onClick={() => {
-              setProvider("");
-              setModel("");
-            }}
-            className="text-xs text-text-muted hover:text-text-main"
+            onClick={handleExportCsv}
+            disabled={!data?.models?.length}
+            className="rounded-[10px] border border-border p-2 px-3 text-xs"
+            title="Download CSV report"
           >
-            Clear Filters
+            <span className="material-symbols-outlined text-[16px] mr-1">
+              download
+            </span>
+            CSV
           </Button>
+
+          {/* Refresh button */}
+          <Button
+            variant="secondary"
+            className="rounded-[10px] border border-border p-2 px-4"
+            onClick={() => setRefresh((x) => x + 1)}
+          >
+            <span
+              className={cn(
+                "material-symbols-outlined text-[18px] mr-1",
+                loading && "animate-spin",
+              )}
+            >
+              refresh
+            </span>
+            Refresh
+          </Button>
+        </div>
+
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-subtle text-xs">
+            <span className="text-text-muted font-medium">Active filters:</span>
+            {provider && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border">
+                Provider: <strong>{provider}</strong>
+                <button
+                  type="button"
+                  onClick={() => setProvider("")}
+                  className="hover:text-danger ml-0.5"
+                  aria-label="Remove provider filter"
+                >
+                  <span className="material-symbols-outlined text-[14px]">
+                    close
+                  </span>
+                </button>
+              </span>
+            )}
+            {model && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border">
+                Model: <strong>{model}</strong>
+                <button
+                  type="button"
+                  onClick={() => setModel("")}
+                  className="hover:text-danger ml-0.5"
+                  aria-label="Remove model filter"
+                >
+                  <span className="material-symbols-outlined text-[14px]">
+                    close
+                  </span>
+                </button>
+              </span>
+            )}
+            {errorCategory && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30">
+                Error:{" "}
+                <strong>
+                  {ERROR_METADATA[errorCategory]?.label || errorCategory}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setErrorCategory("")}
+                  className="hover:text-danger ml-0.5"
+                  aria-label="Remove error category filter"
+                >
+                  <span className="material-symbols-outlined text-[14px]">
+                    close
+                  </span>
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setProvider("");
+                setModel("");
+                setErrorCategory("");
+              }}
+              className="text-text-muted hover:text-danger underline ml-2"
+            >
+              Clear all
+            </button>
+          </div>
         )}
-        <Button
-          variant="secondary"
-          className="rounded-[10px] border border-border p-2 px-4"
-          onClick={() => setRefresh((x) => x + 1)}
-        >
-          Refresh
-        </Button>
       </Card>
 
-      {/* States */}
+      {/* Loading & Error States */}
       {loading && (
-        <Card padding="lg" className="flex items-center justify-center p-12 text-text-muted text-sm">
+        <Card
+          padding="lg"
+          className="flex items-center justify-center p-12 text-text-muted text-sm"
+        >
           <span className="material-symbols-outlined animate-spin mr-2">
             progress_activity
           </span>
@@ -195,7 +375,10 @@ export default function AnalyticsTab({ period }) {
         <>
           {/* Top Overview Cards */}
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 sm:gap-4">
-            <Card className="flex min-w-0 flex-col gap-1 px-4 py-3" padding="none">
+            <Card
+              className="flex min-w-0 flex-col gap-1 px-4 py-3"
+              padding="none"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Attempts
@@ -212,7 +395,10 @@ export default function AnalyticsTab({ period }) {
               </span>
             </Card>
 
-            <Card className="flex min-w-0 flex-col gap-1 px-4 py-3" padding="none">
+            <Card
+              className="flex min-w-0 flex-col gap-1 px-4 py-3"
+              padding="none"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Success Rate
@@ -229,7 +415,10 @@ export default function AnalyticsTab({ period }) {
               </span>
             </Card>
 
-            <Card className="flex min-w-0 flex-col gap-1 px-4 py-3" padding="none">
+            <Card
+              className="flex min-w-0 flex-col gap-1 px-4 py-3"
+              padding="none"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Failed Attempts
@@ -259,7 +448,10 @@ export default function AnalyticsTab({ period }) {
               </span>
             </Card>
 
-            <Card className="flex min-w-0 flex-col gap-1 px-4 py-3" padding="none">
+            <Card
+              className="flex min-w-0 flex-col gap-1 px-4 py-3"
+              padding="none"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Median Latency
@@ -276,7 +468,10 @@ export default function AnalyticsTab({ period }) {
               </span>
             </Card>
 
-            <Card className="flex min-w-0 flex-col gap-1 px-4 py-3" padding="none">
+            <Card
+              className="flex min-w-0 flex-col gap-1 px-4 py-3"
+              padding="none"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Tokens
@@ -313,10 +508,10 @@ export default function AnalyticsTab({ period }) {
                 summary={data.summary}
               />
 
-              {/* Error Distribution Section (Card) */}
+              {/* Error Distribution Section (Interactive Cards) */}
               <Card
                 title="Error Distribution & Root Causes"
-                subtitle="Categorized failure events and status classification across all models"
+                subtitle="Click any error category below to filter all metrics and models to that specific issue"
                 icon="report_problem"
                 padding="md"
               >
@@ -330,7 +525,8 @@ export default function AnalyticsTab({ period }) {
                         Zero Failures Recorded
                       </h4>
                       <p className="text-xs text-text-muted">
-                        All model requests in this period completed successfully.
+                        All model requests in this period completed
+                        successfully.
                       </p>
                     </div>
                   </div>
@@ -369,11 +565,26 @@ export default function AnalyticsTab({ period }) {
                         const totalFailures =
                           data.summary.failureCount || 1;
                         const pct = (row.count / totalFailures) * 100;
+                        const isSelected =
+                          errorCategory === row.error_category;
 
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={row.error_category}
-                            className="flex flex-col justify-between p-3.5 rounded-xl border border-border-subtle bg-surface-2/40 hover:bg-surface-2/70 transition-colors"
+                            onClick={() =>
+                              setErrorCategory((prev) =>
+                                prev === row.error_category
+                                  ? ""
+                                  : row.error_category,
+                              )
+                            }
+                            className={cn(
+                              "flex flex-col justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer group",
+                              isSelected
+                                ? "border-brand-500 bg-brand-500/10 shadow-sm ring-2 ring-brand-500/40"
+                                : "border-border-subtle bg-surface-2/40 hover:bg-surface-2/80 hover:border-brand-500/30",
+                            )}
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
@@ -390,8 +601,11 @@ export default function AnalyticsTab({ period }) {
                                     {meta.label}
                                   </span>
                                 </div>
-                                <Badge variant={meta.variant} size="sm">
-                                  {row.error_category}
+                                <Badge
+                                  variant={isSelected ? "primary" : meta.variant}
+                                  size="sm"
+                                >
+                                  {isSelected ? "Filtered" : row.error_category}
                                 </Badge>
                               </div>
 
@@ -415,10 +629,15 @@ export default function AnalyticsTab({ period }) {
                               </div>
                             </div>
 
-                            <p className="text-[11px] text-text-muted mt-3 line-clamp-2">
-                              {meta.description}
-                            </p>
-                          </div>
+                            <div className="flex items-center justify-between mt-3">
+                              <p className="text-[11px] text-text-muted line-clamp-1">
+                                {meta.description}
+                              </p>
+                              <span className="text-[11px] text-brand-500 font-semibold opacity-0 group-hover:opacity-100 transition-opacity ml-1 shrink-0">
+                                {isSelected ? "Remove filter" : "Filter"}
+                              </span>
+                            </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -476,14 +695,18 @@ export default function AnalyticsTab({ period }) {
                           {ranked.slice(0, 5).map((row, idx) => (
                             <li
                               key={`${row.provider}/${row.model}`}
-                              className="flex items-center justify-between py-2 gap-2 text-xs"
+                              onClick={() =>
+                                handleSelectModel(row.provider, row.model)
+                              }
+                              className="flex items-center justify-between py-2 gap-2 text-xs cursor-pointer hover:bg-surface-2/60 rounded px-1 -mx-1 transition-colors"
+                              title="Click to zoom into this model"
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="size-5 rounded-full bg-surface-2 flex items-center justify-center font-mono font-bold text-[10px] text-text-muted shrink-0">
                                   {idx + 1}
                                 </span>
                                 <div className="min-w-0">
-                                  <p className="font-semibold text-text-main truncate">
+                                  <p className="font-semibold text-text-main truncate hover:text-brand-500">
                                     {row.model}
                                   </p>
                                   <p className="text-[10px] text-text-muted truncate">
@@ -519,7 +742,7 @@ export default function AnalyticsTab({ period }) {
               {/* Detailed Model Performance Table in a Card */}
               <Card
                 title="Model Performance Breakdown"
-                subtitle="Granular latency, throughput, and error metrics across all registered models"
+                subtitle="Click any row to filter timeline and metrics specifically for that model"
                 icon="table_chart"
                 padding="none"
                 className="overflow-hidden"
@@ -548,11 +771,15 @@ export default function AnalyticsTab({ period }) {
                     <tbody className="divide-y divide-border-subtle">
                       {data.models.map((row) => (
                         <tr
-                          className="hover:bg-surface-2/40 transition-colors"
                           key={`${row.provider}/${row.model}`}
+                          onClick={() =>
+                            handleSelectModel(row.provider, row.model)
+                          }
+                          className="hover:bg-surface-2/60 transition-colors cursor-pointer group"
+                          title="Click to zoom into this model"
                         >
                           <td className="px-4 py-3">
-                            <div className="font-semibold text-text-main">
+                            <div className="font-semibold text-text-main group-hover:text-brand-500 transition-colors">
                               {row.model}
                             </div>
                             <div className="text-xs text-text-muted font-mono">

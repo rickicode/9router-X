@@ -55,7 +55,7 @@ export function rankModels(models, mode, minSamples = MIN_SAMPLES) {
     );
 }
 export function analyticsUrl(
-  { period, provider = "", model = "" },
+  { period, provider = "", model = "", errorCategory = "" },
   now = new Date(),
 ) {
   const end = new Date(now);
@@ -71,8 +71,10 @@ export function analyticsUrl(
     timeTo: end.toISOString(),
     timeBucket: end - start > 7 * 86400000 ? "1 day" : "1 hour",
   });
-  if (provider.trim()) params.set("provider", provider.trim());
-  if (model.trim()) params.set("model", model.trim());
+  if (provider && provider.trim()) params.set("provider", provider.trim());
+  if (model && model.trim()) params.set("model", model.trim());
+  if (errorCategory && errorCategory.trim())
+    params.set("errorCategory", errorCategory.trim());
   return `/api/usage/analytics?${params}`;
 }
 export async function fetchAnalytics(filters, signal, fetcher = fetch) {

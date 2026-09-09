@@ -99,4 +99,26 @@ describe("Analytics safety and contract", () => {
     expect(url).toContain("timeFrom=");
     expect(url).not.toContain("period=");
   });
+  it("validates and accepts errorCategory filter", () => {
+    const valid = validateAnalyticsFilters({
+      errorCategory: "upstream",
+      timeFrom: "2026-09-08T00:00:00Z",
+      timeTo: "2026-09-09T00:00:00Z",
+    });
+    expect(valid.errorCategory).toBe("upstream");
+
+    expect(() =>
+      validateAnalyticsFilters({
+        errorCategory: "non_existent_category",
+        timeFrom: "2026-09-08T00:00:00Z",
+        timeTo: "2026-09-09T00:00:00Z",
+      }),
+    ).toThrow("Invalid errorCategory");
+
+    const url = analyticsUrl({
+      period: "24h",
+      errorCategory: "upstream",
+    });
+    expect(url).toContain("errorCategory=upstream");
+  });
 });

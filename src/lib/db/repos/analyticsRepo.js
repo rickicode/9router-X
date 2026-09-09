@@ -201,6 +201,7 @@ export async function getAnalyticsSummary({
   timeTo,
   provider,
   model,
+  errorCategory,
   timeBucket = "1 hour",
 } = {}) {
   const db = await getAdapter();
@@ -222,6 +223,10 @@ export async function getAnalyticsSummary({
   if (model) {
     params.push(model);
     whereClauses.push(`model = $${params.length}`);
+  }
+  if (errorCategory) {
+    params.push(errorCategory);
+    whereClauses.push(`error_category = $${params.length}`);
   }
 
   const whereSql =
@@ -310,6 +315,7 @@ export async function getAnalyticsSummary({
       timeTo: timeTo || null,
       provider: provider || null,
       model: model || null,
+      errorCategory: errorCategory || null,
       timeBucket: safeBucket,
       minSampleThreshold: MIN_SAMPLE_RECOMMENDATION_THRESHOLD,
     },
@@ -337,6 +343,47 @@ export async function getAnalyticsSummary({
     errorDistribution: errorDistribution || [],
     timeline: timeline || [],
   };
+}
+
+export async function pruneAnalyticsEvents({
+  retentionDays = 30,
+  maxRecords = 200000,
+} = {}) {
+  try {
+    const db = await getAdapter();
+    const days = Math.max(1, Math.min(365, Number(retentionDays) || 30));
+
+    // 1. Time-based retention cutoff
+    const timeResult = await db.run(
+      `DELETE FROM analytics_events WHERE timestamp < NOW() - ($1 || ' days')::INTERVAL;`,
+      [days],
+    );
+
+    // 2. Capacity-based cutoff if table exceeds maxRecords
+    if (maxRecords && maxRecords > 0) {
+      const countRow = await db.get(
+        `SELECT COUNT(*)::int AS total FROM analytics_events;`,
+      );
+      const total = countRow?.total || 0;
+      if (total > maxRecords) {
+        const excess = total - maxRecords;
+        const cutoffRow = await db.get(
+          `SELECT timestamp FROM analytics_events ORDER BY timestamp ASC OFFSET $1 LIMIT 1;`,
+          [excess],
+        );
+        if (cutoffRow?.timestamp) {
+          await db.run(
+            `DELETE FROM analytics_events WHERE timestamp < $1;`,
+            [cutoffRow.timestamp],
+          );
+        }
+      }
+    }
+    return timeResult;
+  } catch (err) {
+    console.error("[AnalyticsRepo] prune error:", err.message);
+    return null;
+  }
 }
 
 export const __test__ = {

@@ -13,6 +13,7 @@ export function validateAnalyticsFilters(raw = {}, now = Date.now()) {
     "provider",
     "model",
     "timeBucket",
+    "errorCategory",
   ]);
   if (Object.keys(raw).some((key) => !allowed.has(key)))
     throw new Error("Unknown analytics filter");
@@ -53,11 +54,27 @@ export function validateAnalyticsFilters(raw = {}, now = Date.now()) {
       throw new Error(`Invalid ${name}`);
     return value;
   };
+  const validCategories = new Set([
+    "upstream",
+    "rate_limit",
+    "auth",
+    "timeout",
+    "cancelled",
+    "stream",
+    "internal",
+    "unknown",
+  ]);
+  const errorCategory = raw.errorCategory;
+  if (errorCategory !== undefined && !validCategories.has(errorCategory)) {
+    throw new Error("Invalid errorCategory");
+  }
+
   return {
     timeFrom: new Date(start).toISOString(),
     timeTo: new Date(end).toISOString(),
     timeBucket,
     provider: dimension(raw.provider, 64, "provider"),
     model: dimension(raw.model, 256, "model"),
+    errorCategory,
   };
 }
