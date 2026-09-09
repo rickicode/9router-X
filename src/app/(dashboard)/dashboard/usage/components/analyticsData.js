@@ -90,3 +90,12 @@ export function formatMetric(value, kind) {
   if (kind === "latencyMs") return `${Number(value).toFixed(0)} ms`;
   return Number(value).toLocaleString();
 }
+
+export const fmtNumber = (n) => new Intl.NumberFormat().format(Number(n) || 0);
+
+export const fmtTokens = (n) => {
+  const num = Number(n) || 0;
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return String(num);
+};
