@@ -50,7 +50,7 @@ export default function AnalyticsTrendChart({
           No data recorded for this metric
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={210}>
+        <ResponsiveContainer width="100%" height={420}>
           {chartType === "area" ? (
             <AreaChart
               data={data}

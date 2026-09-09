@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import AnalyticsTrendChart from "./AnalyticsTrendChart";
+import Card from "@/shared/components/Card";
+import Input from "@/shared/components/Input";
+import Button from "@/shared/components/Button";
 import { fetchAnalytics, rankModels, formatMetric } from "./analyticsData";
 export default function AnalyticsTab({ period }) {
   const [provider, setProvider] = useState("");
@@ -36,28 +39,29 @@ export default function AnalyticsTab({ period }) {
           telemetry is best-effort; crashes or overload can drop events.
         </p>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <input
+      <Card padding="sm" className="flex flex-wrap items-center gap-3">
+        <Input
           aria-label="Provider filter"
           placeholder="Provider (exact ID)"
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
-          className="rounded border border-border bg-transparent p-2"
+          className="min-w-[200px] flex-1"
         />
-        <input
+        <Input
           aria-label="Model filter"
           placeholder="Model (exact ID)"
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="rounded border border-border bg-transparent p-2"
+          className="min-w-[200px] flex-1"
         />
-        <button
+        <Button
+          variant="secondary"
           className="rounded border border-border p-2"
           onClick={() => setRefresh((x) => x + 1)}
         >
           Refresh
-        </button>
-      </div>
+        </Button>
+      </Card>
       {loading && <p role="status">Loading analytics…</p>}
       {error && (
         <p role="alert" className="text-red-500">
@@ -84,7 +88,7 @@ export default function AnalyticsTab({ period }) {
                   ["reliable", "Most reliable"],
                   ["used", "Most used"],
                 ].map(([mode, title]) => (
-                  <div key={mode} className="rounded border border-border p-4">
+                  <Card key={mode} padding="sm">
                     <h3 className="font-semibold">{title}</h3>
                     <ol>
                       {rankModels(data.models, mode, data.minSamples)
@@ -118,10 +122,10 @@ export default function AnalyticsTab({ period }) {
                     {!rankModels(data.models, mode, data.minSamples).length && (
                       <p>Insufficient samples</p>
                     )}
-                  </div>
+                  </Card>
                 ))}
               </div>
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="flex min-w-0 flex-col gap-6">
                 <AnalyticsTrendChart
                   title="Request volume"
                   data={data.series}
@@ -145,7 +149,7 @@ export default function AnalyticsTab({ period }) {
                   unit="latencyMs"
                 />
               </div>
-              <div className="overflow-x-auto">
+              <Card padding="sm" className="min-w-0 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr>
@@ -198,7 +202,7 @@ export default function AnalyticsTab({ period }) {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
               <div>
                 <h3 className="font-semibold">Errors</h3>
                 {data.errors.length ? (
