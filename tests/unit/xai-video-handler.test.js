@@ -25,14 +25,17 @@ const tokenMocks = vi.hoisted(() => ({
   updateProviderCredentials: vi.fn(async () => {}),
 }));
 
-vi.mock("@/sse/services/auth.js", () => authMocks);
-vi.mock("@/sse/services/tokenRefresh.js", () => tokenMocks);
-vi.mock("@/lib/localDb", () => ({
+const dbMocks = vi.hoisted(() => ({
   getSettings: vi.fn(async () => ({ requireApiKey: false })),
   getComboByName: vi.fn(async () => null),
   getModelAliases: vi.fn(async () => ({})),
   getProviderNodes: vi.fn(async () => []),
+  getProviderConnectionById: vi.fn(async (id) => ({ id, provider: "xai" })),
 }));
+
+vi.mock("@/sse/services/auth.js", () => authMocks);
+vi.mock("@/sse/services/tokenRefresh.js", () => tokenMocks);
+vi.mock("@/lib/localDb", () => dbMocks);
 vi.mock("@/sse/utils/logger.js", () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }));
 
 import { handleVideoCreate, handleVideoGet } from "@/sse/handlers/videoGeneration.js";
@@ -207,6 +210,79 @@ describe("handleVideoGet", () => {
       "xai", null, null, expect.objectContaining({ preferredConnectionId: "conn-5" })
     );
     expect(global.fetch.mock.calls[0][0]).toBe("https://api.x.ai/v1/videos/req-1");
+  });
+
+  it("resolves unikey provider and single endpoint when x-connection-id belongs to unikey", async () => {
+    dbMocks.getProviderConnectionById.mockResolvedValueOnce({ id: "conn-unikey", provider: "unikey" });
+    authMocks.getProviderCredentials.mockResolvedValueOnce(account({ connectionId: "conn-unikey" }));
+    global.fetch.mockResolvedValueOnce(jsonResponse({ id: "task_123", status: "processing" }));
+
+    const req = new Request("http://localhost/v1/videos/task_123", {
+      headers: { "x-connection-id": "conn-unikey" },
+    });
+    const res = await handleVideoGet(req, "task_123");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: "task_123", status: "processing" });
+    expect(authMocks.getProviderCredentials).toHaveBeenCalledWith(
+      "unikey", null, null, expect.objectContaining({ preferredConnectionId: "conn-unikey" })
+    );
+    expect(global.fetch.mock.calls[0][0]).toBe("https://www.getunikey.ai/v1/videos/task_123");
+  });
+
+  it("fails without fallback when preferred connection id does not match credentials", async () => {
+    dbMocks.getProviderConnectionById.mockResolvedValueOnce({ id: "conn-unikey-1", provider: "unikey" });
+    // getProviderCredentials returned a different connection (fallback occurred inside auth service)
+    authMocks.getProviderCredentials.mockResolvedValueOnce(account({ connectionId: "conn-unikey-other" }));
+
+    const req = new Request("http://localhost/v1/videos/task_123", {
+      headers: { "x-connection-id": "conn-unikey-1" },
+    });
+    const res = await handleVideoGet(req, "task_123");
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("No credentials for provider: unikey");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when connection is not found", async () => {
+    dbMocks.getProviderConnectionById.mockResolvedValueOnce(null);
+
+    const req = new Request("http://localhost/v1/videos/task_123", {
+      headers: { "x-connection-id": "conn-missing" },
+    });
+    const res = await handleVideoGet(req, "task_123");
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Connection not found: conn-missing");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when connection provider does not support video", async () => {
+    dbMocks.getProviderConnectionById.mockResolvedValueOnce({ id: "conn-claude", provider: "anthropic" });
+
+    const req = new Request("http://localhost/v1/videos/task_123", {
+      headers: { "x-connection-id": "conn-claude" },
+    });
+    const res = await handleVideoGet(req, "task_123");
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Provider 'anthropic' does not support video generation");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("falls back to default xai provider when x-connection-id is omitted (backwards compatibility)", async () => {
+    authMocks.getProviderCredentials.mockResolvedValueOnce(account({ connectionId: "conn-xai" }));
+    global.fetch.mockResolvedValueOnce(jsonResponse({ id: "r-xai", status: "completed" }));
+
+    const req = new Request("http://localhost/v1/videos/r-xai");
+    const res = await handleVideoGet(req, "r-xai");
+
+    expect(res.status).toBe(200);
+    expect(authMocks.getProviderCredentials).toHaveBeenCalledWith(
+      "xai", null, null, expect.objectContaining({ preferredConnectionId: null })
+    );
+    expect(global.fetch.mock.calls[0][0]).toBe("https://api.x.ai/v1/videos/r-xai");
   });
 
   it("records the failure when polling hits a terminal auth error", async () => {
