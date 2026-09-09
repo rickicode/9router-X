@@ -282,6 +282,68 @@ describe("handleVideoProxyCore", () => {
     expect(result.status).toBe(408);
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  describe("content mode (GET /videos/{id}/content)", () => {
+    it("constructs ${base}/${encodeURIComponent(requestId)}/content with correct headers", async () => {
+      const mockBinaryData = Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]); // ftyp box header
+      global.fetch.mockResolvedValueOnce(
+        new Response(mockBinaryData, {
+          status: 200,
+          headers: {
+            "Content-Type": "video/mp4",
+            "Content-Disposition": 'attachment; filename="task-123.mp4"',
+            "Content-Length": String(mockBinaryData.length),
+          },
+        })
+      );
+
+      const result = await handleVideoProxyCore({
+        provider: "xai",
+        requestId: "req/custom 123",
+        content: true,
+        credentials: { apiKey: "test-api-key" },
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.response.status).toBe(200);
+
+      const [url, init] = global.fetch.mock.calls[0];
+      expect(url).toBe("https://api.x.ai/v1/videos/req%2Fcustom%20123/content");
+      expect(init.method).toBe("GET");
+      expect(init.headers.Authorization).toBe("Bearer test-api-key");
+      expect(init.headers.Accept).toBe("*/*");
+
+      expect(result.response.headers.get("Content-Type")).toBe("video/mp4");
+      expect(result.response.headers.get("Content-Disposition")).toBe('attachment; filename="task-123.mp4"');
+      expect(result.response.headers.get("Content-Length")).toBe(String(mockBinaryData.length));
+      expect(result.response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+      // Verify exact byte preservation
+      const receivedBytes = Buffer.from(await result.response.arrayBuffer());
+      expect(receivedBytes.equals(mockBinaryData)).toBe(true);
+    });
+
+    it("sanitizes errors and does not stream body on upstream failure in content mode", async () => {
+      global.fetch.mockResolvedValueOnce(
+        new Response("Video expired with Bearer sk-leaked-token-123456", {
+          status: 404,
+          headers: { "Content-Type": "text/plain" },
+        })
+      );
+
+      const result = await handleVideoProxyCore({
+        provider: "xai",
+        requestId: "req-404",
+        content: true,
+        credentials: { apiKey: "tok" },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe(404);
+      expect(result.error).toContain("[redacted]");
+      expect(result.error).not.toContain("sk-leaked-token-123456");
+    });
+  });
 });
 
 describe("sanitizeSecrets", () => {

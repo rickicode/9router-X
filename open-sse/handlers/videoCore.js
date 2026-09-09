@@ -30,14 +30,15 @@ export function sanitizeSecrets(text, credentials = null) {
   return out;
 }
 
-function buildUpstreamUrl(config, action, requestId) {
+function buildUpstreamUrl(config, action, requestId, content = false) {
   const base = config.baseUrl.replace(/\/$/, "");
+  if (content && requestId) return `${base}/${encodeURIComponent(requestId)}/content`;
   if (config.singleEndpoint) return requestId ? `${base}/${encodeURIComponent(requestId)}` : base;
   return requestId ? `${base}/${encodeURIComponent(requestId)}` : `${base}/${action}`;
 }
 
-function buildHeaders({ token, contentType, idempotencyKey }) {
-  const headers = { Accept: "application/json" };
+function buildHeaders({ token, contentType, idempotencyKey, content = false }) {
+  const headers = { Accept: content ? "*/*" : "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (contentType) headers["Content-Type"] = contentType;
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
@@ -64,6 +65,7 @@ function combineSignals(signal, timeoutMs) {
  * @param {string} options.provider - Provider id (must have registry videoConfig)
  * @param {"generations"|"edits"|"extensions"|null} options.action - Creation action (POST)
  * @param {string|null} [options.requestId] - Poll target (GET /videos/{id})
+ * @param {boolean} [options.content] - Fetch binary video content (GET /videos/{id}/content)
  * @param {Buffer|string|null} [options.rawBody] - Exact body to forward
  * @param {string|null} [options.contentType] - Original Content-Type header
  * @param {string|null} [options.idempotencyKey] - Forwarded Idempotency-Key
@@ -78,6 +80,7 @@ export async function handleVideoProxyCore({
   provider,
   action = null,
   requestId = null,
+  content = false,
   rawBody = null,
   contentType = null,
   idempotencyKey = null,
@@ -96,13 +99,18 @@ export async function handleVideoProxyCore({
   }
 
   const method = requestId ? "GET" : "POST";
-  const url = buildUpstreamUrl(config, action, requestId);
+  const url = buildUpstreamUrl(config, action, requestId, content);
   const fetchSignal = combineSignals(signal, timeoutMs);
 
   const doFetch = (token) =>
     fetch(url, {
       method,
-      headers: buildHeaders({ token, contentType: method === "POST" ? contentType : null, idempotencyKey: method === "POST" ? idempotencyKey : null }),
+      headers: buildHeaders({
+        token,
+        contentType: method === "POST" ? contentType : null,
+        idempotencyKey: method === "POST" ? idempotencyKey : null,
+        content,
+      }),
       body: method === "POST" ? rawBody : undefined,
       signal: fetchSignal,
     });
@@ -144,6 +152,28 @@ export async function handleVideoProxyCore({
     } else {
       log?.warn?.("TOKEN", `${provider.toUpperCase()} | video refresh failed — account needs re-auth`);
     }
+  }
+
+  if (content && upstream.ok) {
+    const headers = {
+      "Content-Type": upstream.headers.get("content-type") || "video/mp4",
+      "Access-Control-Allow-Origin": "*",
+    };
+    const contentDisposition = upstream.headers.get("content-disposition");
+    if (contentDisposition) {
+      headers["Content-Disposition"] = contentDisposition;
+    }
+    const contentLength = upstream.headers.get("content-length");
+    if (contentLength) {
+      headers["Content-Length"] = contentLength;
+    }
+    return {
+      success: true,
+      response: new Response(upstream.body, {
+        status: upstream.status,
+        headers,
+      }),
+    };
   }
 
   const bodyText = await upstream.text().catch(() => "");

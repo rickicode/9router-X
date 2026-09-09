@@ -180,11 +180,11 @@ export async function handleVideoCreate(request, action) {
 }
 
 /**
- * GET /v1/videos/{request_id} — poll job status.
+ * GET /v1/videos/{request_id} — poll job status, or GET /v1/videos/{request_id}/content.
  * Jobs are account-bound upstream, so no cross-account rotation here: the
  * caller pins the creating account via `x-connection-id` (returned on create).
  */
-export async function handleVideoGet(request, requestId) {
+export async function handleVideoGet(request, requestId, { content = false } = {}) {
   const authError = await requireValidApiKey(request);
   if (authError) return authError;
 
@@ -214,6 +214,7 @@ export async function handleVideoGet(request, requestId) {
   const result = await handleVideoProxyCore({
     provider,
     requestId,
+    content,
     credentials: refreshedCredentials,
     signal: request.signal,
     log,
