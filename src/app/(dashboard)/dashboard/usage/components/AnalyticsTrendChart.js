@@ -37,8 +37,8 @@ export default function AnalyticsTrendChart({
   const hasData = validPoints.length > 0;
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
+    <Card className="flex min-w-0 flex-col gap-3 p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-text-main">{title}</h3>
         <span className="text-xs text-text-muted">
           {hasData ? `${validPoints.length} points` : "No data"}

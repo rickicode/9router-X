@@ -47,14 +47,15 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
       subtitle="Aggregated time-series telemetry across all models and providers"
       icon="monitoring"
       padding="md"
-      className="flex flex-col gap-4"
+      className="flex min-w-0 flex-col gap-4 p-3 sm:p-6"
       action={
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 max-w-full items-center gap-3">
           <SegmentedControl
             options={viewOptions}
             value={viewMode}
             onChange={setViewMode}
             size="sm"
+            className="flex-wrap w-full min-w-0 gap-1 [&>button]:min-w-0 [&>button]:h-auto [&>button]:min-h-10 [&>button>span:last-child]:whitespace-normal [&_.material-symbols-outlined]:w-4 [&_.material-symbols-outlined]:overflow-hidden"
           />
         </div>
       }
@@ -64,19 +65,31 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
           No telemetry events recorded for this timeframe
         </div>
       ) : (
-        <div className="w-full">
-          <ResponsiveContainer width="100%" height={420}>
+        <div className="h-[300px] min-w-0 w-full sm:h-[420px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {viewMode === "traffic" ? (
               <AreaChart
                 data={validPoints}
                 margin={{ top: 12, right: 16, left: -16, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="gradGlobalSuccess" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="gradGlobalSuccess"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
                   </linearGradient>
-                  <linearGradient id="gradGlobalFailure" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="gradGlobalFailure"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#EF4444" stopOpacity={0.35} />
                     <stop offset="95%" stopColor="#EF4444" stopOpacity={0.02} />
                   </linearGradient>
@@ -88,11 +101,19 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={fmtNumber}
@@ -101,7 +122,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   contentStyle={tooltipStyle}
                   formatter={(value, name) => [
                     fmtNumber(value),
-                    name === "successes" ? "Successful Attempts" : "Failed Attempts",
+                    name === "successes"
+                      ? "Successful Attempts"
+                      : "Failed Attempts",
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
                 />
@@ -110,7 +133,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   height={36}
                   formatter={(value) => (
                     <span className="text-xs text-text-muted font-medium ml-1">
-                      {value === "successes" ? "Successful Attempts" : "Failed Attempts"}
+                      {value === "successes"
+                        ? "Successful Attempts"
+                        : "Failed Attempts"}
                     </span>
                   )}
                 />
@@ -139,7 +164,13 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 margin={{ top: 12, right: 16, left: -16, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="gradGlobalRate" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="gradGlobalRate"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.02} />
                   </linearGradient>
@@ -151,11 +182,19 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                   axisLine={false}
                   domain={[0, 1]}
@@ -191,11 +230,19 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(val) => `${val} ms`}
@@ -203,7 +250,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 <Tooltip
                   contentStyle={tooltipStyle}
                   formatter={(value, name) => [
-                    value != null ? `${Number(value).toFixed(0)} ms` : "No data",
+                    value != null
+                      ? `${Number(value).toFixed(0)} ms`
+                      : "No data",
                     name === "latencyMs" ? "P50 Median Latency" : "P95 Latency",
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
@@ -213,7 +262,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   height={36}
                   formatter={(value) => (
                     <span className="text-xs text-text-muted font-medium ml-1">
-                      {value === "latencyMs" ? "P50 Median Latency" : "P95 Latency"}
+                      {value === "latencyMs"
+                        ? "P50 Median Latency"
+                        : "P95 Latency"}
                     </span>
                   )}
                 />
@@ -249,7 +300,13 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#6366F1" stopOpacity={0.02} />
                   </linearGradient>
-                  <linearGradient id="gradGlobalOut" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="gradGlobalOut"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#EC4899" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#EC4899" stopOpacity={0.02} />
                   </linearGradient>
@@ -261,11 +318,19 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <XAxis
                   dataKey="timestamp"
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tick={{
+                    fontSize: 11,
+                    fill: "currentColor",
+                    fillOpacity: 0.55,
+                  }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={fmtTokens}
@@ -274,7 +339,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   contentStyle={tooltipStyle}
                   formatter={(value, name) => [
                     fmtTokens(value),
-                    name === "inputTokens" ? "Prompt (Input) Tokens" : "Completion (Output) Tokens",
+                    name === "inputTokens"
+                      ? "Prompt (Input) Tokens"
+                      : "Completion (Output) Tokens",
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
                 />
@@ -283,7 +350,9 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   height={36}
                   formatter={(value) => (
                     <span className="text-xs text-text-muted font-medium ml-1">
-                      {value === "inputTokens" ? "Input Tokens" : "Output Tokens"}
+                      {value === "inputTokens"
+                        ? "Input Tokens"
+                        : "Output Tokens"}
                     </span>
                   )}
                 />

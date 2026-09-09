@@ -144,6 +144,18 @@ const CODEX_GPT_56_DEFAULT_CAPS = { vision: true, reasoning: true, search: true,
  * Provider-specific capability overrides. Keyed by provider alias/id.
  */
 export const PROVIDER_CAPABILITIES = {
+  // Intl additions: CodeBuddy Code 2.148.0 product.json metadata, not CN parity.
+  // Kimi exposes no canDisableThinking flag; leave the existing default unchanged.
+  "codebuddy-intl": {
+    "glm-5.3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1000000, maxOutput: 48000 },
+    "kimi-k3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", contextWindow: 1000000, maxOutput: 32000 },
+    "hy3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: false, contextWindow: 192000, maxOutput: 64000 },
+    // Claude IDs passed Intl text-generation probes only. Do not inherit native
+    // Anthropic search, modalities, tools, or thinking wire format from global IDs.
+    // Token limits remain the generic floor until Intl metadata is available.
+    "claude-opus-5": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
+    "claude-sonnet-4.6": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
+  },
   // NVIDIA NIM is OpenAI-compatible → rejects MiniMax/GLM native `thinking` field.
   // Force openai reasoning_effort format for its reasoning models. #issue
   "nvidia": {

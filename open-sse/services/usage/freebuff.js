@@ -113,6 +113,26 @@ export async function handleFreebuffQuotaError(connectionId, model, accessToken,
     return null;
   }
 }
+function applyFreebucksPriceChanges(info) {
+  const now = Date.now();
+  const changes = Array.isArray(info?.priceChanges) ? info.priceChanges : [];
+  const due = changes.filter((c) => c && typeof c.modelId === "string" && Number.isFinite(c.price) && c.price >= 0 && Date.parse(c.at) <= now);
+  if (due.length === 0) return info;
+  const prices = { ...(info.prices || {}) };
+  const priceNotices = { ...(info.priceNotices || {}) };
+  for (const change of due.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
+    if (prices[change.modelId] === undefined) continue;
+    prices[change.modelId] = change.price;
+    priceNotices[change.modelId] = change.tagline;
+  }
+  return {
+    ...info,
+    prices,
+    priceNotices,
+    priceChanges: changes.filter((c) => c && Date.parse(c.at) > now),
+  };
+}
+
 function sessionUrl() {
   return U("freebuff").url;
 }
@@ -196,6 +216,59 @@ export async function getFreebuffUsage(accessToken, providerSpecificData, proxyO
       };
     }
 
+    // Freebucks meter: the daily Freebucks pool is the quota for metered
+    // accounts, replicated under each priced model like the picker's rings.
+    // Prices come off the wire (prices + priceChanges folded in); each row
+    // carries its own price/tagline, and a compact summary rides the response
+    // for the account header in the UI.
+    let freebucksSummary = null;
+    const rawFreebucks = data.freebucks;
+    if (rawFreebucks && rawFreebucks.daily && typeof rawFreebucks.daily === "object") {
+      const freebucks = applyFreebucksPriceChanges(rawFreebucks);
+      const spent = Number(freebucks.daily.spent);
+      const limit = Number(freebucks.daily.limit);
+      for (const [model, price] of Object.entries(freebucks.prices || {})) {
+        const hourlyPrice = Number(price);
+        const dailyRemaining = Math.max(0, Number(freebucks.daily.remaining) || 0);
+        const walletBalance = Math.max(0, Number(freebucks.wallet?.balance) || 0);
+        const balance = freebucks.balance == null ? NaN : Number(freebucks.balance);
+        quotas[model] = {
+          used: Number.isFinite(spent) ? spent : 0,
+          total: Number.isFinite(limit) ? limit : 0,
+          // Auth pre-filter consumes remaining. Zero-price promos and a funded
+          // wallet must not be blocked by an exhausted daily allowance.
+          remaining: hourlyPrice === 0 ? null : Math.max(0, Number.isFinite(balance) ? balance : dailyRemaining + walletBalance),
+          resetAt: freebucks.daily.resetAt || null,
+          unlimited: hourlyPrice === 0,
+          recurring: true,
+          price: Number.isFinite(Number(price)) ? Number(price) : undefined,
+          ...(freebucks.priceNotices?.[model] ? { priceNote: freebucks.priceNotices[model] } : {}),
+          ...(MODEL_LABELS[model] ? { displayName: MODEL_LABELS[model] } : {}),
+        };
+      }
+      freebucksSummary = {
+        balance: Number.isFinite(Number(freebucks.balance)) ? Number(freebucks.balance) : null,
+        daily: {
+          limit: Number.isFinite(limit) ? limit : 0,
+          spent: Number.isFinite(spent) ? spent : 0,
+          remaining: Number.isFinite(Number(freebucks.daily.remaining)) ? Number(freebucks.daily.remaining) : 0,
+          resetAt: freebucks.daily.resetAt || null,
+        },
+        wallet: {
+          balance: Number.isFinite(Number(freebucks.wallet?.balance)) ? Number(freebucks.wallet.balance) : 0,
+        },
+        ...(freebucks.monthly && Number.isFinite(Number(freebucks.monthly.remainingUsd))
+          ? {
+              monthly: {
+                remainingUsd: Number(freebucks.monthly.remainingUsd),
+                limitUsd: Number.isFinite(Number(freebucks.monthly.limitUsd)) ? Number(freebucks.monthly.limitUsd) : null,
+                resetAt: freebucks.monthly.resetAt || null,
+              },
+            }
+          : {}),
+      };
+    }
+
     if (connectionId) {
       quotaCache.set(connectionId, { ...quotas, __fetchedAt: Date.now() });
     }
@@ -204,7 +277,7 @@ export async function getFreebuffUsage(accessToken, providerSpecificData, proxyO
     if (Object.keys(quotas).length === 0) {
       return { plan, message: "Freebuff connected. No session quota to report right now." };
     }
-    return { plan, quotas };
+    return { plan, quotas, ...(freebucksSummary ? { freebucks: freebucksSummary } : {}) };
   } catch (error) {
     return { message: `Freebuff usage error: ${error.message}` };
   }

@@ -613,6 +613,16 @@ async function requestSession(token, rawModel, proxyOptions) {
   if (GATE_MESSAGES[status]) {
     const message = data?.message ? `${GATE_MESSAGES[status]} ${data.message}` : GATE_MESSAGES[status];
     const err = new Error(message);
+    if (status === "rate_limited" || status === "spend_limited") {
+      err.status = 429;
+      const resetAtMs = Date.parse(data?.resetAt || "");
+      const retryAfterMs = Number(data?.retryAfterMs);
+      if (Number.isFinite(resetAtMs) && resetAtMs > Date.now()) {
+        err.resetsAtMs = resetAtMs;
+      } else if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+        err.resetsAtMs = Date.now() + Math.min(retryAfterMs, 26 * 60 * 60 * 1000);
+      }
+    }
     if (status === "banned" || status === "country_blocked") {
       err.status = 403;
       err.freebuffKind = status;
@@ -679,15 +689,13 @@ async function guardOfferClaim(token, model, proxyOptions) {
 
   const offers = await fetchSessionOffers(token, proxyOptions);
   const offer = offers.find((o) => o.model === model);
-  if (!offer || Number(offer.remaining) <= 0) {
-    const err = new Error(
-      `Claude Fable 5 is not being offered right now — it is a capacity-limited trial served in waves, and freebuff's shared Fable pool is currently empty. Watch the official freebuff CLI for the "Claude Fable 5 · N of M left" row, or retry later.`,
-    );
-    err.status = 409;
-    err.code = "offer_closed";
-    throw err;
-  }
-  const userLeft = Number(offer.userRemaining);
+  if (!offer || !Number.isFinite(Number(offer.remaining)) || Number(offer.remaining) <= 0) { const err = new Error(
+    `Claude Fable 5 is not being offered right now — it is a capacity-limited trial served in waves, and freebuff's shared Fable pool is currently empty. Watch the official freebuff CLI for the "Claude Fable 5 · N of M left" row, or retry later.`,
+  );
+  err.status = 409;
+  err.code = "offer_closed";
+  throw err; }
+  const userLeft = offer.userRemaining == null ? NaN : Number(offer.userRemaining)
   if (Number.isFinite(userLeft) && userLeft <= 0) {
     const resetAt = Date.parse(offer.userResetAt || "");
     const err = new Error(

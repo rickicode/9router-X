@@ -43,7 +43,8 @@ export default {
       url: "https://www.codebuddy.ai/v2/billing/meter/get-user-resource",
     },
   },
-  // Same model lineup exposed by the CN gateway — intl backend is the same catalog.
+  // Intl catalog is independent of CN; retain existing IDs for compatibility.
+  // Additions verified against the Intl gateway (2026-09-10).
   models: [
     { id: "glm-5.2", name: "GLM-5.2" },
     { id: "glm-5.1", name: "GLM-5.1" },
@@ -60,6 +61,11 @@ export default {
     { id: "deepseek-v4-pro", name: "DeepSeek-V4-Pro" },
     { id: "deepseek-v4-flash", name: "DeepSeek-V4-Flash" },
     { id: "deepseek-v3-2-volc", name: "DeepSeek-V3.2" },
+    { id: "glm-5.3", name: "GLM-5.3" },
+    { id: "kimi-k3", name: "Kimi-K3" },
+    { id: "hy3", name: "Hy3" },
+    { id: "claude-opus-5", name: "Claude Opus 5" },
+    { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
   ],
   oauth: {
     baseUrl: "https://www.codebuddy.ai",

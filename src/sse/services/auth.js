@@ -598,7 +598,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     lockAll = true;
   } else if (resetsAtMs && resetsAtMs > Date.now()) {
     shouldFallback = true;
-    cooldownMs = Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS);
+    cooldownMs = Math.min(resetsAtMs - Date.now(), resolveProviderId(provider) === "freebuff" ? 26 * 60 * 60 * 1000 : MAX_RATE_LIMIT_COOLDOWN_MS);
     newBackoffLevel = 0;
     if (isPooledQuotaProvider) lockAll = true;
   } else {

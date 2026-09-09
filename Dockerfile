@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
-ARG NODE_IMAGE=node:22-bookworm-slim
+# Pin Debian base (not upstream Alpine) to keep libc/runtime and npm stable.
+ARG NODE_IMAGE=node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
 

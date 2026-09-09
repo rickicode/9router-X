@@ -176,10 +176,10 @@ export default function AnalyticsTab({ period }) {
   const hasActiveFilters = Boolean(provider || model || errorCategory);
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className="flex min-w-0 max-w-full flex-col gap-6">
       {/* Header & Subtitle */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-brand-500 text-2xl leading-none shrink-0 inline-flex items-center justify-center">
               monitoring
@@ -204,7 +204,7 @@ export default function AnalyticsTab({ period }) {
       {/* Filter Bar */}
       <Card padding="sm" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+          <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:min-w-[180px]">
             <Input
               aria-label="Provider filter"
               placeholder="Provider (exact ID)"
@@ -213,7 +213,7 @@ export default function AnalyticsTab({ period }) {
               className="w-full"
             />
           </div>
-          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+          <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:min-w-[180px]">
             <Input
               aria-label="Model filter"
               placeholder="Model (exact ID)"
@@ -285,7 +285,7 @@ export default function AnalyticsTab({ period }) {
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-subtle text-xs">
             <span className="text-text-muted font-medium">Active filters:</span>
             {provider && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border">
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border [&>strong]:min-w-0 [&>strong]:[overflow-wrap:anywhere] [&>button]:shrink-0">
                 Provider: <strong>{provider}</strong>
                 <button
                   type="button"
@@ -300,7 +300,7 @@ export default function AnalyticsTab({ period }) {
               </span>
             )}
             {model && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border">
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1 px-2.5 py-1 rounded-full bg-surface-2 text-text-main border border-border [&>strong]:min-w-0 [&>strong]:[overflow-wrap:anywhere] [&>button]:shrink-0">
                 Model: <strong>{model}</strong>
                 <button
                   type="button"
@@ -315,7 +315,7 @@ export default function AnalyticsTab({ period }) {
               </span>
             )}
             {errorCategory && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30">
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 [&>strong]:min-w-0 [&>strong]:[overflow-wrap:anywhere] [&>button]:shrink-0">
                 Error:{" "}
                 <strong>
                   {ERROR_METADATA[errorCategory]?.label || errorCategory}
@@ -379,7 +379,7 @@ export default function AnalyticsTab({ period }) {
               className="flex min-w-0 flex-col gap-1 px-4 py-3"
               padding="none"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Attempts
                 </span>
@@ -399,7 +399,7 @@ export default function AnalyticsTab({ period }) {
               className="flex min-w-0 flex-col gap-1 px-4 py-3"
               padding="none"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Success Rate
                 </span>
@@ -419,7 +419,7 @@ export default function AnalyticsTab({ period }) {
               className="flex min-w-0 flex-col gap-1 px-4 py-3"
               padding="none"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Failed Attempts
                 </span>
@@ -452,7 +452,7 @@ export default function AnalyticsTab({ period }) {
               className="flex min-w-0 flex-col gap-1 px-4 py-3"
               padding="none"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Median Latency
                 </span>
@@ -472,7 +472,7 @@ export default function AnalyticsTab({ period }) {
               className="flex min-w-0 flex-col gap-1 px-4 py-3"
               padding="none"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Tokens
                 </span>
@@ -503,10 +503,7 @@ export default function AnalyticsTab({ period }) {
           ) : (
             <>
               {/* Dedicated Global Full-Width Chart */}
-              <GlobalAnalyticsChart
-                data={data.series}
-                summary={data.summary}
-              />
+              <GlobalAnalyticsChart data={data.series} summary={data.summary} />
 
               {/* Error Distribution Section (Interactive Cards) */}
               <Card
@@ -562,11 +559,9 @@ export default function AnalyticsTab({ period }) {
                         const meta =
                           ERROR_METADATA[row.error_category] ||
                           ERROR_METADATA.unknown;
-                        const totalFailures =
-                          data.summary.failureCount || 1;
+                        const totalFailures = data.summary.failureCount || 1;
                         const pct = (row.count / totalFailures) * 100;
-                        const isSelected =
-                          errorCategory === row.error_category;
+                        const isSelected = errorCategory === row.error_category;
 
                         return (
                           <button
@@ -580,14 +575,14 @@ export default function AnalyticsTab({ period }) {
                               )
                             }
                             className={cn(
-                              "flex flex-col justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer group",
+                              "flex min-w-0 flex-col justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer group",
                               isSelected
                                 ? "border-brand-500 bg-brand-500/10 shadow-sm ring-2 ring-brand-500/40"
                                 : "border-border-subtle bg-surface-2/40 hover:bg-surface-2/80 hover:border-brand-500/30",
                             )}
                           >
                             <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span
                                     className={cn(
@@ -597,12 +592,14 @@ export default function AnalyticsTab({ period }) {
                                   >
                                     {meta.icon}
                                   </span>
-                                  <span className="font-semibold text-sm text-text-main truncate">
+                                  <span className="font-semibold text-sm text-text-main break-words">
                                     {meta.label}
                                   </span>
                                 </div>
                                 <Badge
-                                  variant={isSelected ? "primary" : meta.variant}
+                                  variant={
+                                    isSelected ? "primary" : meta.variant
+                                  }
                                   size="sm"
                                 >
                                   {isSelected ? "Filtered" : row.error_category}
@@ -646,7 +643,7 @@ export default function AnalyticsTab({ period }) {
               </Card>
 
               {/* Ranking Cards (Fastest, Most Reliable, Most Used) */}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
                 {[
                   [
                     "fastest",
@@ -667,11 +664,7 @@ export default function AnalyticsTab({ period }) {
                     "Highest total routed requests",
                   ],
                 ].map(([mode, title, icon, subtitle]) => {
-                  const ranked = rankModels(
-                    data.models,
-                    mode,
-                    data.minSamples,
-                  );
+                  const ranked = rankModels(data.models, mode, data.minSamples);
                   return (
                     <Card
                       key={mode}
@@ -679,7 +672,7 @@ export default function AnalyticsTab({ period }) {
                       title={title}
                       subtitle={subtitle}
                       icon={icon}
-                      className="flex flex-col justify-between"
+                      className="flex min-w-0 flex-col justify-between"
                     >
                       {!ranked.length ? (
                         <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border text-xs text-text-muted my-2">
@@ -747,8 +740,8 @@ export default function AnalyticsTab({ period }) {
                 padding="none"
                 className="overflow-hidden"
               >
-                <div className="min-w-0 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+                  <table className="w-full min-w-[900px] text-left text-sm">
                     <thead className="bg-surface-2/60 text-text-muted text-xs uppercase font-semibold">
                       <tr>
                         {[
@@ -839,7 +832,7 @@ export default function AnalyticsTab({ period }) {
 
               {/* Individual Metric Drill-Downs */}
               <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-semibold text-text-main">
                     Metric Drilldowns
                   </h3>
