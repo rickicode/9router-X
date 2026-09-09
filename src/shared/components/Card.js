@@ -34,14 +34,16 @@ export default function Card({
       {...props}
     >
       {(title || action) && (
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="p-2 rounded-[10px] bg-bg text-text-muted">
-                <span className="material-symbols-outlined text-[20px]">{icon}</span>
+              <div className="p-2 rounded-[10px] bg-bg text-text-muted shrink-0">
+                <span className="material-symbols-outlined text-[20px] leading-none flex items-center justify-center">
+                  {icon}
+                </span>
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               {title && (
                 <h3 className="text-text-main font-semibold">{title}</h3>
               )}
@@ -50,7 +52,7 @@ export default function Card({
               )}
             </div>
           </div>
-          {action}
+          {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
       {children}

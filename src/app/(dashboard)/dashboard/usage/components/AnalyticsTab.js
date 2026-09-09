@@ -181,7 +181,7 @@ export default function AnalyticsTab({ period }) {
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-brand-500 text-2xl">
+            <span className="material-symbols-outlined text-brand-500 text-2xl leading-none shrink-0 inline-flex items-center justify-center">
               monitoring
             </span>
             <h2 className="text-xl font-semibold text-text-main">
@@ -383,7 +383,7 @@ export default function AnalyticsTab({ period }) {
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Attempts
                 </span>
-                <span className="material-symbols-outlined text-text-muted text-[18px]">
+                <span className="material-symbols-outlined text-text-muted text-[18px] leading-none shrink-0 inline-flex items-center justify-center">
                   swap_calls
                 </span>
               </div>
@@ -403,7 +403,7 @@ export default function AnalyticsTab({ period }) {
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Success Rate
                 </span>
-                <span className="material-symbols-outlined text-success text-[18px]">
+                <span className="material-symbols-outlined text-success text-[18px] leading-none shrink-0 inline-flex items-center justify-center">
                   verified
                 </span>
               </div>
@@ -423,7 +423,7 @@ export default function AnalyticsTab({ period }) {
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Failed Attempts
                 </span>
-                <span className="material-symbols-outlined text-danger text-[18px]">
+                <span className="material-symbols-outlined text-danger text-[18px] leading-none shrink-0 inline-flex items-center justify-center">
                   error
                 </span>
               </div>
@@ -456,7 +456,7 @@ export default function AnalyticsTab({ period }) {
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Median Latency
                 </span>
-                <span className="material-symbols-outlined text-warning text-[18px]">
+                <span className="material-symbols-outlined text-warning text-[18px] leading-none shrink-0 inline-flex items-center justify-center">
                   speed
                 </span>
               </div>
@@ -476,7 +476,7 @@ export default function AnalyticsTab({ period }) {
                 <span className="text-text-muted text-xs uppercase font-semibold">
                   Total Tokens
                 </span>
-                <span className="material-symbols-outlined text-info text-[18px]">
+                <span className="material-symbols-outlined text-info text-[18px] leading-none shrink-0 inline-flex items-center justify-center">
                   data_usage
                 </span>
               </div>
@@ -591,7 +591,7 @@ export default function AnalyticsTab({ period }) {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span
                                     className={cn(
-                                      "material-symbols-outlined text-[18px]",
+                                      "material-symbols-outlined text-[18px] leading-none shrink-0 inline-flex items-center justify-center",
                                       meta.color,
                                     )}
                                   >
