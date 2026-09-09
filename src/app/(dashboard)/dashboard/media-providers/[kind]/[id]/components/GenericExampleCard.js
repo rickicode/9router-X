@@ -37,10 +37,14 @@ export function GenericExampleCard({ providerId, kind }) {
   const safeExConfig = exConfig || {};
 
   // Get models for this kind (e.g., type="image")
-  const kindModels = getModelsByProviderId(providerId).filter((m) => getModelKind(m) === kind);
-  // Kinds that need a model identifier in the request (image/video/music)
+  const kindModels = getModelsByProviderId(providerId).filter((m) => {
+    if (m.kinds) return m.kinds.includes(kind);
+    return getModelKind(m) === kind;
+  });
+  // Kinds that need a model identifier in the request (image/video/music, or webSearch with specific models)
   const KIND_NEEDS_MODEL = new Set(["image", "video", "music", "imageToText"]);
-  const needsModel = KIND_NEEDS_MODEL.has(kind);
+  const hasMultipleSearchModels = kind === "webSearch" && kindModels.length > 0;
+  const needsModel = KIND_NEEDS_MODEL.has(kind) || hasMultipleSearchModels;
   const allowManualModel = needsModel && kindModels.length === 0;
   const [selectedModel, setSelectedModel] = useState(kindModels[0]?.id ?? "");
   const selectedModelObj = kindModels.find((m) => m.id === selectedModel);
@@ -94,10 +98,12 @@ export function GenericExampleCard({ providerId, kind }) {
 
   const endpoint = useTunnel ? tunnelEndpoint : localEndpoint;
   const apiPath = kindConfig.endpoint.path;
-  // webSearch/webFetch: use safeProviderAlias only. Other kinds: append model when present.
-  const modelFull = !needsModel
-    ? safeProviderAlias
-    : (selectedModel ? `${safeProviderAlias}/${selectedModel}` : (allowManualModel ? "" : safeProviderAlias));
+  // webSearch/webFetch: use safeProviderAlias only unless model is selected. Other kinds: append model when present.
+  const modelFull = (kind === "webSearch" && selectedModel)
+    ? `${safeProviderAlias}/${selectedModel}`
+    : (!needsModel
+      ? safeProviderAlias
+      : (selectedModel ? `${safeProviderAlias}/${selectedModel}` : (allowManualModel ? "" : safeProviderAlias)));
   const imageEditDefaults = getImageEditDefaults(providerId, selectedModel);
   const effectiveRefImage = refImage.trim() || imageEditDefaults.image || "";
   const effectiveMaskImage = maskImage.trim() || imageEditDefaults.mask_image || "";

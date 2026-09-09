@@ -28,7 +28,7 @@ export default {
   },
   imageConfig: { baseUrl: "https://www.getunikey.ai/v1/images/generations" },
   models: [
-    { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
+    { id: "claude-opus-4-8", name: "Claude Opus 4.8", kinds: ["llm", "webSearch"], capabilities: ["search", "vision"] },
     { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", capabilities: ["vision"] },
     {
       id: "google/gemini-3.1-pro-preview",
@@ -41,8 +41,8 @@ export default {
       capabilities: ["vision"],
     },
     { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
-    { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
-    { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
+    { id: "claude-opus-4-6", name: "Claude Opus 4.6", kinds: ["llm", "webSearch"], capabilities: ["search", "vision"] },
+    { id: "claude-opus-4-7", name: "Claude Opus 4.7", kinds: ["llm", "webSearch"], capabilities: ["search", "vision"] },
     { id: "google/gemini-3.5-flash", name: "Google Gemini 3.5 Flash" },
     { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
     { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro" },
@@ -87,7 +87,12 @@ export default {
     { id: "qwen/qwen-image-3", name: "Qwen Image 3", type: "image" },
     { id: "BAAI/bge-m3", name: "BAAI BGE-M3", type: "embedding" },
   ],
-  serviceKinds: ["llm", "imageToText", "embedding", "image", "video"],
+  serviceKinds: ["llm", "imageToText", "embedding", "image", "video", "webSearch"],
+  searchViaChat: {
+    defaultModel: "claude-opus-4-8",
+    endpoint: "https://www.getunikey.ai/v1/chat/completions",
+    pricingUrl: "https://www.getunikey.ai",
+  },
   modelsFetcher: { url: "https://www.getunikey.ai/v1/models", type: "openai" },
   passthroughModels: true,
   features: { usage: false, usageApikey: false },

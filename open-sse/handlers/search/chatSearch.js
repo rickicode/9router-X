@@ -413,6 +413,75 @@ const CHAT_SEARCH_CONFIG = {
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
     }
+  },
+
+  unikey: {
+    endpoint: (model) => searchEndpoint("unikey", model) || "https://www.getunikey.ai/v1/chat/completions",
+    buildBody: (query, model) => ({
+      model: model || "claude-opus-4-8",
+      messages: [
+        {
+          role: "user",
+          content: `Search the web and provide sources with links: ${query}`,
+        },
+      ],
+      tools: [{ type: "web_search" }],
+    }),
+    buildHeaders: (token) => ({
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    }),
+    extractAnswer: (data) => {
+      const msg = data?.choices?.[0]?.message || {};
+      const rawText = msg.content || "";
+      const text = rawText
+        .replace(
+          /<(?:search_web|web_search|search)>[\s\S]*?<\/(?:search_web|web_search|search)>/gi,
+          "",
+        )
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+      const citations = [];
+      const seenUrls = new Set();
+
+      // Extract markdown links [Title](url)
+      const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g;
+      let match;
+      while ((match = mdRegex.exec(rawText)) !== null) {
+        const title = match[1].trim();
+        const url = match[2].trim();
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          citations.push({ url, title, snippet: "" });
+        }
+      }
+
+      // Extract bullet sources: - **Title**: url or - url
+      const bulletRegex =
+        /[-*]\s*(?:\*\*([^*]+)\*\*:\s*)?(https?:\/\/[^\s\)\],]+)/g;
+      while ((match = bulletRegex.exec(rawText)) !== null) {
+        const title = match[1]?.trim() || "";
+        const url = match[2].trim();
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          citations.push({ url, title, snippet: "" });
+        }
+      }
+
+      // Fallback: standalone URL
+      const urlRegex = /(https?:\/\/[^\s\)\],<]+)/g;
+      while ((match = urlRegex.exec(rawText)) !== null) {
+        const url = match[1].trim();
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          citations.push({ url, title: "", snippet: "" });
+        }
+      }
+
+      const tokens = data?.usage?.total_tokens || 0;
+      return { text: text || rawText, citations, tokens };
+    },
   }
 };
 

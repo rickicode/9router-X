@@ -32,10 +32,15 @@ export async function handleSearch(request) {
 
   const url = new URL(request.url);
   // Accept either `provider` or `model` (UI sends `model` since provider IS the model for webSearch)
-  const providerInput = body.provider || body.model;
-  const query = body.query;
+  let providerInput = body.provider || body.model;
+  let modelOverride = body.provider && body.model ? body.model : null;
+  if (typeof providerInput === "string" && providerInput.includes("/")) {
+    const slashIdx = providerInput.indexOf("/");
+    modelOverride = providerInput.slice(slashIdx + 1);
+    providerInput = providerInput.slice(0, slashIdx);
+  }
 
-  log.request("POST", `${url.pathname} | ${providerInput}`);
+  log.request("POST", `${url.pathname} | ${providerInput}${modelOverride ? "/" + modelOverride : ""}`);
 
   // Log API key (masked)
   const apiKey = extractApiKey(request);
@@ -80,7 +85,7 @@ export async function handleSearch(request) {
     return handleComboChat({
       body,
       models: comboModels,
-      handleSingleModel: (b, m) => handleSingleProviderSearch(b, m, request, apiKey, settings),
+      handleSingleModel: (b, m) => handleSingleProviderSearch(b, m, request, apiKey, settings, modelOverride),
       log,
       comboName: providerInput,
       comboStrategy,
@@ -88,10 +93,10 @@ export async function handleSearch(request) {
     });
   }
 
-  return handleSingleProviderSearch(body, providerInput, request, apiKey, settings);
+  return handleSingleProviderSearch(body, providerInput, request, apiKey, settings, modelOverride);
 }
 
-async function handleSingleProviderSearch(body, providerInput, request, apiKey, settings) {
+async function handleSingleProviderSearch(body, providerInput, request, apiKey, settings, modelOverride = null) {
   const query = body.query;
   const providerId = resolveProviderId(providerInput);
   const resolvedProvider = AI_PROVIDERS[providerId];
@@ -119,6 +124,7 @@ async function handleSingleProviderSearch(body, providerInput, request, apiKey, 
   const coreBody = {
     query: query.trim(),
     provider: providerId,
+    model: modelOverride || (body.model !== providerInput ? body.model : undefined),
     max_results: body.max_results,
     search_type: body.search_type,
     country: body.country,
