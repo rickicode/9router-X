@@ -18,6 +18,7 @@ import dynamic from "next/dynamic";
 // Lazy-load: keeps @xyflow/react out of the shared bundle until topology renders
 const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false });
 import UsageChart from "@/app/(dashboard)/dashboard/usage/components/UsageChart";
+import RealtimeRequestsCard from "@/app/(dashboard)/dashboard/usage/components/RealtimeRequestsCard";
 
 function timeAgo(timestamp) {
   const diff = Math.floor((Date.now() - new Date(timestamp)) / 1000);
@@ -515,6 +516,14 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           />
           <RecentRequests requests={stats.recentRequests || []} />
         </div>
+      )}
+
+      {/* Realtime Request Stream Monitor Card (full width above Request Stream) */}
+      {loading ? spinner : (
+        <RealtimeRequestsCard
+          activeRequests={stats?.activeRequests || []}
+          recentRequests={stats?.recentRequests || []}
+        />
       )}
 
       {loading ? spinner : <RequestStream buckets={stats.last10Minutes || []} />}

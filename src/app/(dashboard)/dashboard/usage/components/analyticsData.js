@@ -161,7 +161,27 @@ export function getYesterdayFilters(filters, now = new Date()) {
   };
 }
 
-export function calculateComparison(currentSummary, yesterdaySummary) {
+export function getYesterdayFullDayFilters(filters, now = new Date()) {
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const yStart = new Date(todayStart.getTime() - 86400000);
+  const yEnd = new Date(todayStart.getTime() - 1);
+
+  return {
+    timeFrom: yStart.toISOString(),
+    timeTo: yEnd.toISOString(),
+    timeBucket: "1 hour",
+    provider: filters.provider,
+    model: filters.model,
+    errorCategory: filters.errorCategory,
+  };
+}
+
+export function calculateComparison(
+  currentSummary,
+  yesterdaySummary,
+  baselineLabel = "vs yesterday",
+) {
   if (!currentSummary || !yesterdaySummary) return null;
 
   const curTotal = Number(currentSummary.totalEvents ?? 0);
@@ -199,11 +219,36 @@ export function calculateComparison(currentSummary, yesterdaySummary) {
   const tokensPct = prevTokens > 0 ? (tokensDiff / prevTokens) * 100 : null;
 
   return {
-    totalEvents: { diff: totalDiff, pct: totalPct, prev: prevTotal },
-    successRate: { diff: successRateDiff, prev: prevSuccessRate },
-    failureCount: { diff: failDiff, pct: failPct, prev: prevFail },
-    p50LatencyMs: { diff: latencyDiff, prev: prevLatency },
-    totalTokens: { diff: tokensDiff, pct: tokensPct, prev: prevTokens },
+    baselineLabel,
+    totalEvents: {
+      diff: totalDiff,
+      pct: totalPct,
+      prev: prevTotal,
+      yesterdayFormatted: fmtNumber(prevTotal),
+    },
+    successRate: {
+      diff: successRateDiff,
+      prev: prevSuccessRate,
+      yesterdayFormatted: `${prevSuccessRate.toFixed(1)}%`,
+    },
+    failureCount: {
+      diff: failDiff,
+      pct: failPct,
+      prev: prevFail,
+      yesterdayFormatted: fmtNumber(prevFail),
+    },
+    p50LatencyMs: {
+      diff: latencyDiff,
+      prev: prevLatency,
+      yesterdayFormatted:
+        prevLatency != null ? `${Math.round(prevLatency)} ms` : "—",
+    },
+    totalTokens: {
+      diff: tokensDiff,
+      pct: tokensPct,
+      prev: prevTokens,
+      yesterdayFormatted: fmtTokens(prevTokens),
+    },
   };
 }
 
@@ -280,24 +325,48 @@ export async function fetchAnalyticsWithComparison(
   const yesterdayPromise = fetchAnalytics(yesterdayFilters, signal, fetcher).catch(
     () => null,
   );
+  const yesterdayFullDayFilters = getYesterdayFullDayFilters(filters);
+  const yesterdayFullDayPromise = fetchAnalytics(
+    yesterdayFullDayFilters,
+    signal,
+    fetcher,
+  ).catch(() => null);
 
-  const [current, yesterday] = await Promise.all([
+  const [current, yesterday, yesterdayFullDay] = await Promise.all([
     currentPromise,
     yesterdayPromise,
+    yesterdayFullDayPromise,
   ]);
 
-  const seriesWithYesterday = yesterday
-    ? mergeYesterdayTimeline(current.series, yesterday.series)
-    : current.series;
+  // If same-time yesterday window had 0 events but yesterday full day has recorded events:
+  // use full day for meaningful baseline comparison!
+  const useFullDay =
+    (!yesterday || Number(yesterday.summary?.totalEvents || 0) === 0) &&
+    Boolean(yesterdayFullDay && Number(yesterdayFullDay.summary?.totalEvents || 0) > 0);
 
-  const comparison = yesterday
-    ? calculateComparison(current.summary, yesterday.summary)
+  const chosenYesterday = useFullDay ? yesterdayFullDay : yesterday;
+  const baselineLabel = useFullDay
+    ? "vs yesterday (full day)"
+    : "vs yesterday";
+
+  const seriesWithYesterday = yesterday?.series?.length
+    ? mergeYesterdayTimeline(current.series, yesterday.series)
+    : yesterdayFullDay?.series?.length
+      ? mergeYesterdayTimeline(current.series, yesterdayFullDay.series)
+      : current.series;
+
+  const comparison = chosenYesterday
+    ? calculateComparison(
+        current.summary,
+        chosenYesterday.summary,
+        baselineLabel,
+      )
     : null;
 
   return {
     ...current,
     series: seriesWithYesterday,
-    yesterdaySummary: yesterday?.summary || null,
+    yesterdaySummary: chosenYesterday?.summary || null,
     comparison,
   };
 }

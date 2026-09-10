@@ -16,9 +16,9 @@ export default function SegmentedControl({
   };
 
   const iconSizes = {
-    sm: "text-[15px]",
-    md: "text-[18px]",
-    lg: "text-[20px]",
+    sm: "!text-[13px] !w-3.5 !h-3.5",
+    md: "!text-[16px] !w-4 !h-4",
+    lg: "!text-[18px] !w-5 !h-5",
   };
 
   return (

@@ -64,12 +64,12 @@ export default function GlobalAnalyticsChart({
             value={viewMode}
             onChange={setViewMode}
             size="sm"
-            className="flex-wrap w-full min-w-0 gap-1 [&>button]:min-w-0 [&>button]:h-auto [&>button]:min-h-10 [&>button>span:last-child]:whitespace-normal [&_.material-symbols-outlined]:w-4 [&_.material-symbols-outlined]:overflow-hidden"
+            className="flex-wrap w-full min-w-0 gap-1 [&>button]:min-w-0 [&>button]:h-auto [&>button]:min-h-7 [&>button>span:last-child]:whitespace-normal [&_.material-symbols-outlined]:!text-[13px] [&_.material-symbols-outlined]:!w-3.5 [&_.material-symbols-outlined]:!h-3.5 [&_.material-symbols-outlined]:overflow-hidden"
           />
           <button
             type="button"
             onClick={() => setShowYesterday((prev) => !prev)}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
               showYesterday
                 ? "bg-surface-3 border-border text-text-main font-semibold shadow-xs"
                 : "bg-surface-1 border-border-subtle text-text-muted hover:text-text-main"
@@ -77,13 +77,18 @@ export default function GlobalAnalyticsChart({
             title="Toggle Yesterday comparison line"
           >
             <span
-              className={`material-symbols-outlined text-[15px] ${
+              className={`material-symbols-outlined !text-[14px] !w-3.5 !h-3.5 ${
                 showYesterday ? "text-brand-500" : "text-text-muted"
               }`}
             >
               compare_arrows
             </span>
             <span>vs Yesterday</span>
+            {yesterdaySummary?.totalEvents ? (
+              <span className="text-[10px] text-text-muted font-normal ml-0.5 font-mono">
+                ({fmtNumber(yesterdaySummary.totalEvents)})
+              </span>
+            ) : null}
             {showYesterday && (
               <span className="size-1.5 rounded-full bg-brand-500 ml-0.5" />
             )}

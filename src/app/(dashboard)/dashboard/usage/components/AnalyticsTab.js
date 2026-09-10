@@ -469,10 +469,19 @@ export default function AnalyticsTab({ period }) {
                   {data.models.length} active models tracked
                 </span>
                 {data.comparison?.totalEvents && (
-                  <DeltaBadge
-                    diff={data.comparison.totalEvents.diff}
-                    pct={data.comparison.totalEvents.pct}
-                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-text-muted">
+                      Yesterday:{" "}
+                      <span className="font-mono font-semibold text-text-main">
+                        {data.comparison.totalEvents.yesterdayFormatted}
+                      </span>
+                    </span>
+                    <DeltaBadge
+                      diff={data.comparison.totalEvents.diff}
+                      pct={data.comparison.totalEvents.pct}
+                      label={data.comparison.baselineLabel}
+                    />
+                  </div>
                 )}
               </div>
             </Card>
@@ -497,10 +506,19 @@ export default function AnalyticsTab({ period }) {
                   {fmtNumber(data.summary.successCount)} successful attempts
                 </span>
                 {data.comparison?.successRate && (
-                  <DeltaBadge
-                    diff={data.comparison.successRate.diff}
-                    unit="%"
-                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-text-muted">
+                      Yesterday:{" "}
+                      <span className="font-mono font-semibold text-text-main">
+                        {data.comparison.successRate.yesterdayFormatted}
+                      </span>
+                    </span>
+                    <DeltaBadge
+                      diff={data.comparison.successRate.diff}
+                      unit="%"
+                      label={data.comparison.baselineLabel}
+                    />
+                  </div>
                 )}
               </div>
             </Card>
@@ -538,11 +556,20 @@ export default function AnalyticsTab({ period }) {
                   % failure rate
                 </span>
                 {data.comparison?.failureCount && (
-                  <DeltaBadge
-                    diff={data.comparison.failureCount.diff}
-                    pct={data.comparison.failureCount.pct}
-                    invert
-                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-text-muted">
+                      Yesterday:{" "}
+                      <span className="font-mono font-semibold text-text-main">
+                        {data.comparison.failureCount.yesterdayFormatted}
+                      </span>
+                    </span>
+                    <DeltaBadge
+                      diff={data.comparison.failureCount.diff}
+                      pct={data.comparison.failureCount.pct}
+                      invert
+                      label={data.comparison.baselineLabel}
+                    />
+                  </div>
                 )}
               </div>
             </Card>
@@ -567,11 +594,20 @@ export default function AnalyticsTab({ period }) {
                   P95: {formatMetric(data.summary.p95LatencyMs, "latencyMs")}
                 </span>
                 {data.comparison?.p50LatencyMs && (
-                  <DeltaBadge
-                    diff={data.comparison.p50LatencyMs.diff}
-                    unit="ms"
-                    invert
-                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-text-muted">
+                      Yesterday:{" "}
+                      <span className="font-mono font-semibold text-text-main">
+                        {data.comparison.p50LatencyMs.yesterdayFormatted}
+                      </span>
+                    </span>
+                    <DeltaBadge
+                      diff={data.comparison.p50LatencyMs.diff}
+                      unit="ms"
+                      invert
+                      label={data.comparison.baselineLabel}
+                    />
+                  </div>
                 )}
               </div>
             </Card>
@@ -600,10 +636,19 @@ export default function AnalyticsTab({ period }) {
                   {fmtTokens(data.summary.totalOutputTokens)}
                 </span>
                 {data.comparison?.totalTokens && (
-                  <DeltaBadge
-                    diff={data.comparison.totalTokens.diff}
-                    pct={data.comparison.totalTokens.pct}
-                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-text-muted">
+                      Yesterday:{" "}
+                      <span className="font-mono font-semibold text-text-main">
+                        {data.comparison.totalTokens.yesterdayFormatted}
+                      </span>
+                    </span>
+                    <DeltaBadge
+                      diff={data.comparison.totalTokens.diff}
+                      pct={data.comparison.totalTokens.pct}
+                      label={data.comparison.baselineLabel}
+                    />
+                  </div>
                 )}
               </div>
             </Card>

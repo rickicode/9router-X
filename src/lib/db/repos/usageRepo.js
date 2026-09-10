@@ -156,9 +156,24 @@ async function calculateCost(provider, model, tokens) {
   }
 }
 
-export async function trackPendingRequest(model, provider, connectionId, started, error = false) {
+const liveActiveRequests = new Map();
+
+export async function trackPendingRequest(model, provider, connectionId, started, error = false, options = {}) {
   const modelKey = provider ? `${model} (${provider})` : model;
   const timerKey = `${connectionId}|${modelKey}`;
+
+  if (started) {
+    liveActiveRequests.set(timerKey, {
+      model,
+      provider,
+      connectionId,
+      apiKey: options.apiKey || null,
+      isStream: options.isStream !== undefined ? Boolean(options.isStream) : true,
+      startedAt: new Date().toISOString(),
+    });
+  } else {
+    liveActiveRequests.delete(timerKey);
+  }
 
   if (!pendingRequests.byModel[modelKey]) pendingRequests.byModel[modelKey] = 0;
   pendingRequests.byModel[modelKey] = Math.max(0, pendingRequests.byModel[modelKey] + (started ? 1 : -1));
@@ -209,18 +224,46 @@ export async function trackPendingRequest(model, provider, connectionId, started
 export async function getActiveRequests() {
   const activeRequests = [];
   const connectionMap = await getConnectionMapCached();
+  let allApiKeys = [];
+  try {
+    const { getApiKeys } = await import("./apiKeysRepo.js");
+    allApiKeys = await getApiKeys();
+  } catch {}
+  const apiKeyMap = {};
+  for (const k of allApiKeys) apiKeyMap[k.key] = k.name;
 
-  for (const [connectionId, models] of Object.entries(pendingRequests.byAccount)) {
-    for (const [modelKey, count] of Object.entries(models)) {
-      if (count > 0) {
-        const accountName = connectionMap[connectionId] || `Account ${connectionId.slice(0, 8)}...`;
-        const match = modelKey.match(/^(.*) \((.*)\)$/);
-        activeRequests.push({
-          model: match ? match[1] : modelKey,
-          provider: match ? match[2] : "unknown",
-          account: accountName,
-          count,
-        });
+  for (const [, item] of liveActiveRequests.entries()) {
+    const accountName = connectionMap[item.connectionId] || (item.connectionId ? `Account ${item.connectionId.slice(0, 8)}...` : "Direct");
+    const keyName = apiKeyMap[item.apiKey] || (item.apiKey ? maskApiKey(item.apiKey) : "Default Key");
+    activeRequests.push({
+      model: item.model,
+      provider: item.provider,
+      account: accountName,
+      apiKey: keyName,
+      rawApiKey: item.apiKey,
+      isStream: item.isStream,
+      startedAt: item.startedAt,
+      status: "streaming",
+    });
+  }
+
+  if (activeRequests.length === 0) {
+    for (const [connectionId, models] of Object.entries(pendingRequests.byAccount)) {
+      for (const [modelKey, count] of Object.entries(models)) {
+        if (count > 0) {
+          const accountName = connectionMap[connectionId] || `Account ${connectionId.slice(0, 8)}...`;
+          const match = modelKey.match(/^(.*) \((.*)\)$/);
+          activeRequests.push({
+            model: match ? match[1] : modelKey,
+            provider: match ? match[2] : "unknown",
+            account: accountName,
+            count,
+            apiKey: "Default Key",
+            isStream: true,
+            status: "streaming",
+            startedAt: new Date().toISOString(),
+          });
+        }
       }
     }
   }
@@ -233,24 +276,33 @@ export async function getActiveRequests() {
       const rawTokens = entry.tokens || {};
       const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
       const ts = entry.timestamp instanceof Date ? entry.timestamp.toISOString() : String(entry.timestamp || "");
+      const meta = typeof entry.meta === "string" ? parseJson(entry.meta, {}) : (entry.meta || {});
+      const isStream = meta.isStream !== undefined
+        ? Boolean(meta.isStream)
+        : (entry.isStream !== undefined ? Boolean(entry.isStream) : (entry.endpoint ? !entry.endpoint.includes("embeddings") : true));
+      const keyName = apiKeyMap[entry.apiKey] || (entry.apiKey ? maskApiKey(entry.apiKey) : "Default Key");
       return {
         timestamp: ts,
         model: entry.model,
         provider: entry.provider || "",
+        apiKey: keyName,
+        rawApiKey: entry.apiKey || "",
+        endpoint: entry.endpoint || "/v1/chat/completions",
+        isStream,
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
         status: entry.status || "ok",
       };
     })
     .filter((entry) => {
-      if (entry.promptTokens === 0 && entry.completionTokens === 0) return false;
-      const minute = entry.timestamp ? entry.timestamp.slice(0, 16) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.promptTokens}|${entry.completionTokens}|${minute}`;
+      if (entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
+      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
-    .slice(0, 20);
+    .slice(0, 30);
 
   const errorProvider = (Date.now() - lastErrorProvider.ts < 10000) ? lastErrorProvider.provider : "";
   return { activeRequests, recentRequests, errorProvider };
@@ -541,7 +593,7 @@ export async function getUsageStats(period = "all") {
   for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id, createdAt: k.createdAt };
 
   const recentRows = await db.all(
-    `SELECT timestamp, provider, model, tokens, status FROM usage_history ORDER BY id DESC LIMIT 100`,
+    `SELECT timestamp, provider, model, tokens, status, api_key, endpoint, meta FROM usage_history ORDER BY id DESC LIMIT 100`,
   );
   const seen = new Set();
   const recentRequests = recentRows
@@ -549,10 +601,19 @@ export async function getUsageStats(period = "all") {
       const rawTokens = row.tokens || {};
       const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
       const ts = row.timestamp instanceof Date ? row.timestamp.toISOString() : String(row.timestamp || "");
+      const meta = typeof row.meta === "string" ? parseJson(row.meta, {}) : (row.meta || {});
+      const isStream = meta.isStream !== undefined
+        ? Boolean(meta.isStream)
+        : (row.endpoint ? !row.endpoint.includes("embeddings") : true);
+      const keyName = apiKeyMap[row.api_key]?.name || (row.api_key ? maskApiKey(row.api_key) : "Default Key");
       return {
         timestamp: ts,
         model: row.model,
         provider: row.provider || "",
+        apiKey: keyName,
+        rawApiKey: row.api_key || "",
+        endpoint: row.endpoint || "/v1/chat/completions",
+        isStream,
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
         cachedTokens: tokens.cached_tokens || tokens.cache_read_input_tokens || 0,
@@ -560,14 +621,14 @@ export async function getUsageStats(period = "all") {
       };
     })
     .filter((entry) => {
-      if (entry.promptTokens === 0 && entry.completionTokens === 0) return false;
-      const minute = entry.timestamp ? entry.timestamp.slice(0, 16) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.promptTokens}|${entry.completionTokens}|${minute}`;
+      if (entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
+      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
-    .slice(0, 20);
+    .slice(0, 30);
 
   const stats = {
     totalRequests: 0,

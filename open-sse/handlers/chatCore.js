@@ -309,7 +309,7 @@ if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
 if (passthrough && clientTool === "claude") anchorClaudeCache(translatedBody);
 
 const executor = getExecutor(provider);
-trackPendingRequest(model, provider, connectionId, true);
+trackPendingRequest(model, provider, connectionId, true, false, { isStream: stream, apiKey });
 appendRequestLog({ model, provider, connectionId, status: "PENDING" }).catch(() => { });
 
 const msgCount = translatedBody.messages?.length || translatedBody.input?.length || translatedBody.contents?.length || translatedBody.request?.contents?.length || 0;
