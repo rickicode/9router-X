@@ -105,6 +105,9 @@ export const KILOCODE_CONFIG = { ...PROVIDER_OAUTH["kilocode"] };
 // Cline OAuth Configuration (Local Callback Flow via app.cline.bot)
 export const CLINE_CONFIG = { ...PROVIDER_OAUTH["cline"] };
 
+// Cline Free OAuth Configuration (shares Cline's OAuth endpoints)
+export const CLINE_FREE_CONFIG = { ...PROVIDER_OAUTH["cline-free"] };
+
 // ClinePass OAuth Configuration (shares Cline's OAuth endpoints)
 export const CLINEPASS_CONFIG = { ...PROVIDER_OAUTH["clinepass"] };
 
@@ -217,6 +220,7 @@ export const PROVIDERS = {
   KIMI_CODING: "kimi",
   KILOCODE: "kilocode",
   CLINE: "cline",
+  CLINE_FREE: "cline-free",
   CLINEPASS: "clinepass",
   GITLAB: "gitlab",
   CODEBUDDY: "codebuddy-cn",

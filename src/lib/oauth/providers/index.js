@@ -19,6 +19,7 @@ import freebuff from "./freebuff.js";
 import kimi from "./kimi.js";
 import kilocode from "./kilocode.js";
 import cline from "./cline.js";
+import clineFree from "./cline-free.js";
 import clinepass from "./clinepass.js";
 import gitlab from "./gitlab.js";
 import codebuddyCn from "./codebuddy-cn.js";
@@ -45,6 +46,7 @@ const PROVIDERS = {
   kimi,
   kilocode,
   cline,
+  "cline-free": clineFree,
   clinepass,
   gitlab,
   "codebuddy-cn": codebuddyCn,

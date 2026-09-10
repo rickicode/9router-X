@@ -162,6 +162,7 @@ const REFRESH_HANDLERS = {
   "codebuddy-intl": (c, log, proxy) => refreshCodebuddyIntlToken(c.refreshToken, log, proxy),
   trae: (c, log, proxy) => refreshTraeToken(c.refreshToken, c, log, proxy),
   cline: (c, log, proxy) => refreshClineToken(c.refreshToken, log, proxy),
+  "cline-free": (c, log, proxy) => refreshClineToken(c.refreshToken, log, proxy),
   zed: () => refreshZedToken(),
   windsurf: (c, log, proxy) => refreshWindsurfToken(c, log),
   // Kimi Code OAuth (merged into id `kimi`); legacy id still routes here

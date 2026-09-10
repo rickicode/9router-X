@@ -343,8 +343,8 @@ export async function POST(request, { params }) {
         });
       }
 
-      // Cline and ClinePass use authorization_code without PKCE. Kimchi returns a browser token.
-      const noPkceExchangeProviders = ["cline", "clinepass", "kimchi"];
+      // Cline, Cline Free, and ClinePass use authorization_code without PKCE. Kimchi returns a browser token.
+      const noPkceExchangeProviders = ["cline", "cline-free", "clinepass", "kimchi"];
       if (!code || !redirectUri || (!codeVerifier && !noPkceExchangeProviders.includes(provider))) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
       }
