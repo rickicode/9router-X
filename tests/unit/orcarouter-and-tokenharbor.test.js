@@ -61,4 +61,32 @@ describe("OrcaRouter & Token Harbor providers", () => {
     expect(resolveProviderIconId("th")).toBe("tokenharbor");
     expect(getProviderIconSrc("th")).toBe("/providers/tokenharbor.png");
   });
+
+  it("correctly resolves upstreamModelId for both bare and namespaced IDs", async () => {
+    const { parseModel } = await import("../../open-sse/services/model.js");
+    const { getModelUpstreamId } = await import("../../open-sse/config/providerModels.js");
+
+    // OrcaRouter: auto -> orcarouter/auto
+    const p1 = parseModel("orcarouter/auto");
+    expect(getModelUpstreamId(p1.provider, p1.model)).toBe("orcarouter/auto");
+
+    const p2 = parseModel("orca/auto");
+    expect(getModelUpstreamId(p2.provider, p2.model)).toBe("orcarouter/auto");
+
+    const p3 = parseModel("orcarouter/orcarouter/auto");
+    expect(getModelUpstreamId(p3.provider, p3.model)).toBe("orcarouter/auto");
+
+    const p4 = parseModel("orca/claude-opus-5");
+    expect(getModelUpstreamId(p4.provider, p4.model)).toBe("anthropic/claude-opus-5");
+
+    // Token Harbor: bare model -> vendor namespaced
+    const p5 = parseModel("tokenharbor/gpt-5.6-sol");
+    expect(getModelUpstreamId(p5.provider, p5.model)).toBe("openai/gpt-5.6-sol");
+
+    const p6 = parseModel("th/deepseek-v4-flash");
+    expect(getModelUpstreamId(p6.provider, p6.model)).toBe("deepseek/deepseek-v4-flash");
+
+    const p7 = parseModel("th/deepseek/deepseek-v4-flash");
+    expect(getModelUpstreamId(p7.provider, p7.model)).toBe("deepseek/deepseek-v4-flash");
+  });
 });

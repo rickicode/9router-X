@@ -116,6 +116,7 @@ vi.mock("@/lib/usageDb.js", () => ({
   trackPendingRequest: vi.fn(),
   appendRequestLog: vi.fn(() => Promise.resolve()),
   saveRequestDetail: vi.fn(() => Promise.resolve()),
+  saveFailedRequest: vi.fn(() => Promise.resolve()),
 }));
 
 function makeOptions(body) {
