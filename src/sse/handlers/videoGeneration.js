@@ -18,6 +18,21 @@ import * as log from "../utils/logger.js";
 // (bare model id, or multipart bodies we deliberately don't parse) land here.
 const DEFAULT_VIDEO_PROVIDER = "xai";
 
+/**
+ * Poll requests carry no model, so the provider comes from the pinned
+ * connection (`x-connection-id`, returned on create) or an explicit
+ * `?provider=` — falling back to the historical xAI default.
+ */
+async function resolveGetProvider(request, connectionId) {
+  if (connectionId) {
+    const conn = await getProviderConnectionById(connectionId).catch(() => null);
+    if (conn?.provider && getVideoConfig(conn.provider)) return conn.provider;
+  }
+  const queried = new URL(request.url).searchParams.get("provider");
+  if (queried && getVideoConfig(queried)) return queried;
+  return DEFAULT_VIDEO_PROVIDER;
+}
+
 // Creation POSTs are billable jobs — only rotate to another account for
 // errors that upstream rejects BEFORE creating a job (auth/quota). A 5xx may
 // have created the job, so it is returned to the caller instead of re-sent.
@@ -191,18 +206,7 @@ export async function handleVideoGet(request, requestId, { content = false } = {
   if (!requestId) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing video request id");
 
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
-  let provider = DEFAULT_VIDEO_PROVIDER;
-
-  if (preferredConnectionId) {
-    const connection = await getProviderConnectionById(preferredConnectionId);
-    if (!connection) {
-      return errorResponse(HTTP_STATUS.BAD_REQUEST, `Connection not found: ${preferredConnectionId}`);
-    }
-    if (!getVideoConfig(connection.provider)) {
-      return errorResponse(HTTP_STATUS.BAD_REQUEST, `Provider '${connection.provider}' does not support video generation`);
-    }
-    provider = connection.provider;
-  }
+  const provider = await resolveGetProvider(request, preferredConnectionId);
 
   const credentials = await getProviderCredentials(provider, null, null, { preferredConnectionId });
   if (!credentials || credentials.allRateLimited || (preferredConnectionId && credentials.connectionId !== preferredConnectionId)) {

@@ -73,6 +73,26 @@ const DATA_FIELDS_TO_CLEAN = [
   "proxyPoolIds",
 ];
 
+function resetHealthStateOnActivation(existing, patch) {
+  if (patch?.testStatus !== "active") return patch;
+
+  const normalized = {
+    ...patch,
+    testStatus: "active",
+    lastError: Object.hasOwn(patch, "lastError") ? patch.lastError : null,
+    lastErrorAt: Object.hasOwn(patch, "lastErrorAt") ? patch.lastErrorAt : null,
+    errorCode: null,
+    rateLimitedUntil: null,
+    backoffLevel: 0,
+  };
+
+  for (const key of Object.keys(existing || {})) {
+    if (key.startsWith(MODEL_LOCK_PREFIX)) normalized[key] = null;
+  }
+
+  return normalized;
+}
+
 function jsonObject(value, fallback = {}) {
   if (value === null || value === undefined) return fallback;
   if (typeof value === "string") {
@@ -803,10 +823,11 @@ export async function createProviderConnection(data = {}) {
     }
 
     if (existing) {
+      const normalized = resetHealthStateOnActivation(existing, input);
       const merged = {
         ...existing,
-        ...input,
-        modelLocks: modelLocksFromConnection(input, existing.modelLocks),
+        ...normalized,
+        modelLocks: modelLocksFromConnection(normalized, existing.modelLocks),
         updatedAt: now,
       };
       return writeConnection(tx, merged, { createdAt: existing.createdAt });
@@ -846,10 +867,11 @@ export async function updateProviderConnection(id, data = {}) {
     if (!row) return null;
 
     const existing = rowToConnection(row);
+    const normalized = resetHealthStateOnActivation(existing, patch);
     const merged = {
       ...existing,
-      ...patch,
-      modelLocks: modelLocksFromConnection(patch, existing.modelLocks),
+      ...normalized,
+      modelLocks: modelLocksFromConnection(normalized, existing.modelLocks),
       updatedAt: new Date().toISOString(),
     };
     const updated = await writeConnection(tx, merged, { createdAt: existing.createdAt });
