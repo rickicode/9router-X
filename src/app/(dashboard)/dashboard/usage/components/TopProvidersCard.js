@@ -108,7 +108,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
   const sortOptions = [
     { id: "count", label: "Requests" },
     { id: "success_rate", label: "Success Rate" },
-    { id: "failures", label: "Errors" },
+    { id: "failures", label: "Failed" },
     { id: "latency", label: "Latency" },
     { id: "tokens", label: "Tokens" },
   ];
@@ -162,8 +162,8 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
               <th className="py-2.5 px-3 w-8 text-center">#</th>
               <th className="py-2.5 px-3">Provider</th>
               <th className="py-2.5 px-3 w-24 text-right">Requests</th>
-              <th className="py-2.5 px-3 w-48">Success Rate</th>
-              <th className="py-2.5 px-3 w-20 text-right">Errors</th>
+              <th className="py-2.5 px-3 w-40">Success Rate</th>
+              <th className="py-2.5 px-3 w-28 text-right">Success / Failed</th>
               <th className="py-2.5 px-3 w-20 text-right">P50</th>
               <th className="py-2.5 px-3 w-20 text-right">P95</th>
               <th className="py-2.5 px-3 w-24 text-right">Tokens</th>
@@ -213,16 +213,13 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
                     <SuccessBar rate={row.successRate} />
                   </td>
 
-                  {/* Errors */}
-                  <td className="py-2.5 px-3 text-right">
-                    {row.failureCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 font-mono font-semibold text-danger">
-                        <span className="material-symbols-outlined !text-[12px]">close</span>
-                        {fmt(row.failureCount)}
-                      </span>
-                    ) : (
-                      <span className="text-success font-semibold">—</span>
-                    )}
+                  {/* Success / Failed */}
+                  <td className="py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap">
+                    <span className="text-success font-semibold">{fmt(row.successCount)}</span>
+                    <span className="text-text-muted mx-1">/</span>
+                    <span className={row.failureCount > 0 ? "text-danger font-semibold" : "text-text-muted"}>
+                      {fmt(row.failureCount)}
+                    </span>
                   </td>
 
                   {/* P50 latency */}

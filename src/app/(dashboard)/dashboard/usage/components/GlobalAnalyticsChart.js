@@ -39,6 +39,7 @@ export default function GlobalAnalyticsChart({
 
   const validPoints = data.filter((item) => item.timestamp);
   const hasData = validPoints.length > 0;
+  const hasFailures = validPoints.some((item) => Number(item.failures || 0) > 0);
   const hasYesterdaySeries = validPoints.some(
     (item) => item.yesterdayRequests > 0 || item.yesterdayTokens > 0,
   );
@@ -193,15 +194,17 @@ export default function GlobalAnalyticsChart({
                   fill="url(#gradGlobalSuccess)"
                   stackId="traffic"
                 />
-                <Area
-                  type="monotone"
-                  dataKey="failures"
-                  name="failures"
-                  stroke="#EF4444"
-                  strokeWidth={2}
-                  fill="url(#gradGlobalFailure)"
-                  stackId="traffic"
-                />
+                {hasFailures && (
+                  <Area
+                    type="monotone"
+                    dataKey="failures"
+                    name="failures"
+                    stroke="#EF4444"
+                    strokeWidth={2}
+                    fill="url(#gradGlobalFailure)"
+                    stackId="traffic"
+                  />
+                )}
                 {showYesterday && (
                   <Line
                     type="monotone"
