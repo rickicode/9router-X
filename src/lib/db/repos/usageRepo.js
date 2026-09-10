@@ -308,6 +308,28 @@ export async function getActiveRequests() {
   return { activeRequests, recentRequests, errorProvider };
 }
 
+export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream }) {
+  try {
+    const db = await getAdapter();
+    const ts = new Date().toISOString();
+    await db.run(
+      `INSERT INTO usage_history
+         (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
+       VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $7, '{}'::jsonb, $8::jsonb)`,
+      [
+        ts,
+        provider || null,
+        model || null,
+        connectionId || null,
+        apiKey || null,
+        endpoint || null,
+        `error_${errorStatus || 502}`,
+        JSON.stringify({ isStream: Boolean(isStream), failed: true }),
+      ],
+    );
+  } catch (_) { /* fail-open */ }
+}
+
 export async function saveRequestUsage(entry) {
   try {
     if (!entry.timestamp) entry.timestamp = new Date().toISOString();
@@ -621,9 +643,10 @@ export async function getUsageStats(period = "all") {
       };
     })
     .filter((entry) => {
-      if (entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const isFailed = entry.status && entry.status.startsWith("error_");
+      if (!isFailed && entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
       const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}`;
+      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

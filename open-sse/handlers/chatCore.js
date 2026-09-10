@@ -11,7 +11,7 @@ import { PROVIDERS } from "../config/providers.js";
 import { createErrorResult, parseUpstreamError, formatProviderError } from "../utils/error.js";
 import { HTTP_STATUS, TOKEN_SAVER_HEADER } from "../config/runtimeConfig.js";
 import { handleBypassRequest } from "../utils/bypassHandler.js";
-import { trackPendingRequest, appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
+import { trackPendingRequest, appendRequestLog, saveRequestDetail, saveFailedRequest } from "@/lib/usageDb.js";
 import { observeChatAttempt } from "@/lib/observeChatAttempt.js";
 import { getExecutor } from "../executors/index.js";
 import { supportsGrokCliReasoningEffort } from "../config/grokCli.js";
@@ -492,7 +492,9 @@ try {
   reqLogger.logTargetRequest(providerUrl, providerHeaders, finalBody);
 } catch (error) {
   trackPendingRequest(model, provider, connectionId, false, true);
-  appendRequestLog({ model, provider, connectionId, status: `FAILED ${error.name === "AbortError" ? 499 : HTTP_STATUS.BAD_GATEWAY}` }).catch(() => { });
+  const errStatus = error.name === "AbortError" ? 499 : HTTP_STATUS.BAD_GATEWAY;
+  appendRequestLog({ model, provider, connectionId, status: `FAILED ${errStatus}` }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: undefined, errorStatus: errStatus, isStream: stream }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
