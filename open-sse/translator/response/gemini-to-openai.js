@@ -15,9 +15,25 @@ function chunkMeta(state) {
 
 // Build a tool_call chunk from a gemini functionCall part (shared by sig/non-sig branches)
 function emitFunctionCall(functionCall, state, signature = null) {
+  if (!functionCall) return null;
   const rawName = functionCall.name;
   // Restore original tool name from mapping (AG cloaking)
-  const fcName = state.toolNameMap?.get(rawName) || rawName;
+  const fcName = (state.toolNameMap?.get(rawName) || rawName || "").trim();
+
+  // Guard against missing/empty tool name: emit as args delta if active call exists, else drop
+  if (!fcName) {
+    if (state.lastToolCall && functionCall.args) {
+      return buildChunk(chunkMeta(state), {
+        tool_calls: [{
+          index: state.lastToolCall.index,
+          id: state.lastToolCall.id,
+          function: { arguments: JSON.stringify(functionCall.args) }
+        }]
+      }, null);
+    }
+    return null;
+  }
+
   const fcArgs = functionCall.args || {};
   const toolCallIndex = state.functionIndex++;
   const callId = functionCall.id || `${fcName}-${Date.now()}-${toolCallIndex}`;
@@ -30,6 +46,7 @@ function emitFunctionCall(functionCall, state, signature = null) {
     type: OPENAI_BLOCK.FUNCTION,
     function: { name: fcName, arguments: JSON.stringify(fcArgs) },
   };
+  state.lastToolCall = toolCall;
   // Keep Gemini bookkeeping separate from the shared translator state.toolCalls map.
   // The downstream OpenAI→Claude translator uses state.toolCalls for Claude block
   // metadata; pre-populating it here makes Anthropic tool deltas lose index.
@@ -86,7 +103,8 @@ export function geminiToOpenAIResponse(chunk, state) {
         }
 
         if (hasFunctionCall) {
-          results.push(emitFunctionCall(part.functionCall, state, hasThoughtSig));
+          const fcChunk = emitFunctionCall(part.functionCall, state, hasThoughtSig);
+          if (fcChunk) results.push(fcChunk);
           state.pendingThoughtSignature = null;
         }
         continue;
@@ -107,7 +125,8 @@ export function geminiToOpenAIResponse(chunk, state) {
       // Function call
       if (part.functionCall) {
         const sig = state.pendingThoughtSignature || null;
-        results.push(emitFunctionCall(part.functionCall, state, sig));
+        const fcChunk = emitFunctionCall(part.functionCall, state, sig);
+        if (fcChunk) results.push(fcChunk);
         state.pendingThoughtSignature = null;
       }
 

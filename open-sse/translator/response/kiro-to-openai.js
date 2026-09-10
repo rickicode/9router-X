@@ -108,8 +108,11 @@ export function kiroToOpenAIResponse(chunk, state) {
   if (eventType === "toolUseEvent" || data.toolUseEvent) {
     state.hadToolUse = true;
     const toolUse = data.toolUseEvent || data;
+    const toolName = (toolUse.name || "").trim();
+    if (!toolName) {
+      return null;
+    }
     const toolCallId = toolUse.toolUseId || fallbackToolCallId();
-    const toolName = toolUse.name || "";
     const toolInput = toolUse.input || {};
 
     const openaiChunk = buildChunk(chunkMeta(state), {

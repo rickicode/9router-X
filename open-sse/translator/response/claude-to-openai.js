@@ -64,9 +64,14 @@ export function claudeToOpenAIResponse(chunk, state) {
         state.currentBlockIndex = chunk.index;
         results.push(createChunk(state, { content: "<think>" }));
       } else if (block?.type === CLAUDE_BLOCK.TOOL_USE) {
-        const toolCallIndex = state.toolCallIndex++;
         // Restore original tool name from mapping (Claude OAuth)
-        const toolName = state.toolNameMap?.get(block.name) || block.name;
+        const rawToolName = block.name || "";
+        const toolName = (state.toolNameMap?.get(rawToolName) || rawToolName || "").trim();
+        if (!toolName) {
+          // Skip invalid/empty tool use block to avoid emitting empty function name
+          break;
+        }
+        const toolCallIndex = state.toolCallIndex++;
         const toolCall = {
           index: toolCallIndex,
           id: block.id,
