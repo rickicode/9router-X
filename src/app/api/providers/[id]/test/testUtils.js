@@ -735,6 +735,29 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         }
         return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
       }
+      case "orcarouter":
+      case "orca": {
+        const baseUrl = connection.providerSpecificData?.baseUrl?.trim()?.replace(/\/$/, "") || "https://api.orcarouter.ai/v1";
+        const res = await fetchWithConnectionProxy(`${baseUrl}/models`, {
+          headers: { Authorization: `Bearer ${connection.apiKey}` },
+        }, effectiveProxy);
+        if (res.status === 524 || res.status === 502 || res.status === 503 || res.status === 504) {
+          return { valid: true, warning: `OrcaRouter temporary gateway response (${res.status})` };
+        }
+        return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
+      }
+      case "tokenharbor":
+      case "th":
+      case "tharbor": {
+        const baseUrl = connection.providerSpecificData?.baseUrl?.trim()?.replace(/\/$/, "") || "https://tokenharbor.ai/v1";
+        const res = await fetchWithConnectionProxy(`${baseUrl}/models`, {
+          headers: { Authorization: `Bearer ${connection.apiKey}` },
+        }, effectiveProxy);
+        if (res.status === 524 || res.status === 502 || res.status === 503 || res.status === 504) {
+          return { valid: true, warning: `Token Harbor temporary gateway response (${res.status})` };
+        }
+        return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
+      }
       case "ollama-local": {
         const host = resolveOllamaLocalHost(connection);
         const res = await fetch(`${host}/api/tags`);

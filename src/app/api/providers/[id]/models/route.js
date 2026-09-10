@@ -258,6 +258,11 @@ const PROVIDER_MODELS_CONFIG = {
   nvidia: createOpenAIModelsConfig("https://integrate.api.nvidia.com/v1/models"),
   assemblyai: createOpenAIModelsConfig("https://api.assemblyai.com/v1/models"),
   "vercel-ai-gateway": createOpenAIModelsConfig("https://ai-gateway.vercel.sh/v1/models"),
+  orcarouter: createOpenAIModelsConfig("https://api.orcarouter.ai/v1/models"),
+  orca: createOpenAIModelsConfig("https://api.orcarouter.ai/v1/models"),
+  tokenharbor: createOpenAIModelsConfig("https://tokenharbor.ai/v1/models"),
+  th: createOpenAIModelsConfig("https://tokenharbor.ai/v1/models"),
+  tharbor: createOpenAIModelsConfig("https://tokenharbor.ai/v1/models"),
   unikey: {
     customResolver: async (connection) => {
       const result = await resolveUnikeyModels({

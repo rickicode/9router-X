@@ -7,6 +7,9 @@ const ICON_ALIASES = {
   "vercel-ai-gateway": "vercel",
   "ollama-search": "ollama",
   "cline-free": "cline",
+  "orca": "orcarouter",
+  "th": "tokenharbor",
+  "tharbor": "tokenharbor",
 };
 
 // Runtime only — first 404 remembers id for the whole session

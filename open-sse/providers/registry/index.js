@@ -124,6 +124,8 @@ import p121 from "./xquik.js";
 import p122 from "./ollama-search.js";
 import p123 from "./unikey.js";
 import p124 from "./cline-free.js";
+import p125 from "./orcarouter.js";
+import p126 from "./tokenharbor.js";
 
 export default [
   p0,
@@ -251,4 +253,6 @@ export default [
   p122,
   p123,
   p124,
+  p125,
+  p126,
 ];
