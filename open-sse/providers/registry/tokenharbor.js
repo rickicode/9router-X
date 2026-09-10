@@ -26,6 +26,8 @@ export default {
   models: [
     { id: "openai/gpt-5.6-sol", name: "GPT-5.6 Sol", capabilities: ["vision"] },
     { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", upstreamModelId: "openai/gpt-5.6-sol", capabilities: ["vision"] },
+    { id: "tokenharbor/free", name: "Free (free tier router)", upstreamModelId: "tokenharbor/free", isFree: true },
+    { id: "free", name: "Free (free tier router)", upstreamModelId: "tokenharbor/free", isFree: true },
     { id: "openai/gpt-6-astra", name: "GPT-6 Astra", capabilities: ["vision"] },
     { id: "gpt-6-astra", name: "GPT-6 Astra", upstreamModelId: "openai/gpt-6-astra", capabilities: ["vision"] },
     { id: "anthropic/claude-opus-5", name: "Claude Opus 5", capabilities: ["vision"] },

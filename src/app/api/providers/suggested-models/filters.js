@@ -26,7 +26,18 @@ export const FILTERS = {
       .filter((m) => (m.id?.endsWith("-free") || KNOWN_FREE_OPENCODE_MODELS.includes(m.id)) && !DEAD_FREE_OPENCODE_MODELS.has(m.id))
       .map((m) => ({ id: m.id, name: m.id })),
 
-  // models.dev returns a large catalog; keep only mimo models
+  "orcarouter-free": (models) =>
+    (Array.isArray(models) ? models : [])
+      .filter(
+        (m) =>
+          (m.pricing?.prompt === "0" && m.pricing?.completion === "0") ||
+          m.id?.includes(":free") ||
+          m.id?.endsWith("-free") ||
+          m.name?.toLowerCase().includes("free")
+      )
+      .map((m) => ({ id: m.id, name: m.name || m.id, contextLength: m.context_length })),
+
+  // models.dev returns large catalog; keep only mimo models
   "mimo-free": (models) =>
     (Array.isArray(models) ? models : [])
       .filter((m) => m.id?.startsWith("mimo") || m.name?.toLowerCase().includes("mimo"))

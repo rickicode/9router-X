@@ -26,8 +26,11 @@ export default {
   models: [
     { id: "orcarouter/auto", name: "Auto (smart routing)", upstreamModelId: "orcarouter/auto" },
     { id: "auto", name: "Auto (smart routing)", upstreamModelId: "orcarouter/auto" },
-    { id: "orcarouter/free", name: "Free (free tier router)", upstreamModelId: "orcarouter/free" },
-    { id: "free", name: "Free (free tier router)", upstreamModelId: "orcarouter/free" },
+    { id: "orcarouter/free", name: "Free (free tier router)", upstreamModelId: "orcarouter/free", isFree: true },
+    { id: "free", name: "Free (free tier router)", upstreamModelId: "orcarouter/free", isFree: true },
+    { id: "deepseek/deepseek-v4-flash-free", name: "DeepSeek V4 Flash (Free)", upstreamModelId: "deepseek/deepseek-v4-flash-free", isFree: true },
+    { id: "tencent/hy3-free", name: "Tencent HY3 (Free)", upstreamModelId: "tencent/hy3-free", isFree: true },
+    { id: "z-ai/glm-5.3-flash-free", name: "GLM 5.3 Flash (Free)", upstreamModelId: "z-ai/glm-5.3-flash-free", isFree: true },
     { id: "orcarouter/fusion", name: "Fusion", upstreamModelId: "orcarouter/fusion" },
     { id: "fusion", name: "Fusion", upstreamModelId: "orcarouter/fusion" },
     { id: "orcarouter/fusion-flash", name: "Fusion Flash", upstreamModelId: "orcarouter/fusion-flash" },
@@ -62,7 +65,7 @@ export default {
     { id: "qwen3.8-max", name: "Qwen3.8 Max", upstreamModelId: "qwen/qwen3.8-max" },
   ],
   serviceKinds: ["llm", "imageToText"],
-  modelsFetcher: { url: "https://api.orcarouter.ai/v1/models", type: "openai" },
+  modelsFetcher: { url: "https://api.orcarouter.ai/v1/models", type: "orcarouter-free" },
   passthroughModels: true,
   features: { usage: false, usageApikey: false },
 };

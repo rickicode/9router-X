@@ -131,6 +131,7 @@ export default function ProviderDetailPage() {
   const stopOneByOneRef = useRef(false);
   const [importingQoderModels, setImportingQoderModels] = useState(false);
   const [importingClineModels, setImportingClineModels] = useState(false);
+  const [importingLiveModels, setImportingLiveModels] = useState(false);
   const { copied, copy } = useCopyToClipboard();
 
   const AG_RISK_STORAGE_KEY = "ag_risk_confirmed";
@@ -739,6 +740,53 @@ export default function ProviderDetailPage() {
       setImportingQoderModels(false);
     }
   };
+  // Fetch the live provider /models catalog and add every model not yet present.
+  const handleImportLiveModels = async () => {
+    if (importingLiveModels) return;
+    const activeConnection = connections.find((conn) => conn.isActive !== false);
+    if (!activeConnection) {
+      alert(translate("Please add an active connection first"));
+      return;
+    }
+    setImportingLiveModels(true);
+    try {
+      const res = await fetch(`/api/providers/${activeConnection.id}/models`);
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || translate("Failed to fetch models"));
+        return;
+      }
+      const models = data.models || [];
+      if (models.length === 0) {
+        alert(translate("No models returned"));
+        return;
+      }
+      let importedCount = 0;
+      for (const model of models) {
+        const modelId = model.id || model.name;
+        if (!modelId) continue;
+        const alreadyExists = customModels.some(
+          (entry) => entry.providerAlias === providerStorageAlias && entry.id === modelId && (entry.kind || entry.type || "llm") === "llm"
+        ) || Object.values(modelAliases).includes(`${providerStorageAlias}/${modelId}`) || models.some((m) => m.id === modelId);
+        if (alreadyExists) {
+          continue;
+        }
+        await handleAddCustomModel(modelId, "llm", providerStorageAlias);
+        importedCount += 1;
+      }
+      if (importedCount === 0) {
+        alert(translate("All models already exist, no new models added"));
+      } else {
+        alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
+      }
+    } catch (error) {
+      console.log("Error importing provider models:", error);
+      alert(translate("Error fetching models") + ": " + error.message);
+    } finally {
+      setImportingLiveModels(false);
+    }
+  };
+
   // Fetch the live Cline /models catalog and add every model not yet present.
   // Cline and ClinePass share the same catalog endpoint (api.cline.bot/api/v1/models).
   const handleImportClineModels = async () => {
@@ -1613,6 +1661,20 @@ export default function ProviderDetailPage() {
               {importingClineModels ? "progress_activity" : "download"}
             </span>
             {importingClineModels ? translate("Fetching...") : translate("Import from /models")}
+          </button>
+        )}
+
+        {/* Import models catalog button for providers with models endpoint */}
+        {(providerId === "orcarouter" || providerId === "tokenharbor" || providerId === "openrouter" || providerId === "together" || providerId === "groq" || providerId === "deepinfra" || providerId === "fireworks" || providerId === "novita" || providerId === "mistral" || providerId === "perplexity" || providerId === "xai" || providerId === "hyperbolic" || providerId === "sambanova" || providerId === "cerebras" || providerId === "siliconflow" || providerId === "deepseek" || providerId === "minimax" || providerId === "moonshot" || providerId === "gemini-cli") && connections.some((conn) => conn.isActive !== false) && (
+          <button
+            onClick={handleImportLiveModels}
+            disabled={importingLiveModels}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-2 text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-sm" style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined}>
+              {importingLiveModels ? "progress_activity" : "download"}
+            </span>
+            {importingLiveModels ? translate("Fetching...") : translate("Import from /models")}
           </button>
         )}
 
