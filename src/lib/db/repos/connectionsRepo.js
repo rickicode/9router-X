@@ -1089,7 +1089,6 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
             last_error = NULL,
             last_error_at = NULL,
             error_code = NULL,
-            backoff_level = 0,
             rate_limited_until = NULL,
             locked_all_until = NULL,
             locked_to_model = NULL,
