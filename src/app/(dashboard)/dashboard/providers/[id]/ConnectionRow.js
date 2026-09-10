@@ -728,7 +728,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
               </button>
             </Tooltip>
           )}
-          {onResetStatus && (isCooldown || connection.testStatus === "unavailable" || connection.lastError || hasModelAffinityLock) && (
+          {onResetStatus && (isCooldown || ["exhausted", "unavailable"].includes(connection.testStatus) || connection.lastError || hasModelAffinityLock) && (
             <Tooltip text="Reset exhausted/cooldown status">
               <button
                 onClick={async () => {
