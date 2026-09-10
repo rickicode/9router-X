@@ -3,6 +3,8 @@ export default {
   priority: 80,
   alias: "cl",
   uiAlias: "cl",
+  aliases: ["cline-free"],
+  passthroughModels: true,
   display: {
     name: "Cline",
     icon: "smart_toy",

@@ -41,7 +41,14 @@ import REGISTRY from "./registry/index.js";
 // alias -> id map from the registry so PROVIDER_CAPABILITIES stays keyed by id
 // only, instead of silently falling through to the generic name patterns.
 const ALIAS_TO_PROVIDER_ID = Object.fromEntries(
-  REGISTRY.filter((r) => r?.alias && r.alias !== r.id).map((r) => [r.alias, r.id]),
+  REGISTRY.flatMap((r) => {
+    const list = [];
+    if (r?.alias && r.alias !== r.id) list.push([r.alias, r.id]);
+    for (const a of r?.aliases || []) {
+      if (a && a !== r.id) list.push([a, r.id]);
+    }
+    return list;
+  })
 );
 
 /**
