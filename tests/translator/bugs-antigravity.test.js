@@ -136,4 +136,42 @@ describe("Antigravity executor", () => {
     expect(system).not.toContain(ANTIGRAVITY_DEFAULT_SYSTEM);
     expect(system).not.toContain("Please ignore the following [ignore]");
   });
+
+  it("ensures conversation begins with user turn even if history starts with assistant tool call", () => {
+    const out = openaiToAntigravityRequest("gemini-3.8-flash-high", {
+      messages: [
+        { role: "assistant", tool_calls: [{ id: "call_1", type: "function", function: { name: "patch", arguments: "{}" } }] },
+        { role: "tool", tool_call_id: "call_1", content: "done" },
+        { role: "user", content: "test" },
+      ],
+    }, true, { projectId: "project-1", connectionId: "conn-1" });
+
+    const exec = new AntigravityExecutor();
+    const transformed = exec.transformRequest("gemini-3.8-flash-high", out, true, { projectId: "project-1", connectionId: "conn-1" });
+    const contents = transformed.request.contents;
+    expect(contents[0].role).toBe("user");
+    expect(contents[1].role).toBe("model");
+    expect(contents[1].parts[0].functionCall.name).toBe("patch");
+    expect(contents[2].role).toBe("user");
+  });
+
+  it("ensures orphaned tool calls without responses receive mock functionResponse", () => {
+    const out = openaiToAntigravityRequest("gemini-3.8-flash-high", {
+      messages: [
+        { role: "user", content: "hello" },
+        { role: "assistant", tool_calls: [{ id: "call_2", type: "function", function: { name: "terminal", arguments: "{}" } }] },
+        { role: "user", content: "cancel that, do this instead" },
+      ],
+    }, true, { projectId: "project-1", connectionId: "conn-1" });
+
+    const exec = new AntigravityExecutor();
+    const transformed = exec.transformRequest("gemini-3.8-flash-high", out, true, { projectId: "project-1", connectionId: "conn-1" });
+    const contents = transformed.request.contents;
+    expect(contents[0].role).toBe("user");
+    expect(contents[1].role).toBe("model");
+    expect(contents[1].parts[0].functionCall.name).toBe("terminal");
+    expect(contents[2].role).toBe("user");
+    const hasResp = contents[2].parts.some(p => p.functionResponse && p.functionResponse.name === "terminal");
+    expect(hasResp).toBe(true);
+  });
 });

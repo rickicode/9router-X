@@ -35,15 +35,110 @@ function sanitizeGeminiFunctionName(name) {
   return sanitized.substring(0, 64);
 }
 
-function normalizeGeminiContents(contents) {
-  const out = [];
-  for (const c of contents || []) {
-    if (!c?.role || !Array.isArray(c.parts) || c.parts.length === 0) continue;
-    const last = out.at(-1);
-    if (last?.role === c.role) last.parts.push(...c.parts);
-    else out.push({ ...c, parts: [...c.parts] });
+export function normalizeGeminiContents(contents) {
+  if (!Array.isArray(contents) || contents.length === 0) return [];
+
+  const validTurns = [];
+  for (const c of contents) {
+    if (!c?.role || !Array.isArray(c.parts)) continue;
+    const validParts = c.parts.filter(p => {
+      if (!p) return false;
+      if (p.text !== undefined && p.text === "" && !p.thought && !p.thoughtSignature && !p.functionCall && !p.functionResponse) return false;
+      return true;
+    });
+    if (validParts.length === 0) continue;
+    validTurns.push({ ...c, role: c.role, parts: [...validParts] });
   }
-  return out;
+
+  if (validTurns.length === 0) return [];
+
+  // Merge adjacent turns of the same role
+  const merged = [];
+  for (const c of validTurns) {
+    const last = merged.at(-1);
+    if (last?.role === c.role) {
+      last.parts.push(...c.parts);
+    } else {
+      merged.push({ ...c, parts: [...c.parts] });
+    }
+  }
+
+  // Rule 1: Gemini conversation MUST start with a USER turn.
+  // If history starts with MODEL (e.g. truncated/compacted history), prepend a synthetic USER turn.
+  if (merged[0].role === GEMINI_ROLE.MODEL) {
+    merged.unshift({
+      role: GEMINI_ROLE.USER,
+      parts: [{ text: "Continue" }]
+    });
+  }
+
+  // Rule 2: Ensure every functionCall in a MODEL turn has a matching functionResponse in the immediate following USER turn.
+  // If missing (e.g. cancelled/interrupted tool call or truncated history), backfill dummy functionResponse.
+  for (let i = 0; i < merged.length; i++) {
+    const cur = merged[i];
+    if (cur.role !== GEMINI_ROLE.MODEL) continue;
+
+    const fnCalls = (cur.parts || []).filter(p => p?.functionCall);
+    if (fnCalls.length === 0) continue;
+
+    const nextTurn = merged[i + 1];
+    if (!nextTurn || nextTurn.role !== GEMINI_ROLE.USER) {
+      const mockResponses = fnCalls.map(p => ({
+        functionResponse: {
+          id: p.functionCall.id,
+          name: p.functionCall.name,
+          response: { result: "interrupted" }
+        }
+      }));
+      merged.splice(i + 1, 0, {
+        role: GEMINI_ROLE.USER,
+        parts: mockResponses
+      });
+      i++;
+    } else {
+      const existingRespIds = new Set();
+      const existingRespNames = new Set();
+      for (const p of nextTurn.parts || []) {
+        if (p?.functionResponse) {
+          if (p.functionResponse.id) existingRespIds.add(p.functionResponse.id);
+          if (p.functionResponse.name) existingRespNames.add(p.functionResponse.name);
+        }
+      }
+
+      const missingResponses = [];
+      for (const p of fnCalls) {
+        const fc = p.functionCall;
+        const matched = (fc.id && existingRespIds.has(fc.id)) || (fc.name && existingRespNames.has(fc.name));
+        if (!matched) {
+          missingResponses.push({
+            functionResponse: {
+              id: fc.id,
+              name: fc.name,
+              response: { result: "interrupted" }
+            }
+          });
+        }
+      }
+
+      if (missingResponses.length > 0) {
+        nextTurn.parts.unshift(...missingResponses);
+      }
+    }
+  }
+
+  // Final merge pass in case any adjacent same-role turns were introduced
+  const finalOut = [];
+  for (const c of merged) {
+    if (!c?.role || !Array.isArray(c.parts) || c.parts.length === 0) continue;
+    const last = finalOut.at(-1);
+    if (last?.role === c.role) {
+      last.parts.push(...c.parts);
+    } else {
+      finalOut.push({ ...c, parts: [...c.parts] });
+    }
+  }
+
+  return finalOut;
 }
 
 // Core: Convert OpenAI request to Gemini format (base for all variants)
