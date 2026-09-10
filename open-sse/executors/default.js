@@ -3,7 +3,7 @@ import { PROVIDERS, PROVIDER_OAUTH } from "../config/providers.js";
 import { ANTHROPIC_API_VERSION, OPENAI_COMPAT_BASE, ANTHROPIC_COMPAT_BASE, selectAnthropicBeta } from "../providers/shared.js";
 import { resolveOpenAICompatibleApiType } from "../services/provider.js";
 import { OAUTH_ENDPOINTS, buildKimiHeaders } from "../config/appConstants.js";
-import { buildClineHeaders } from "../shared/clineAuth.js";
+import { buildClineHeaders, getClineAccessToken } from "../shared/clineAuth.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
@@ -19,13 +19,18 @@ const AUTH_DESCRIPTORS = Object.fromEntries(
 
 // Apply a token to a header per scheme (matches legacy: combined always sets, even when undefined).
 function setAuth(headers, spec, token) {
-  headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${token}` : token;
+  const tokenVal = spec?.hooks?.includes("clineHeaders") ? getClineAccessToken(token) : token;
+  headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${tokenVal}` : tokenVal;
 }
 
 // Resolve auth onto headers from a descriptor.
 function applyAuth(headers, desc, credentials) {
   if (desc.combined) {
-    // combined providers always set the header (legacy behavior, incl. noAuth → "Bearer undefined")
+    // If clineHeaders hook already applied complete headers including Authorization, don't clobber
+    if (desc.hooks?.includes("clineHeaders") && headers[desc.header]) {
+      if (desc.anthropicVersion && !headers["anthropic-version"]) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
+      return;
+    }
     setAuth(headers, desc, credentials.apiKey || credentials.accessToken);
     if (desc.anthropicVersion && !headers["anthropic-version"]) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
     return;
