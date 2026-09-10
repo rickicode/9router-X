@@ -295,9 +295,10 @@ export async function getActiveRequests() {
       };
     })
     .filter((entry) => {
-      if (entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
+      const isFailed = entry.status && entry.status.startsWith("error_");
+      if (!isFailed && entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
       const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}`;
+      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -312,6 +313,9 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
   try {
     const db = await getAdapter();
     const ts = new Date().toISOString();
+    const status = `error_${errorStatus || 502}`;
+    const isStreamBool = Boolean(isStream);
+
     await db.run(
       `INSERT INTO usage_history
          (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
@@ -323,10 +327,65 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
         connectionId || null,
         apiKey || null,
         endpoint || null,
-        `error_${errorStatus || 502}`,
-        JSON.stringify({ isStream: Boolean(isStream), failed: true }),
+        status,
+        JSON.stringify({ isStream: isStreamBool, failed: true }),
       ],
     );
+
+    try {
+      const dateKey = getLocalDateKey(ts);
+      const row = await db.get(`SELECT data FROM usage_daily WHERE date_key = $1`, [dateKey]);
+      const rawData = row?.data;
+      const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
+        requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
+        byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
+      };
+      day.requests = (day.requests || 0) + 1;
+      day.failedRequests = (day.failedRequests || 0) + 1;
+      if (provider) {
+        day.byProvider ||= {};
+        if (!day.byProvider[provider]) day.byProvider[provider] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+        day.byProvider[provider].requests = (day.byProvider[provider].requests || 0) + 1;
+        day.byProvider[provider].failedRequests = (day.byProvider[provider].failedRequests || 0) + 1;
+      }
+      if (model) {
+        const modelKey = provider ? `${model}|${provider}` : model;
+        day.byModel ||= {};
+        if (!day.byModel[modelKey]) day.byModel[modelKey] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: model, provider };
+        day.byModel[modelKey].requests = (day.byModel[modelKey].requests || 0) + 1;
+        day.byModel[modelKey].failedRequests = (day.byModel[modelKey].failedRequests || 0) + 1;
+      }
+      await db.run(
+        `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
+         ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
+        [dateKey, day],
+      );
+
+      const current = await db.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
+      const next = (current ? parseInt(current.value, 10) : 0) + 1;
+      await db.run(
+        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        [String(next)],
+      );
+    } catch (_) {}
+
+    pushToRing({
+      timestamp: ts,
+      provider: provider || "",
+      model: model || "",
+      connectionId: connectionId || "",
+      apiKey: apiKey || "",
+      endpoint: endpoint || "/v1/chat/completions",
+      promptTokens: 0,
+      completionTokens: 0,
+      cost: 0,
+      status,
+      tokens: {},
+      meta: { isStream: isStreamBool, failed: true },
+      isStream: isStreamBool,
+    });
+    scheduleStatsEvent("update", 250);
   } catch (_) { /* fail-open */ }
 }
 
@@ -460,6 +519,7 @@ export async function getUsageHistory(filter = {}) {
 function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMap = {}, apiKeyMap = {}) {
   const stats = {
     totalRequests: 0,
+    totalFailedRequests: 0,
     totalPromptTokens: 0,
     totalCompletionTokens: 0,
     totalCachedTokens: 0,
@@ -476,10 +536,12 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     stats.totalCompletionTokens += Number(dayData.completionTokens || 0);
     stats.totalCachedTokens += Number(dayData.cachedTokens || 0);
     stats.totalCost += Number(dayData.cost || 0);
+    stats.totalFailedRequests += Number(dayData.failedRequests || 0);
 
     for (const [provider, p] of Object.entries(dayData.byProvider || {})) {
-      if (!stats.byProvider[provider]) stats.byProvider[provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+      if (!stats.byProvider[provider]) stats.byProvider[provider] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
       stats.byProvider[provider].requests += Number(p.requests || 0);
+      stats.byProvider[provider].failedRequests = (stats.byProvider[provider].failedRequests || 0) + Number(p.failedRequests || 0);
       stats.byProvider[provider].promptTokens += Number(p.promptTokens || 0);
       stats.byProvider[provider].completionTokens += Number(p.completionTokens || 0);
       stats.byProvider[provider].cachedTokens += Number(p.cachedTokens || 0);
@@ -487,8 +549,9 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     }
 
     for (const [modelKey, m] of Object.entries(dayData.byModel || {})) {
-      if (!stats.byModel[modelKey]) stats.byModel[modelKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: m.rawModel, provider: m.provider, lastUsed: dayData.dateKey };
+      if (!stats.byModel[modelKey]) stats.byModel[modelKey] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: m.rawModel, provider: m.provider, lastUsed: dayData.dateKey };
       stats.byModel[modelKey].requests += Number(m.requests || 0);
+      stats.byModel[modelKey].failedRequests = (stats.byModel[modelKey].failedRequests || 0) + Number(m.failedRequests || 0);
       stats.byModel[modelKey].promptTokens += Number(m.promptTokens || 0);
       stats.byModel[modelKey].completionTokens += Number(m.completionTokens || 0);
       stats.byModel[modelKey].cachedTokens += Number(m.cachedTokens || 0);
@@ -590,6 +653,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
   }
   stats.byEndpoint = normalizedByEndpoint;
   stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+  stats.totalFailedRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.failedRequests || 0), 0);
   return stats;
 }
 
@@ -655,6 +719,7 @@ export async function getUsageStats(period = "all") {
 
   const stats = {
     totalRequests: 0,
+    totalFailedRequests: 0,
     totalPromptTokens: 0,
     totalCompletionTokens: 0,
     totalCachedTokens: 0,
@@ -770,7 +835,7 @@ export async function getUsageStats(period = "all") {
       cutoff = new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
     }
     const filtered = await db.all(
-      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, tokens
+      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, tokens, status
        FROM usage_history WHERE timestamp >= $1`,
       [cutoff],
     );
@@ -783,14 +848,19 @@ export async function getUsageStats(period = "all") {
       const cachedTokens = Number(tokens.cached_tokens || tokens.cache_read_input_tokens || 0);
       const entryCost = Number(r.cost || 0);
       const providerDisplayName = providerNodeNameMap[r.provider] || r.provider;
+      const isFailed = r.status && r.status.startsWith("error_");
+      if (isFailed) {
+        stats.totalFailedRequests = (stats.totalFailedRequests || 0) + 1;
+      }
 
       stats.totalPromptTokens += promptTokens;
       stats.totalCompletionTokens += completionTokens;
       stats.totalCachedTokens += cachedTokens;
       stats.totalCost += entryCost;
 
-      if (!stats.byProvider[r.provider]) stats.byProvider[r.provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+      if (!stats.byProvider[r.provider]) stats.byProvider[r.provider] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
       stats.byProvider[r.provider].requests++;
+      if (isFailed) stats.byProvider[r.provider].failedRequests = (stats.byProvider[r.provider].failedRequests || 0) + 1;
       stats.byProvider[r.provider].promptTokens += promptTokens;
       stats.byProvider[r.provider].completionTokens += completionTokens;
       stats.byProvider[r.provider].cachedTokens += cachedTokens;
@@ -798,9 +868,10 @@ export async function getUsageStats(period = "all") {
 
       const modelKey = r.provider ? `${r.model} (${r.provider})` : r.model;
       if (!stats.byModel[modelKey]) {
-        stats.byModel[modelKey] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: r.model, provider: providerDisplayName, lastUsed: r.timestamp };
+        stats.byModel[modelKey] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: r.model, provider: providerDisplayName, lastUsed: r.timestamp };
       }
       stats.byModel[modelKey].requests++;
+      if (isFailed) stats.byModel[modelKey].failedRequests = (stats.byModel[modelKey].failedRequests || 0) + 1;
       stats.byModel[modelKey].promptTokens += promptTokens;
       stats.byModel[modelKey].completionTokens += completionTokens;
       stats.byModel[modelKey].cachedTokens += cachedTokens;
@@ -853,6 +924,7 @@ export async function getUsageStats(period = "all") {
   }
 
   stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+  stats.totalFailedRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.failedRequests || 0), 0);
   return stats;
 }
 

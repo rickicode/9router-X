@@ -494,7 +494,7 @@ try {
   trackPendingRequest(model, provider, connectionId, false, true);
   const errStatus = error.name === "AbortError" ? 499 : HTTP_STATUS.BAD_GATEWAY;
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${errStatus}` }).catch(() => { });
-  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: undefined, errorStatus: errStatus, isStream: stream }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: errStatus, isStream: stream }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
@@ -574,6 +574,7 @@ if (!providerResponse.ok) {
   const parsedErr = parsedNonOk || await parseUpstreamError(providerResponse, executor);
   const { statusCode, message, resetsAtMs } = parsedErr;
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${statusCode}` }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: statusCode, isStream: stream }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: 0, total: Date.now() - requestStartTime },

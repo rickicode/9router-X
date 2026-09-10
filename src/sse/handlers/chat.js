@@ -11,6 +11,7 @@ import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../service
 import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import { getSettings, lockAccountToModel, lockProxyPoolForScope } from "@/lib/localDb";
+import { saveFailedRequest } from "@/lib/usageDb.js";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -243,6 +244,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
+        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream }).catch(() => {});
         return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
       }
       if (excludeConnectionIds.size === 0) {
@@ -250,6 +252,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         // 503, not 404: the provider/node EXISTS but has no usable account —
         // 404 tells clients the endpoint/model is wrong and they stop retrying.
         log.warn("AUTH", `No active credentials for provider: ${provider}`);
+        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream }).catch(() => {});
         return unavailableResponse(
           HTTP_STATUS.SERVICE_UNAVAILABLE,
           `No active credentials for provider: ${provider} — add an account or re-enable disabled ones`,
@@ -258,6 +261,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         );
       }
       log.warn("CHAT", "No more accounts available", { provider });
+      saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream }).catch(() => {});
       return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
     }
 
