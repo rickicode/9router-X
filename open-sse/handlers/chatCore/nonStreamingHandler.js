@@ -306,6 +306,22 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
     }
   }
 
+  // Unwrap { success: true, data: { choices: [...], usage: ... } } returned by providers like Cline API
+  if (responseBody?.data && typeof responseBody.data === "object" && !Array.isArray(responseBody.data)) {
+    if (responseBody.data.choices && !responseBody.choices) {
+      const dataObj = responseBody.data;
+      const usageObj = responseBody.usage || dataObj.usage;
+      responseBody = {
+        ...dataObj,
+        ...(usageObj ? { usage: usageObj } : {}),
+      };
+    } else if (responseBody.data.error && !responseBody.error) {
+      responseBody = {
+        ...responseBody.data,
+      };
+    }
+  }
+
   reqLogger.logProviderResponse(providerResponse.status, providerResponse.statusText, providerResponse.headers, responseBody);
   if (onRequestSuccess) {
     Promise.resolve()

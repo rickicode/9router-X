@@ -61,6 +61,14 @@ export default {
     { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (Free)" },
     { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
     { id: "nvidia/nemotron-3.5-content-safety:free", name: "Nemotron 3.5 Content Safety (Free)" },
+    // Muse models (free/contributor tiers)
+    { id: "meta/muse-spark-1.3-contributor", name: "Muse Spark 1.3 Contributor" },
+    { id: "meta/muse-spark-1.3", name: "Muse Spark 1.3" },
+    { id: "meta/muse-spark-1.2-contributor", name: "Muse Spark 1.2 Contributor" },
+    { id: "meta/muse-spark-1.2", name: "Muse Spark 1.2" },
+    { id: "meta/muse-spark-1.1", name: "Muse Spark 1.1" },
+    { id: "meta/muse-glimmer-30b", name: "Muse Glimmer 30B" },
+    { id: "openrouter/free", name: "OpenRouter Free" },
   ],
   oauth: {
     appBaseUrl: "https://app.cline.bot",

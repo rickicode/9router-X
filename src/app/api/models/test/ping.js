@@ -171,8 +171,8 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     };
   }
 
-  if (parsed?.error) {
-    const providerError = parsed?.error?.message || parsed?.error || "Provider returned an error";
+  if (parsed?.error || parsed?.data?.error) {
+    const providerError = parsed?.error?.message || parsed?.error || parsed?.data?.error?.message || parsed?.data?.error || "Provider returned an error";
     return {
       ok: false,
       latencyMs,
@@ -181,12 +181,13 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     };
   }
 
-  const hasChoices = Array.isArray(parsed?.choices) && parsed.choices.length > 0;
+  const choices = parsed?.choices || parsed?.data?.choices;
+  const hasChoices = Array.isArray(choices) && choices.length > 0;
 
   // Soft-pass (issue #3010): a reasoning model may burn its whole budget on
   // chain-of-thought and return finish_reason:"length" with empty content but
   // non-empty reasoning/thinking. That's a successful connection, not a failure.
-  const firstChoice = parsed?.choices?.[0] || {};
+  const firstChoice = choices?.[0] || {};
   const hasReasoning =
     firstChoice.message?.reasoning ||
     firstChoice.message?.reasoning_content ||
