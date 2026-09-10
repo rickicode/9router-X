@@ -206,7 +206,21 @@ export async function handleVideoGet(request, requestId, { content = false } = {
   if (!requestId) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing video request id");
 
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
-  const provider = await resolveGetProvider(request, preferredConnectionId);
+  let provider = DEFAULT_VIDEO_PROVIDER;
+
+  if (preferredConnectionId) {
+    const connection = await getProviderConnectionById(preferredConnectionId);
+    if (!connection) {
+      return errorResponse(HTTP_STATUS.BAD_REQUEST, `Connection not found: ${preferredConnectionId}`);
+    }
+    if (!getVideoConfig(connection.provider)) {
+      return errorResponse(HTTP_STATUS.BAD_REQUEST, `Provider '${connection.provider}' does not support video generation`);
+    }
+    provider = connection.provider;
+  } else {
+    const queried = new URL(request.url).searchParams.get("provider");
+    if (queried && getVideoConfig(queried)) provider = queried;
+  }
 
   const credentials = await getProviderCredentials(provider, null, null, { preferredConnectionId });
   if (!credentials || credentials.allRateLimited || (preferredConnectionId && credentials.connectionId !== preferredConnectionId)) {
