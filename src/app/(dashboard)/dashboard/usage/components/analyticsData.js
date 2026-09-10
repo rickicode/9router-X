@@ -32,6 +32,7 @@ export function normalizeAnalytics(payload) {
     models: payload.byModel.map(normalize),
     series: payload.timeline.map(normalize),
     errors: payload.errorDistribution || [],
+    byProvider: payload.byProvider || [],
   };
 }
 export function rankModels(models, mode, minSamples = MIN_SAMPLES) {

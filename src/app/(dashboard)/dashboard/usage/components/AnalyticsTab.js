@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import GlobalAnalyticsChart from "./GlobalAnalyticsChart";
 import AnalyticsTrendChart from "./AnalyticsTrendChart";
+import TopProvidersCard from "./TopProvidersCard";
 import Card from "@/shared/components/Card";
 import Input from "@/shared/components/Input";
 import Button from "@/shared/components/Button";
@@ -668,6 +669,12 @@ export default function AnalyticsTab({ period }) {
                 data={data.series}
                 summary={data.summary}
                 yesterdaySummary={data.yesterdaySummary}
+              />
+
+              {/* Top Providers Card */}
+              <TopProvidersCard
+                byProvider={data.byProvider || []}
+                onProviderClick={(p) => setProvider(p)}
               />
 
               {/* Error Distribution Section (Interactive Cards) */}

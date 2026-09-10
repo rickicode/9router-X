@@ -301,14 +301,65 @@ export async function getAnalyticsSummary({
     ORDER BY bucket ASC;
   `;
 
-  const [overall, perModel, errorDistribution, timeline] = await Promise.all([
+  const byProviderSql = `
+    SELECT
+      provider,
+      COUNT(*)::int AS count,
+      COUNT(*) FILTER (WHERE success = true)::int AS success_count,
+      COUNT(*) FILTER (WHERE success = false)::int AS failure_count,
+      CASE WHEN COUNT(*) > 0 THEN ROUND((COUNT(*) FILTER (WHERE success = true)::numeric / COUNT(*)::numeric) * 100, 2) ELSE 0 END AS success_rate,
+      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE success = true) AS p50_latency_ms,
+      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE success = true) AS p95_latency_ms,
+      SUM(input_tokens)::bigint AS total_input_tokens,
+      SUM(output_tokens)::bigint AS total_output_tokens
+    FROM analytics_events
+    ${whereSql}
+    GROUP BY provider
+    ORDER BY count DESC
+    LIMIT 20;
+  `;
+
+  const byProviderErrorSql = `
+    SELECT
+      provider,
+      error_category,
+      COUNT(*)::int AS count
+    FROM analytics_events
+    ${whereSql ? `${whereSql} AND success = false` : "WHERE success = false"}
+    GROUP BY provider, error_category
+    ORDER BY provider, count DESC;
+  `;
+
+  const [overall, perModel, errorDistribution, timeline, byProvider, byProviderErrors] = await Promise.all([
     db.get(overallSql, params),
     db.all(perModelSql, params),
     db.all(errorDistSql, params),
     db.all(timelineSql, params),
+    db.all(byProviderSql, params),
+    db.all(byProviderErrorSql, params),
   ]);
 
   const total = overall?.total_events || 0;
+
+  // Merge error breakdown per provider
+  const providerErrorMap = {};
+  for (const row of (byProviderErrors || [])) {
+    if (!providerErrorMap[row.provider]) providerErrorMap[row.provider] = {};
+    providerErrorMap[row.provider][row.error_category] = Number(row.count);
+  }
+  const byProviderMapped = (byProvider || []).map((row) => ({
+    provider: row.provider,
+    count: Number(row.count),
+    successCount: Number(row.success_count),
+    failureCount: Number(row.failure_count),
+    successRate: Number(row.success_rate),
+    p50LatencyMs: row.p50_latency_ms !== null ? Number(Number(row.p50_latency_ms).toFixed(0)) : null,
+    p95LatencyMs: row.p95_latency_ms !== null ? Number(Number(row.p95_latency_ms).toFixed(0)) : null,
+    totalInputTokens: Number(row.total_input_tokens || 0),
+    totalOutputTokens: Number(row.total_output_tokens || 0),
+    errorBreakdown: providerErrorMap[row.provider] || {},
+  }));
+
   return {
     meta: {
       timeFrom: timeFrom || null,
@@ -340,6 +391,7 @@ export async function getAnalyticsSummary({
       recommendationEligible: total >= MIN_SAMPLE_RECOMMENDATION_THRESHOLD,
     },
     byModel: perModel || [],
+    byProvider: byProviderMapped,
     errorDistribution: errorDistribution || [],
     timeline: timeline || [],
   };
