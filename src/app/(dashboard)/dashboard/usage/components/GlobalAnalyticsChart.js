@@ -4,6 +4,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import {
   ResponsiveContainer,
+  ComposedChart,
   AreaChart,
   Area,
   LineChart,
@@ -28,11 +29,19 @@ const tooltipStyle = {
   padding: "10px 14px",
 };
 
-export default function GlobalAnalyticsChart({ data = [], summary }) {
+export default function GlobalAnalyticsChart({
+  data = [],
+  summary,
+  yesterdaySummary,
+}) {
   const [viewMode, setViewMode] = useState("traffic");
+  const [showYesterday, setShowYesterday] = useState(true);
 
   const validPoints = data.filter((item) => item.timestamp);
   const hasData = validPoints.length > 0;
+  const hasYesterdaySeries = validPoints.some(
+    (item) => item.yesterdayRequests > 0 || item.yesterdayTokens > 0,
+  );
 
   const viewOptions = [
     { value: "traffic", label: "Traffic Breakdown", icon: "stacked_bar_chart" },
@@ -49,7 +58,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
       padding="md"
       className="flex min-w-0 flex-col gap-4 p-3 sm:p-6"
       action={
-        <div className="flex min-w-0 max-w-full items-center gap-3">
+        <div className="flex min-w-0 max-w-full items-center gap-2 flex-wrap sm:flex-nowrap">
           <SegmentedControl
             options={viewOptions}
             value={viewMode}
@@ -57,6 +66,28 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
             size="sm"
             className="flex-wrap w-full min-w-0 gap-1 [&>button]:min-w-0 [&>button]:h-auto [&>button]:min-h-10 [&>button>span:last-child]:whitespace-normal [&_.material-symbols-outlined]:w-4 [&_.material-symbols-outlined]:overflow-hidden"
           />
+          <button
+            type="button"
+            onClick={() => setShowYesterday((prev) => !prev)}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
+              showYesterday
+                ? "bg-surface-3 border-border text-text-main font-semibold shadow-xs"
+                : "bg-surface-1 border-border-subtle text-text-muted hover:text-text-main"
+            }`}
+            title="Toggle Yesterday comparison line"
+          >
+            <span
+              className={`material-symbols-outlined text-[15px] ${
+                showYesterday ? "text-brand-500" : "text-text-muted"
+              }`}
+            >
+              compare_arrows
+            </span>
+            <span>vs Yesterday</span>
+            {showYesterday && (
+              <span className="size-1.5 rounded-full bg-brand-500 ml-0.5" />
+            )}
+          </button>
         </div>
       }
     >
@@ -68,7 +99,7 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
         <div className="h-[300px] min-w-0 w-full sm:h-[420px]">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {viewMode === "traffic" ? (
-              <AreaChart
+              <ComposedChart
                 data={validPoints}
                 margin={{ top: 12, right: 16, left: -16, bottom: 0 }}
               >
@@ -125,7 +156,11 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     fmtNumber(value),
                     name === "successes"
                       ? "Successful Attempts"
-                      : "Failed Attempts",
+                      : name === "failures"
+                        ? "Failed Attempts"
+                        : name === "yesterdayRequests"
+                          ? "Yesterday Requests"
+                          : name,
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
                 />
@@ -136,7 +171,11 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     <span className="text-xs text-text-muted font-medium ml-1">
                       {value === "successes"
                         ? "Successful Attempts"
-                        : "Failed Attempts"}
+                        : value === "failures"
+                          ? "Failed Attempts"
+                          : value === "yesterdayRequests"
+                            ? "Yesterday Requests (vs)"
+                            : value}
                     </span>
                   )}
                 />
@@ -158,9 +197,21 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   fill="url(#gradGlobalFailure)"
                   stackId="traffic"
                 />
-              </AreaChart>
+                {showYesterday && (
+                  <Line
+                    type="monotone"
+                    dataKey="yesterdayRequests"
+                    name="yesterdayRequests"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                )}
+              </ComposedChart>
             ) : viewMode === "successRate" ? (
-              <AreaChart
+              <ComposedChart
                 data={validPoints}
                 margin={{ top: 12, right: 16, left: -16, bottom: 0 }}
               >
@@ -204,22 +255,49 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  formatter={(value) => [
+                  formatter={(value, name) => [
                     value != null ? `${(value * 100).toFixed(1)}%` : "No data",
-                    "Success Rate",
+                    name === "yesterdaySuccessRate"
+                      ? "Yesterday Success Rate"
+                      : "Success Rate",
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
+                />
+                <Legend
+                  verticalAlign="top"
+                  height={36}
+                  formatter={(value) => (
+                    <span className="text-xs text-text-muted font-medium ml-1">
+                      {value === "successRate"
+                        ? "Success Rate"
+                        : value === "yesterdaySuccessRate"
+                          ? "Yesterday Success Rate (vs)"
+                          : value}
+                    </span>
+                  )}
                 />
                 <Area
                   type="monotone"
                   dataKey="successRate"
-                  name="Success Rate"
+                  name="successRate"
                   stroke="#3B82F6"
                   strokeWidth={2.5}
                   fill="url(#gradGlobalRate)"
                   connectNulls={false}
                 />
-              </AreaChart>
+                {showYesterday && (
+                  <Line
+                    type="monotone"
+                    dataKey="yesterdaySuccessRate"
+                    name="yesterdaySuccessRate"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    connectNulls={false}
+                  />
+                )}
+              </ComposedChart>
             ) : viewMode === "latency" ? (
               <LineChart
                 data={validPoints}
@@ -256,7 +334,13 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     value != null
                       ? `${Number(value).toFixed(0)} ms`
                       : "No data",
-                    name === "latencyMs" ? "P50 Median Latency" : "P95 Latency",
+                    name === "latencyMs"
+                      ? "P50 Median Latency"
+                      : name === "p95"
+                        ? "P95 Latency"
+                        : name === "yesterdayLatencyMs"
+                          ? "Yesterday P50 Latency"
+                          : name,
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
                 />
@@ -267,7 +351,11 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     <span className="text-xs text-text-muted font-medium ml-1">
                       {value === "latencyMs"
                         ? "P50 Median Latency"
-                        : "P95 Latency"}
+                        : value === "p95"
+                          ? "P95 Latency"
+                          : value === "yesterdayLatencyMs"
+                            ? "Yesterday P50 Latency (vs)"
+                            : value}
                     </span>
                   )}
                 />
@@ -292,9 +380,21 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   activeDot={{ r: 4 }}
                   connectNulls={false}
                 />
+                {showYesterday && (
+                  <Line
+                    type="monotone"
+                    dataKey="yesterdayLatencyMs"
+                    name="yesterdayLatencyMs"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    connectNulls={false}
+                  />
+                )}
               </LineChart>
             ) : (
-              <AreaChart
+              <ComposedChart
                 data={validPoints}
                 margin={{ top: 12, right: 16, left: -16, bottom: 0 }}
               >
@@ -345,7 +445,11 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     fmtTokens(value),
                     name === "inputTokens"
                       ? "Prompt (Input) Tokens"
-                      : "Completion (Output) Tokens",
+                      : name === "outputTokens"
+                        ? "Completion (Output) Tokens"
+                        : name === "yesterdayTokens"
+                          ? "Yesterday Total Tokens"
+                          : name,
                   ]}
                   labelFormatter={(label) => `Time: ${label}`}
                 />
@@ -356,7 +460,11 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                     <span className="text-xs text-text-muted font-medium ml-1">
                       {value === "inputTokens"
                         ? "Input Tokens"
-                        : "Output Tokens"}
+                        : value === "outputTokens"
+                          ? "Output Tokens"
+                          : value === "yesterdayTokens"
+                            ? "Yesterday Tokens (vs)"
+                            : value}
                     </span>
                   )}
                 />
@@ -376,7 +484,18 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
                   strokeWidth={2}
                   fill="url(#gradGlobalOut)"
                 />
-              </AreaChart>
+                {showYesterday && (
+                  <Line
+                    type="monotone"
+                    dataKey="yesterdayTokens"
+                    name="yesterdayTokens"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
+                )}
+              </ComposedChart>
             )}
           </ResponsiveContainer>
         </div>
@@ -388,4 +507,5 @@ export default function GlobalAnalyticsChart({ data = [], summary }) {
 GlobalAnalyticsChart.propTypes = {
   data: PropTypes.arrayOf(PropTypes.object),
   summary: PropTypes.object,
+  yesterdaySummary: PropTypes.object,
 };

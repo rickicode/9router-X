@@ -80,21 +80,40 @@ export function defaultTimeBucket(period, now = new Date()) {
 }
 
 export function analyticsUrl(
-  { period, provider = "", model = "", errorCategory = "", timeBucket = "" },
+  {
+    period,
+    provider = "",
+    model = "",
+    errorCategory = "",
+    timeBucket = "",
+    timeFrom,
+    timeTo,
+  },
   now = new Date(),
 ) {
-  const end = new Date(now);
-  let start = new Date(end);
-  if (period === "today") start.setHours(0, 0, 0, 0);
-  else
-    start = new Date(
-      end.getTime() -
-        ({ "24h": 1, "7d": 7, "30d": 30, "60d": 60 }[period] ?? 7) * 86400000,
-    );
+  let fromIso = timeFrom;
+  let toIso = timeTo;
+  let bucket = timeBucket;
+
+  if (!fromIso || !toIso) {
+    const end = new Date(now);
+    let start = new Date(end);
+    if (period === "today") start.setHours(0, 0, 0, 0);
+    else
+      start = new Date(
+        end.getTime() -
+          ({ "24h": 1, "7d": 7, "30d": 30, "60d": 60 }[period] ?? 7) *
+            86400000,
+      );
+    fromIso = start.toISOString();
+    toIso = end.toISOString();
+    if (!bucket) bucket = defaultTimeBucket(period, now);
+  }
+
   const params = new URLSearchParams({
-    timeFrom: start.toISOString(),
-    timeTo: end.toISOString(),
-    timeBucket: timeBucket || defaultTimeBucket(period, now),
+    timeFrom: fromIso,
+    timeTo: toIso,
+    timeBucket: bucket || "1 hour",
   });
   if (provider && provider.trim()) params.set("provider", provider.trim());
   if (model && model.trim()) params.set("model", model.trim());
@@ -110,6 +129,177 @@ export async function fetchAnalytics(filters, signal, fetcher = fetch) {
   if (!response.ok)
     throw new Error(`Analytics request failed (${response.status})`);
   return normalizeAnalytics(await response.json());
+}
+
+export function getYesterdayFilters(filters, now = new Date()) {
+  let curEnd = new Date(now);
+  let curStart = new Date(curEnd);
+  const period = filters.period || "today";
+
+  if (filters.timeFrom && filters.timeTo) {
+    curStart = new Date(filters.timeFrom);
+    curEnd = new Date(filters.timeTo);
+  } else if (period === "today") {
+    curStart.setHours(0, 0, 0, 0);
+  } else {
+    const days = { "24h": 1, "7d": 7, "30d": 30, "60d": 60 }[period] ?? 7;
+    curStart = new Date(curEnd.getTime() - days * 86400000);
+  }
+
+  // 24 hours back (1 day shift)
+  const shiftMs = 86400000;
+  const yesterdayStart = new Date(curStart.getTime() - shiftMs);
+  const yesterdayEnd = new Date(curEnd.getTime() - shiftMs);
+
+  return {
+    timeFrom: yesterdayStart.toISOString(),
+    timeTo: yesterdayEnd.toISOString(),
+    timeBucket: filters.timeBucket || defaultTimeBucket(period, now),
+    provider: filters.provider,
+    model: filters.model,
+    errorCategory: filters.errorCategory,
+  };
+}
+
+export function calculateComparison(currentSummary, yesterdaySummary) {
+  if (!currentSummary || !yesterdaySummary) return null;
+
+  const curTotal = Number(currentSummary.totalEvents ?? 0);
+  const prevTotal = Number(yesterdaySummary.totalEvents ?? 0);
+  const totalDiff = curTotal - prevTotal;
+  const totalPct = prevTotal > 0 ? (totalDiff / prevTotal) * 100 : null;
+
+  const curSuccessRate = Number(currentSummary.successRate ?? 0);
+  const prevSuccessRate = Number(yesterdaySummary.successRate ?? 0);
+  const successRateDiff = curSuccessRate - prevSuccessRate;
+
+  const curFail = Number(currentSummary.failureCount ?? 0);
+  const prevFail = Number(yesterdaySummary.failureCount ?? 0);
+  const failDiff = curFail - prevFail;
+  const failPct = prevFail > 0 ? (failDiff / prevFail) * 100 : null;
+
+  const curLatency =
+    currentSummary.p50LatencyMs != null
+      ? Number(currentSummary.p50LatencyMs)
+      : null;
+  const prevLatency =
+    yesterdaySummary.p50LatencyMs != null
+      ? Number(yesterdaySummary.p50LatencyMs)
+      : null;
+  const latencyDiff =
+    curLatency != null && prevLatency != null ? curLatency - prevLatency : null;
+
+  const curTokens =
+    Number(currentSummary.totalInputTokens ?? 0) +
+    Number(currentSummary.totalOutputTokens ?? 0);
+  const prevTokens =
+    Number(yesterdaySummary.totalInputTokens ?? 0) +
+    Number(yesterdaySummary.totalOutputTokens ?? 0);
+  const tokensDiff = curTokens - prevTokens;
+  const tokensPct = prevTokens > 0 ? (tokensDiff / prevTokens) * 100 : null;
+
+  return {
+    totalEvents: { diff: totalDiff, pct: totalPct, prev: prevTotal },
+    successRate: { diff: successRateDiff, prev: prevSuccessRate },
+    failureCount: { diff: failDiff, pct: failPct, prev: prevFail },
+    p50LatencyMs: { diff: latencyDiff, prev: prevLatency },
+    totalTokens: { diff: tokensDiff, pct: tokensPct, prev: prevTokens },
+  };
+}
+
+export function mergeYesterdayTimeline(
+  currentSeries,
+  yesterdaySeries,
+  shiftMs = 86400000,
+) {
+  if (!Array.isArray(currentSeries) || currentSeries.length === 0) return [];
+  if (!Array.isArray(yesterdaySeries) || yesterdaySeries.length === 0) {
+    return currentSeries.map((item) => ({
+      ...item,
+      yesterdayRequests: 0,
+      yesterdaySuccesses: 0,
+      yesterdayFailures: 0,
+      yesterdaySuccessRate: null,
+      yesterdayLatencyMs: null,
+      yesterdayTokens: 0,
+    }));
+  }
+
+  const yMap = new Map();
+  for (const yItem of yesterdaySeries) {
+    if (!yItem.bucketMs) continue;
+    yMap.set(yItem.bucketMs + shiftMs, yItem);
+  }
+
+  return currentSeries.map((item) => {
+    if (!item.bucketMs) {
+      return {
+        ...item,
+        yesterdayRequests: 0,
+        yesterdaySuccesses: 0,
+        yesterdayFailures: 0,
+        yesterdaySuccessRate: null,
+        yesterdayLatencyMs: null,
+        yesterdayTokens: 0,
+      };
+    }
+
+    let match = yMap.get(item.bucketMs);
+    if (!match) {
+      let closestDiff = Infinity;
+      for (const [yAlignedMs, yVal] of yMap.entries()) {
+        const diff = Math.abs(yAlignedMs - item.bucketMs);
+        if (diff < closestDiff && diff <= 180000) {
+          closestDiff = diff;
+          match = yVal;
+        }
+      }
+    }
+
+    return {
+      ...item,
+      yesterdayRequests: match ? match.requests : 0,
+      yesterdaySuccesses: match ? match.successes : 0,
+      yesterdayFailures: match ? match.failures : 0,
+      yesterdaySuccessRate: match ? match.successRate : null,
+      yesterdayLatencyMs: match ? match.latencyMs : null,
+      yesterdayTokens: match
+        ? (match.inputTokens || 0) + (match.outputTokens || 0)
+        : 0,
+    };
+  });
+}
+
+export async function fetchAnalyticsWithComparison(
+  filters,
+  signal,
+  fetcher = fetch,
+) {
+  const currentPromise = fetchAnalytics(filters, signal, fetcher);
+  const yesterdayFilters = getYesterdayFilters(filters);
+  const yesterdayPromise = fetchAnalytics(yesterdayFilters, signal, fetcher).catch(
+    () => null,
+  );
+
+  const [current, yesterday] = await Promise.all([
+    currentPromise,
+    yesterdayPromise,
+  ]);
+
+  const seriesWithYesterday = yesterday
+    ? mergeYesterdayTimeline(current.series, yesterday.series)
+    : current.series;
+
+  const comparison = yesterday
+    ? calculateComparison(current.summary, yesterday.summary)
+    : null;
+
+  return {
+    ...current,
+    series: seriesWithYesterday,
+    yesterdaySummary: yesterday?.summary || null,
+    comparison,
+  };
 }
 export function formatMetric(value, kind) {
   if (value == null) return "No data";
