@@ -71,11 +71,11 @@ function normalizeOpencodeReasoning(model, body) {
   delete body.reasoning_effort;
 }
 
-// OpenCode free tier is limited per egress IP — a 429/403 with a limit-ish
-// body means the POOL's IP is exhausted, not the account. Declare it
-// pool-scoped so chatCore marks the pool unfit, retries via another pool, and
-// it shows up (clearable) on the Proxy Fitness page.
-const IP_LIMIT_BODY = /limit|rate|quota|exhausted|capacity|too many|retry/i;
+// Only an explicit egress/IP/network marker is pool-scoped. Generic words such
+// as "rate", "quota", "exhausted", and "retry" also occur in account/model
+// limits. Treating those as pool failures bypasses account cooldowns and can
+// repeatedly call the same exhausted OpenCode account.
+const IP_LIMIT_BODY = /(?:egress|proxy|ip[_ -]?limit|client[_ -]?ip|source[_ -]?ip|remote[_ -]?address|network[_ -]?limit|too many requests from (?:this|your) (?:ip|network))/i;
 
 export class OpenCodeExecutor extends BaseExecutor {
   constructor() {

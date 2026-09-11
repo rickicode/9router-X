@@ -372,12 +372,14 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
       isTestRequest,
       comboName,
-      onCredentialsRefreshed: async (newCreds) => {
-        await updateProviderCredentials(credentials.connectionId, {
-          ...newCreds,
-          existingProviderSpecificData: credentials.providerSpecificData,
-          testStatus: "active"
-        });
+       onCredentialsRefreshed: async (newCreds) => {
+         await updateProviderCredentials(credentials.connectionId, {
+           ...newCreds,
+           existingProviderSpecificData: credentials.providerSpecificData,
+           // Refreshing credentials must not resurrect a model/account that
+           // was concurrently exhausted by another request.
+           ...(credentials.testStatus === "active" ? { testStatus: "active" } : {}),
+         });
       },
       onRequestSuccess: async () => {
         await clearAccountError(credentials.connectionId, credentials, model);
