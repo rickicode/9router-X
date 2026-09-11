@@ -11,7 +11,7 @@ import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../service
 import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import { getSettings, lockAccountToModel, lockProxyPoolForScope } from "@/lib/localDb";
-import { saveFailedRequest } from "@/lib/usageDb.js";
+import { saveFailedRequest, saveRequestDetail } from "@/lib/usageDb.js";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -244,7 +244,16 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream }).catch(() => {});
+        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
+        saveRequestDetail({
+          provider, model, connectionId: null,
+          latency: { ttft: 0, total: 0 },
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          request: body,
+          response: { error: errorMsg, status, thinking: null },
+          status: "error",
+          error: errorMsg,
+        }).catch(() => {});
         return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
       }
       if (excludeConnectionIds.size === 0) {
@@ -252,17 +261,38 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         // 503, not 404: the provider/node EXISTS but has no usable account —
         // 404 tells clients the endpoint/model is wrong and they stop retrying.
         log.warn("AUTH", `No active credentials for provider: ${provider}`);
-        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream }).catch(() => {});
+        const noCredMsg = `No active credentials for provider: ${provider} — add an account or re-enable disabled ones`;
+        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: noCredMsg }).catch(() => {});
+        saveRequestDetail({
+          provider, model, connectionId: null,
+          latency: { ttft: 0, total: 0 },
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          request: body,
+          response: { error: noCredMsg, status: HTTP_STATUS.SERVICE_UNAVAILABLE, thinking: null },
+          status: "error",
+          error: noCredMsg,
+        }).catch(() => {});
         return unavailableResponse(
           HTTP_STATUS.SERVICE_UNAVAILABLE,
-          `No active credentials for provider: ${provider} — add an account or re-enable disabled ones`,
+          noCredMsg,
           null,
           null,
         );
       }
       log.warn("CHAT", "No more accounts available", { provider });
-      saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream }).catch(() => {});
-      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
+      const noMoreMsg = lastError || "All accounts unavailable";
+      const noMoreStatus = lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE;
+      saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
+      saveRequestDetail({
+        provider, model, connectionId: null,
+        latency: { ttft: 0, total: 0 },
+        tokens: { prompt_tokens: 0, completion_tokens: 0 },
+        request: body,
+        response: { error: noMoreMsg, status: noMoreStatus, thinking: null },
+        status: "error",
+        error: noMoreMsg,
+      }).catch(() => {});
+      return errorResponse(noMoreStatus, noMoreMsg);
     }
 
     // Account selection shown in the unified "▶" line (acc:...)

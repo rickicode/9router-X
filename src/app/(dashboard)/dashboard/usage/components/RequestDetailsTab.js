@@ -253,6 +253,7 @@ export default function RequestDetailsTab() {
             <thead>
               <tr className="border-b border-black/5 dark:border-white/5">
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Timestamp</th>
+                <th className="text-center p-4 text-sm font-semibold text-text-main w-28">Status</th>
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Model</th>
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Provider</th>
                 <th className="text-right p-4 text-sm font-semibold text-text-main">Input Tokens</th>
@@ -266,7 +267,7 @@ export default function RequestDetailsTab() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="p-8 text-center text-text-muted">
+                  <td colSpan="10" className="p-8 text-center text-text-muted">
                     <div className="flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
                       Loading...
@@ -275,7 +276,7 @@ export default function RequestDetailsTab() {
                 </tr>
               ) : details.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="p-8 text-center text-text-muted">
+                  <td colSpan="10" className="p-8 text-center text-text-muted">
                     No request details found
                   </td>
                 </tr>
@@ -287,6 +288,23 @@ export default function RequestDetailsTab() {
                   >
                     <td className="whitespace-nowrap p-4 text-sm text-text-main">
                       {new Date(detail.timestamp).toLocaleString()}
+                    </td>
+                    <td className="p-4 text-center whitespace-nowrap">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold",
+                          detail.status === "success"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                        )}
+                      >
+                        <span className="material-symbols-outlined !text-[13px] leading-none">
+                          {detail.status === "success" ? "check_circle" : "error"}
+                        </span>
+                        {detail.status === "success"
+                          ? "200 OK"
+                          : (detail.response?.status ? `HTTP ${detail.response.status}` : (detail.status || "Error"))}
+                      </span>
                     </td>
                     <td className="max-w-[260px] truncate p-4 font-mono text-sm text-text-main">
                       {detail.model}
@@ -413,6 +431,28 @@ export default function RequestDetailsTab() {
               </div>
             </div>
 
+            {/* Prominent Error Details Banner */}
+            {(selectedDetail.status !== "success" || selectedDetail.error || selectedDetail.response?.error) && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-danger text-[20px] leading-none">error</span>
+                    <span className="font-bold text-danger text-sm">
+                      Request Error {selectedDetail.response?.status ? `(${selectedDetail.response.status})` : ""}
+                    </span>
+                  </div>
+                  {selectedDetail.response?.status && (
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-rose-500/20 text-danger">
+                      HTTP {selectedDetail.response.status}
+                    </span>
+                  )}
+                </div>
+                <pre className="max-h-[250px] overflow-auto rounded-lg border border-rose-500/20 bg-surface-1/90 p-3 font-mono text-xs text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-words">
+                  {selectedDetail.error || (typeof selectedDetail.response?.error === 'object' ? JSON.stringify(selectedDetail.response.error, null, 2) : selectedDetail.response?.error) || JSON.stringify(selectedDetail.response, null, 2) || "Error occurred during request processing"}
+                </pre>
+              </div>
+            )}
+
             {selectedDetail.pxpipe && (
               <div className="rounded-lg border border-black/5 dark:border-white/5 p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -482,24 +522,40 @@ export default function RequestDetailsTab() {
               )}
               
               <CollapsibleSection title="4. Client Response (Final)" defaultOpen={true} icon="output">
-                {selectedDetail.response?.thinking && (
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-text-main mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-70">
-                      <span className="material-symbols-outlined text-[16px]">psychology</span>
-                      Thinking Process
+                {selectedDetail.response?.error ? (
+                  <div>
+                    <h4 className="font-semibold text-danger mb-2 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[15px]">error</span>
+                      Error Response
                     </h4>
-                    <pre className="max-h-[200px] max-w-full overflow-auto rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:p-4">
-                      {selectedDetail.response.thinking}
+                    <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 font-mono text-xs text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-words sm:p-4">
+                      {typeof selectedDetail.response.error === "object"
+                        ? JSON.stringify(selectedDetail.response.error, null, 2)
+                        : selectedDetail.response.error}
                     </pre>
                   </div>
+                ) : (
+                  <>
+                    {selectedDetail.response?.thinking && (
+                      <div className="mb-4">
+                        <h4 className="font-semibold text-text-main mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-70">
+                          <span className="material-symbols-outlined text-[16px]">psychology</span>
+                          Thinking Process
+                        </h4>
+                        <pre className="max-h-[200px] max-w-full overflow-auto rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:p-4">
+                          {selectedDetail.response.thinking}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    <h4 className="font-semibold text-text-main mb-2 text-xs uppercase tracking-wide opacity-70">
+                      Content
+                    </h4>
+                    <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
+                      {selectedDetail.response?.content || (selectedDetail.response?.redacted ? "[Redacted]" : "[No content]")}
+                    </pre>
+                  </>
                 )}
-                
-                <h4 className="font-semibold text-text-main mb-2 text-xs uppercase tracking-wide opacity-70">
-                  Content
-                </h4>
-                <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
-                  {selectedDetail.response?.content || "[No content]"}
-                </pre>
               </CollapsibleSection>
             </div>
           </div>

@@ -292,8 +292,19 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
     const parsed = parseSSEToOpenAIResponse(sseText, model);
     if (!parsed) {
       appendLog({ status: `FAILED ${HTTP_STATUS.BAD_GATEWAY}` });
-      saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false }).catch(() => { });
-      return createErrorResult(HTTP_STATUS.BAD_GATEWAY, "Invalid SSE response for non-streaming request");
+      const errMsg = "Invalid SSE response for non-streaming request";
+      saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
+      saveRequestDetail(buildRequestDetail({
+        provider, model, connectionId,
+        latency: { ttft: 0, total: Date.now() - requestStartTime },
+        tokens: { prompt_tokens: 0, completion_tokens: 0 },
+        request: extractRequestConfig(body, stream),
+        providerRequest: finalBody || translatedBody || null,
+        response: { error: errMsg, status: HTTP_STATUS.BAD_GATEWAY, thinking: null },
+        pxpipe: pxpipeSummary,
+        status: "error"
+      })).catch(() => { });
+      return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg);
     }
     responseBody = parsed;
   } else {
@@ -301,9 +312,20 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
       responseBody = await providerResponse.json();
     } catch (err) {
       appendLog({ status: `FAILED ${HTTP_STATUS.BAD_GATEWAY}` });
-      saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false }).catch(() => { });
+      const errMsg = `Invalid JSON response from ${provider}: ${err.message}`;
+      saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
+      saveRequestDetail(buildRequestDetail({
+        provider, model, connectionId,
+        latency: { ttft: 0, total: Date.now() - requestStartTime },
+        tokens: { prompt_tokens: 0, completion_tokens: 0 },
+        request: extractRequestConfig(body, stream),
+        providerRequest: finalBody || translatedBody || null,
+        response: { error: errMsg, status: HTTP_STATUS.BAD_GATEWAY, thinking: null },
+        pxpipe: pxpipeSummary,
+        status: "error"
+      })).catch(() => { });
       console.error(`[ChatCore] Failed to parse JSON from ${provider}:`, err.message);
-      return createErrorResult(HTTP_STATUS.BAD_GATEWAY, `Invalid JSON response from ${provider}`);
+      return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg);
     }
   }
 

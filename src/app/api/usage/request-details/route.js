@@ -53,13 +53,26 @@ export async function GET(request) {
     // wholesale lets any dashboard-authenticated user (or, if requireLogin is
     // disabled, anyone) read every user's conversation history. Keep the
     // metadata (model, tokens, latency, status) but drop message content.
+    // For failed requests, preserve the error response payload and error fields
+    // so operators can debug issues directly from the dashboard.
     const redactedDetails = (result.details || []).map((d) => {
       const redacted = { ...d };
+      const isFailed = d.status !== "success" || Boolean(d.error || d.response?.error);
+
       for (const key of ["request", "providerRequest", "providerResponse", "response"]) {
         if (redacted[key] !== undefined) {
+          if (isFailed && (key === "response" || key === "providerResponse")) {
+            // Keep error response intact so operators can inspect failure reasons
+            continue;
+          }
           redacted[key] = { redacted: true };
         }
       }
+
+      if (isFailed) {
+        redacted.error = d.response?.error || d.error || (d.status !== "success" ? `Error (${d.status || 500})` : null);
+      }
+
       return redacted;
     });
 

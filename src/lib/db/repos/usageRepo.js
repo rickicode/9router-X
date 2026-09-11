@@ -124,21 +124,26 @@ async function ensureRingInitialized() {
   try {
     const db = await getAdapter();
     const rows = await db.all(
-      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, cost, status, tokens
+      `SELECT timestamp, provider, model, connection_id, api_key, endpoint, cost, status, tokens, meta
        FROM usage_history ORDER BY id DESC LIMIT $1`,
       [RING_CAP],
     );
-    recentRing.items = rows.reverse().map((row) => ({
-      timestamp: row.timestamp,
-      provider: row.provider,
-      model: row.model,
-      connectionId: row.connection_id,
-      apiKey: row.api_key,
-      endpoint: row.endpoint,
-      cost: row.cost,
-      status: row.status,
-      tokens: row.tokens ?? {},
-    }));
+    recentRing.items = rows.reverse().map((row) => {
+      const meta = typeof row.meta === "string" ? parseJson(row.meta, {}) : (row.meta || {});
+      return {
+        timestamp: row.timestamp,
+        provider: row.provider,
+        model: row.model,
+        connectionId: row.connection_id,
+        apiKey: row.api_key,
+        endpoint: row.endpoint,
+        cost: row.cost,
+        status: row.status,
+        tokens: row.tokens ?? {},
+        meta,
+        error: meta.error || null,
+      };
+    });
   } catch {}
 }
 
@@ -292,6 +297,7 @@ export async function getActiveRequests() {
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
         status: entry.status || "ok",
+        error: entry.error || meta.error || null,
       };
     })
     .filter((entry) => {
@@ -309,12 +315,15 @@ export async function getActiveRequests() {
   return { activeRequests, recentRequests, errorProvider };
 }
 
-export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream }) {
+export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error }) {
   try {
     const db = await getAdapter();
     const ts = new Date().toISOString();
     const status = `error_${errorStatus || 502}`;
     const isStreamBool = Boolean(isStream);
+    const errorMsg = typeof error === "string"
+      ? error
+      : (error ? (error.message || (typeof error === "object" ? JSON.stringify(error) : String(error))) : null);
 
     await db.run(
       `INSERT INTO usage_history
@@ -328,7 +337,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
         apiKey || null,
         endpoint || null,
         status,
-        JSON.stringify({ isStream: isStreamBool, failed: true }),
+        JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg }),
       ],
     );
 
@@ -382,8 +391,9 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       cost: 0,
       status,
       tokens: {},
-      meta: { isStream: isStreamBool, failed: true },
+      meta: { isStream: isStreamBool, failed: true, error: errorMsg },
       isStream: isStreamBool,
+      error: errorMsg,
     });
     scheduleStatsEvent("update", 250);
   } catch (_) { /* fail-open */ }
@@ -704,6 +714,7 @@ export async function getUsageStats(period = "all") {
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
         cachedTokens: tokens.cached_tokens || tokens.cache_read_input_tokens || 0,
         status: row.status || "ok",
+        error: meta.error || null,
       };
     })
     .filter((entry) => {

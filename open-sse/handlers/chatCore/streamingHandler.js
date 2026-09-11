@@ -70,7 +70,17 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     if (log?.errorLine) log.errorLine(reqTag, "✗", `BLOCKED ${status} · ${provider}/${model} · non-SSE (${upstreamContentType})\n    ${shortMsg}`);
     else console.warn(`[STREAM] ${provider} | ${model} | blocked pipe: ${shortMsg} [${status}]`);
     streamController?.handleError?.(new Error(`upstream non-SSE: ${status}`));
-    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: true }).catch(() => { });
+    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: true, error: shortMsg }).catch(() => { });
+    saveRequestDetail(buildRequestDetail({
+      provider, model, connectionId,
+      latency: { ttft: 0, total: Date.now() - requestStartTime },
+      tokens: { prompt_tokens: 0, completion_tokens: 0 },
+      request: extractRequestConfig(body, stream),
+      providerRequest: finalBody || translatedBody || null,
+      response: { error: shortMsg, status, thinking: null },
+      pxpipe,
+      status: "error"
+    })).catch(() => { });
     return {
       success: false,
       response: new Response(JSON.stringify({ error: { message: `[${status} · ${provider}/${model}]: ${shortMsg}` } }), {
