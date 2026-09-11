@@ -174,4 +174,47 @@ describe("Antigravity executor", () => {
     const hasResp = contents[2].parts.some(p => p.functionResponse && p.functionResponse.name === "terminal");
     expect(hasResp).toBe(true);
   });
+
+  it("ensures parallel tool calls with missing responses are sanitized without crashing Gemini", () => {
+    const out = openaiToAntigravityRequest("claude-sonnet-4-6", {
+      messages: [
+        { role: "user", content: "hello" },
+        {
+          role: "assistant",
+          tool_calls: [
+            { id: "call_a", type: "function", function: { name: "read_file", arguments: "{}" } },
+            { id: "call_b", type: "function", function: { name: "terminal", arguments: "{}" } },
+          ]
+        },
+        { role: "tool", tool_call_id: "call_a", content: "file content" },
+        // call_b is missing response, followed by another assistant turn!
+        {
+          role: "assistant",
+          tool_calls: [
+            { id: "call_c", type: "function", function: { name: "search_files", arguments: "{}" } }
+          ]
+        },
+        { role: "tool", tool_call_id: "call_c", content: "search result" },
+      ],
+    }, true, { projectId: "project-1", connectionId: "conn-1" });
+
+    const exec = new AntigravityExecutor();
+    const transformed = exec.transformRequest("claude-sonnet-4-6", out, true, { projectId: "project-1", connectionId: "conn-1" });
+    const contents = transformed.request.contents;
+
+    // Verify all model functionCalls are followed immediately by user functionResponses
+    for (let i = 0; i < contents.length; i++) {
+      const c = contents[i];
+      if (c.role === "model" && c.parts.some(p => p.functionCall)) {
+        const next = contents[i + 1];
+        expect(next).toBeDefined();
+        expect(next.role).toBe("user");
+        const callNames = c.parts.filter(p => p.functionCall).map(p => p.functionCall.name);
+        const respNames = next.parts.filter(p => p.functionResponse).map(p => p.functionResponse.name);
+        for (const name of callNames) {
+          expect(respNames).toContain(name);
+        }
+      }
+    }
+  });
 });

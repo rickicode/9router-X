@@ -64,6 +64,26 @@ const COOLDOWN = {
  *   - lockAll: true = account-level lock (all models on this account locked)
  */
 export const ERROR_RULES = [
+  // Gemini / Antigravity executor upstream errors (trigger combo fallback)
+  {
+    text: "invalid gemini function call history",
+    cooldownMs: 0,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "functioncall appears before",
+    cooldownMs: 0,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "antigravity executor:",
+    cooldownMs: 0,
+    lockAll: false,
+    shouldFallback: true,
+  },
+
   // --- Text-based rules (checked first, order = priority) ---
   // Content filter / safety review errors (do NOT lock account or model)
   {

@@ -449,4 +449,125 @@ export function normalizeGeminiContents(contents) {
   return out;
 }
 
+/**
+ * Sanitize Gemini contents history to strictly enforce function calling rules:
+ * - Every functionCall in a model turn must be followed by functionResponse in the next user turn
+ * - No functionCall can appear before all previous functionCalls have been answered
+ * - Missing/orphaned tool calls get synthesized mock responses so Gemini API doesn't reject with 400
+ */
+export function sanitizeGeminiFunctionCallHistory(contents) {
+  if (!Array.isArray(contents) || contents.length === 0) return contents;
+
+  const normalized = normalizeGeminiContents(contents);
+  const out = [];
+  let pendingCalls = []; // { id, name }
+
+  for (let i = 0; i < normalized.length; i++) {
+    const c = normalized[i];
+    const role = c.role;
+    const parts = Array.isArray(c.parts) ? [...c.parts] : [];
+
+    if (role === "model") {
+      // If previous model turn had functionCall parts that were never answered,
+      // Gemini strictly forbids another functionCall or model turn before they are answered.
+      if (pendingCalls.length > 0) {
+        const mockResponses = pendingCalls.map((pc) => ({
+          functionResponse: {
+            id: pc.id,
+            name: pc.name,
+            response: { result: "Done" },
+          },
+        }));
+        const last = out.at(-1);
+        if (last && last.role === "user") {
+          last.parts.push(...mockResponses);
+        } else {
+          out.push({ role: "user", parts: mockResponses });
+        }
+        pendingCalls = [];
+      }
+
+      // Collect any functionCalls in this model turn
+      const currentCalls = [];
+      for (const p of parts) {
+        if (p.functionCall) {
+          currentCalls.push({
+            id: p.functionCall.id || `call_${p.functionCall.name}`,
+            name: p.functionCall.name,
+          });
+        }
+      }
+      if (currentCalls.length > 0) {
+        pendingCalls = currentCalls;
+      }
+
+      out.push({ ...c, parts });
+    } else if (role === "user") {
+      if (pendingCalls.length > 0) {
+        const answeredCalls = new Set();
+        const validParts = [];
+        for (const p of parts) {
+          if (p.functionResponse) {
+            const id = p.functionResponse.id;
+            const name = p.functionResponse.name;
+            const matchesPending = pendingCalls.some(pc => (id && pc.id === id) || (name && pc.name === name));
+            if (matchesPending) {
+              if (id) answeredCalls.add(id);
+              if (name) answeredCalls.add(name);
+              validParts.push(p);
+            } else {
+              validParts.push({ text: typeof p.functionResponse.response === "string" ? p.functionResponse.response : JSON.stringify(p.functionResponse.response || "") });
+            }
+          } else {
+            validParts.push(p);
+          }
+        }
+
+        const missing = pendingCalls.filter(pc => !answeredCalls.has(pc.id) && !answeredCalls.has(pc.name));
+        for (const m of missing) {
+          validParts.push({
+            functionResponse: {
+              id: m.id,
+              name: m.name,
+              response: { result: "Done" },
+            },
+          });
+        }
+
+        pendingCalls = [];
+        out.push({ ...c, parts: validParts });
+      } else {
+        const validParts = parts.map(p => {
+          if (p.functionResponse) {
+            return { text: typeof p.functionResponse.response === "string" ? p.functionResponse.response : JSON.stringify(p.functionResponse.response || "") };
+          }
+          return p;
+        });
+        out.push({ ...c, parts: validParts });
+      }
+    } else {
+      out.push({ ...c, parts });
+    }
+  }
+
+  if (pendingCalls.length > 0) {
+    const mockResponses = pendingCalls.map((pc) => ({
+      functionResponse: {
+        id: pc.id,
+        name: pc.name,
+        response: { result: "Done" },
+      },
+    }));
+    const last = out.at(-1);
+    if (last && last.role === "user") {
+      last.parts.push(...mockResponses);
+    } else {
+      out.push({ role: "user", parts: mockResponses });
+    }
+  }
+
+  return normalizeGeminiContents(out);
+}
+
+
 

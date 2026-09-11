@@ -16,7 +16,8 @@ import {
   generateSessionId,
   generateProjectId,
   cleanJSONSchemaForAntigravity,
-  normalizeGeminiContents
+  normalizeGeminiContents,
+  sanitizeGeminiFunctionCallHistory
 } from "../formats/gemini.js";
 import { deriveSessionId, toNumericSessionId } from "../../utils/sessionManager.js";
 import { ROLE, GEMINI_ROLE, OPENAI_BLOCK, CLAUDE_BLOCK } from "../schema/index.js";
@@ -228,7 +229,7 @@ function openaiToGeminiBase(model, body, stream, signature = DEFAULT_THINKING_AG
     }
   }
 
-  result.contents = normalizeGeminiContents(result.contents);
+  result.contents = sanitizeGeminiFunctionCallHistory(result.contents);
   return result;
 }
 
@@ -424,7 +425,7 @@ function wrapInCloudCodeEnvelopeForClaude(model, claudeRequest, credentials = nu
     envelope.request.systemInstruction = { role: GEMINI_ROLE.USER, parts: systemParts };
   }
 
-  envelope.request.contents = normalizeGeminiContents(envelope.request.contents);
+  envelope.request.contents = sanitizeGeminiFunctionCallHistory(envelope.request.contents);
   return envelope;
 }
 
