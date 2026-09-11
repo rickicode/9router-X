@@ -129,9 +129,11 @@ export function extractQuotaResetMs(bodyText, response) {
       }
     } catch {}
 
-    // 3. Fallback regex on string message (e.g. "Resets in 166h22m46s" or "resets in 2 hours")
+    // 3. Fallback regex on string message (e.g. "Resets in 166h22m46s",
+    // "resets in 2 hours", or Cline "Try again in 8h 26m" — note the space
+    // between unit components, which the h/m/s groups must tolerate).
     if (!resetsAtMs) {
-      const compoundMatch = String(bodyText).match(/resets?\s+in\s+(\d+)h(?:(\d+)m)?(?:(\d+)s)?/i);
+      const compoundMatch = String(bodyText).match(/(?:resets?|try again)\s+in\s+(\d+)h\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i);
       if (compoundMatch) {
         const h = parseInt(compoundMatch[1] || "0", 10);
         const min = parseInt(compoundMatch[2] || "0", 10);
@@ -142,7 +144,7 @@ export function extractQuotaResetMs(bodyText, response) {
     }
 
     if (!resetsAtMs) {
-      const resetInMatch = String(bodyText).match(/resets?\s+in\s+(\d+)\s*(hour|h|min|m|s|second)/i);
+      const resetInMatch = String(bodyText).match(/(?:resets?|try again)\s+in\s+(\d+)\s*(hour|h|min|m|s|second)/i);
       if (resetInMatch) {
         const n = parseInt(resetInMatch[1], 10);
         const unit = resetInMatch[2].toLowerCase();
