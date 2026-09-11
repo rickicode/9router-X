@@ -172,7 +172,11 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
       if (!out.reasoning.summary) out.reasoning.summary = "auto";
     }
     delete out.reasoning_effort;
-    out.stream = true;
+    // The Zen Responses endpoint supports both JSON and SSE. Do not force
+    // non-streaming chat requests through the SSE converter: that path can
+    // lose the final response.output message when the upstream returns a
+    // completed JSON response. Preserve the client's requested mode.
+    out.stream = stream === true;
     out.store = false;
     normalizeResponsesTools(out);
     sanitizeResponsesItems(out);

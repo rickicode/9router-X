@@ -81,6 +81,27 @@ describe("OpenCode Zen executor", () => {
     expect(headers["Authorization"]).toBe("Bearer test-key");
   });
 
+  it("preserves non-streaming mode for Muse Spark Responses requests", () => {
+    const executor = getExecutor("opencode-zen");
+    const body = {
+      model: "muse-spark-1.2-contributor-free",
+      messages: [{ role: "user", content: "Reply with exactly OK" }],
+      max_tokens: 256,
+      stream: false,
+    };
+
+    const transformed = executor.transformRequest(
+      "muse-spark-1.2-contributor-free",
+      body,
+      false,
+      { connectionId: "zen-test", rawHeaders: {} },
+    );
+
+    expect(transformed.stream).toBe(false);
+    expect(transformed.max_output_tokens).toBe(256);
+    expect(transformed.max_tokens).toBeUndefined();
+  });
+
   it("routes Muse Spark and responses models to /zen/v1/responses", () => {
     const executor = getExecutor("opencode-zen");
     expect(executor.buildUrl("muse-spark-1.3")).toBe("https://opencode.ai/zen/v1/responses");
