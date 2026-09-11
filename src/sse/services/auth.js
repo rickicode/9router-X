@@ -1,10 +1,11 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
+import { getUsageSnapshotByConnectionId } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import * as localDb from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
-import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted } from "./antigravityQuota.js";
+import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted } from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
@@ -21,6 +22,7 @@ import * as log from "../utils/logger.js";
 
 // Per-provider mutex map to prevent race conditions during account selection without blocking unrelated providers
 const selectionMutexes = new Map();
+const ANTIGRAVITY_MODEL_LOCK_MS = 24 * 60 * 60 * 1000;
 
 const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
 
@@ -146,7 +148,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
   // Resolve alias to provider ID (e.g., "kc" -> "kilocode")
   const providerId = resolveProviderId(provider);
-
   // Per-provider mutex: concurrency for different providers remains non-blocking
   const currentMutex = selectionMutexes.get(providerId) || Promise.resolve();
   let resolveMutex;
@@ -248,7 +249,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
     // RAM quota state is process-local. Hydrate it from PostgreSQL so a
     // restart or a second replica cannot route into an already exhausted account.
-    if (isAntigravity && model && antigravityQuotaCache) {
+     if (isAntigravity && model && antigravityQuotaCache) {
       let snapshots = [];
       try {
         const getSnapshots = localDb.getBatchProviderQuotas;
@@ -259,17 +260,17 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         // Test/minimal adapters may not expose snapshot reads; RAM remains a
         // safe fallback for that process.
       }
-      for (const snapshot of snapshots) {
-        if (snapshot?.connectionId && snapshot.quotas) {
-          hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
-        }
-      }
+       for (const snapshot of snapshots) {
+         if (snapshot?.connectionId && snapshot.quotas) {
+           hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
+         }
+       }
       // Materialize the durable account state once all tracked model/family
       // buckets are exhausted. This prevents every replica from rediscovering
       // the same account through a stale active connection row.
-      // Do not reconcile thousands of quota snapshots in the request path.
-      // Exhaustion is persisted when the provider error is handled; this path
-      // only uses the snapshot as a read-side routing hint.
+       // Snapshot rows are the durable source of truth after a restart. They
+       // are used below as a routing hint; status writes happen on the error
+       // path, not in this hot query.
     }
 
     // Do not wait for the asynchronous DB materialization above. The current
@@ -400,7 +401,13 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     if (availableConnections.length === 0) {
       // A cached connection list may be stale. Re-read all rows before
       // classifying the failure so Redis cannot hide exhausted/disabled state.
-      const stateConnections = await getProviderConnections({ provider: providerId, isActive: true, limit: 500 });
+      const stateConnections = await getProviderConnections({ provider: providerId, limit: 500 });
+      if (isAntigravity && model) {
+        const agSnapshots = await localDb.getBatchProviderQuotas(providerId).catch(() => []);
+        for (const snapshot of agSnapshots) {
+          if (snapshot?.connectionId && snapshot.quotas) hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
+        }
+      }
       // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
       const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c, model)).filter(Boolean);
@@ -805,6 +812,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // or error message explicitly references the model or model restriction) must
   // NEVER lock the entire account — only lock the specific model!
   const lowerErr = String(errorText || "").toLowerCase();
+  const opencodeZenCredentialInvalid = providerId === "opencode-zen"
+    && /invalid[_ ](?:api[_ ]key|token|credential)|api key[^\n]{0,40}invalid|invalid[^\n]{0,40}api key|revoked|invalid_grant|unauthenticated/i.test(lowerErr);
+  const opencodeZenModelOnlyError = providerId === "opencode-zen" && !opencodeZenCredentialInvalid;
   const modelShortName = model ? (model.split("/").pop() || "").toLowerCase() : "";
   const isModelSpecificRestriction = Boolean(
     model &&
@@ -817,6 +827,34 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     )
   );
 
+  // OpenCode Zen must keep the API-key connection routable for free models.
+  // Its paid-model billing/entitlement failures are model-scoped, even when
+  // the upstream uses HTTP 401. Only an explicitly invalid/revoked key may
+  // disable the connection.
+  if (opencodeZenModelOnlyError) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  }
+
+  const isQuotaExhausted = /resource_exhausted|quota_exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
+  if (providerId === "antigravity" && isQuotaExhausted && model) {
+    // A model quota error is always a durable model lock, even when the
+    // upstream was wrapped in HTTP 502 or the generic fallback classifier
+    // treated it as a transient 5xx.
+    lockAll = false;
+    shouldFallback = true;
+    isExhausted = isAntigravityAccountQuotaExhausted(connectionId);
+    newBackoffLevel = 0;
+    cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  }
+
   if (isModelSpecificRestriction && status !== 429) {
     lockAll = false;
     disableAccount = false;
@@ -828,14 +866,38 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     const agQuota409 = /quota|capacity|resource exhausted|exhausted|rate.?limit|try again/i.test(lowerErr);
     if (agQuota409 || (resetsAtMs && resetsAtMs > Date.now())) {
       shouldFallback = true;
-      cooldownMs = Math.max(1000, resetsAtMs ? resetsAtMs - Date.now() : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+      cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs ? resetsAtMs - Date.now() : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
       lockAll = false;
     }
   }
 
+  // A quota snapshot can prove account-wide exhaustion even when the current
+  // error names only one model. Re-read the hydrated snapshot after handling
+  // the upstream signal so the durable connection status reflects reality.
+  const durableSnapshot = providerId === "antigravity"
+    ? await getUsageSnapshotByConnectionId(connectionId).catch(() => null)
+    : null;
+  if (providerId === "antigravity" && (isAntigravityAccountQuotaExhausted(connectionId) || isAntigravityQuotaMapExhausted(durableSnapshot?.quotas))) {
+    lockAll = true;
+    isExhausted = true;
+    shouldFallback = true;
+    cooldownMs = Math.max(1000, resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  }
+
+  // A positive quota snapshot cannot prove that an arbitrary requested model
+  // is usable. A quota/capacity error for that model is therefore always a
+  // durable 24-hour model lock, while account-wide exhaustion remains distinct.
+  if (providerId === "antigravity" && isQuotaExhausted && model && !isExhausted) {
+    lockAll = false;
+    shouldFallback = true;
+    cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, cooldownMs || 0);
+  }
+
 
   // Fatal auth/account failure: permanently disable connection from routing
-  if (disableAccount || isFatalAuthError(status, errorText)) {
+  if ((disableAccount || isFatalAuthError(status, errorText)) && !opencodeZenModelOnlyError) {
     const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
     const validationData = extractValidationUrl(reason);
     await updateProviderConnection(connectionId, {
@@ -873,6 +935,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     return { shouldFallback: true, cooldownMs: 0 };
   }
 
+  // OpenCode Zen uses 401 for workspace billing/model-entitlement failures.
+  // These must not disable the API key: free models on the same account can
+  // remain usable. Store a model-specific cooldown instead.
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
   const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Provider error");
