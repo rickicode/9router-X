@@ -85,4 +85,30 @@ describe("OpenCode Zen executor", () => {
     expect(executor.buildUrl("muse-spark-1.3")).toBe("https://opencode.ai/zen/v1/responses");
     expect(executor.buildUrl("gpt-5.6-luna")).toBe("https://opencode.ai/zen/v1/responses");
   });
+
+  it("defaults Muse Spark reasoning to low for small output budgets", () => {
+    const executor = getExecutor("opencode");
+    const body = { model: "muse-spark-1.3-contributor-free", max_tokens: 16 };
+
+    executor.transformRequest("muse-spark-1.3-contributor-free", body, false, {
+      connectionId: "opencode-free-test",
+      rawHeaders: {},
+    });
+
+    expect(body.reasoning).toMatchObject({ effort: "low", summary: "auto" });
+    expect(body.max_output_tokens).toBe(16);
+    expect(body.max_tokens).toBeUndefined();
+  });
+
+  it("preserves an explicitly requested reasoning level", () => {
+    const executor = getExecutor("opencode");
+    const body = { model: "muse-spark-1.3-contributor-free", max_tokens: 64, reasoning_effort: "high" };
+
+    executor.transformRequest("muse-spark-1.3-contributor-free", body, false, {
+      connectionId: "opencode-free-test",
+      rawHeaders: {},
+    });
+
+    expect(body.reasoning).toMatchObject({ effort: "high", summary: "auto" });
+  });
 });

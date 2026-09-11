@@ -50,7 +50,13 @@ function normalizeOpencodeReasoning(model, body) {
   const requestedEffort = typeof body.reasoning_effort === "string"
     ? body.reasoning_effort
     : currentReasoning?.effort;
-  if (typeof requestedEffort !== "string") return;
+  if (typeof requestedEffort !== "string") {
+    // Muse Spark always spends part of the output budget on reasoning. The
+    // upstream default is high, so small max_tokens requests may finish with
+    // no output text. Use the lowest valid effort unless the client opts in.
+    body.reasoning = { ...currentReasoning, effort: "low", summary: "auto" };
+    return;
+  }
 
   const cleanModel = baseModelId(model || body.model);
   const supportedLevels = getThinkingLevels("opencode", cleanModel);
