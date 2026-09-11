@@ -87,6 +87,12 @@ export const ERROR_RULES = [
   // --- Text-based rules (checked first, order = priority) ---
   // Content filter / safety review errors (do NOT lock account or model)
   {
+    text: "empty response content",
+    cooldownMs: 60 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
     text: "did not pass the safety review",
     cooldownMs: 0,
     lockAll: false,
