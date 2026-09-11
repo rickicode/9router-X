@@ -10,6 +10,10 @@ const ICON_ALIASES = {
   "orca": "orcarouter",
   "th": "tokenharbor",
   "tharbor": "tokenharbor",
+  "opencode-zen": "opencode",
+  "opencode-go": "opencode",
+  "zen": "opencode",
+  "ocz": "opencode",
 };
 
 // Runtime only — first 404 remembers id for the whole session

@@ -126,6 +126,7 @@ import p123 from "./unikey.js";
 import p124 from "./cline-free.js";
 import p125 from "./orcarouter.js";
 import p126 from "./tokenharbor.js";
+import p127 from "./opencode-zen.js";
 export default [
   p0,
   p1,
@@ -254,4 +255,5 @@ export default [
   p124,
   p125,
   p126,
+  p127,
 ];
