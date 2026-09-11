@@ -89,12 +89,22 @@ function modelSatisfies(modelStr, requiredHard) {
 // original models follow as fallback. Leaves `models` untouched when the
 // original list already covers it (combo.js's reorderByCapabilities handles
 // that case via autoSwitch).
-export function augmentModelsWithCapacityAdapter(models, requiredCapabilities, settings) {
+export function augmentModelsWithCapacityAdapter(models, requiredCapabilities, settings, options = {}) {
   const hard = [...(requiredCapabilities || [])].filter((c) => HARD_CAPS.has(c));
   if (hard.length === 0 || !Array.isArray(models) || models.length === 0) return models;
   if (models.some((m) => modelSatisfies(m, hard))) return models;
 
-  const pool = getCapacityAdapterModels(settings).filter((m) => !models.includes(m) && modelSatisfies(m, hard));
+  // Capacity adapters must stay inside the provider ecosystem selected by the
+  // request. A global pool used to prepend Cline/OpenCode candidates to an
+  // Antigravity-only combo when capability metadata was incomplete, causing
+  // unexpected upstream calls and misleading usage.
+  const allowedProviders = options.allowedProviders instanceof Set
+    ? options.allowedProviders
+    : new Set(models.map((m) => String(m).split("/", 1)[0]).filter(Boolean));
+  const pool = getCapacityAdapterModels(settings).filter((m) => {
+    const provider = String(m).split("/", 1)[0];
+    return allowedProviders.has(provider) && !models.includes(m) && modelSatisfies(m, hard);
+  });
   if (pool.length === 0) return models;
   return [...pool, ...models];
 }

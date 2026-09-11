@@ -46,7 +46,11 @@ async function getInternalHeaders() {
     apiKey = keys.find((k) => k.isActive !== false)?.key || null;
   } catch {}
 
-  const headers = { "Content-Type": "application/json" };
+  const headers = {
+    "Content-Type": "application/json",
+    // Probes use the gateway pipeline but must not pollute production usage.
+    "x-9router-test-request": "1",
+  };
   if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
   headers["x-9r-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
   return headers;

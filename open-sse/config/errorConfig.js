@@ -40,6 +40,7 @@ export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 
 // Hard cap for provider-reported rate limit cooldown (defaults to 7 days for long upstream reset windows)
 export const MAX_RATE_LIMIT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

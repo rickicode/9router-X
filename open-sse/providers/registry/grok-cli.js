@@ -61,7 +61,7 @@ export default {
       userUrl: `${GROK_CLI_BASE_URL}/user?include=subscription`,
     },
     retry: {
-      429: { attempts: 2, delayMs: 2000 },
+      429: { attempts: 0, delayMs: 0 },
       502: { attempts: 2, delayMs: 1500 },
       503: { attempts: 2, delayMs: 1500 },
     },

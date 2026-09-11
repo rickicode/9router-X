@@ -46,15 +46,14 @@ describe("BaseExecutor.execute — retry by status (config-driven)", () => {
 });
 
 describe("BaseExecutor.execute — baseUrls fallback", () => {
-  it("falls over to the next url on 429 (shouldRetry)", async () => {
+  it("does not retry another base URL on 429", async () => {
     const ex = makeExec({ baseUrls: ["https://a/api", "https://b/api"], retry: { 429: { attempts: 0 } } });
     fetchMock
-      .mockResolvedValueOnce(res(429)) // url[0] → fallback
-      .mockResolvedValueOnce(res(200)); // url[1] ok
+      .mockResolvedValueOnce(res(429));
     const out = await ex.execute({ model: "m", body: {}, stream: false, credentials: creds });
-    expect(out.response.status).toBe(200);
-    expect(out.url).toBe("https://b/api");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(out.response.status).toBe(429);
+    expect(out.url).toBe("https://a/api");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

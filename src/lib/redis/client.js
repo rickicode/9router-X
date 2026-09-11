@@ -121,7 +121,7 @@ export async function isModelInCooldown(connId, model) {
  */
 export async function getBatchCooldowns(connIds, model = null) {
   if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) {
-    return new Set();
+    return { ids: new Set(), healthy: false };
   }
   try {
     const keys = [];
@@ -146,9 +146,9 @@ export async function getBatchCooldowns(connIds, model = null) {
       }
     }
 
-    return cooledDown;
+    return { ids: cooledDown, healthy: true };
   } catch {
-    return new Set();
+    return { ids: new Set(), healthy: false };
   }
 }
 
@@ -190,12 +190,12 @@ export async function invalidateCachedConnections(provider) {
  * Distributed Lock (Anti-Race Condition for OAuth Token Refresh)
  */
 export async function acquireLock(key, ttlSeconds = 30) {
-  if (!isRedisAvailable()) return true; // Fail-open gracefully
+  if (!isRedisAvailable()) return false;
   try {
     const result = await redis.set(`lock:${key}`, "1", "EX", ttlSeconds, "NX");
     return result === "OK";
   } catch {
-    return true;
+    return false;
   }
 }
 

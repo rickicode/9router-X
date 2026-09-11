@@ -403,6 +403,10 @@ function buildConnectionFilterConditions(filter, params) {
     params.push(filter.authType);
     where.push(`auth_type = $${params.length}`);
   }
+  if (filter.tokenExpiresBefore) {
+    params.push(filter.tokenExpiresBefore);
+    where.push(`token_expires_at IS NOT NULL AND token_expires_at <= $${params.length}`);
+  }
   if (filter.isActive !== undefined) {
     params.push(filter.isActive);
     where.push(filter.isActive
@@ -413,7 +417,7 @@ function buildConnectionFilterConditions(filter, params) {
     params.push(`%${filter.search.trim()}%`);
     where.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length})`);
   }
-  if (filter.status) {
+  if (filter.status && !filter.routingModel) {
     if (filter.status === "active") {
       where.push(ACTIVE_CONNECTION_SQL);
     } else if (filter.status === "exhausted") {
@@ -423,6 +427,25 @@ function buildConnectionFilterConditions(filter, params) {
     } else if (filter.status === "disabled") {
       where.push(`(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
     }
+  }
+  // Routing uses a model-specific durable eligibility predicate. Do not use
+  // status=active here: that status intentionally excludes an account when
+  // any other model is locked, while routing must only exclude this model.
+  if (filter.routingModel) {
+    params.push(filter.routingModel);
+    where.push(`(
+      NOT ${FUTURE_ACCOUNT_LOCK_SQL}
+      AND (
+        model_locks IS NULL
+        OR jsonb_typeof(model_locks) <> 'object'
+        OR model_locks->>$${params.length} IS NULL
+        OR COALESCE(${safeTimestampSql(`model_locks->>$${params.length}`)}, '-infinity'::timestamptz) <= NOW()
+      )
+    )`);
+  }
+  if (Array.isArray(filter.excludeIds) && filter.excludeIds.length > 0) {
+    params.push(filter.excludeIds.filter(Boolean));
+    where.push(`id <> ALL($${params.length}::text[])`);
   }
   return where;
 }
@@ -445,7 +468,9 @@ export async function getProviderConnections(filter = {}) {
   const distinctClause = filter.distinctByProvider ? "DISTINCT ON (provider)" : "";
   const orderClause = filter.distinctByProvider
     ? "ORDER BY provider, is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
-    : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST";
+    : (filter.tokenExpiresBefore
+      ? "ORDER BY token_expires_at ASC NULLS FIRST, id ASC"
+      : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST");
 
   const rows = await db.all(
     `SELECT ${distinctClause} id, provider, auth_type, name, email, priority, is_active, test_status,
@@ -732,24 +757,26 @@ export async function getClientUsageMeta({
   };
 }
 
-export async function getAvailableAccountsForRouting({ provider, model, limit = 5 }) {
+export async function getAvailableAccountsForRouting({ provider, model, limit = 100, offset = 0, excludeIds = [] }) {
   const db = await getAdapter();
+  const excluded = Array.isArray(excludeIds) ? excludeIds.filter(Boolean) : [];
   const rows = await db.all(
     `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
             locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
             token_expires_at, last_used_at, model_locks, last_error, error_code,
             last_error_at, data, created_at, updated_at
        FROM provider_connections
-      WHERE provider = $1 AND ${ROUTABLE_CONNECTION_SQL}
+       WHERE provider = $1 AND ${ROUTABLE_CONNECTION_SQL}
+         AND (cardinality($4::text[]) = 0 OR id <> ALL($4::text[]))
         AND (
           $2::text IS NULL
           OR model_locks->>$2 IS NULL
           OR ${safeTimestampSql('model_locks->>$2')} IS NULL
           OR ${safeTimestampSql('model_locks->>$2')} <= NOW()
         )
-      ORDER BY priority ASC, last_used_at ASC NULLS FIRST
-      LIMIT $3`,
-    [provider, model ?? null, limit],
+       ORDER BY priority ASC NULLS LAST, last_used_at ASC NULLS FIRST, id ASC
+       LIMIT $3 OFFSET $5`,
+    [provider, model ?? null, Math.min(Math.max(Number(limit) || 100, 1), 1000), excluded, Math.max(Number(offset) || 0, 0)],
   );
   return rows.map(rowToConnection);
 }
@@ -1037,7 +1064,7 @@ export async function unlockAccountModel(connectionId) {
 export async function deleteProviderConnectionsByProvider(provider) {
   const db = await getAdapter();
   return db.transaction(async (tx) => {
-    const result = await db.run(`DELETE FROM provider_connections WHERE provider = $1`, [provider]);
+    const result = await tx.run(`DELETE FROM provider_connections WHERE provider = $1`, [provider]);
     invalidateCachedConnections(provider).catch(() => {});
     return Number(result?.changes ?? 0);
   });

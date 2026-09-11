@@ -48,7 +48,7 @@ export default {
       "User-Agent": "ai-sdk/openai-compatible/1.0/codebuff",
     },
     retry: {
-      429: { attempts: 2, delayMs: 2000 },
+      429: { attempts: 0, delayMs: 0 },
       503: { attempts: 2, delayMs: 1500 },
     },
     // Session endpoint doubles as the quota API: GET /api/v1/freebuff/session

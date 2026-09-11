@@ -76,6 +76,30 @@ export function getAntigravityQuotaCache() {
   return quotaCache;
 }
 
+export function hydrateAntigravityQuotaCache(connectionId, quotas) {
+  if (!connectionId || !quotas || typeof quotas !== "object") return;
+  quotaCache.set(connectionId, applyActiveStrikeBlocks(connectionId, { ...quotas }));
+}
+
+/**
+ * Return the persisted/in-process quota snapshot for routing decisions.
+ * A model is account-exhausted when every non-image quota bucket is empty and
+ * has a future reset. This is intentionally conservative: one healthy model
+ * keeps the account active so it can still serve that model.
+ */
+export function isAntigravityAccountQuotaExhausted(connectionId) {
+  const quotas = quotaCache.get(connectionId);
+  if (!quotas) return false;
+  const entries = Object.entries(quotas).filter(([key, quota]) =>
+    quota && !/image/i.test(key) && typeof quota.remainingPercentage === "number"
+  );
+  if (entries.length === 0) return false;
+  const now = Date.now();
+  return entries.every(([, quota]) =>
+    quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > now
+  );
+}
+
 /**
  * Refresh quota for a single antigravity connection from upstream API.
  * Updates in-memory cache only. Cache expiry is the upstream model resetAt.
@@ -158,7 +182,7 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       quotas: finalQuotas,
     }).catch(() => {});
 
-    return usage.quotas;
+    return finalQuotas;
   } catch (e) {
     log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | refresh failed: ${e.message}`);
     return null;
@@ -227,6 +251,8 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
 export function clearAntigravityConnectionCache(connectionId) {
   if (!connectionId) return;
   quotaCache.delete(connectionId);
+  lastRefreshAt.delete(connectionId);
+  inflightRefresh.delete(connectionId);
   for (const key of strikeCounts.keys()) {
     if (key.startsWith(`${connectionId}|`)) strikeCounts.delete(key);
   }

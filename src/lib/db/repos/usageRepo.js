@@ -505,11 +505,14 @@ export async function getUsageHistory(filter = {}) {
   if (filter.startDate) add("timestamp >= ?", new Date(filter.startDate).toISOString());
   if (filter.endDate) add("timestamp <= ?", new Date(filter.endDate).toISOString());
 
+  const limit = Math.min(Math.max(Number(filter.limit) || 100, 1), 500);
+  const offset = Math.max(Number(filter.offset) || 0, 0);
+
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const rows = await db.all(
     `SELECT timestamp, provider, model, connection_id, api_key, endpoint, cost, status, tokens
-     FROM usage_history ${where} ORDER BY id ASC`,
-    params,
+     FROM usage_history ${where} ORDER BY timestamp DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset],
   );
 
   return rows.map((r) => ({
@@ -614,7 +617,11 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     normalizedByModel[`${rawModel} (${provider})`] = {
       ...value,
       rawModel,
-      provider: displayProvider,
+      // Provider IDs are routing identity. Never replace them with a mutable
+      // display label such as a provider node named "Cline".
+      provider,
+      providerId: provider,
+      providerName: displayProvider,
     };
   }
   stats.byModel = normalizedByModel;
@@ -627,7 +634,9 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     normalizedByAccount[`${rawModel} (${provider} - ${accountName})`] = {
       ...value,
       rawModel,
-      provider: providerNodeNameMap[provider] || provider,
+      provider,
+      providerId: provider,
+      providerName: providerNodeNameMap[provider] || provider,
       connectionId,
       accountName,
     };
@@ -642,7 +651,9 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     normalizedByApiKey[key] = {
       ...value,
       rawModel: value.rawModel || rawModel,
-      provider: providerNodeNameMap[provider] || provider,
+      provider,
+      providerId: provider,
+      providerName: providerNodeNameMap[provider] || provider,
       apiKeyMasked: value.apiKeyMasked || (rawApiKey === "local-no-key" ? null : maskApiKey(rawApiKey)),
       keyName: value.keyName || apiKeyInfo?.name || (rawApiKey === "local-no-key" ? "Local (No API Key)" : `${rawApiKey.slice(0, 8)}...`),
       apiKeyKey: value.apiKeyKey || (rawApiKey === "local-no-key" ? rawApiKey : maskApiKey(rawApiKey)),
@@ -658,7 +669,9 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       ...value,
       endpoint: value.endpoint || endpoint,
       rawModel: value.rawModel || rawModel,
-      provider: providerNodeNameMap[provider] || provider,
+      provider,
+      providerId: provider,
+      providerName: providerNodeNameMap[provider] || provider,
     };
   }
   stats.byEndpoint = normalizedByEndpoint;

@@ -81,7 +81,10 @@ export class BaseExecutor {
   }
 
   shouldRetry(status, urlIndex) {
-    return status === HTTP_STATUS.RATE_LIMITED && urlIndex + 1 < this.getFallbackCount();
+    // A 429 is an account/model quota signal, not a transport failure. Never
+    // retry another base URL here: doing so calls the same provider again
+    // before the account-fallback layer can persist its cooldown.
+    return false;
   }
 
   // Override in subclass for provider-specific refresh

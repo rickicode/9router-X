@@ -11,7 +11,7 @@ import { PROVIDERS } from "../config/providers.js";
 import { createErrorResult, parseUpstreamError, formatProviderError } from "../utils/error.js";
 import { HTTP_STATUS, TOKEN_SAVER_HEADER } from "../config/runtimeConfig.js";
 import { handleBypassRequest } from "../utils/bypassHandler.js";
-import { trackPendingRequest, appendRequestLog, saveRequestDetail, saveFailedRequest } from "@/lib/usageDb.js";
+import { trackPendingRequest as persistPendingRequest, appendRequestLog as persistRequestLog, saveRequestDetail as persistRequestDetail, saveFailedRequest as persistFailedRequest } from "@/lib/usageDb.js";
 import { observeChatAttempt } from "@/lib/observeChatAttempt.js";
 import { getExecutor } from "../executors/index.js";
 import { supportsGrokCliReasoningEffort } from "../config/grokCli.js";
@@ -66,7 +66,11 @@ export function stripContinuityFields(body) {
 }
 
 export async function handleChatCore(options) { return observeChatAttempt(options, handleChatCoreInternal); }
-async function handleChatCoreInternal({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, resolveProxyConfig }) { const { provider, model } = modelInfo;
+async function handleChatCoreInternal({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, resolveProxyConfig, isTestRequest, comboName }) { const { provider, model } = modelInfo;
+const trackPendingRequest = (...args) => isTestRequest ? undefined : persistPendingRequest(...args);
+const appendRequestLog = (...args) => isTestRequest ? Promise.resolve() : persistRequestLog(...args);
+const saveRequestDetail = (...args) => isTestRequest ? Promise.resolve() : persistRequestDetail(...args);
+const saveFailedRequest = (...args) => isTestRequest ? Promise.resolve() : persistFailedRequest(...args);
 const requestStartTime = Date.now();
 // Stable per-session color so all lines of one CLI conversation share a tag
 const sessionSeed = (() => {
@@ -604,8 +608,8 @@ if (!providerResponse.ok) {
   });
 }
 
-const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log };
-const appendLog = (extra) => appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
+const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, isTestRequest, comboName };
+const appendLog = (extra) => isTestRequest ? Promise.resolve() : appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
 const trackDone = () => trackPendingRequest(model, provider, connectionId, false);
 
 // Provider forced streaming but client wants JSON

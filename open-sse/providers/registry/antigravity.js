@@ -26,13 +26,17 @@ export default {
     },
     retry: {
       "429": {
-        attempts: 6,
+        // Return quota failures to the account fallback layer immediately.
+        attempts: 0,
       },
       "500": {
         attempts: 3,
       },
       "503": {
-        attempts: 3,
+        // Antigravity uses 503 for model capacity exhaustion. Let account /
+        // model fallback handle it instead of retrying the same exhausted
+        // upstream several times.
+        attempts: 0,
       },
     },
     usage: {

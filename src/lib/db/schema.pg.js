@@ -41,6 +41,12 @@ CREATE INDEX IF NOT EXISTS idx_pc_token_refresh ON provider_connections (provide
 WHERE is_active = true AND token_expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_pc_provider_active ON provider_connections (provider, is_active);
 CREATE INDEX IF NOT EXISTS idx_pc_provider_auth ON provider_connections (provider, auth_type);
+CREATE INDEX IF NOT EXISTS idx_pc_routing_v2
+  ON provider_connections (provider, priority ASC NULLS LAST, last_used_at ASC NULLS FIRST, id)
+  WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_pc_oauth_refresh_due
+  ON provider_connections (token_expires_at, id)
+  WHERE is_active = true AND auth_type = 'oauth' AND token_expires_at IS NOT NULL;
 
 -- Provider Nodes
 CREATE TABLE IF NOT EXISTS provider_nodes (
@@ -66,6 +72,8 @@ CREATE TABLE IF NOT EXISTS usage_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_usage_snap_provider ON usage_snapshots (provider);
 CREATE INDEX IF NOT EXISTS idx_usage_snap_reset ON usage_snapshots (reset_at);
+CREATE INDEX IF NOT EXISTS idx_usage_snap_provider_quota
+  ON usage_snapshots (provider, remaining_pct ASC NULLS LAST, updated_at DESC);
 
 -- Proxy Pools
 CREATE TABLE IF NOT EXISTS proxy_pools (

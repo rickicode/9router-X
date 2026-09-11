@@ -214,15 +214,19 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       };
     }
 
-    // L2 Speed Layer: Try fetching cached connections from Redis first
-    let connections = await getCachedConnections(providerId);
-    const connectionsFromCache = Array.isArray(connections);
-    if (!connections || !Array.isArray(connections)) {
-      connections = await getProviderConnections({ provider: providerId, isActive: true });
-      if (connections.length > 0) {
-        setCachedConnections(providerId, connections, 10).catch(() => {});
-      }
-    }
+    // Query a bounded candidate window from PostgreSQL. The previous path
+    // loaded every active credential for a provider into Node and Redis, which
+    // is unsafe for providers with tens of thousands of accounts.
+    const candidateWindow = Math.min(Math.max(Number(options.candidateLimit) || 100, 25), 500);
+    let connections = await getProviderConnections({
+      provider: providerId,
+      isActive: true,
+      routingModel: model,
+      excludeIds: [...excludeSet],
+      limit: candidateWindow,
+      offset: 0,
+    });
+    let connectionsFromCache = false;
 
     const settings = await getSettings();
     const providerOverride = (settings.providerStrategies || {})[providerId] || {};
@@ -263,23 +267,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // Materialize the durable account state once all tracked model/family
       // buckets are exhausted. This prevents every replica from rediscovering
       // the same account through a stale active connection row.
-      await Promise.all(connections.map(async (connection) => {
-        if (connection.testStatus === "exhausted" || !isAntigravityAccountQuotaExhausted(connection.id)) return;
-        const resetAt = Object.values(antigravityQuotaCache.get(connection.id) || {})
-          .map((quota) => quota?.resetAt)
-          .filter((value) => value && new Date(value).getTime() > Date.now())
-          .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
-        if (!resetAt) return;
-        await Promise.resolve(updateProviderConnection(connection.id, {
-          testStatus: "exhausted",
-          previousStatus: connection.testStatus || "active",
-          lastError: "All Antigravity model quotas are exhausted",
-          errorCode: 429,
-          lastErrorAt: new Date().toISOString(),
-          lockedAllUntil: resetAt,
-          modelLock___all: resetAt,
-        })).catch(() => {});
-      }));
+      // Do not reconcile thousands of quota snapshots in the request path.
+      // Exhaustion is persisted when the provider error is handled; this path
+      // only uses the snapshot as a read-side routing hint.
     }
 
     // Do not wait for the asynchronous DB materialization above. The current
@@ -295,7 +285,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     // Check Redis L2 Cooldown in 1 single BATCH call (O(1) roundtrip for 1000s of accounts)
     const candidateIds = connections.map(c => c.id).filter(id => !excludeSet.has(id));
-    const cooledDownIds = await getBatchCooldowns(candidateIds, model);
+    const cooldownResult = await getBatchCooldowns(candidateIds, model);
+    const cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
+    const redisCooldownHealthy = cooldownResult?.healthy !== false;
 
     // Filter out model-locked, excluded, and Antigravity/Freebuff quota-exhausted connections.
     let availableConnections = connections.filter(c => {
@@ -408,9 +400,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     if (availableConnections.length === 0) {
       // A cached connection list may be stale. Re-read all rows before
       // classifying the failure so Redis cannot hide exhausted/disabled state.
-      const stateConnections = connectionsFromCache
-        ? await getProviderConnections({ provider: providerId })
-        : connections;
+      const stateConnections = await getProviderConnections({ provider: providerId, isActive: true, limit: 500 });
       // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
       const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c, model)).filter(Boolean);
@@ -442,7 +432,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
       const excludedAll = candidateIds.length === 0 && excludeSet.size > 0;
       const blocked = classifyBlockedCredentials(provider, model, stateConnections, {
-        cooledDown: !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= candidateIds.length,
+        cooledDown: redisCooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= candidateIds.length,
       });
       if (blocked) return blocked;
 

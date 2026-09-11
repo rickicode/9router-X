@@ -79,7 +79,14 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
 async function loadActiveConnections() {
   // Dynamic import avoids circular load with db / app graph at module eval time.
   const { getProviderConnections } = await import("../../lib/db/repos/connectionsRepo.js");
-  return getProviderConnections({ isActive: true, authType: "oauth" });
+  // Keep scheduler memory bounded. Expiry ordering is handled in SQL; the
+  // refresh loop can process another bounded batch on the next tick.
+  return getProviderConnections({
+    isActive: true,
+    authType: "oauth",
+    tokenExpiresBefore: new Date(Date.now() + BACKGROUND_REFRESH_LEAD_MS).toISOString(),
+    limit: 500,
+  });
 }
 
 async function refreshOne(connection) {

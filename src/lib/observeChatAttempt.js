@@ -7,6 +7,9 @@ export async function observeChatAttempt(
   execute,
   makeRecorder = createAnalyticsRecorder,
 ) {
+  if (options?.isTestRequest || options?.clientRawRequest?.headers?.["x-9router-test-request"] === "1") {
+    return execute(options);
+  }
   const recorder = makeRecorder(options.modelInfo || {});
   let result;
   try {
