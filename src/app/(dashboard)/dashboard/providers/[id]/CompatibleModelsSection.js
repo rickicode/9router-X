@@ -28,7 +28,7 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="w-full whitespace-normal break-all text-xs font-medium leading-relaxed text-text-main" title={modelId}>{modelId}</p>
-          <code className="w-full truncate text-[11px] text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded select-all" title={fullModel}>{fullModel}</code>
+          <code className="w-full whitespace-normal break-all text-[11px] text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded select-all" title={fullModel}>{fullModel}</code>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
       )}
 
       {allModels.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {allModels.map(({ id, alias, source }) => (
             <CompatibleModelRow
               key={`${source}-${providerStorageAlias}/${id}`}
