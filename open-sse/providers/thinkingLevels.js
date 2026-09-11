@@ -55,6 +55,9 @@ const PATTERN_THINKING = [
   { provider: "codebuddy-cn", pattern: "glm-5.2",      levels: ["high", "xhigh"] },
   { provider: "codebuddy-cn", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
   { provider: "codebuddy-cn", pattern: "hy3*",         levels: ["low", "high"] },
+  { provider: "codebuddy-cn", pattern: "hy4*",         levels: ["high"] },
+  // codebuddy-intl rides the same gateway catalog, so its deepseek levels match.
+  { provider: "codebuddy-intl", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
   // workbuddy.ai shares the same Intl gateway generation as codebuddy-cn — same
   // model backbone, so mirror the per-model effort sets (the gateway silently
   // clamps levels outside a model's supportedEfforts, so the picker stays
