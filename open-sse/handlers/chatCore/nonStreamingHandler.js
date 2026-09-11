@@ -362,9 +362,16 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
   saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, silent: true, isStream: false, isTestRequest, comboName });
   if (log?.line) log.line(reqTag, "📊", formatDoneLine({ usage, latency: { total: Date.now() - requestStartTime } }));
 
-  const translatedResponse = needsTranslation(targetFormat, sourceFormat)
-    ? translateNonStreamingResponse(responseBody, targetFormat, sourceFormat, customToolNames)
-    : responseBody;
+  // OpenCode Free/Zen may return a Responses object while transport metadata
+  // says OpenAI. Detect the actual payload before the format short-circuit so
+  // Chat clients never receive an empty completion from response.output[].
+  const actualResponsesPayload = Array.isArray(responseBody?.output)
+    && responseBody?.object === "response";
+  const translatedResponse = actualResponsesPayload && sourceFormat !== FORMATS.OPENAI_RESPONSES
+    ? responsesCompletionToOpenAI(responseBody)
+    : needsTranslation(targetFormat, sourceFormat)
+      ? translateNonStreamingResponse(responseBody, targetFormat, sourceFormat, customToolNames)
+      : responseBody;
   const isClaudeMessageResponse = sourceFormat === FORMATS.CLAUDE && translatedResponse?.type === "message";
   // Responses-format translation produces a `object:"response"` body with no
   // `choices`; skip the Chat-Completions-specific post-processing below for it.
