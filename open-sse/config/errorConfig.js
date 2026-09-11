@@ -92,6 +92,15 @@ export const ERROR_RULES = [
     lockAll: false,
     shouldFallback: true,
   },
+  // Cline free-tier daily cap: account-wide lock for 24h (defense-in-depth
+  // if resetsAtMs parsing from upstream message body fails). Real reset
+  // duration (8-24h) is applied via the resetsAtMs path in markAccountUnavailable.
+  {
+    text: "daily free limit",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    shouldFallback: true,
+  },
   {
     text: "did not pass the safety review",
     cooldownMs: 0,

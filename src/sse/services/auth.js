@@ -586,7 +586,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const githubResetAtMs = githubMonthlyResetMs(status, errorText, provider);
 
   // Providers whose quota/credits are account-wide across ALL models
-  const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "github", "grok-cli"]);
+  // Cline-free free tier: all models share a single daily request budget
+  const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "github", "grok-cli", "cline-free"]);
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
