@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
+import Image from "next/image";
 import {
   ReactFlow,
   Handle,
@@ -15,7 +16,7 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 
 // Force-stop FE animation if a provider stays active longer than this
-const FE_ACTIVE_TIMEOUT_MS = 60000;
+const PROVIDER_RETENTION_MS = 5 * 60 * 1000;
 const FE_ACTIVE_TICK_MS = 1000;
 
 // Kame + electric particles along active edges
@@ -54,9 +55,11 @@ function ProviderNode({ data }) {
         style={{ backgroundColor: `${color}15` }}
       >
         {imageUrl && !imgError ? (
-          <img
+          <Image
             src={imageUrl}
             alt={label}
+            width={24}
+            height={24}
             className="w-6 h-6 rounded-sm object-contain"
             loading="lazy"
             decoding="async"
@@ -110,9 +113,11 @@ function RouterNode({ data }) {
       <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-0 !w-0 !h-0" />
       <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-0 !w-0 !h-0" />
 
-      <img
+      <Image
         src="/favicon.svg"
         alt="9Router"
+        width={24}
+        height={24}
         className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
         loading="lazy"
         decoding="async"
@@ -366,40 +371,30 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   const rawActiveSet = useMemo(() => new Set(activeKey ? activeKey.split(",") : []), [activeKey]);
   const lastSet = useMemo(() => new Set(lastKey ? [lastKey] : []), [lastKey]);
   const errorSet = useMemo(() => new Set(errorKey ? [errorKey] : []), [errorKey]);
+  const lastUsedRef = useRef({});
+  const [clock, setClock] = useState(() => Date.now());
   const usedProviderSet = useMemo(() => {
-    const used = new Set([...rawActiveSet, ...lastSet, ...errorSet]);
+    const used = new Set(rawActiveSet);
     for (const provider of providers) {
-      if (provider?.requests > 0 || provider?.lastUsed || provider?.lastUsedAt) {
-        used.add(String(provider.provider || "").toLowerCase());
-      }
+      const key = String(provider.provider || "").toLowerCase();
+      if (lastUsedRef.current[key] && clock - lastUsedRef.current[key] < PROVIDER_RETENTION_MS) used.add(key);
     }
     return used;
-  }, [providers, rawActiveSet, lastSet, errorSet]);
+  }, [providers, rawActiveSet, clock]);
   const visibleProviders = useMemo(
     () => providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase())),
     [providers, usedProviderSet],
   );
 
-  // Track firstSeen per active provider; drop provider if running too long (BE stuck)
-  const firstSeenRef = useRef({});
-  const [tick, setTick] = useState(0);
-
   useEffect(() => {
-    const seen = firstSeenRef.current;
     const now = Date.now();
-    for (const p of rawActiveSet) {
-      if (!seen[p]) seen[p] = now;
-    }
-    for (const p of Object.keys(seen)) {
-      if (!rawActiveSet.has(p)) delete seen[p];
-    }
+    for (const p of rawActiveSet) lastUsedRef.current[p] = now;
   }, [rawActiveSet]);
 
   useEffect(() => {
-    if (rawActiveSet.size === 0) return;
-    const id = setInterval(() => setTick((t) => t + 1), FE_ACTIVE_TICK_MS);
+    const id = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [rawActiveSet]);
+  }, []);
 
   const activeSet = rawActiveSet;
 
@@ -416,11 +411,11 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
 
   const rfInstance = useRef(null);
   const containerRef = useRef(null);
-  const fitOpts = { padding: 0.2, duration: 200 };
+  const fitOpts = useMemo(() => ({ padding: 0.2, duration: 200 }), []);
   const onInit = useCallback((instance) => {
     rfInstance.current = instance;
     setTimeout(() => instance.fitView(fitOpts), 50);
-  }, []);
+  }, [fitOpts]);
 
   // Re-fit on container resize
   useEffect(() => {
@@ -431,7 +426,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [fitOpts]);
 
   // Re-fit when node count/layout changes
   useEffect(() => {
@@ -439,7 +434,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
       const id = setTimeout(() => rfInstance.current.fitView(fitOpts), 50);
       return () => clearTimeout(id);
     }
-  }, [nodes.length]);
+  }, [nodes.length, fitOpts]);
 
   return (
     <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">

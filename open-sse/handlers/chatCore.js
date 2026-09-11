@@ -201,7 +201,7 @@ if (passthrough) {
 } else {
   translatedBody = translateRequest(sourceFormat, targetFormat, upstreamModel, body, stream, credentials, provider, reqLogger, stripList, connectionId, clientTool);
   if (!translatedBody) {
-    trackPendingRequest(model, provider, connectionId, false, true);
+    trackPendingRequest(model, provider, connectionId, false, true, { requestId });
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Failed to translate request for ${sourceFormat} → ${targetFormat}`);
   }
   toolNameMap = translatedBody._toolNameMap;
@@ -500,7 +500,7 @@ try {
   providerResponseFormat = result.responseFormat || targetFormat;
   reqLogger.logTargetRequest(providerUrl, providerHeaders, finalBody);
 } catch (error) {
-  trackPendingRequest(model, provider, connectionId, false, true);
+   trackPendingRequest(model, provider, connectionId, false, true, { requestId });
   const errStatus = error.name === "AbortError" ? 499 : HTTP_STATUS.BAD_GATEWAY;
   const errorMsg = error.message || String(error);
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${errStatus}` }).catch(() => { });
@@ -580,7 +580,7 @@ if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
 
 // Provider returned error
 if (!providerResponse.ok) {
-  trackPendingRequest(model, provider, connectionId, false, true);
+  trackPendingRequest(model, provider, connectionId, false, true, { requestId });
   const parsedErr = parsedNonOk || await parseUpstreamError(providerResponse, executor);
   const { statusCode, message, resetsAtMs } = parsedErr;
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${statusCode}` }).catch(() => { });

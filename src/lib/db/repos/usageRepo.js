@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson } from "../helpers/jsonCol.js";
-import { incrementInFlight, decrementInFlight } from "../../redis/client.js";
+import { incrementInFlight, decrementInFlight, registerActiveRequest, unregisterActiveRequest, getActiveRequestsDistributed } from "../../redis/client.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -130,7 +130,8 @@ async function ensureRingInitialized() {
     );
     recentRing.items = rows.reverse().map((row) => {
       const meta = typeof row.meta === "string" ? parseJson(row.meta, {}) : (row.meta || {});
-      return {
+       const normalizedStatus = row.status || (meta.failed ? "error_502" : "ok");
+       return {
         timestamp: row.timestamp,
         provider: row.provider,
         model: row.model,
@@ -176,8 +177,27 @@ export async function trackPendingRequest(model, provider, connectionId, started
       isStream: options.isStream !== undefined ? Boolean(options.isStream) : true,
       startedAt: new Date().toISOString(),
     });
+    registerActiveRequest(timerKey, {
+      model,
+      provider,
+      connectionId,
+      apiKey: options.apiKey || null,
+      isStream: options.isStream !== undefined ? Boolean(options.isStream) : true,
+      startedAt: new Date().toISOString(),
+    }).catch(() => {});
   } else {
-    liveActiveRequests.delete(timerKey);
+    const wasActive = liveActiveRequests.delete(timerKey);
+    unregisterActiveRequest(timerKey).catch(() => {});
+    // Completion/error callbacks can race with the stale-request watchdog.
+    // Do not decrement counters twice when the watchdog already finalized it.
+    if (!wasActive && !options.forceStop) {
+      if (error && provider) {
+        lastErrorProvider.provider = provider.toLowerCase();
+        lastErrorProvider.ts = Date.now();
+      }
+      scheduleStatsEvent("pending");
+      return;
+    }
   }
 
   if (!pendingRequests.byModel[modelKey]) pendingRequests.byModel[modelKey] = 0;
@@ -207,11 +227,7 @@ export async function trackPendingRequest(model, provider, connectionId, started
     clearTimeout(pendingTimers[timerKey]);
     pendingTimers[timerKey] = setTimeout(() => {
       delete pendingTimers[timerKey];
-      if (pendingRequests.byModel[modelKey] > 0) pendingRequests.byModel[modelKey] = 0;
-      if (connectionId && pendingRequests.byAccount[connectionId]?.[modelKey] > 0) {
-        pendingRequests.byAccount[connectionId][modelKey] = 0;
-      }
-      scheduleStatsEvent("pending");
+      trackPendingRequest(model, provider, connectionId, false, true, { requestId: timerKey, forceStop: true });
     }, PENDING_TIMEOUT_MS);
   } else {
     clearTimeout(pendingTimers[timerKey]);
@@ -228,6 +244,8 @@ export async function trackPendingRequest(model, provider, connectionId, started
 
 export async function getActiveRequests() {
   const activeRequests = [];
+  const distributed = await getActiveRequestsDistributed();
+  const localItems = distributed.length ? distributed : [...liveActiveRequests.values()];
   const connectionMap = await getConnectionMapCached();
   let allApiKeys = [];
   try {
@@ -237,7 +255,7 @@ export async function getActiveRequests() {
   const apiKeyMap = {};
   for (const k of allApiKeys) apiKeyMap[k.key] = k.name;
 
-  for (const [, item] of liveActiveRequests.entries()) {
+  for (const item of localItems) {
     const accountName = connectionMap[item.connectionId] || (item.connectionId ? `Account ${item.connectionId.slice(0, 8)}...` : "Direct");
     const keyName = apiKeyMap[item.apiKey] || (item.apiKey ? maskApiKey(item.apiKey) : "Default Key");
     activeRequests.push({
@@ -294,7 +312,7 @@ export async function getActiveRequests() {
         timestamp: ts,
         model: entry.model,
         provider: entry.provider || "",
-        account: entry.account || connectionMap[entry.connectionId] || (entry.connectionId ? `Account ${entry.connectionId.slice(0, 8)}...` : "Direct"),
+        account: entry.account || meta.account || connectionMap[entry.connectionId] || (entry.connectionId ? `Account ${entry.connectionId.slice(0, 8)}...` : "Direct"),
         connectionId: entry.connectionId || null,
         apiKey: keyName,
         clientApiKey: keyName,
@@ -303,15 +321,19 @@ export async function getActiveRequests() {
         isStream,
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
-        status: entry.status || "ok",
+       status: entry.status || (meta.failed ? "error_502" : "ok"),
         error: entry.error || meta.error || null,
       };
     })
     .filter((entry) => {
-      const isFailed = entry.status && entry.status.startsWith("error_");
+      const isFailed = entry.status === "failed"
+        || entry.status === "error"
+        || String(entry.status || "").startsWith("error_");
       if (!isFailed && entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
       const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
+       const key = isFailed
+         ? `${entry.timestamp}|${entry.model}|${entry.provider}|${entry.connectionId || ""}|${entry.status}`
+         : `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -322,7 +344,7 @@ export async function getActiveRequests() {
   return { activeRequests, recentRequests, errorProvider };
 }
 
-export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error }) {
+export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error, account }) {
   try {
     const db = await getAdapter();
     const ts = new Date().toISOString();
@@ -344,7 +366,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
         apiKey || null,
         endpoint || null,
         status,
-        JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg }),
+        JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined }),
       ],
     );
 
@@ -391,6 +413,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       provider: provider || "",
       model: model || "",
       connectionId: connectionId || "",
+      account: account || (connectionId ? `Account ${connectionId.slice(0, 8)}...` : ""),
       apiKey: apiKey || "",
       endpoint: endpoint || "/v1/chat/completions",
       promptTokens: 0,
@@ -398,7 +421,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       cost: 0,
       status,
       tokens: {},
-      meta: { isStream: isStreamBool, failed: true, error: errorMsg },
+      meta: { isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined },
       isStream: isStreamBool,
       error: errorMsg,
     });
@@ -736,15 +759,21 @@ export async function getUsageStats(period = "all") {
         promptTokens: tokens.prompt_tokens || tokens.input_tokens || 0,
         completionTokens: tokens.completion_tokens || tokens.output_tokens || 0,
         cachedTokens: tokens.cached_tokens || tokens.cache_read_input_tokens || 0,
-        status: row.status || "ok",
+         status: normalizedStatus,
         error: meta.error || null,
       };
     })
     .filter((entry) => {
-      const isFailed = entry.status && entry.status.startsWith("error_");
+       const isFailed = entry.status === "failed"
+         || entry.status === "error"
+         || String(entry.status || "").startsWith("error_");
       if (!isFailed && entry.status === "ok" && entry.promptTokens === 0 && entry.completionTokens === 0) return false;
       const sec = entry.timestamp ? entry.timestamp.slice(0, 19) : "";
-      const key = `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
+       // Never collapse distinct failed attempts: at scale, repeated quota
+       // failures are the signal operators need to see in Recent Requests.
+       const key = isFailed
+         ? `${entry.timestamp}|${entry.model}|${entry.provider}|${entry.connectionId || ""}|${entry.status}`
+         : `${entry.model}|${entry.provider}|${entry.apiKey}|${entry.promptTokens}|${entry.completionTokens}|${sec}|${entry.status}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -885,7 +914,9 @@ export async function getUsageStats(period = "all") {
       const cachedTokens = Number(tokens.cached_tokens || tokens.cache_read_input_tokens || 0);
       const entryCost = Number(r.cost || 0);
       const providerDisplayName = providerNodeNameMap[r.provider] || r.provider;
-      const isFailed = r.status && r.status.startsWith("error_");
+        const isFailed = r.status === "failed"
+          || r.status === "error"
+          || String(r.status || "").startsWith("error_");
       if (isFailed) {
         stats.totalFailedRequests = (stats.totalFailedRequests || 0) + 1;
       }

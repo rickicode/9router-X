@@ -71,6 +71,12 @@ export default function RealtimeRequestsCard({
         );
         if (match) {
           setFetchedError(match.error || match.response?.error || match.response || null);
+          if (match.account || match.connectionId) {
+            setSelectedError((prev) => (prev ? {
+              ...prev,
+              account: prev.account && prev.account !== "Direct" ? prev.account : (match.account || match.connectionId)
+            } : prev));
+          }
         }
       })
       .catch(() => {})
@@ -446,6 +452,12 @@ export default function RealtimeRequestsCard({
                 <Badge variant="neutral" size="sm">
                   {selectedError.provider || "unknown"}
                 </Badge>
+              </div>
+              <div>
+                <span className="text-text-muted">Account:</span>{" "}
+                <span className="font-mono text-text-main truncate block font-medium" title={selectedError.account || selectedError.connectionId || "Direct"}>
+                  {selectedError.account || selectedError.connectionId || "Direct"}
+                </span>
               </div>
               <div>
                 <span className="text-text-muted">Format:</span>{" "}

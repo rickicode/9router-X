@@ -232,6 +232,55 @@ export async function decrementInFlight(connId) {
   }
 }
 
+const ACTIVE_REQUEST_TTL_SECONDS = 120;
+const ACTIVE_REQUEST_INDEX = "active_req:index";
+
+export async function registerActiveRequest(requestId, detail) {
+  if (!isRedisAvailable() || !requestId) return false;
+  try {
+    const key = `active_req:detail:${requestId}`;
+    const expiresAt = Date.now() + ACTIVE_REQUEST_TTL_SECONDS * 1000;
+    await redis.multi()
+      .set(key, JSON.stringify({ ...detail, requestId, expiresAt }), "EX", ACTIVE_REQUEST_TTL_SECONDS)
+      .zadd(ACTIVE_REQUEST_INDEX, expiresAt, requestId)
+      .exec();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function unregisterActiveRequest(requestId) {
+  if (!isRedisAvailable() || !requestId) return false;
+  try {
+    await redis.multi()
+      .del(`active_req:detail:${requestId}`)
+      .zrem(ACTIVE_REQUEST_INDEX, requestId)
+      .exec();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getActiveRequestsDistributed() {
+  if (!isRedisAvailable()) return [];
+  try {
+    const now = Date.now();
+    const stale = await redis.zrangebyscore(ACTIVE_REQUEST_INDEX, "-inf", now);
+    if (stale.length) await redis.zrem(ACTIVE_REQUEST_INDEX, ...stale);
+    const ids = await redis.zrangebyscore(ACTIVE_REQUEST_INDEX, now, "+inf");
+    if (!ids.length) return [];
+    const values = await redis.mget(...ids.map((id) => `active_req:detail:${id}`));
+    return values.flatMap((value) => {
+      if (!value) return [];
+      try { return [JSON.parse(value)]; } catch { return []; }
+    });
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Cluster Real-Time Pub/Sub
  */
