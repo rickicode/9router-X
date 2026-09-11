@@ -143,15 +143,32 @@ export function hasToolResults(msg, toolCallIds) {
   return false;
 }
 
-// Fix missing tool responses - insert empty tool_result if assistant has tool_use but next message has no tool_result
+// Repair strict OpenAI tool-turn ordering for Gemini-backed OpenAI-compatible
+// endpoints.
+//
+// Call ids are unique only within a single upstream response. Gateways without
+// native ids (Gemini-backed resellers emit a fresh "call_0"/"call_1" counter on
+// every turn) reuse the same id across turns. Deduping with one Set shared over
+// the whole conversation therefore marks a later turn's `call_0` result as
+// already seen, drops it, and leaves an assistant turn whose tool_calls are
+// followed straight by the next user message. Strict Gemini backends reject
+// exactly that with:
+//   "Please ensure that function call turn comes immediately after a user turn
+//    or after a function response turn."
+// Scope the matching per turn instead, and pair every call with exactly one
+// result so the turn stays well-formed.
 export function repairStrictOpenAIToolHistory(body) {
   if (!body?.messages || !Array.isArray(body.messages)) return body;
 
   const repaired = [];
-  const seenToolIds = new Set();
   for (let i = 0; i < body.messages.length; i++) {
     const msg = body.messages[i];
+
+    // Results are re-emitted immediately after their own assistant turn (below).
+    // A `tool` message anywhere else is an orphan without a matching call and
+    // would itself violate strict turn ordering.
     if (msg?.role === "tool") continue;
+
     if (
       msg?.role !== "assistant" ||
       !Array.isArray(msg.tool_calls) ||
@@ -163,25 +180,41 @@ export function repairStrictOpenAIToolHistory(body) {
 
     const calls = msg.tool_calls.filter((call) => call?.id);
     repaired.push({ ...msg, tool_calls: calls });
-    const results = new Map();
+    if (calls.length === 0) continue;
+
+    // Results belonging to this turn only — the run of `tool` messages directly
+    // after it. Not a conversation-wide map: see the note above.
+    const available = [];
     let j = i + 1;
     while (j < body.messages.length && body.messages[j]?.role === "tool") {
-      const result = body.messages[j];
-      if (!results.has(result.tool_call_id))
-        results.set(result.tool_call_id, result);
+      available.push(body.messages[j]);
       j++;
     }
-    for (const call of calls) {
-      if (seenToolIds.has(call.id)) continue;
-      const result = results.get(call.id);
-      repaired.push(
-        result || {
-          role: "tool",
-          tool_call_id: call.id,
-          content: "[tool result unavailable]",
-        },
+
+    const used = new Set();
+    const takeResult = (call) => {
+      let idx = available.findIndex(
+        (result, k) => !used.has(k) && result.tool_call_id === call.id,
       );
-      seenToolIds.add(call.id);
+      // Duplicate ids inside one assistant turn cannot be resolved by id alone;
+      // fall back to the next unused result in order rather than dropping it.
+      if (idx === -1) idx = available.findIndex((_, k) => !used.has(k));
+      if (idx === -1) return null;
+      used.add(idx);
+      return available[idx];
+    };
+
+    for (const call of calls) {
+      const result = takeResult(call);
+      repaired.push(
+        result
+          ? { ...result, tool_call_id: call.id }
+          : {
+              role: "tool",
+              tool_call_id: call.id,
+              content: "[tool result unavailable]",
+            },
+      );
     }
     i = j - 1;
   }
