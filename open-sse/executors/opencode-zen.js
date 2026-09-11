@@ -168,6 +168,12 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     if (out.reasoning_effort !== undefined && out.reasoning === undefined) {
       out.reasoning = { effort: out.reasoning_effort, summary: "auto" };
     }
+    if (isMuseSparkModel(model || body?.model) && out.reasoning === undefined) {
+      // Muse Spark defaults to high reasoning upstream. With ordinary client
+      // budgets that consumes every output token and returns output: [] with
+      // finish_reason=length. Keep the model usable unless the caller opts in.
+      out.reasoning = { effort: "low", summary: "auto" };
+    }
     if (out.reasoning && typeof out.reasoning === "object" && !Array.isArray(out.reasoning)) {
       if (!out.reasoning.summary) out.reasoning.summary = "auto";
     }
