@@ -582,9 +582,9 @@ if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
 if (!providerResponse.ok) {
   trackPendingRequest(model, provider, connectionId, false, true, { requestId });
   const parsedErr = parsedNonOk || await parseUpstreamError(providerResponse, executor);
-  const { statusCode, message, resetsAtMs } = parsedErr;
+  const { statusCode, message, resetsAtMs, upstreamStatus, upstreamCode } = parsedErr;
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${statusCode}` }).catch(() => { });
-  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: statusCode, isStream: stream, error: message }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, account: credentials?.connectionName || credentials?.name || credentials?.email || null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: upstreamStatus || statusCode, isStream: stream, error: message }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
@@ -605,7 +605,8 @@ if (!providerResponse.ok) {
   return createErrorResult(statusCode, errMsg, resetsAtMs, {
     poolScoped: parsedErr.poolScoped,
     freebuffKind: parsedErr.freebuffKind,
-    upstreamStatus: statusCode,
+    upstreamStatus: upstreamStatus || statusCode,
+    upstreamCode,
   });
 }
 

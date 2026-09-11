@@ -25,8 +25,9 @@ export function makeKv(scope) {
     },
     async setMany(obj) {
       const db = await getAdapter();
-      await db.transaction(async (tx) => {
-        for (const [k, v] of Object.entries(obj)) {
+       await db.transaction(async (tx) => {
+         for (const [k, v] of Object.entries(obj)) {
+           await tx.get("SELECT value FROM kv WHERE scope = $1 AND key = $2 FOR UPDATE", [scope, k]);
           await tx.run(
             `INSERT INTO kv(scope, key, value) VALUES($1, $2, $3)
              ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,

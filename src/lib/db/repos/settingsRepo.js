@@ -110,7 +110,7 @@ export async function updateSettings(updates) {
   const updatedAt = new Date().toISOString();
 
   await db.transaction(async (tx) => {
-    const row = await tx.get("SELECT data FROM settings WHERE id = 1");
+     const row = await tx.get("SELECT data FROM settings WHERE id = 1 FOR UPDATE");
     const current = row ? parseJson(row.data, {}) : {};
     next = { ...current, ...updates };
     await tx.run(

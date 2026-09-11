@@ -177,6 +177,18 @@ CREATE TABLE IF NOT EXISTS usage_history (
   PRIMARY KEY (id, timestamp)
 ) PARTITION BY RANGE (timestamp);
 
+-- Forward-compatible PostgreSQL migrations for databases created before the
+-- current usage schema. CREATE TABLE IF NOT EXISTS does not add new columns.
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS connection_id TEXT;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS api_key TEXT;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS endpoint TEXT;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER DEFAULT 0;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS completion_tokens INTEGER DEFAULT 0;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS cost NUMERIC DEFAULT 0;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS status VARCHAR(32);
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS tokens JSONB;
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS meta JSONB;
+
 -- Daily Usage Aggregates
 CREATE TABLE IF NOT EXISTS usage_daily (
   date_key DATE PRIMARY KEY,
@@ -185,14 +197,18 @@ CREATE TABLE IF NOT EXISTS usage_daily (
 `;
 
 /**
- * Ensure monthly partitions exist for current and next month
+ * Ensure a rolling UTC partition window exists. The one-month lookback keeps
+ * delayed writes/imports safe; six months ahead avoids deploy-boundary gaps.
  */
 export async function ensureMonthlyPartitions(adapter) {
   const dates = [];
   const now = new Date();
-  dates.push(new Date(now.getFullYear(), now.getMonth(), 1));
-  dates.push(new Date(now.getFullYear(), now.getMonth() + 1, 1));
-  dates.push(new Date(now.getFullYear(), now.getMonth() + 2, 1));
+  const month = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  for (let i = -1; i <= 6; i += 1) {
+    const date = new Date(month);
+    date.setUTCMonth(date.getUTCMonth() + i);
+    dates.push(date);
+  }
 
   for (let i = 0; i < dates.length - 1; i++) {
     const start = dates[i];
@@ -210,6 +226,8 @@ export async function ensureMonthlyPartitions(adapter) {
     // Performance indexes per partition for high-speed dashboard analytics
     await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_rd_${suffix}_ts ON request_details_${suffix} (timestamp DESC);`);
     await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_rd_${suffix}_prov ON request_details_${suffix} (provider, timestamp DESC);`);
-    await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_uh_${suffix}_lookup ON usage_history_${suffix} (timestamp, provider, model);`);
+     await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_uh_${suffix}_lookup ON usage_history_${suffix} (timestamp DESC, id DESC);`);
+     await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_uh_${suffix}_status ON usage_history_${suffix} (status, timestamp DESC);`);
+     await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_rd_${suffix}_conn ON request_details_${suffix} (connection_id, timestamp DESC);`);
   }
 }

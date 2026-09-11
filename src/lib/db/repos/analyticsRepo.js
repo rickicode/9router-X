@@ -135,9 +135,11 @@ export function sanitizeAnalyticsEvent(raw) {
 export async function flushAnalyticsEvents() {
   if (isFlushing || writeBuffer.length === 0) return;
   isFlushing = true;
+  let failedItems = [];
   try {
     while (writeBuffer.length > 0) {
       const items = writeBuffer.splice(0, DEFAULT_BATCH_SIZE);
+      failedItems = items;
       const db = await getAdapter();
 
       await db.transaction(async (tx) => {
@@ -162,8 +164,10 @@ export async function flushAnalyticsEvents() {
           );
         }
       });
+      failedItems = [];
     }
   } catch (err) {
+    writeBuffer = [...failedItems, ...writeBuffer].slice(-MAX_BUFFER_SIZE);
     console.error("[AnalyticsRepo] flush error:", err.message);
   } finally {
     isFlushing = false;
@@ -414,19 +418,19 @@ export async function pruneAnalyticsEvents({
     // 2. Capacity-based cutoff if table exceeds maxRecords
     if (maxRecords && maxRecords > 0) {
       const countRow = await db.get(
-        `SELECT COUNT(*)::int AS total FROM analytics_events;`,
+         `SELECT COUNT(*) AS total FROM analytics_events;`,
       );
-      const total = countRow?.total || 0;
+         const total = Number(countRow?.total || 0);
       if (total > maxRecords) {
         const excess = total - maxRecords;
         const cutoffRow = await db.get(
-          `SELECT timestamp FROM analytics_events ORDER BY timestamp ASC OFFSET $1 LIMIT 1;`,
+           `SELECT timestamp, id FROM analytics_events ORDER BY timestamp ASC, id ASC OFFSET $1 LIMIT 1;`,
           [excess],
         );
         if (cutoffRow?.timestamp) {
           await db.run(
-            `DELETE FROM analytics_events WHERE timestamp < $1;`,
-            [cutoffRow.timestamp],
+             `DELETE FROM analytics_events WHERE (timestamp, id) < ($1, $2);`,
+             [cutoffRow.timestamp, cutoffRow.id],
           );
         }
       }

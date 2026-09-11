@@ -83,7 +83,7 @@ export async function updateProviderNode(id, data) {
   let result = null;
 
   await db.transaction(async (tx) => {
-    const row = await tx.get("SELECT * FROM provider_nodes WHERE id = $1", [id]);
+     const row = await tx.get("SELECT * FROM provider_nodes WHERE id = $1 FOR UPDATE", [id]);
     if (!row) return;
 
     const merged = { ...rowToNode(row), ...data, updatedAt: new Date().toISOString() };
@@ -99,7 +99,7 @@ export async function deleteProviderNode(id) {
   let removed = null;
 
   await db.transaction(async (tx) => {
-    const row = await tx.get("SELECT * FROM provider_nodes WHERE id = $1", [id]);
+     const row = await tx.get("SELECT * FROM provider_nodes WHERE id = $1 FOR UPDATE", [id]);
     if (!row) return;
 
     removed = rowToNode(row);

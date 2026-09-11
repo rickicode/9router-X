@@ -429,9 +429,10 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // Antigravity 409/429: refresh live quota to get exact resetAt before locking
     let quotaResetMs = null;
     let resetsAtMs = result.resetsAtMs;
-    if (provider === "antigravity" && (result.status === 409 || result.status === 429)) {
+    const upstreamStatus = result.extra?.upstreamStatus || result.status;
+    if (provider === "antigravity" && (upstreamStatus === 409 || upstreamStatus === 429)) {
       quotaResetMs = await handleAntigravityQuotaError(
-        credentials.connectionId, result.status, model,
+        credentials.connectionId, upstreamStatus, model,
         refreshedCredentials.accessToken, credentials.providerSpecificData
       );
       if (quotaResetMs) resetsAtMs = quotaResetMs;
@@ -454,7 +455,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     // Preserve upstream status/kind because chatCore returns thrown upstream
     // errors as a 502 gateway response.
-    const upstreamStatus = result.extra?.upstreamStatus || result.status;
+    const effectiveStatus = upstreamStatus;
 
     // When Freebuff upstream reports model_locked, immediately bind account to currentModel and fallback to next account
     if (provider === "freebuff") {
@@ -500,7 +501,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         : `Freebuff account "${connName}" banned (403): ${rawError}`;
       await markAccountUnavailable(
         credentials.connectionId,
-        upstreamStatus || 403,
+       effectiveStatus || 403,
         banReason,
         provider,
         model,
@@ -518,21 +519,27 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       continue;
     }
 
+    const quotaFailure = provider === "antigravity"
+      && (effectiveStatus === 409 || effectiveStatus === 429)
+      && /resource_exhausted|quota_exhausted|exhausted|capacity|rate.?limit|try again/i.test(String(result.error || ""));
     const shouldFallback = (await markAccountUnavailable(
       credentials.connectionId,
-      upstreamStatus,
+      effectiveStatus,
       result.error,
       provider,
       model,
       resetsAtMs,
       result.extra?.freebuffKind,
-    )).shouldFallback;
+     )).shouldFallback;
 
-    if (shouldFallback) {
-      log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
+    if (quotaFailure) {
       excludeConnectionIds.add(credentials.connectionId);
+    }
+
+    if (shouldFallback || quotaFailure) {
+      log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
       lastError = result.error;
-      lastStatus = result.status;
+      lastStatus = effectiveStatus || result.status;
       if (excludeConnectionIds.size >= MAX_FALLBACK_ATTEMPTS) {
         log.warn("FALLBACK", `Reached maximum fallback attempts (${MAX_FALLBACK_ATTEMPTS}), stopping`);
         return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, `Max fallback attempts (${MAX_FALLBACK_ATTEMPTS}) reached: ${lastError}`);

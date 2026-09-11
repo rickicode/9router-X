@@ -984,7 +984,7 @@ export async function setConnectionsActiveByIds(ids, isActive) {
               ),
               updated_at = NOW()
         WHERE id = ANY($1::text[])
-        RETURNING DISTINCT provider`,
+         RETURNING provider`,
       [ids, now],
     );
   } else {
@@ -995,7 +995,7 @@ export async function setConnectionsActiveByIds(ids, isActive) {
               data = (COALESCE(data, '{}'::jsonb) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
               updated_at = NOW()
         WHERE id = ANY($1::text[])
-        RETURNING DISTINCT provider`,
+         RETURNING provider`,
       [ids],
     );
   }

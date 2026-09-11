@@ -6,6 +6,7 @@ const DEFAULT_MAX_RECORDS = 200;
 const DEFAULT_BATCH_SIZE = 20;
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_MAX_JSON_SIZE = 5 * 1024;
+const MAX_BUFFER_SIZE = 5000;
 const CONFIG_CACHE_TTL_MS = 5000;
 
 let cachedConfig = null;
@@ -135,20 +136,21 @@ async function flushToDatabase() {
         }
 
         // Fast partition-pruned cleanup: find timestamp cutoff instead of unindexed composite IN subquery
-        const countRow = await tx.get(`SELECT COUNT(*)::int AS total FROM request_details`);
-        const excess = (countRow?.total || 0) - config.maxRecords;
+         const countRow = await tx.get(`SELECT COUNT(*) AS total FROM request_details`);
+         const excess = Number(countRow?.total || 0) - config.maxRecords;
         if (excess > 0) {
           const cutoffRow = await tx.get(
-            `SELECT timestamp FROM request_details ORDER BY timestamp ASC OFFSET $1 LIMIT 1`,
+             `SELECT timestamp, id FROM request_details ORDER BY timestamp ASC, id ASC OFFSET $1 LIMIT 1`,
             [excess],
           );
           if (cutoffRow?.timestamp) {
-            await tx.run(`DELETE FROM request_details WHERE timestamp < $1`, [cutoffRow.timestamp]);
+             await tx.run(`DELETE FROM request_details WHERE (timestamp, id) < ($1, $2)`, [cutoffRow.timestamp, cutoffRow.id]);
           }
         }
       });
     }
   } catch (error) {
+    writeBuffer = [...items, ...writeBuffer].slice(-MAX_BUFFER_SIZE);
     console.error("[requestDetailsRepo] Batch write failed:", error);
   } finally {
     isFlushing = false;
@@ -192,13 +194,13 @@ export async function getRequestDetails(filter = {}) {
   if (filter.endDate) add("timestamp <= ?", new Date(filter.endDate).toISOString());
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const count = await db.get(`SELECT COUNT(*)::int AS count FROM request_details ${where}`, params);
+   const count = await db.get(`SELECT COUNT(*) AS count FROM request_details ${where}`, params);
   const totalItems = count?.count || 0;
   const page = Math.max(1, Number(filter.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(filter.pageSize) || 50));
   const offset = (page - 1) * pageSize;
   const rows = await db.all(
-    `SELECT data FROM request_details ${where} ORDER BY timestamp DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+     `SELECT data FROM request_details ${where} ORDER BY timestamp DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, pageSize, offset],
   );
 

@@ -180,10 +180,12 @@ export async function parseUpstreamError(response, executor = null) {
       if (parsed && typeof parsed === "object") {
         const msg = parsed.message || DEFAULT_ERROR_MESSAGES[response.status] || `Upstream error: ${response.status}`;
         const resetsAtMs = parsed.resetsAtMs || extractQuotaResetMs(bodyText, response);
-        return {
-          statusCode: parsed.status || response.status,
-          message: msg,
-          resetsAtMs,
+          return {
+            statusCode: parsed.status || response.status,
+            message: msg,
+            resetsAtMs,
+            upstreamStatus: parsed.upstreamStatus || parsed.status || response.status,
+            upstreamCode: parsed.upstreamCode || null,
           // Executors declare IP/pool-scoped failures (e.g. per-IP rate limits)
           // here; chatCore completes poolId/scope and retries via another pool.
           poolScoped: parsed.poolScoped,
@@ -204,7 +206,24 @@ export async function parseUpstreamError(response, executor = null) {
   const finalMessage = messageStr || DEFAULT_ERROR_MESSAGES[response.status] || `Upstream error: ${response.status}`;
   const resetsAtMs = extractQuotaResetMs(bodyText, response);
 
-  return { statusCode: response.status, message: finalMessage, resetsAtMs };
+  let upstreamStatus = response.status;
+  let upstreamCode = null;
+  try {
+    const parsed = JSON.parse(bodyText);
+    const nested = parsed?.error?.message && typeof parsed.error.message === "string"
+      ? JSON.parse(parsed.error.message)
+      : parsed;
+    upstreamCode = nested?.error?.code || nested?.code || null;
+    if (Number.isFinite(Number(upstreamCode))) upstreamStatus = Number(upstreamCode);
+  } catch {}
+
+  return {
+    statusCode: response.status,
+    message: finalMessage,
+    resetsAtMs,
+    upstreamStatus,
+    upstreamCode,
+  };
 }
 
 /**

@@ -14,11 +14,15 @@ async function initAdapter() {
     state.logged = true;
   }
 
-  // Self-healing bootstrap: DDL & partitions
+  // Serialize bootstrap across application replicas. PostgreSQL advisory locks
+  // prevent concurrent DDL and partition creation during deploy/restart.
   try {
-    await adapter.exec(PG_SCHEMA_SQL);
-    await adapter.exec(ANALYTICS_SCHEMA_SQL);
-    await ensureMonthlyPartitions(adapter);
+    await adapter.transaction(async (tx) => {
+      await tx.run("SELECT pg_advisory_xact_lock(hashtext('9router:schema-bootstrap'))");
+      await tx.exec(PG_SCHEMA_SQL);
+      await tx.exec(ANALYTICS_SCHEMA_SQL);
+      await ensureMonthlyPartitions(tx);
+    });
   } catch (err) {
     console.error(`[DB] Bootstrap schema error:`, err.message);
     throw err;

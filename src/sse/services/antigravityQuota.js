@@ -83,21 +83,25 @@ export function hydrateAntigravityQuotaCache(connectionId, quotas) {
 
 /**
  * Return the persisted/in-process quota snapshot for routing decisions.
- * A model is account-exhausted when every non-image quota bucket is empty and
- * has a future reset. This is intentionally conservative: one healthy model
- * keeps the account active so it can still serve that model.
+ * An account is exhausted when every quota bucket reported by Antigravity is
+ * empty and has a future reset. Image quota is intentionally included: it is
+ * an upstream quota bucket too, and excluding it left accounts with every
+ * model exhausted incorrectly marked active.
  */
-export function isAntigravityAccountQuotaExhausted(connectionId) {
-  const quotas = quotaCache.get(connectionId);
+export function isAntigravityQuotaMapExhausted(quotas) {
   if (!quotas) return false;
-  const entries = Object.entries(quotas).filter(([key, quota]) =>
-    quota && !/image/i.test(key) && typeof quota.remainingPercentage === "number"
+  const entries = Object.entries(quotas).filter(([, quota]) =>
+    quota && typeof quota.remainingPercentage === "number"
   );
   if (entries.length === 0) return false;
   const now = Date.now();
   return entries.every(([, quota]) =>
     quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > now
   );
+}
+
+export function isAntigravityAccountQuotaExhausted(connectionId) {
+  return isAntigravityQuotaMapExhausted(quotaCache.get(connectionId));
 }
 
 /**
@@ -199,7 +203,8 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
 
   // Throttle applies to error paths too: one quota request per account/30s.
   // The first 409/429 populates cache; concurrent or repeated errors reuse it.
-  const quota = (await refreshAntigravityQuota(connectionId, accessToken, providerSpecificData))?.[model];
+  const quotaMap = await refreshAntigravityQuota(connectionId, accessToken, providerSpecificData);
+  const quota = quotaMap?.[model];
 
   // Strike breaker: count every 429 whose quota reading is either optimistic
   // (remaining > 0) or unavailable (quota API 403/error). 3 within the window

@@ -139,7 +139,7 @@ async function ensureRingInitialized() {
         apiKey: row.api_key,
         endpoint: row.endpoint,
         cost: row.cost,
-        status: row.status,
+         status: normalizedStatus,
         tokens: row.tokens ?? {},
         meta,
         error: meta.error || null,
@@ -440,7 +440,10 @@ export async function saveRequestUsage(entry) {
     const db = await getAdapter();
     let inserted = false;
     await db.transaction(async (tx) => {
-      const existing = await tx.get(
+       const dateKey = getLocalDateKey(entry.timestamp);
+       await tx.run(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`usage_daily:${dateKey}`]);
+       await tx.run(`SELECT pg_advisory_xact_lock(hashtext('totalRequestsLifetime'))`);
+       const existing = await tx.get(
         `SELECT id, endpoint FROM usage_history
          WHERE timestamp = $1
            AND COALESCE(provider, '') = COALESCE($2, '')
@@ -488,8 +491,7 @@ export async function saveRequestUsage(entry) {
         ],
       );
 
-      const dateKey = getLocalDateKey(entry.timestamp);
-      const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1`, [dateKey]);
+       const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
       const rawData = row?.data;
       const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
         requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
@@ -502,7 +504,7 @@ export async function saveRequestUsage(entry) {
         [dateKey, day],
       );
 
-      const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
+       const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime' FOR UPDATE`);
       const next = (current ? parseInt(current.value, 10) : 0) + 1;
       await tx.run(
         `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
@@ -1092,10 +1094,11 @@ export async function appendRequestLog() {}
 export async function getRecentLogs(limit = 200) {
   try {
     const db = await getAdapter();
+    const safeLimit = Math.min(Math.max(Number(limit) || 200, 1), 500);
     const rows = await db.all(
       `SELECT timestamp, provider, model, connection_id, prompt_tokens, completion_tokens, status, tokens
        FROM usage_history ORDER BY id DESC LIMIT $1`,
-      [limit],
+      [safeLimit],
     );
     if (!rows.length) return [];
 

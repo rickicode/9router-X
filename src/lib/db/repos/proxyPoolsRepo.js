@@ -256,7 +256,7 @@ export async function updateProxyPool(id, data = {}) {
   const patch = normalizePatch(data);
 
   const result = await db.transaction(async (tx) => {
-    const row = await tx.get(`SELECT * FROM proxy_pools WHERE id = $1`, [id]);
+     const row = await tx.get(`SELECT * FROM proxy_pools WHERE id = $1 FOR UPDATE`, [id]);
     if (!row) return null;
     const existing = rowToPool(row);
     const merged = {
@@ -272,9 +272,13 @@ export async function updateProxyPool(id, data = {}) {
 
 export async function deleteProxyPool(id) {
   const db = await getAdapter();
-  const row = await db.get(`SELECT * FROM proxy_pools WHERE id = $1`, [id]);
-  if (!row) return null;
-  await db.run(`DELETE FROM proxy_pools WHERE id = $1`, [id]);
+   const row = await db.transaction(async (tx) => {
+     const existing = await tx.get(`SELECT * FROM proxy_pools WHERE id = $1 FOR UPDATE`, [id]);
+     if (!existing) return null;
+     await tx.run(`DELETE FROM proxy_pools WHERE id = $1`, [id]);
+     return existing;
+   });
+   if (!row) return null;
   invalidateProxyPoolCache(id);
   return rowToPool(row);
 }

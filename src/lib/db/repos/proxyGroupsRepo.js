@@ -167,7 +167,7 @@ export async function updateProxyGroup(id, data = {}) {
   const patch = normalizePatch(data);
 
   const result = await db.transaction(async (tx) => {
-    const row = await tx.get(`SELECT * FROM proxy_groups WHERE id = $1`, [id]);
+     const row = await tx.get(`SELECT * FROM proxy_groups WHERE id = $1 FOR UPDATE`, [id]);
     if (!row) return null;
     const existing = rowToGroup(row);
     const merged = {
@@ -207,9 +207,13 @@ export async function updateProxyGroup(id, data = {}) {
 export async function deleteProxyGroup(id) {
   if (!id) return null;
   const db = await getAdapter();
-  const row = await db.get(`SELECT * FROM proxy_groups WHERE id = $1`, [id]);
-  if (!row) return null;
-  await db.run(`DELETE FROM proxy_groups WHERE id = $1`, [id]);
+   const row = await db.transaction(async (tx) => {
+     const existing = await tx.get(`SELECT * FROM proxy_groups WHERE id = $1 FOR UPDATE`, [id]);
+     if (!existing) return null;
+     await tx.run(`DELETE FROM proxy_groups WHERE id = $1`, [id]);
+     return existing;
+   });
+   if (!row) return null;
   invalidateProxyGroupCache(id);
   return rowToGroup(row);
 }
