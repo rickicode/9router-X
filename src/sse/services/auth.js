@@ -162,13 +162,25 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
       if (c.isActive === false) return false;
-      if (["unavailable", "error", "expired", "invalid", "disabled"].includes(c.testStatus)) return false;
+      if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
       if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
       if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
       if (isModelLockActive(c, model)) return false;
       // Antigravity: skip if live quota exhausted for this model
       if (isAntigravity && model && antigravityQuotaCache) {
-        const quota = antigravityQuotaCache.get(c.id)?.[model];
+        let quota = antigravityQuotaCache.get(c.id)?.[model];
+        if (!quota) {
+          // Fallback for free-tier accounts that only have weekly group quotas mapped
+          const modelLower = model.toLowerCase();
+          const weeklyKey = (modelLower.startsWith("gemini-") && !modelLower.includes("image"))
+            ? "gemini_weekly"
+            : (modelLower.startsWith("claude-") || modelLower.startsWith("gpt-"))
+              ? "claude_gpt_weekly"
+              : null;
+          if (weeklyKey) {
+            quota = antigravityQuotaCache.get(c.id)?.[weeklyKey];
+          }
+        }
         if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
           const account = c.id?.slice(0, 8) || "unknown";
           log.info("AG_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
@@ -607,6 +619,19 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
 
+  // Universal 429: account is exhausted — cannot serve ANY request until quota resets.
+  // This applies to ALL providers (antigravity, cline-free, etc.) regardless of
+  // POOLED_QUOTA_PROVIDERS membership. Cooldown from resetsAtMs or checkFallbackError
+  // above is preserved; we only enforce exhausted status + lockAll for daily/individual quota.
+  if (status === 429 && !is524Timeout) {
+    isExhausted = true;
+    const lowerErrorText = String(errorText || "").toLowerCase();
+    // Daily/individual quota exhaustion → lock ALL models on this account
+    if (/daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText)) {
+      lockAll = true;
+    }
+  }
+
   // 524 / Gateway timeout: upstream server is temporarily slow or down.
   // NEVER disable account, NEVER lock all models, cooldown capped at max 5 minutes (default 0).
   const is524Timeout = status === 524 || /524|gateway timeout|timeout occurred/i.test(String(errorText || ""));
@@ -632,7 +657,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     )
   );
 
-  if (isModelSpecificRestriction) {
+  if (isModelSpecificRestriction && status !== 429) {
     lockAll = false;
     disableAccount = false;
   }
