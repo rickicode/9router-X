@@ -249,6 +249,31 @@ export function unavailableResponse(statusCode, message, retryAfter, retryAfterH
 }
 
 /**
+ * Some upstreams (notably Google/Gemini-shaped gateways) nest a full OpenAI-style
+ * error envelope inside `error.message`, so a raw JSON blob — instead of the real
+ * reason — ends up surfacing to the client. Peel up to 3 layers of
+ * `{"error":{"message":…}}` so the text a user reads is the actual message.
+ * @param {string} text - Candidate message string
+ * @returns {string} Unwrapped message
+ */
+export function unwrapJsonMessage(text) {
+  if (typeof text !== "string") return text;
+  let current = text.trim();
+  for (let i = 0; i < 3; i++) {
+    if (!current.startsWith("{") || !current.endsWith("}")) break;
+    let inner;
+    try { inner = JSON.parse(current); } catch { break; }
+    const next = inner?.error?.message
+      || inner?.error?.error?.message
+      || (typeof inner?.error === "string" ? inner.error : null)
+      || inner?.message;
+    if (typeof next !== "string" || !next.trim() || next.trim() === current) break;
+    current = next.trim();
+  }
+  return current;
+}
+
+/**
  * Format provider error with context
  * @param {Error} error - Original error
  * @param {string} provider - Provider name
@@ -258,10 +283,11 @@ export function unavailableResponse(statusCode, message, retryAfter, retryAfterH
  */
 export function formatProviderError(error, provider, model, statusCode) {
   const code = statusCode || error.code || "FETCH_FAILED";
-  const message = error.message || "Unknown error";
+  const message = unwrapJsonMessage(error.message || "Unknown error");
   // Expose low-level cause (e.g. UND_ERR_SOCKET, ECONNRESET, ETIMEDOUT) for diagnosing fetch failures
   const causeCode = error.cause?.code;
   const causeMsg = error.cause?.message;
   const causeStr = causeCode || causeMsg ? ` (cause: ${[causeCode, causeMsg].filter(Boolean).join(": ")})` : "";
-  return `[${code}]: ${message}${causeStr}`;
+  const providerModelStr = provider && model ? ` · ${provider}/${model}` : (provider ? ` · ${provider}` : "");
+  return `[${code}${providerModelStr}]: ${message}${causeStr}`;
 }

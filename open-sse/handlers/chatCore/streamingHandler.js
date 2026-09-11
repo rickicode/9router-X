@@ -73,7 +73,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: true }).catch(() => { });
     return {
       success: false,
-      response: new Response(JSON.stringify({ error: { message: `[${status}]: ${shortMsg}` } }), {
+      response: new Response(JSON.stringify({ error: { message: `[${status} · ${provider}/${model}]: ${shortMsg}` } }), {
         status,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       }),
