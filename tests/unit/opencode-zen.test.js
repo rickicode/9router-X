@@ -98,7 +98,7 @@ describe("OpenCode Zen executor", () => {
     );
 
     expect(transformed.stream).toBe(false);
-    expect(transformed.max_output_tokens).toBe(256);
+    expect(transformed.max_output_tokens).toBe(200000);
     expect(transformed.max_tokens).toBeUndefined();
   });
 
@@ -112,6 +112,7 @@ describe("OpenCode Zen executor", () => {
     );
 
     expect(transformed.reasoning).toEqual({ effort: "low", summary: "auto" });
+    expect(transformed.max_output_tokens).toBe(200000);
   });
 
   it("routes Muse Spark and responses models to /zen/v1/responses", () => {

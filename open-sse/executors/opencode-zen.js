@@ -15,6 +15,7 @@ const MAX_SESSION_LENGTH = 256;
 
 const RESPONSES_BASE_URL = "https://opencode.ai/zen/v1/responses";
 const MAX_TOOL_NAME_LEN = 128;
+const MUSE_SPARK_MAX_OUTPUT_TOKENS = 200000;
 
 function normalizeSession(value) {
   if (typeof value !== "string") return null;
@@ -162,6 +163,11 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     if (out.max_output_tokens === undefined) {
       if (out.max_completion_tokens !== undefined) out.max_output_tokens = out.max_completion_tokens;
       else if (out.max_tokens !== undefined) out.max_output_tokens = out.max_tokens;
+    }
+    if (isMuseSparkModel(model || body?.model)
+      && (!Number.isFinite(Number(out.max_output_tokens))
+        || Number(out.max_output_tokens) < MUSE_SPARK_MAX_OUTPUT_TOKENS)) {
+      out.max_output_tokens = MUSE_SPARK_MAX_OUTPUT_TOKENS;
     }
     delete out.max_tokens;
     delete out.max_completion_tokens;
