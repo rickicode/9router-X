@@ -7,6 +7,7 @@ import { OpenCodeZenExecutor } from "../../open-sse/executors/opencode-zen.js";
 
 import REGISTRY from "../../open-sse/providers/registry/index.js";
 import { resolveProviderAlias } from "../../open-sse/services/model.js";
+import { responsesCompletionToOpenAI } from "../../open-sse/translator/response/openai-responses-json.js";
 
 describe("OpenCode Zen provider registry", () => {
   it("registers opencode-zen with apikey category and aliases", () => {
@@ -110,5 +111,23 @@ describe("OpenCode Zen executor", () => {
     });
 
     expect(body.reasoning).toMatchObject({ effort: "high", summary: "auto" });
+  });
+
+  it("converts a non-streaming Responses body into Chat Completions text", () => {
+    const response = responsesCompletionToOpenAI({
+      id: "resp_test",
+      object: "response",
+      status: "completed",
+      model: "muse-spark-1.3-contributor-free",
+      output: [
+        { type: "reasoning", summary: [] },
+        { type: "message", role: "assistant", content: [{ type: "output_text", text: "OK", annotations: [] }] },
+      ],
+      usage: { input_tokens: 11, output_tokens: 83, total_tokens: 94 },
+    });
+
+    expect(response.choices[0].message.content).toBe("OK");
+    expect(response.choices[0].finish_reason).toBe("stop");
+    expect(response.usage.total_tokens).toBe(94);
   });
 });

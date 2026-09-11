@@ -11,6 +11,7 @@ import { buildRequestDetail, extractRequestConfig, extractUsageFromResponse, sav
 import { appendRequestLog, saveRequestDetail, saveFailedRequest } from "@/lib/usageDb.js";
 import { decloakToolNames } from "../../utils/claudeCloaking.js";
 import { ROLE, RESPONSES_ITEM } from "../../translator/schema/index.js";
+import { responsesCompletionToOpenAI } from "../../translator/response/openai-responses-json.js";
 
 function parseToolArguments(value) {
   if (!value) return {};
@@ -139,11 +140,18 @@ function openAICompletionToResponses(responseBody, customToolNames = null) {
   };
 }
 
+
 /**
  * Translate non-streaming response body from provider format → OpenAI format.
  */
 export function translateNonStreamingResponse(responseBody, targetFormat, sourceFormat, customToolNames = null) {
   if (targetFormat === sourceFormat) return responseBody;
+  // OpenCode Free/Zen Responses endpoints return a complete Responses JSON
+  // object even for non-streaming requests. Convert it to Chat Completions
+  // before the normal client-format pipeline consumes it.
+  if (targetFormat === FORMATS.OPENAI_RESPONSES && sourceFormat === FORMATS.OPENAI && responseBody?.output) {
+    return responsesCompletionToOpenAI(responseBody);
+  }
   // Provider responded in OpenAI Chat Completions shape but the client speaks
   // Responses API — convert so tool_calls/text surface as Responses `output`.
   if (targetFormat === FORMATS.OPENAI && sourceFormat === FORMATS.OPENAI_RESPONSES) {
