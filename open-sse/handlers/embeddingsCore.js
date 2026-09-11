@@ -123,9 +123,18 @@ export async function handleEmbeddingsCore({
     return createErrorResult(HTTP_STATUS.BAD_GATEWAY, `Invalid JSON response from ${provider}`);
   }
 
-  if (onRequestSuccess) await onRequestSuccess();
+  try {
+    if (onRequestSuccess) await onRequestSuccess();
+  } catch (error) {
+    log?.warn?.("EMBEDDINGS", `Success callback failed: ${error?.message || String(error)}`);
+  }
 
-  const normalized = adapter.normalize(responseBody, model, { input: body.input });
+  let normalized;
+  try {
+    normalized = adapter.normalize(responseBody, model, { input: body.input });
+  } catch (error) {
+    return createErrorResult(HTTP_STATUS.BAD_GATEWAY, `Embedding response normalization failed: ${error?.message || String(error)}`);
+  }
   log?.debug?.("EMBEDDINGS", `Success | usage=${JSON.stringify(normalized.usage || {})}`);
 
   return {

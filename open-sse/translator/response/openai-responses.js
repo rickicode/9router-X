@@ -459,6 +459,7 @@ export function openaiResponsesToOpenAIResponse(chunk, state) {
   if (eventType === "response.output_text.delta") {
     const delta = data.delta || "";
     if (!delta) return null;
+    state.outputTextEmitted = true;
 
     return buildChunk(
       { id: state.chatId, created: state.created, model: state.model || MODEL_FALLBACK },
@@ -468,7 +469,23 @@ export function openaiResponsesToOpenAIResponse(chunk, state) {
 
   // Text content done (ignore, we handle via delta)
   if (eventType === "response.output_text.done") {
-    return null;
+    const text = data.text || "";
+    if (!text || state.outputTextEmitted) return null;
+    state.outputTextEmitted = true;
+    return buildChunk(
+      { id: state.chatId, created: state.created, model: state.model || MODEL_FALLBACK },
+      { content: text },
+    );
+  }
+
+  if (eventType === "response.content_part.done") {
+    const text = data.part?.text || data.content_part?.text || data.text || "";
+    if (!text || state.outputTextEmitted) return null;
+    state.outputTextEmitted = true;
+    return buildChunk(
+      { id: state.chatId, created: state.created, model: state.model || MODEL_FALLBACK },
+      { content: text },
+    );
   }
 
   // Function call started (standard function_call or custom_tool_call).
@@ -540,6 +557,23 @@ export function openaiResponsesToOpenAIResponse(chunk, state) {
 
   // Response completed
   if (eventType === "response.completed" || eventType === "response.done") {
+    const output = data.response?.output;
+    if (Array.isArray(output)) {
+      const text = output.flatMap((item) => item?.content || [])
+        .filter((part) => part?.type === "output_text" && typeof part.text === "string")
+        .map((part) => part.text)
+        .join("");
+      if (text) {
+        state.completedOutputText = text;
+        if (!state.outputTextEmitted) {
+          state.outputTextEmitted = true;
+          return buildChunk(
+            { id: state.chatId, created: state.created, model: state.model || MODEL_FALLBACK },
+            { content: text },
+          );
+        }
+      }
+    }
     // Extract usage from response.completed event
     const responseUsage = data.response?.usage;
     if (responseUsage && typeof responseUsage === "object") {

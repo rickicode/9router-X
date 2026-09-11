@@ -381,10 +381,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   }
 
   log.warn("COMBO", `All models failed | ${msg}`);
-  return new Response(
-    JSON.stringify({ error: { message: msg } }),
-    { status, headers: { "Content-Type": "application/json" } }
-  );
+  return unavailableResponse(status, msg, null, null, { code: "COMBO_UNAVAILABLE" });
 }
 
 /**
@@ -614,10 +611,7 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   // 3. Degrade gracefully when the panel is too thin to fuse.
   if (answers.length === 0) {
     log.warn("FUSION", "All panel models failed");
-    return new Response(
-      JSON.stringify({ error: { message: "All fusion panel models failed" } }),
-      { status: 503, headers: { "Content-Type": "application/json" } }
-    );
+    return unavailableResponse(503, "All fusion panel models failed", null, null, { code: "FUSION_PANEL_UNAVAILABLE" });
   }
   if (answers.length === 1) {
     log.info("FUSION", `Only ${answers[0].model} succeeded — answering directly (no fusion)`);

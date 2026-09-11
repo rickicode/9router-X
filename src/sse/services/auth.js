@@ -1,9 +1,10 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
+import * as localDb from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
-import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
+import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
-import { getAntigravityQuotaCache } from "./antigravityQuota.js";
+import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted } from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
@@ -43,65 +44,89 @@ function isSameFreebuffModel(connModel, targetModel) {
   return baseA === baseB;
 }
 
-function classifyBlockedCredentials(provider, model, connections, { cooledDown = false } = {}) {
-  const accountExhausted = connections.some((c) => c.testStatus === "exhausted");
-  if (accountExhausted) {
-    return {
-      allRateLimited: true,
-      retryAfter: null,
-      retryAfterHuman: "until quota resets",
-      lastError: `All ${provider} accounts are exhausted (account quota/credits).`,
-      lastErrorCode: "ACCOUNT_EXHAUSTED",
-    };
+export function classifyBlockedCredentials(provider, model, connections, { cooledDown = false } = {}) {
+  const breakdown = {
+    total: connections.length,
+    accountExhausted: 0,
+    modelExhausted: 0,
+    unavailable: 0,
+    disabled: 0,
+    coolingDown: cooledDown ? connections.length : 0,
+  };
+  const accountLocks = new Set();
+  const modelLocks = new Set();
+  const retryExpiries = [];
+
+  for (const connection of connections) {
+    const disabled = connection.isActive === false || connection.disabledAt || connection.testStatus === "disabled";
+    const refreshBlocked = connection.providerSpecificData?.refreshBlocked === true
+      || connection.providerSpecificData?.refreshBlocked === "true";
+    const fatalError = typeof connection.lastError === "string"
+      && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError);
+    const accountLock =
+      (connection.lockedAllUntil && new Date(connection.lockedAllUntil).getTime() > Date.now())
+      || (connection.rateLimitedUntil && new Date(connection.rateLimitedUntil).getTime() > Date.now())
+      || (connection.modelLocks?.__all && new Date(connection.modelLocks.__all).getTime() > Date.now())
+      || (connection.modelLock___all && new Date(connection.modelLock___all).getTime() > Date.now());
+    const modelLockValue = Boolean(model) && (connection[`modelLock_${model}`] || connection.modelLocks?.[model]);
+    const modelLock = modelLockValue && Number.isFinite(new Date(modelLockValue).getTime())
+      && new Date(modelLockValue).getTime() > Date.now();
+    const unavailable = refreshBlocked || fatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus);
+
+    if (disabled) breakdown.disabled++;
+    else if (connection.testStatus === "exhausted" || accountLock) {
+      breakdown.accountExhausted++;
+      accountLocks.add(connection.id);
+      const expiry = getEarliestModelLockUntil(connection, null);
+      if (expiry) retryExpiries.push(expiry);
+    } else if (modelLock) {
+      breakdown.modelExhausted++;
+      modelLocks.add(connection.id);
+      const expiry = getEarliestModelLockUntil(connection, model);
+      if (expiry) retryExpiries.push(expiry);
+    } else if (unavailable) breakdown.unavailable++;
   }
 
-  const accountLock = connections.some((c) =>
-    (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now())
-    || (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now())
-    || (c.modelLocks?.__all && new Date(c.modelLocks.__all).getTime() > Date.now())
-    || (c.modelLock___all && new Date(c.modelLock___all).getTime() > Date.now())
-  );
-  if (accountLock) {
-    return {
-      allRateLimited: true,
-      retryAfter: null,
-      retryAfterHuman: "until quota resets",
-      lastError: `All ${provider} accounts are exhausted (account quota/credits).`,
-      lastErrorCode: "ACCOUNT_EXHAUSTED",
-    };
-  }
+  const blocked = breakdown.accountExhausted + breakdown.modelExhausted
+    + breakdown.unavailable + breakdown.disabled + breakdown.coolingDown;
+  if (blocked === 0) return null;
 
-  const modelLock = Boolean(model) && connections.some((c) => {
-    const value = c[`modelLock_${model}`] || c.modelLocks?.[model];
-    return value && Number.isFinite(new Date(value).getTime())
-      && new Date(value).getTime() > Date.now();
-  });
-  if (modelLock) {
-    return {
-      allRateLimited: true,
-      retryAfter: null,
-      retryAfterHuman: "until model quota resets",
-      lastError: `Model ${model} is exhausted for all ${provider} accounts.`,
-      lastErrorCode: "MODEL_EXHAUSTED",
-    };
-  }
-
-  const unavailable = connections.some((c) =>
-    c.isActive === false || ["unavailable", "error", "expired", "invalid", "disabled"].includes(c.testStatus)
-  );
-  if (unavailable || cooledDown) {
-    return {
-      allRateLimited: true,
-      retryAfter: null,
-      retryAfterHuman: "until account is available",
-      lastError: unavailable
+  const allAccountExhausted = breakdown.accountExhausted === connections.length;
+  const onlyModelExhausted = breakdown.modelExhausted > 0
+    && breakdown.modelExhausted === connections.length;
+  const allModelExhausted = onlyModelExhausted;
+  const allBlockedBySameState = breakdown.accountExhausted + breakdown.modelExhausted + breakdown.unavailable + breakdown.disabled === connections.length;
+  const code = allAccountExhausted
+    ? "ACCOUNT_EXHAUSTED"
+    : allModelExhausted
+      ? "MODEL_EXHAUSTED"
+      : allBlockedBySameState && breakdown.unavailable + breakdown.disabled === connections.length
+        ? "ACCOUNT_UNAVAILABLE"
+        : "MIXED_BLOCKED";
+  const message = code === "ACCOUNT_EXHAUSTED"
+    ? `All ${provider} accounts are exhausted (account quota/credits).`
+    : code === "MODEL_EXHAUSTED"
+      ? `Model ${model} is exhausted for all ${provider} accounts.`
+      : code === "ACCOUNT_UNAVAILABLE"
         ? `All ${provider} accounts are unavailable or disabled.`
-        : `All ${provider} accounts are cooling down.`,
-      lastErrorCode: "ACCOUNT_UNAVAILABLE",
+        : `No usable ${provider} credentials for ${model || "requested model"}.`;
+  const retryAfter = retryExpiries.sort()[0] || null;
+
+  if (code) {
+    return {
+      allRateLimited: true,
+      retryAfter,
+      retryAfterHuman: retryAfter
+        ? formatRetryAfter(retryAfter)
+        : code === "ACCOUNT_EXHAUSTED" || code === "MODEL_EXHAUSTED"
+          ? "quota reset time unavailable"
+          : "until an account is available",
+      lastError: message,
+      lastErrorCode: code,
+      statusBreakdown: breakdown,
+      blockedConnectionIds: [...accountLocks, ...modelLocks],
     };
   }
-
-  return null;
 }
 
 
@@ -217,6 +242,53 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // Antigravity quota cache is lazy: only populated after that account returns 409/429.
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
+    // RAM quota state is process-local. Hydrate it from PostgreSQL so a
+    // restart or a second replica cannot route into an already exhausted account.
+    if (isAntigravity && model && antigravityQuotaCache) {
+      let snapshots = [];
+      try {
+        const getSnapshots = localDb.getBatchProviderQuotas;
+        if (typeof getSnapshots === "function") {
+          snapshots = await getSnapshots(providerId).catch(() => []);
+        }
+      } catch {
+        // Test/minimal adapters may not expose snapshot reads; RAM remains a
+        // safe fallback for that process.
+      }
+      for (const snapshot of snapshots) {
+        if (snapshot?.connectionId && snapshot.quotas) {
+          hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
+        }
+      }
+      // Materialize the durable account state once all tracked model/family
+      // buckets are exhausted. This prevents every replica from rediscovering
+      // the same account through a stale active connection row.
+      await Promise.all(connections.map(async (connection) => {
+        if (connection.testStatus === "exhausted" || !isAntigravityAccountQuotaExhausted(connection.id)) return;
+        const resetAt = Object.values(antigravityQuotaCache.get(connection.id) || {})
+          .map((quota) => quota?.resetAt)
+          .filter((value) => value && new Date(value).getTime() > Date.now())
+          .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
+        if (!resetAt) return;
+        await Promise.resolve(updateProviderConnection(connection.id, {
+          testStatus: "exhausted",
+          previousStatus: connection.testStatus || "active",
+          lastError: "All Antigravity model quotas are exhausted",
+          errorCode: 429,
+          lastErrorAt: new Date().toISOString(),
+          lockedAllUntil: resetAt,
+          modelLock___all: resetAt,
+        })).catch(() => {});
+      }));
+    }
+
+    // Do not wait for the asynchronous DB materialization above. The current
+    // request must honor the hydrated quota snapshot immediately.
+    const locallyExhaustedIds = new Set(
+      connections
+        .filter((connection) => isAntigravity && isAntigravityAccountQuotaExhausted(connection.id))
+        .map((connection) => connection.id),
+    );
 
     const isFreebuff = providerId === "freebuff";
     const freebuffQuotaCache = isFreebuff && model ? getFreebuffQuotaCache() : null;
@@ -228,8 +300,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // Filter out model-locked, excluded, and Antigravity/Freebuff quota-exhausted connections.
     let availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
+      if (locallyExhaustedIds.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
-      if (c.isActive === false || c.disabledAt || c.testStatus === "disabled") return false;
+      const refreshBlocked = c.providerSpecificData?.refreshBlocked === true || c.providerSpecificData?.refreshBlocked === "true";
+      const fatalError = typeof c.lastError === "string"
+        && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(c.lastError);
+      if (c.isActive === false || c.disabledAt || c.testStatus === "disabled" || refreshBlocked || fatalError) return false;
       if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
       if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
       if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
@@ -324,7 +400,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const excluded = excludeSet.has(c.id);
       const locked = isModelLockActive(c, model);
       if (excluded || locked) {
-        const lockUntil = getEarliestModelLockUntil(c);
+        const lockUntil = getEarliestModelLockUntil(c, model);
         log.debug("AUTH", `  → ${c.id?.slice(0, 8)} | ${excluded ? "excluded" : ""} ${locked ? `modelLocked(${model}) until ${lockUntil}` : ""}`);
       }
     });
@@ -337,7 +413,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         : connections;
       // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
       const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
-      const expiries = lockedConns.map(c => getEarliestModelLockUntil(c)).filter(Boolean);
+      const expiries = lockedConns.map(c => getEarliestModelLockUntil(c, model)).filter(Boolean);
       if (isAntigravity && model && antigravityQuotaCache) {
         stateConnections.forEach((c) => {
           const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
@@ -710,7 +786,21 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     if (/daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText)) {
       lockAll = true;
     }
+    // Every 429 must be cooled down. If the provider did not return a usable
+    // reset timestamp, use the stable default instead of the short exponential
+    // backoff that causes the same exhausted account to be retried repeatedly.
+    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS;
     isExhausted = lockAll;
+  }
+
+  // Antigravity quota snapshots cover the whole account. Once every tracked
+  // non-image bucket is exhausted, expose the account as exhausted instead of
+  // leaving it merely model-locked and repeatedly selecting it later.
+  if (providerId === "antigravity" && resetsAtMs && isAntigravityAccountQuotaExhausted(connectionId)) {
+    lockAll = true;
+    isExhausted = true;
   }
 
   // 524 / Gateway timeout: upstream server is temporarily slow or down.
@@ -740,6 +830,17 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (isModelSpecificRestriction && status !== 429) {
     lockAll = false;
     disableAccount = false;
+  }
+
+  // Antigravity uses 409 for quota/capacity exhaustion. Keep this provider-
+  // specific so generic 409 conflicts remain terminal elsewhere.
+  if (providerId === "antigravity" && status === 409) {
+    const agQuota409 = /quota|capacity|resource exhausted|exhausted|rate.?limit|try again/i.test(lowerErr);
+    if (agQuota409 || (resetsAtMs && resetsAtMs > Date.now())) {
+      shouldFallback = true;
+      cooldownMs = Math.max(1000, resetsAtMs ? resetsAtMs - Date.now() : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+      lockAll = false;
+    }
   }
 
 

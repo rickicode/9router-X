@@ -139,10 +139,19 @@ export async function handleVideoCreate(request, action) {
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
-        return unavailableResponse(status, `[${provider}/${model || "video"}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        return unavailableResponse(status, `[${provider}/${model || "video"}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman, {
+          code: credentials.lastErrorCode,
+          provider,
+          model: model || "video",
+          statusBreakdown: credentials.statusBreakdown,
+        });
       }
       if (excludeConnectionIds.size === 0) {
-        return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${provider}`);
+        return unavailableResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `No credentials for provider: ${provider}`, null, null, {
+          code: "NO_CREDENTIALS",
+          provider,
+          model: model || "video",
+        });
       }
       return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
     }
@@ -190,7 +199,7 @@ export async function handleVideoCreate(request, action) {
       continue;
     }
 
-    return result.response;
+    return result.response || errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "Video request failed");
   }
 }
 
@@ -254,5 +263,5 @@ export async function handleVideoGet(request, requestId, { content = false } = {
   await markAccountUnavailable(
     credentials.connectionId, result.status, sanitizeSecrets(result.error, refreshedCredentials), provider, null, result.resetsAtMs
   );
-  return result.response;
+    return result.response || errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "Video request failed");
 }

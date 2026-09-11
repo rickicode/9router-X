@@ -234,12 +234,21 @@ export function createErrorResult(statusCode, message, resetsAtMs, extra = {}) {
  * @param {string} retryAfterHuman - Human-readable retry info e.g. "reset after 30s"
  * @returns {Response}
  */
-export function unavailableResponse(statusCode, message, retryAfter, retryAfterHuman) {
+export function unavailableResponse(statusCode, message, retryAfter, retryAfterHuman, metadata = {}) {
   const retryAfterMs = retryAfter ? new Date(retryAfter).getTime() : NaN;
   const retryAfterSec = Number.isFinite(retryAfterMs) ? Math.max(Math.ceil((retryAfterMs - Date.now()) / 1000), 1) : null;
   const msg = retryAfterHuman ? `${message} (${retryAfterHuman})` : message;
+  const error = {
+    message: msg,
+    type: "service_unavailable",
+    code: metadata.code || "SERVICE_UNAVAILABLE",
+    ...(metadata.provider ? { provider: metadata.provider } : {}),
+    ...(metadata.model ? { model: metadata.model } : {}),
+    ...(metadata.statusBreakdown ? { status_breakdown: metadata.statusBreakdown } : {}),
+    ...(retryAfter ? { retry_after: retryAfter } : {}),
+  };
   return new Response(
-    JSON.stringify({ error: { message: msg } }),
+    JSON.stringify({ error }),
     {
       status: statusCode,
       headers: {

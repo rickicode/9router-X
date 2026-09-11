@@ -125,11 +125,20 @@ export async function handleEmbeddings(request) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("EMBEDDINGS", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman, {
+          code: credentials.lastErrorCode,
+          provider,
+          model,
+          statusBreakdown: credentials.statusBreakdown,
+        });
       }
       if (excludeConnectionIds.size === 0) {
         log.error("AUTH", `No credentials for provider: ${provider}`);
-        return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${provider}`);
+      return unavailableResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `No credentials for provider: ${provider}`, null, null, {
+        code: "NO_CREDENTIALS",
+        provider,
+        model,
+      });
       }
       log.warn("EMBEDDINGS", "No more accounts available", { provider });
       return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
@@ -186,6 +195,9 @@ export async function handleEmbeddings(request) {
       continue;
     }
 
-    return result.response;
+    return result.response || errorResponse(
+      result.status || HTTP_STATUS.BAD_GATEWAY,
+      result.error || "Embeddings request failed",
+    );
   }
 }

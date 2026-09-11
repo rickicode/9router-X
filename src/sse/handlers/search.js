@@ -148,7 +148,7 @@ async function handleSingleProviderSearch(body, providerInput, request, apiKey, 
       log
     });
     if (result.success) return result.response;
-    return result.response;
+    return result.response || errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "Search request failed");
   }
 
   // Credential + fallback loop
@@ -189,7 +189,11 @@ async function handleSingleProviderSearch(body, providerInput, request, apiKey, 
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("SEARCH", `[${providerId}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        return unavailableResponse(status, `[${providerId}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        return unavailableResponse(status, `[${providerId}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman, {
+          code: credentials.lastErrorCode,
+          provider: providerId,
+          statusBreakdown: credentials.statusBreakdown,
+        });
       }
       if (excludeConnectionIds.size === 0) {
         log.error("AUTH", `No credentials for provider: ${providerId}`);
@@ -238,6 +242,6 @@ async function handleSingleProviderSearch(body, providerInput, request, apiKey, 
       continue;
     }
 
-    return result.response;
+    return result.response || errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "Search request failed");
   }
 }

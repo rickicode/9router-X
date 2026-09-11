@@ -352,9 +352,11 @@ const FUTURE_MODEL_LOCK_SQL = `EXISTS (
 // (locked_all_until, model_locks.__all, rate_limited_until) -> "unavailable".
 // Permanent failures (fatal errors, bad test_status, refreshBlocked) ->
 // "unavailable". Active only when none apply.
-const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid')";
+const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid', 'disabled')";
+const DISABLED_DATA_SQL = "data->>'disabledAt' IS NOT NULL";
 const PERMANENT_UNAVAILABLE_SQL = `(
   ${BAD_TEST_STATUS_SQL}
+  OR ${DISABLED_DATA_SQL}
   OR ${CONNECTION_UNAVAILABLE_DATA_SQL}
   OR ${FATAL_CONNECTION_ERROR_SQL}
 )`;
@@ -403,7 +405,9 @@ function buildConnectionFilterConditions(filter, params) {
   }
   if (filter.isActive !== undefined) {
     params.push(filter.isActive);
-    where.push(`is_active = $${params.length}`);
+    where.push(filter.isActive
+      ? `(is_active = true AND NOT ${DISABLED_DATA_SQL} AND COALESCE(test_status, 'active') <> 'disabled')`
+      : `(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
   }
   if (filter.search && typeof filter.search === "string" && filter.search.trim()) {
     params.push(`%${filter.search.trim()}%`);
@@ -417,7 +421,7 @@ function buildConnectionFilterConditions(filter, params) {
     } else if (filter.status === "unavailable") {
       where.push(UNAVAILABLE_CONNECTION_SQL);
     } else if (filter.status === "disabled") {
-      where.push(`is_active = false`);
+      where.push(`(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
     }
   }
   return where;
@@ -492,7 +496,7 @@ export async function getProviderSummaryStats() {
       provider,
       auth_type,
       COUNT(*)::int AS total,
-      COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled_count,
+       COUNT(CASE WHEN is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled' THEN 1 END)::int AS disabled_count,
       COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable_count,
       COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted_count,
       COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active_count,
@@ -616,10 +620,11 @@ export async function getClientUsageConnections({
   } else if (accountStatus === "unavailable") {
     where.push(UNAVAILABLE_CONNECTION_SQL);
   } else if (accountStatus === "disabled" || accountStatus === "inactive") {
-    where.push(`is_active = false`);
+    where.push(`(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
   } else if (accountStatus !== "all_with_disabled") {
-    // Default / "all": only show accounts that are NOT disabled (is_active = true)
-    where.push(`is_active = true`);
+    // Default / "all": only show accounts that are routable at the account
+    // level. Include the JSONB legacy disabled marker in this predicate.
+    where.push(`is_active = true AND NOT ${DISABLED_DATA_SQL} AND COALESCE(test_status, 'active') <> 'disabled'`);
   }
 
   if (search && typeof search === "string" && search.trim()) {
@@ -704,11 +709,11 @@ export async function getClientUsageMeta({
 
   const statsRow = await db.get(
     `SELECT
-       COUNT(CASE WHEN is_active = true THEN 1 END)::int AS total,
+        COUNT(*)::int AS total,
        COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active,
        COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted,
        COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable,
-       COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled
+        COUNT(CASE WHEN is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled' THEN 1 END)::int AS disabled
      FROM provider_connections
      ${statusWhereSql}`,
     statusParams,
@@ -866,7 +871,10 @@ export async function updateProviderConnection(id, data = {}) {
   const patch = normalizePatch(data);
 
   return db.transaction(async (tx) => {
-    const row = await tx.get(`SELECT * FROM provider_connections WHERE id = $1`, [id]);
+     // Health updates are concurrent by design: different models/accounts can
+     // fail at the same time. Lock the row before read-merge-write so one
+     // model lock cannot overwrite another model's lock.
+     const row = await tx.get(`SELECT * FROM provider_connections WHERE id = $1 FOR UPDATE`, [id]);
     if (!row) return null;
 
     const existing = rowToConnection(row);

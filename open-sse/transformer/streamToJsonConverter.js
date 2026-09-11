@@ -27,6 +27,25 @@ function processSSEMessage(msg, state) {
     state.created = parsed.response?.created_at || state.created;
   } else if (eventType === "response.output_item.done") {
     state.items.set(parsed.output_index ?? 0, parsed.item);
+  } else if (eventType === "response.output_text.delta") {
+    const index = parsed.output_index ?? 0;
+    const item = state.items.get(index) || { type: "message", role: "assistant", content: [] };
+    const content = Array.isArray(item.content) ? item.content : [];
+    const textPart = content.find((part) => part?.type === "output_text");
+    if (textPart) textPart.text = `${textPart.text || ""}${parsed.delta || ""}`;
+    else content.push({ type: "output_text", text: parsed.delta || "", annotations: [] });
+    item.content = content;
+    state.items.set(index, item);
+  } else if (eventType === "response.output_text.done") {
+    const index = parsed.output_index ?? 0;
+    const item = state.items.get(index) || { type: "message", role: "assistant", content: [] };
+    const content = Array.isArray(item.content) ? item.content : [];
+    const textPart = content.find((part) => part?.type === "output_text");
+    const text = parsed.text || "";
+    if (textPart) textPart.text = text || textPart.text || "";
+    else if (text) content.push({ type: "output_text", text, annotations: [] });
+    item.content = content;
+    state.items.set(index, item);
   } else if (eventType === "response.completed" || eventType === "response.done") {
     state.status = "completed";
     if (parsed.response?.usage) {
@@ -36,6 +55,10 @@ function processSSEMessage(msg, state) {
     }
   } else if (eventType === "response.failed") {
     state.status = "failed";
+  }
+
+  if (parsed.response?.output && Array.isArray(parsed.response.output)) {
+    for (const [index, item] of parsed.response.output.entries()) state.items.set(index, item);
   }
 }
 

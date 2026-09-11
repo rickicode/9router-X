@@ -53,6 +53,7 @@ export async function handleChat(request, clientRawRequest = null) {
       headers: Object.fromEntries(request.headers.entries())
     };
   }
+  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
   // Claude Code marks a 1M-context request as `<model>[1m]`; the marker matches
   // no combo, alias or provider/model pair, so it must not reach resolution.
   // The capability travels in the anthropic-beta header, forwarded as-is.
@@ -104,7 +105,10 @@ export async function handleChat(request, clientRawRequest = null) {
     const comboStrategies = settings.comboStrategies || {};
     const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
     const comboStrategy = comboSpecificStrategy || settings.comboStrategy || "fallback";
-    const augmentedModels = augmentModelsWithCapacityAdapter(comboModels, requiredCapabilities, settings);
+    // A combo is an explicit routing contract. Never inject a model from a
+    // different provider into it; its members and configured strategy define
+    // the complete fallback set.
+    const augmentedModels = comboModels;
     const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
 
     if (comboStrategy === "fusion") {
@@ -118,7 +122,7 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest);
         },
         log,
         comboName: modelStr,
@@ -133,7 +137,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
         adapterAdded
       ),
       log,
@@ -153,7 +157,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: soloAugmented,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
         adapterAdded
       ),
       log,
@@ -162,13 +166,13 @@ export async function handleChat(request, clientRawRequest = null) {
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, null, isTestRequest);
 }
 
 /**
  * Handle single model chat request
  */
-async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null) {
+async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, comboName = null, isTestRequest = false) {
   const modelInfo = await getModelInfo(modelStr);
 
   // If provider is null, this might be a combo name - check and handle
@@ -181,7 +185,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
       const comboStrategy = comboSpecificStrategy || chatSettings.comboStrategy || "fallback";
       const requiredCapabilities = detectRequiredCapabilities(body);
-      const augmentedModels = augmentModelsWithCapacityAdapter(comboModels, requiredCapabilities, chatSettings);
+       const augmentedModels = comboModels;
       const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
 
       if (comboStrategy === "fusion") {
@@ -195,7 +199,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest);
           },
           log,
           comboName: modelStr,
@@ -210,7 +214,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
           adapterAdded
         ),
         log,
@@ -224,6 +228,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   }
 
   const { provider, model } = modelInfo;
+  if (clientRawRequest) {
+    clientRawRequest = { ...clientRawRequest, comboName: comboName || clientRawRequest.comboName || null };
+  }
 
   // Routing shown in the unified "▶" line (client model → provider/model)
 
@@ -244,8 +251,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
-        saveRequestDetail({
+         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
+         if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: null,
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
@@ -253,8 +260,13 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
           response: { error: errorMsg, status, thinking: null },
           status: "error",
           error: errorMsg,
-        }).catch(() => {});
-        return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+         }).catch(() => {});
+        return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman, {
+          code: credentials.lastErrorCode,
+          provider,
+          model,
+          statusBreakdown: credentials.statusBreakdown,
+        });
       }
       if (excludeConnectionIds.size === 0) {
         // No credentials exist for this provider at all (or none active).
@@ -262,8 +274,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         // 404 tells clients the endpoint/model is wrong and they stop retrying.
         log.warn("AUTH", `No active credentials for provider: ${provider}`);
         const noCredMsg = `No active credentials for provider: ${provider} — add an account or re-enable disabled ones`;
-        saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: noCredMsg }).catch(() => {});
-        saveRequestDetail({
+         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: noCredMsg }).catch(() => {});
+         if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: null,
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
@@ -277,13 +289,14 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
           noCredMsg,
           null,
           null,
+          { code: "NO_CREDENTIALS", provider, model },
         );
       }
       log.warn("CHAT", "No more accounts available", { provider });
       const noMoreMsg = lastError || "All accounts unavailable";
       const noMoreStatus = lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE;
-      saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
-      saveRequestDetail({
+       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
+       if (!isTestRequest) saveRequestDetail({
         provider, model, connectionId: null,
         latency: { ttft: 0, total: 0 },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
@@ -320,6 +333,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       connectionId: credentials.connectionId,
       userAgent,
       apiKey,
+      isTestRequest,
       ccFilterNaming: !!chatSettings.ccFilterNaming,
       rtkEnabled: !!chatSettings.rtkEnabled,
       headroomEnabled: !!chatSettings.headroomEnabled,
@@ -356,6 +370,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       },
       // Detect source format by endpoint + body
       sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
+      isTestRequest,
+      comboName,
       onCredentialsRefreshed: async (newCreds) => {
         await updateProviderCredentials(credentials.connectionId, {
           ...newCreds,
@@ -512,6 +528,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       continue;
     }
 
-    return result.response;
+    return result.response || errorResponse(
+      result.status || HTTP_STATUS.BAD_GATEWAY,
+      result.error || "Chat request failed",
+    );
   }
 }
