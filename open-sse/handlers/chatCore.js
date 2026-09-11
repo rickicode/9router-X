@@ -317,7 +317,8 @@ if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
 if (passthrough && clientTool === "claude") anchorClaudeCache(translatedBody);
 
 const executor = getExecutor(provider);
-trackPendingRequest(model, provider, connectionId, true, false, { isStream: stream, apiKey });
+const requestId = `${connectionId || "direct"}|${provider}|${model}|${requestStartTime}`;
+trackPendingRequest(model, provider, connectionId, true, false, { isStream: stream, apiKey, requestId });
 appendRequestLog({ model, provider, connectionId, status: "PENDING" }).catch(() => { });
 
 const msgCount = translatedBody.messages?.length || translatedBody.input?.length || translatedBody.contents?.length || translatedBody.request?.contents?.length || 0;
@@ -325,10 +326,10 @@ log?.debug?.("REQUEST", `${provider.toUpperCase()} | ${model} | ${msgCount} msgs
 
 const streamController = createStreamController({
   onDisconnect: (reason) => {
-    trackPendingRequest(model, provider, connectionId, false);
+    trackPendingRequest(model, provider, connectionId, false, false, { requestId });
     if (onDisconnect) onDisconnect(reason);
   },
-  onError: () => trackPendingRequest(model, provider, connectionId, false),
+  onError: () => trackPendingRequest(model, provider, connectionId, false, false, { requestId }),
   log, provider, model, reqTag
 });
 
@@ -610,7 +611,7 @@ if (!providerResponse.ok) {
 
 const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, isTestRequest, comboName };
 const appendLog = (extra) => isTestRequest ? Promise.resolve() : appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
-const trackDone = () => trackPendingRequest(model, provider, connectionId, false);
+const trackDone = () => trackPendingRequest(model, provider, connectionId, false, false, { requestId });
 
 // Provider forced streaming but client wants JSON
 if (!clientRequestedStreaming && providerRequiresStreaming) {

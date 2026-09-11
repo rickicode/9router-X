@@ -165,7 +165,7 @@ const liveActiveRequests = new Map();
 
 export async function trackPendingRequest(model, provider, connectionId, started, error = false, options = {}) {
   const modelKey = provider ? `${model} (${provider})` : model;
-  const timerKey = `${connectionId}|${modelKey}`;
+  const timerKey = options.requestId || `${connectionId}|${modelKey}`;
 
   if (started) {
     liveActiveRequests.set(timerKey, {
@@ -244,7 +244,9 @@ export async function getActiveRequests() {
       model: item.model,
       provider: item.provider,
       account: accountName,
+      connectionId: item.connectionId || null,
       apiKey: keyName,
+      clientApiKey: keyName,
       rawApiKey: item.apiKey,
       isStream: item.isStream,
       startedAt: item.startedAt,
@@ -262,8 +264,10 @@ export async function getActiveRequests() {
             model: match ? match[1] : modelKey,
             provider: match ? match[2] : "unknown",
             account: accountName,
+            connectionId,
             count,
             apiKey: "Default Key",
+            clientApiKey: "Default Key",
             isStream: true,
             status: "streaming",
             startedAt: new Date().toISOString(),
@@ -290,7 +294,10 @@ export async function getActiveRequests() {
         timestamp: ts,
         model: entry.model,
         provider: entry.provider || "",
+        account: entry.account || connectionMap[entry.connectionId] || (entry.connectionId ? `Account ${entry.connectionId.slice(0, 8)}...` : "Direct"),
+        connectionId: entry.connectionId || null,
         apiKey: keyName,
+        clientApiKey: keyName,
         rawApiKey: entry.apiKey || "",
         endpoint: entry.endpoint || "/v1/chat/completions",
         isStream,
@@ -702,7 +709,7 @@ export async function getUsageStats(period = "all") {
   for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id, createdAt: k.createdAt };
 
   const recentRows = await db.all(
-    `SELECT timestamp, provider, model, tokens, status, api_key, endpoint, meta FROM usage_history ORDER BY id DESC LIMIT 100`,
+    `SELECT timestamp, provider, model, connection_id, tokens, status, api_key, endpoint, meta FROM usage_history ORDER BY id DESC LIMIT 100`,
   );
   const seen = new Set();
   const recentRequests = recentRows
@@ -719,7 +726,10 @@ export async function getUsageStats(period = "all") {
         timestamp: ts,
         model: row.model,
         provider: row.provider || "",
+        account: connectionMap[row.connection_id] || (row.connection_id ? `Account ${row.connection_id.slice(0, 8)}...` : "Direct"),
+        connectionId: row.connection_id || null,
         apiKey: keyName,
+        clientApiKey: keyName,
         rawApiKey: row.api_key || "",
         endpoint: row.endpoint || "/v1/chat/completions",
         isStream,
@@ -769,6 +779,9 @@ export async function getUsageStats(period = "all") {
           model: match ? match[1] : modelKey,
           provider: match ? match[2] : "unknown",
           account: accountName,
+          connectionId,
+          apiKey: "Default Key",
+          clientApiKey: "Default Key",
           count,
         });
       }

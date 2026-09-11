@@ -171,12 +171,18 @@ export default function RealtimeRequestsCard({
                   >
                     {req.model}
                   </span>
-                  <span className="text-[10px] text-text-muted flex items-center gap-1 truncate">
-                    <span className="material-symbols-outlined !text-[11px]">
-                      key
-                    </span>
-                    {req.apiKey || req.account || "Default Key"}
-                  </span>
+                   <span className="text-[10px] text-text-muted flex items-center gap-1 truncate" title={req.account || "Direct request"}>
+                     <span className="material-symbols-outlined !text-[11px]">
+                       account_circle
+                     </span>
+                     {req.account || "Direct request"}
+                   </span>
+                   <span className="text-[10px] text-text-muted flex items-center gap-1 truncate" title={req.clientApiKey || req.apiKey || "Default Key"}>
+                     <span className="material-symbols-outlined !text-[11px]">
+                       key
+                     </span>
+                     {req.clientApiKey || req.apiKey || "Default Key"}
+                   </span>
                 </div>
                 <div className="shrink-0 flex flex-col items-end">
                   <span className="text-[10px] font-mono text-text-muted">
@@ -250,7 +256,7 @@ export default function RealtimeRequestsCard({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-surface-1/50">
-          <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+          <table className="w-full min-w-[860px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
                 <th className="py-2.5 px-3 w-8 text-center">Status</th>
@@ -258,7 +264,8 @@ export default function RealtimeRequestsCard({
                 <th className="py-2.5 px-3 w-28">Stream State</th>
                 <th className="py-2.5 px-3">Model</th>
                 <th className="py-2.5 px-3 w-28">Provider</th>
-                <th className="py-2.5 px-3 w-36">API Key</th>
+                <th className="py-2.5 px-3 w-44">Upstream Account</th>
+                <th className="py-2.5 px-3 w-36">Client API Key</th>
                 <th className="py-2.5 px-3 text-right w-28 whitespace-nowrap">
                   Tokens In/Out
                 </th>
@@ -344,14 +351,22 @@ export default function RealtimeRequestsCard({
                       </Badge>
                     </td>
 
-                    {/* API Key */}
+                    {/* Upstream account */}
+                    <td className="py-2 px-3 truncate max-w-[180px]" title={r.account || "Direct request"}>
+                      <span className="inline-flex items-center gap-1 text-text-muted">
+                        <span className="material-symbols-outlined !text-[12px]">account_circle</span>
+                        <span className="text-[11px] text-text-main truncate">{r.account || "Direct request"}</span>
+                      </span>
+                    </td>
+
+                    {/* Client API Key */}
                     <td className="py-2 px-3 truncate max-w-[150px]" title={r.rawApiKey || r.apiKey}>
                       <span className="inline-flex items-center gap-1 text-text-muted">
                         <span className="material-symbols-outlined !text-[12px]">
                           key
                         </span>
                         <span className="font-mono text-[11px] text-text-main truncate">
-                          {r.apiKey || "Default Key"}
+                          {r.clientApiKey || r.apiKey || "Default Key"}
                         </span>
                       </span>
                     </td>

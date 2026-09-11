@@ -366,6 +366,19 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   const rawActiveSet = useMemo(() => new Set(activeKey ? activeKey.split(",") : []), [activeKey]);
   const lastSet = useMemo(() => new Set(lastKey ? [lastKey] : []), [lastKey]);
   const errorSet = useMemo(() => new Set(errorKey ? [errorKey] : []), [errorKey]);
+  const usedProviderSet = useMemo(() => {
+    const used = new Set([...rawActiveSet, ...lastSet, ...errorSet]);
+    for (const provider of providers) {
+      if (provider?.requests > 0 || provider?.lastUsed || provider?.lastUsedAt) {
+        used.add(String(provider.provider || "").toLowerCase());
+      }
+    }
+    return used;
+  }, [providers, rawActiveSet, lastSet, errorSet]);
+  const visibleProviders = useMemo(
+    () => providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase())),
+    [providers, usedProviderSet],
+  );
 
   // Track firstSeen per active provider; drop provider if running too long (BE stuck)
   const firstSeenRef = useRef({});
@@ -388,25 +401,17 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     return () => clearInterval(id);
   }, [rawActiveSet]);
 
-  const activeSet = useMemo(() => {
-    const now = Date.now();
-    const filtered = new Set();
-    for (const p of rawActiveSet) {
-      const ts = firstSeenRef.current[p];
-      if (!ts || now - ts < FE_ACTIVE_TIMEOUT_MS) filtered.add(p);
-    }
-    return filtered;
-  }, [rawActiveSet, tick]);
+  const activeSet = rawActiveSet;
 
   const { nodes, edges } = useMemo(
-    () => buildLayout(providers, activeSet, lastSet, errorSet),
-    [providers, activeSet, lastSet, errorSet]
+    () => buildLayout(visibleProviders, activeSet, lastSet, errorSet),
+    [visibleProviders, activeSet, lastSet, errorSet]
   );
 
   // Stable key — only remount when provider list changes
   const providersKey = useMemo(
-    () => providers.map((p) => p.provider).sort().join(","),
-    [providers]
+    () => visibleProviders.map((p) => p.provider).sort().join(","),
+    [visibleProviders]
   );
 
   const rfInstance = useRef(null);
@@ -438,7 +443,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
 
   return (
     <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
-      {providers.length === 0 ? (
+      {visibleProviders.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected
         </div>
