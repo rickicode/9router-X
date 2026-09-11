@@ -28,7 +28,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <code
               title={displayModel}
-              className="w-full truncate rounded bg-sidebar px-1.5 py-0.5 font-mono text-xs text-text-muted select-all"
+              className="w-full whitespace-normal break-all rounded bg-sidebar px-1.5 py-0.5 font-mono text-xs leading-relaxed text-text-muted select-all"
             >
               {displayModel}
             </code>

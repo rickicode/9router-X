@@ -28,7 +28,7 @@ function PassthroughModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias
           {testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="w-full truncate text-xs font-medium text-text-main" title={modelId}>{modelId}</p>
+          <p className="w-full whitespace-normal break-all text-xs font-medium leading-relaxed text-text-main" title={modelId}>{modelId}</p>
           <code className="w-full truncate text-[11px] text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded select-all" title={fullModel}>{fullModel}</code>
         </div>
       </div>
