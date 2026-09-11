@@ -66,9 +66,7 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
   // The generic helper inserts OpenAI `role: tool` messages, which a direct
   // Claude→Kiro translator cannot consume and which cannot repair partial
   // parallel tool results.
-  if (targetFormat !== FORMATS.KIRO) {
-    fixMissingToolResponses(result);
-  }
+  if (targetFormat !== FORMATS.KIRO && targetFormat !== FORMATS.OPENAI) { fixMissingToolResponses(result); }
 
   // Capture thinking intent from the original (pre-translation) body, before any
   // format conversion strips/renames the fields. Applied after translation.
