@@ -171,6 +171,15 @@ export async function PUT(request, { params }) {
         }
       }
     }
+    // Keep the persisted status fields consistent when an admin explicitly
+    // changes testStatus. Disabled accounts must not remain routable.
+    if (testStatus === "disabled" && isActive === undefined) {
+      updateData.isActive = false;
+      updateData.previousStatus = existing.testStatus || "active";
+      updateData.disabledReason = body.disabledReason || existing.disabledReason || "Disabled by provider status";
+      updateData.disabledAt = existing.disabledAt || new Date().toISOString();
+      updateData.disabledBy = existing.disabledBy || "user";
+    }
     if (apiKey && existing.authType === "apikey") updateData.apiKey = apiKey;
     if (testStatus !== undefined) updateData.testStatus = testStatus;
     if (lastError !== undefined) updateData.lastError = lastError;

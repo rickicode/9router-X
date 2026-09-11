@@ -43,6 +43,67 @@ function isSameFreebuffModel(connModel, targetModel) {
   return baseA === baseB;
 }
 
+function classifyBlockedCredentials(provider, model, connections, { cooledDown = false } = {}) {
+  const accountExhausted = connections.some((c) => c.testStatus === "exhausted");
+  if (accountExhausted) {
+    return {
+      allRateLimited: true,
+      retryAfter: null,
+      retryAfterHuman: "until quota resets",
+      lastError: `All ${provider} accounts are exhausted (account quota/credits).`,
+      lastErrorCode: "ACCOUNT_EXHAUSTED",
+    };
+  }
+
+  const accountLock = connections.some((c) =>
+    (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now())
+    || (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now())
+    || (c.modelLocks?.__all && new Date(c.modelLocks.__all).getTime() > Date.now())
+    || (c.modelLock___all && new Date(c.modelLock___all).getTime() > Date.now())
+  );
+  if (accountLock) {
+    return {
+      allRateLimited: true,
+      retryAfter: null,
+      retryAfterHuman: "until quota resets",
+      lastError: `All ${provider} accounts are exhausted (account quota/credits).`,
+      lastErrorCode: "ACCOUNT_EXHAUSTED",
+    };
+  }
+
+  const modelLock = Boolean(model) && connections.some((c) => {
+    const value = c[`modelLock_${model}`] || c.modelLocks?.[model];
+    return value && Number.isFinite(new Date(value).getTime())
+      && new Date(value).getTime() > Date.now();
+  });
+  if (modelLock) {
+    return {
+      allRateLimited: true,
+      retryAfter: null,
+      retryAfterHuman: "until model quota resets",
+      lastError: `Model ${model} is exhausted for all ${provider} accounts.`,
+      lastErrorCode: "MODEL_EXHAUSTED",
+    };
+  }
+
+  const unavailable = connections.some((c) =>
+    c.isActive === false || ["unavailable", "error", "expired", "invalid", "disabled"].includes(c.testStatus)
+  );
+  if (unavailable || cooledDown) {
+    return {
+      allRateLimited: true,
+      retryAfter: null,
+      retryAfterHuman: "until account is available",
+      lastError: unavailable
+        ? `All ${provider} accounts are unavailable or disabled.`
+        : `All ${provider} accounts are cooling down.`,
+      lastErrorCode: "ACCOUNT_UNAVAILABLE",
+    };
+  }
+
+  return null;
+}
+
 
 /**
  * Get provider credentials from localDb
@@ -130,6 +191,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     // L2 Speed Layer: Try fetching cached connections from Redis first
     let connections = await getCachedConnections(providerId);
+    const connectionsFromCache = Array.isArray(connections);
     if (!connections || !Array.isArray(connections)) {
       connections = await getProviderConnections({ provider: providerId, isActive: true });
       if (connections.length > 0) {
@@ -142,6 +204,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
 
     if (connections.length === 0) {
+      // The routing query intentionally asks for active rows only. Inspect
+      // all provider rows before reporting "no credentials" so disabled and
+      // unavailable accounts are not confused with a missing provider.
+      const allConnections = await getProviderConnections({ provider: providerId });
+      const blocked = classifyBlockedCredentials(provider, model, allConnections);
+      if (blocked) return blocked;
       log.warn("AUTH", `No credentials for ${provider}`);
       return null;
     }
@@ -161,7 +229,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     let availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (cooledDownIds.has(c.id)) return false;
-      if (c.isActive === false) return false;
+      if (c.isActive === false || c.disabledAt || c.testStatus === "disabled") return false;
       if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
       if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
       if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
@@ -262,17 +330,22 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     });
 
     if (availableConnections.length === 0) {
+      // A cached connection list may be stale. Re-read all rows before
+      // classifying the failure so Redis cannot hide exhausted/disabled state.
+      const stateConnections = connectionsFromCache
+        ? await getProviderConnections({ provider: providerId })
+        : connections;
       // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
-      const lockedConns = connections.filter(c => isModelLockActive(c, model));
+      const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c)).filter(Boolean);
       if (isAntigravity && model && antigravityQuotaCache) {
-        connections.forEach((c) => {
+        stateConnections.forEach((c) => {
           const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
           if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
         });
       }
       if (isFreebuff && model && freebuffQuotaCache) {
-        connections.forEach((c) => {
+        stateConnections.forEach((c) => {
           const resetAt = freebuffQuotaCache.get(c.id)?.[model]?.resetAt;
           if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
         });
@@ -280,15 +353,23 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const earliest = expiries.sort()[0] || null;
       if (earliest) {
         const earliestConn = lockedConns[0];
-        log.warn("AUTH", `${provider} | all ${connections.length} accounts locked for ${model || "all"} (${formatRetryAfter(earliest)}) | lastError=${earliestConn?.lastError?.slice(0, 50)}`);
+        const classified = classifyBlockedCredentials(provider, model, stateConnections);
+        log.warn("AUTH", `${provider} | all ${stateConnections.length} accounts locked for ${model || "all"} (${formatRetryAfter(earliest)}) | lastError=${earliestConn?.lastError?.slice(0, 50)}`);
         return {
           allRateLimited: true,
           retryAfter: earliest,
           retryAfterHuman: formatRetryAfter(earliest),
-          lastError: earliestConn?.lastError || null,
-          lastErrorCode: earliestConn?.errorCode || null
+          lastError: classified?.lastError || `Model ${model} is exhausted for all ${provider} accounts.`,
+          lastErrorCode: classified?.lastErrorCode || "MODEL_EXHAUSTED",
         };
       }
+
+      const excludedAll = candidateIds.length === 0 && excludeSet.size > 0;
+      const blocked = classifyBlockedCredentials(provider, model, stateConnections, {
+        cooledDown: !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= candidateIds.length,
+      });
+      if (blocked) return blocked;
+
       log.warn("AUTH", `${provider} | all ${connections.length} accounts unavailable`);
       return null;
     }
@@ -596,6 +677,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
 
   // GitHub premium-request exhaustion is account-wide until the next UTC month.
   const githubResetAtMs = githubMonthlyResetMs(status, errorText, provider);
+  const is524Timeout = status === 524 || /524|gateway timeout|timeout occurred/i.test(String(errorText || ""));
 
   // Providers whose quota/credits are account-wide across ALL models
   // Cline-free free tier: all models share a single daily request budget
@@ -619,22 +701,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
   }
 
-  // Universal 429: account is exhausted — cannot serve ANY request until quota resets.
-  // This applies to ALL providers (antigravity, cline-free, etc.) regardless of
-  // POOLED_QUOTA_PROVIDERS membership. Cooldown from resetsAtMs or checkFallbackError
-  // above is preserved; we only enforce exhausted status + lockAll for daily/individual quota.
+  // A model-scoped 429 is a model exhaustion, not an account exhaustion. Keep
+  // the account active so it can still serve other models. Only account-wide
+  // quota locks receive testStatus=exhausted.
   if (status === 429 && !is524Timeout) {
-    isExhausted = true;
     const lowerErrorText = String(errorText || "").toLowerCase();
     // Daily/individual quota exhaustion → lock ALL models on this account
     if (/daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText)) {
       lockAll = true;
     }
+    isExhausted = lockAll;
   }
 
   // 524 / Gateway timeout: upstream server is temporarily slow or down.
   // NEVER disable account, NEVER lock all models, cooldown capped at max 5 minutes (default 0).
-  const is524Timeout = status === 524 || /524|gateway timeout|timeout occurred/i.test(String(errorText || ""));
   if (is524Timeout) {
     lockAll = false;
     disableAccount = false;

@@ -291,8 +291,70 @@ describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
     });
 
     const creds = await getProviderCredentials("freebuff", null, "openai/gpt-5.6-luna");
-    // Must NOT be FREEBUFF_MODEL_LOCKED! Should be null (standard no available credentials)
-    expect(creds).toBeNull();
+    // Must NOT be FREEBUFF_MODEL_LOCKED; report the account state instead.
+    expect(creds).toMatchObject({
+      allRateLimited: true,
+      lastErrorCode: "ACCOUNT_UNAVAILABLE",
+    });
+  });
+
+  it("classifies exhausted accounts separately from missing credentials", async () => {
+    connectionsDb.set("ocz-exhausted", {
+      id: "ocz-exhausted",
+      provider: "opencode-zen",
+      authType: "apikey",
+      accessToken: "token",
+      isActive: true,
+      testStatus: "exhausted",
+      modelLocks: {},
+    });
+
+    const creds = await getProviderCredentials("opencode-zen", null, "muse-spark-1.2-contributor-free");
+
+    expect(creds).toMatchObject({
+      allRateLimited: true,
+      lastErrorCode: "ACCOUNT_EXHAUSTED",
+    });
+    expect(creds.lastError).toContain("accounts are exhausted");
+  });
+
+  it("classifies unavailable accounts separately from exhausted accounts", async () => {
+    connectionsDb.set("ocz-unavailable", {
+      id: "ocz-unavailable",
+      provider: "opencode-zen",
+      authType: "apikey",
+      accessToken: "token",
+      isActive: true,
+      testStatus: "unavailable",
+      modelLocks: {},
+    });
+
+    const creds = await getProviderCredentials("opencode-zen", null, "muse-spark-1.2-contributor-free");
+
+    expect(creds).toMatchObject({
+      allRateLimited: true,
+      lastErrorCode: "ACCOUNT_UNAVAILABLE",
+    });
+    expect(creds.lastError).toContain("unavailable or disabled");
+  });
+
+  it("classifies disabled accounts when the active credential query is empty", async () => {
+    connectionsDb.set("ocz-disabled", {
+      id: "ocz-disabled",
+      provider: "opencode-zen",
+      authType: "apikey",
+      accessToken: "token",
+      isActive: false,
+      testStatus: "disabled",
+      modelLocks: {},
+    });
+
+    const creds = await getProviderCredentials("opencode-zen", null, "muse-spark-1.2-contributor-free");
+
+    expect(creds).toMatchObject({
+      allRateLimited: true,
+      lastErrorCode: "ACCOUNT_UNAVAILABLE",
+    });
   });
 
   it("skips accounts whose live quota cache shows remaining <= 0 for the requested model", async () => {

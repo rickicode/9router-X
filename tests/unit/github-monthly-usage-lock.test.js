@@ -144,7 +144,7 @@ describe("GitHub monthly usage exhaustion", () => {
         "codex-1",
         expect.objectContaining({
           modelLock___all: expect.any(String),
-          testStatus: "unavailable",
+          testStatus: "exhausted",
         }),
       );
       expect(dbMocks.updateProviderConnection.mock.calls[0][1])

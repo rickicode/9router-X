@@ -88,7 +88,11 @@ export function translateRequest(
     targetFormat === FORMATS.OPENAI_RESPONSES;
   const isGeminiModel = /^((google\/)?gemini)/i.test(model || "");
   if (isOpenAIFormat && isGeminiModel) {
-    repairStrictOpenAIToolHistory(result);
+    repairStrictOpenAIToolHistory(result, {
+      // UniKey fronts Gemini with an OpenAI endpoint but rejects repeated
+      // per-turn ids such as call_0 when replaying tool history.
+      uniqueCallIds: provider === "unikey",
+    });
   }
 
   // Kiro performs stricter source-aware reconciliation after session replay.

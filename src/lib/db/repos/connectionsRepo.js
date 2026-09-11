@@ -147,6 +147,7 @@ function rowToConnection(row) {
   }
   const { modelLocks: _dataModelLocks, ...data } = rowData;
   const modelLocks = modelLocksFromRow(row, rowData);
+  const disabledAt = data.disabledAt || null;
   const connection = {
     ...data,
     id: row.id,
@@ -155,7 +156,9 @@ function rowToConnection(row) {
     name: row.name,
     email: row.email,
     priority: row.priority,
-    isActive: booleanValue(row.is_active),
+    // disabledAt is a persisted system/user block marker. Treat it as
+    // inactive everywhere, even if an older write left is_active=true.
+    isActive: booleanValue(row.is_active) && !disabledAt && row.test_status !== "disabled",
     testStatus: row.test_status,
     lockedAllUntil: row.locked_all_until,
     rateLimitedUntil: row.rate_limited_until,

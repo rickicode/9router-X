@@ -141,6 +141,32 @@ describe("repairStrictOpenAIToolHistory", () => {
     expect(firstViolation(body.messages)).toBeNull();
   });
 
+  it("rewrites repeated per-turn ids for UniKey Gemini history", () => {
+    const body = {
+      messages: [
+        { role: "user", content: "read one" },
+        { role: "assistant", content: null, tool_calls: [call("call_0")] },
+        result("call_0", "one"),
+        { role: "user", content: "read two" },
+        { role: "assistant", content: null, tool_calls: [call("call_0")] },
+        result("call_0", "two"),
+      ],
+    };
+
+    repairStrictOpenAIToolHistory(body, { uniqueCallIds: true });
+
+    const assistants = body.messages.filter((m) => m.role === "assistant");
+    const results = body.messages.filter((m) => m.role === "tool");
+    expect(assistants.map((m) => m.tool_calls[0].id)).toEqual([
+      "unikey_call_1_0",
+      "unikey_call_4_0",
+    ]);
+    expect(results.map((m) => m.tool_call_id)).toEqual([
+      "unikey_call_1_0",
+      "unikey_call_4_0",
+    ]);
+  });
+
   it("is a no-op on bodies without a messages array", () => {
     expect(repairStrictOpenAIToolHistory(null)).toBeNull();
     expect(repairStrictOpenAIToolHistory({})).toEqual({});

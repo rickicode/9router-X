@@ -157,7 +157,7 @@ export function hasToolResults(msg, toolCallIds) {
 //    or after a function response turn."
 // Scope the matching per turn instead, and pair every call with exactly one
 // result so the turn stays well-formed.
-export function repairStrictOpenAIToolHistory(body) {
+export function repairStrictOpenAIToolHistory(body, { uniqueCallIds = false } = {}) {
   if (!body?.messages || !Array.isArray(body.messages)) return body;
 
   const repaired = [];
@@ -179,8 +179,14 @@ export function repairStrictOpenAIToolHistory(body) {
     }
 
     const calls = msg.tool_calls.filter((call) => call?.id);
-    repaired.push({ ...msg, tool_calls: calls });
-    if (calls.length === 0) continue;
+    const callEntries = calls.map((call, callIndex) => ({
+      call,
+      originalId: call.id,
+      id: uniqueCallIds ? `unikey_call_${i}_${callIndex}` : call.id,
+    }));
+    const normalizedCalls = callEntries.map(({ call, id }) => ({ ...call, id }));
+    repaired.push({ ...msg, tool_calls: normalizedCalls });
+    if (callEntries.length === 0) continue;
 
     // Results belonging to this turn only — the run of `tool` messages directly
     // after it. Not a conversation-wide map: see the note above.
@@ -192,9 +198,9 @@ export function repairStrictOpenAIToolHistory(body) {
     }
 
     const used = new Set();
-    const takeResult = (call) => {
+    const takeResult = (entry) => {
       let idx = available.findIndex(
-        (result, k) => !used.has(k) && result.tool_call_id === call.id,
+        (result, k) => !used.has(k) && result.tool_call_id === entry.originalId,
       );
       // Duplicate ids inside one assistant turn cannot be resolved by id alone;
       // fall back to the next unused result in order rather than dropping it.
@@ -204,14 +210,14 @@ export function repairStrictOpenAIToolHistory(body) {
       return available[idx];
     };
 
-    for (const call of calls) {
-      const result = takeResult(call);
+    for (const entry of callEntries) {
+      const result = takeResult(entry);
       repaired.push(
         result
-          ? { ...result, tool_call_id: call.id }
+          ? { ...result, tool_call_id: entry.id }
           : {
               role: "tool",
-              tool_call_id: call.id,
+              tool_call_id: entry.id,
               content: "[tool result unavailable]",
             },
       );

@@ -14,6 +14,7 @@ export async function POST(request, { params }) {
 
     // Build clear object for all modelLock_* fields and account locks
     const updates = {
+      isActive: true,
       testStatus: "active",
       lastError: null,
       lastErrorAt: null,
