@@ -145,13 +145,16 @@ function openAICompletionToResponses(responseBody, customToolNames = null) {
  * Translate non-streaming response body from provider format → OpenAI format.
  */
 export function translateNonStreamingResponse(responseBody, targetFormat, sourceFormat, customToolNames = null) {
-  if (targetFormat === sourceFormat) return responseBody;
   // OpenCode Free/Zen Responses endpoints return a complete Responses JSON
   // object even for non-streaming requests. Convert it to Chat Completions
   // before the normal client-format pipeline consumes it.
-  if (targetFormat === FORMATS.OPENAI_RESPONSES && sourceFormat === FORMATS.OPENAI && responseBody?.output) {
+  // Some OpenCode routes do not preserve the registry target format through
+  // the transport layer. Detect the actual Responses payload as a fallback,
+  // but leave it untouched when the client requested Responses directly.
+  if (sourceFormat !== FORMATS.OPENAI_RESPONSES && Array.isArray(responseBody?.output)) {
     return responsesCompletionToOpenAI(responseBody);
   }
+  if (targetFormat === sourceFormat) return responseBody;
   // Provider responded in OpenAI Chat Completions shape but the client speaks
   // Responses API — convert so tool_calls/text surface as Responses `output`.
   if (targetFormat === FORMATS.OPENAI && sourceFormat === FORMATS.OPENAI_RESPONSES) {

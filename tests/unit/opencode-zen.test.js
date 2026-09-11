@@ -130,4 +130,5 @@ describe("OpenCode Zen executor", () => {
     expect(response.choices[0].finish_reason).toBe("stop");
     expect(response.usage.total_tokens).toBe(94);
   });
+
 });
