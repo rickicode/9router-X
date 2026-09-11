@@ -82,8 +82,12 @@ export function translateRequest(
   // Always ensure tool_calls have id (some providers require it)
   ensureToolCallIds(result);
 
-  // UniKey exposes OpenAI format but Gemini-backed models require strict tool turn ordering.
-  if (provider === "unikey" && /^((google\/)?gemini)/i.test(model || "")) {
+  // All OpenAI-compatible providers serving Gemini models require strict tool turn ordering.
+  const isOpenAIFormat =
+    targetFormat === FORMATS.OPENAI ||
+    targetFormat === FORMATS.OPENAI_RESPONSES;
+  const isGeminiModel = /^((google\/)?gemini)/i.test(model || "");
+  if (isOpenAIFormat && isGeminiModel) {
     repairStrictOpenAIToolHistory(result);
   }
 
