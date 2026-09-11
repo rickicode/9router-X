@@ -241,6 +241,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   const excludeConnectionIds = new Set();
   let lastError = null;
   let lastStatus = null;
+  let lastAttemptedAccount = null;
+  let lastAttemptedConnectionId = null;
 
   while (true) {
     const credentials = await getProviderCredentials(provider, excludeConnectionIds, model);
@@ -250,10 +252,13 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = HTTP_STATUS.SERVICE_UNAVAILABLE;
+        const failedAccount = lastAttemptedAccount || credentials.lastAccount || credentials.connectionName;
+        const failedConnId = lastAttemptedConnectionId || credentials.lastConnectionId;
         log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
-         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
+         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
          if (!isTestRequest) saveRequestDetail({
-          provider, model, connectionId: null,
+          provider, model, connectionId: failedConnId || null,
+          account: failedAccount,
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
           request: body,
@@ -265,6 +270,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
           code: credentials.lastErrorCode,
           provider,
           model,
+          account: failedAccount,
           statusBreakdown: credentials.statusBreakdown,
         });
       }
@@ -295,9 +301,10 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       log.warn("CHAT", "No more accounts available", { provider });
       const noMoreMsg = lastError || "All accounts unavailable";
       const noMoreStatus = lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE;
-       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
+       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
        if (!isTestRequest) saveRequestDetail({
-        provider, model, connectionId: null,
+        provider, model, connectionId: lastAttemptedConnectionId || null,
+        account: lastAttemptedAccount,
         latency: { ttft: 0, total: 0 },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
         request: body,
@@ -307,6 +314,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       }).catch(() => {});
       return errorResponse(noMoreStatus, noMoreMsg);
     }
+
+    lastAttemptedConnectionId = credentials.connectionId;
+    lastAttemptedAccount = credentials.connectionName || credentials.name || credentials.email || (credentials.connectionId ? `Account ${credentials.connectionId.slice(0, 8)}...` : null);
 
     // Account selection shown in the unified "▶" line (acc:...)
     const refreshedCredentials = await checkAndRefreshToken(provider, credentials);

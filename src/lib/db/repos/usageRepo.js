@@ -741,11 +741,12 @@ export async function getUsageStats(period = "all") {
       const tokens = typeof rawTokens === "string" ? parseJson(rawTokens, {}) : rawTokens;
       const ts = row.timestamp instanceof Date ? row.timestamp.toISOString() : String(row.timestamp || "");
       const meta = typeof row.meta === "string" ? parseJson(row.meta, {}) : (row.meta || {});
-      const isStream = meta.isStream !== undefined
-        ? Boolean(meta.isStream)
-        : (row.endpoint ? !row.endpoint.includes("embeddings") : true);
-      const keyName = apiKeyMap[row.api_key]?.name || (row.api_key ? maskApiKey(row.api_key) : "Default Key");
-      return {
+       const isStream = meta.isStream !== undefined
+         ? Boolean(meta.isStream)
+         : (row.endpoint ? !row.endpoint.includes("embeddings") : true);
+       const keyName = apiKeyMap[row.api_key]?.name || (row.api_key ? maskApiKey(row.api_key) : "Default Key");
+       const normalizedStatus = row.status || (meta.failed ? "error_502" : "ok");
+       return {
         timestamp: ts,
         model: row.model,
         provider: row.provider || "",
