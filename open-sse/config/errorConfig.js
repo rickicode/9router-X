@@ -47,6 +47,12 @@ export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 // burn 5×10 upstream calls before giving up. When the budget is exhausted the
 // request stops immediately with a 503 instead of hanging the client.
 export const MAX_TOTAL_ROTATION_ATTEMPTS = 5;
+// Combo failover: a member that fails this many times CONSECUTIVELY (across
+// requests, tracked in Redis) is deprioritized to the back of the combo so the
+// next request starts at a healthy model instead of re-burning rotations on
+// the dead one. A success resets the count; the window TTL auto-forgives.
+export const MODEL_FAILOVER_THRESHOLD = 3;
+export const MODEL_FAILOVER_WINDOW_S = 900;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

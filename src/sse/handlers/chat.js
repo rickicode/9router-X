@@ -23,7 +23,28 @@ import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActi
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
-import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS } from "open-sse/config/errorConfig.js";
+import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S } from "open-sse/config/errorConfig.js";
+import { incrModelFailCount, resetModelFailCount, getModelFailCounts } from "@/lib/redis/client.js";
+
+/**
+ * Reorder combo members by cross-request health: members with
+ * MODEL_FAILOVER_THRESHOLD consecutive upstream failures are moved to the
+ * back so the next request starts at a working model instead of re-burning
+ * rotations on the dead one. Never drops a member — if all are failing the
+ * original order is kept. No-op without Redis.
+ */
+async function reorderComboByHealth(models) {
+  if (!Array.isArray(models) || models.length <= 1) return models;
+  const counts = await getModelFailCounts(models).catch(() => ({}));
+  const failing = new Set(
+    models.filter((m) => (counts[m] || 0) >= MODEL_FAILOVER_THRESHOLD),
+  );
+  if (failing.size === 0 || failing.size >= models.length) return models;
+  const healthy = models.filter((m) => !failing.has(m));
+  const bad = models.filter((m) => failing.has(m));
+  log.info("CHAT", `Failover reorder: ${bad.join(", ")} failing ${MODEL_FAILOVER_THRESHOLD}x+ → back`);
+  return [...healthy, ...bad];
+}
 import { detectFormatByEndpoint } from "open-sse/translator/formats.js";
 import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
@@ -141,7 +162,7 @@ export async function handleChat(request, clientRawRequest = null) {
     log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
     return handleComboChat({
       body,
-      models: augmentedModels,
+      models: await reorderComboByHealth(augmentedModels),
       handleSingleModel: withCapacityAdapterStripping(
         (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
@@ -161,7 +182,7 @@ export async function handleChat(request, clientRawRequest = null) {
     log.info("CHAT", `Capacity adapter for [${[...requiredCapabilities].join(",")}] on "${modelStr}" → trying ${soloAugmented.join(", ")}`);
     return handleComboChat({
       body,
-      models: soloAugmented,
+      models: await reorderComboByHealth(soloAugmented),
       handleSingleModel: withCapacityAdapterStripping(
         (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
@@ -219,7 +240,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
       return handleComboChat({
         body,
-        models: augmentedModels,
+        models: await reorderComboByHealth(augmentedModels),
         handleSingleModel: withCapacityAdapterStripping(
           (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
           adapterAdded
@@ -412,6 +433,9 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
          });
       },
       onRequestSuccess: async () => {
+        // The model just proved itself healthy — reset its failover counter so
+        // a recovered member returns to the front of the combo immediately.
+        resetModelFailCount(modelStr).catch(() => {});
         await clearAccountError(credentials.connectionId, credentials, model);
         // "Consecutive" strikes: a success clears the breaker for this pair.
         clearAntigravityStrikes(credentials.connectionId, model);
@@ -558,6 +582,11 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
 
     if (shouldFallback || quotaFailure) {
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
+      // Consecutive-failure tracking for combo failover: after
+      // MODEL_FAILOVER_THRESHOLD straight failures this member is deprioritized
+      // on subsequent requests. Only fallback-class errors count — a 400-class
+      // client error must never penalize a healthy model.
+      incrModelFailCount(modelStr, MODEL_FAILOVER_WINDOW_S).catch(() => {});
       lastError = result.error;
       lastStatus = effectiveStatus || result.status;
       if (excludeConnectionIds.size >= MAX_FALLBACK_ATTEMPTS) {

@@ -116,6 +116,47 @@ export async function isModelInCooldown(connId, model) {
 }
 
 /**
+ * Consecutive upstream-failure counter per provider/model (combo failover).
+ * Keyed by the full member string ("provider/model") so combo members are
+ * tracked exactly as configured. All fail-open: without Redis every model
+ * simply looks healthy and combo order is unchanged.
+ */
+export async function incrModelFailCount(member, windowSeconds) {
+  if (!isRedisAvailable() || !member) return 0;
+  try {
+    const key = `modelfail:${member}`;
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, Math.max(60, windowSeconds || 900));
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+export async function resetModelFailCount(member) {
+  if (!isRedisAvailable() || !member) return false;
+  try {
+    await redis.del(`modelfail:${member}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getModelFailCounts(members) {
+  if (!isRedisAvailable() || !Array.isArray(members) || members.length === 0) return {};
+  try {
+    const keys = members.map((m) => `modelfail:${m}`);
+    const values = await redis.mget(...keys);
+    const out = {};
+    members.forEach((m, i) => { out[m] = Number(values?.[i] || 0); });
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/**
  * High-performance batch cooldown check for hundreds/thousands of connections in 1 roundtrip.
  * Returns a Set of connection IDs that are in cooldown (either account-wide or model-specific).
  */
