@@ -115,7 +115,7 @@ function RouterNode({ data }) {
 
       <Image
         src="/favicon.svg"
-        alt="9Router"
+        alt="9router-x"
         width={24}
         height={24}
         className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
@@ -123,7 +123,7 @@ function RouterNode({ data }) {
         decoding="async"
       />
       <span className={`text-sm font-bold ${powering ? "topology-router-label text-yellow-300" : "text-primary"}`}>
-        9Router
+        9router-x
       </span>
       {data.activeCount > 0 && (
         <span className="ml-2 px-1.5 py-0.5 rounded-full bg-yellow-400 text-black text-xs font-bold topology-router-badge">
@@ -265,7 +265,7 @@ const nodeTypes = { provider: ProviderNode, router: RouterNode };
 const edgeTypes = { topology: TopologyEdge };
 
 // Place N nodes evenly along an ellipse around the router center.
-function buildLayout(providers, activeSet, lastSet, errorSet) {
+function buildLayout(providers, activeSet, lastSet, errorSet, totalActiveCount = 0) {
   const nodeW = 180;
   const nodeH = 30;
   const routerW = 120;
@@ -292,7 +292,7 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
     id: "router",
     type: "router",
     position: { x: -routerW / 2, y: -routerH / 2 },
-    data: { activeCount: activeSet.size },
+    data: { activeCount: totalActiveCount },
     draggable: false,
   });
 
@@ -397,10 +397,11 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, []);
 
   const activeSet = rawActiveSet;
+  const totalActiveCount = activeRequests.length;
 
   const { nodes, edges } = useMemo(
-    () => buildLayout(visibleProviders, activeSet, lastSet, errorSet),
-    [visibleProviders, activeSet, lastSet, errorSet]
+    () => buildLayout(visibleProviders, activeSet, lastSet, errorSet, totalActiveCount),
+    [visibleProviders, activeSet, lastSet, errorSet, totalActiveCount]
   );
 
   // Stable key — only remount when provider list changes
