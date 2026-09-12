@@ -668,45 +668,97 @@ export function extractValidationUrl(errorText) {
   if (!errorText) return null;
   const str = typeof errorText === "string" ? errorText : JSON.stringify(errorText);
 
-  if (!/validation_url|validationUrl|VALIDATION_REQUIRED/i.test(str)) {
+  if (!/validation_url|validationUrl|VALIDATION_REQUIRED|action_required|verify.*account|verification required/i.test(str)) {
     return null;
   }
+
+  // Deep-search any nesting level for a validation URL key. Google nests it
+  // under details[].metadata, error.metadata, or deeper wrappers depending on
+  // the surface (Antigravity RPC, Gemini REST, proxy-wrapped bodies) — a
+  // fixed-depth lookup silently misses new shapes and leaves a stale URL
+  // stored on the account. Two passes: exact validation_url KEYS anywhere in
+  // the tree first (a docs URL inside a message string must never shadow the
+  // real key), then bare verification-looking URLs in free text.
+  const deepFindKeyUrl = (node, depth = 0) => {
+    if (!node || depth > 8) return null;
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = deepFindKeyUrl(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) {
+        if (/^validation_?url$/i.test(key) && typeof value === "string" && /^https?:\/\//i.test(value.trim())) {
+          return value.trim();
+        }
+      }
+      for (const value of Object.values(node)) {
+        const found = deepFindKeyUrl(value, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const deepFindUrl = (node, depth = 0) => {
+    if (!node || depth > 8) return null;
+    if (typeof node === "string") {
+      const m = node.match(/https?:\/\/[^\s"'<>\\]+/i);
+      return m ? m[0] : null;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = deepFindUrl(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof node === "object") {
+      for (const value of Object.values(node)) {
+        const found = deepFindUrl(value, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Message for the dashboard badge (first human-readable message found).
+  const deepFindMessage = (node, depth = 0) => {
+    if (!node || depth > 6) return null;
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = deepFindMessage(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof node === "object") {
+      if (typeof node.message === "string" && node.message.trim()) return node.message.trim();
+      if (typeof node.msg === "string" && node.msg.trim()) return node.msg.trim();
+      for (const value of Object.values(node)) {
+        const found = deepFindMessage(value, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   try {
     const jsonStart = str.indexOf("{");
     if (jsonStart !== -1) {
       const parsed = JSON.parse(str.slice(jsonStart));
       const errorObj = parsed.error || parsed;
-
-      let validationUrl = null;
-      let validationMessage = errorObj.message || "Verification required by Google";
-
-      if (Array.isArray(errorObj.details)) {
-        for (const detail of errorObj.details) {
-          const meta = detail?.metadata;
-          if (meta?.validation_url || meta?.validationUrl) {
-            validationUrl = meta.validation_url || meta.validationUrl;
-            if (detail.reason === "VALIDATION_REQUIRED" && !errorObj.message) {
-              validationMessage = "Verification required by Google (VALIDATION_REQUIRED)";
-            }
-            break;
-          }
-        }
-      }
-
-      if (!validationUrl && errorObj.metadata) {
-        validationUrl = errorObj.metadata.validation_url || errorObj.metadata.validationUrl;
-      }
-
-      if (validationUrl && typeof validationUrl === "string") {
+      const url = deepFindKeyUrl(errorObj) || deepFindUrl(errorObj);
+      if (url) {
         return {
-          url: validationUrl.trim(),
-          message: typeof validationMessage === "string" ? validationMessage.trim() : "Verification required by Google",
+          url,
+          message: deepFindMessage(errorObj) || "Verification required by Google",
         };
       }
     }
   } catch {
-    // JSON parse failed, fallback to regex
+    // JSON parse failed, fallback to regex below
   }
 
   const urlMatch = str.match(/(?:validation_url|validationUrl)["']?\s*[:=]\s*["'](https?:\/\/[^"'\s]+)["']/i);
@@ -716,6 +768,13 @@ export function extractValidationUrl(errorText) {
       url: urlMatch[1].trim(),
       message: msgMatch ? msgMatch[1].trim() : "Verification required by Google",
     };
+  }
+
+  // Last resort: bare verification URL inside a human message
+  // ("...visit https://... to verify your account...").
+  const bareUrl = str.match(/https?:\/\/[^\s"'<>\\]+(?:verif[a-z]*|valid[a-z]*|action[a-z]*|challenge|confirm)[^\s"'<>\\]*/i);
+  if (bareUrl) {
+    return { url: bareUrl[0].trim(), message: "Verification required by Google" };
   }
 
   return null;
@@ -871,15 +930,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (status === 429 && !is524Timeout) {
     const lowerErrorText = String(errorText || "").toLowerCase();
     // Daily/individual quota exhaustion → lock ALL models on this account
-    if (/daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText)) {
+    const isDailyCap429 = /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    if (isDailyCap429) {
       lockAll = true;
     }
     // Every 429 must be cooled down. If the provider did not return a usable
     // reset timestamp, use the stable default instead of the short exponential
     // backoff that causes the same exhausted account to be retried repeatedly.
+    // A matched daily-cap rule already carries its own conservative cooldown
+    // (24h): keep the larger of the two when no precise reset time exists, so
+    // e.g. a Cline daily cap with no "Try again in" hint does not retry-storm
+    // every 30 minutes against an 8-24h upstream reset window.
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
       ? resetsAtMs - Date.now()
-      : DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+      : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
     isExhausted = lockAll;
   }
 
