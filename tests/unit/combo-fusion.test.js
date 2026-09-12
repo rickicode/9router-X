@@ -18,6 +18,74 @@ function errResponse(status = 500) {
 }
 
 describe("fusion combo", () => {
+  it("reuses the sole panel response for non-streaming (no double pay)", async () => {
+    const panel = okResponse("only-answer");
+    const handleSingleModel = vi.fn(async (body, model) =>
+      model === "p/a" ? panel : errResponse(500));
+    const res = await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/a", "p/b"],
+      handleSingleModel,
+      log,
+    });
+    // 2 panel calls, zero refetch.
+    expect(handleSingleModel).toHaveBeenCalledTimes(2);
+    expect(res).toBe(panel);
+  });
+
+  it("refetches the sole survivor when the client streams", async () => {
+    const handleSingleModel = vi.fn(async (body) =>
+      body.stream === true ? okResponse("STREAMED") : okResponse("panel-ans"));
+    const res = await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }], stream: true },
+      models: ["p/a", "p/b"],
+      handleSingleModel,
+      log,
+    });
+    expect(handleSingleModel).toHaveBeenCalledTimes(3);
+    expect(await res.clone().json()).toEqual(
+      expect.objectContaining({ choices: expect.any(Array) }));
+  });
+
+  it("falls back to the next panel member when the judge fails", async () => {
+    const seen = [];
+    const handleSingleModel = vi.fn(async (body, model) => {
+      seen.push(model);
+      if (model === "p/judge") return errResponse(429);
+      if (body.messages?.some((m) => m.content === "Q")) return okResponse(`ans-${model}`);
+      return okResponse("FINAL");
+    });
+    const res = await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/a", "p/b"],
+      handleSingleModel,
+      log,
+      judgeModel: "p/judge",
+    });
+    expect(res.ok).toBe(true);
+    // judge 429 -> backup judge p/a succeeds.
+    expect(seen).toContain("p/judge");
+    expect(seen.filter((m) => m === "p/a").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("clones the panel body per member (no shared mutation)", async () => {
+    const bodies = [];
+    const handleSingleModel = vi.fn(async (body) => {
+      bodies.push(body);
+      body.messages.push({ role: "user", content: "MUT" });
+      return okResponse("ans");
+    });
+    await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/a", "p/b"],
+      handleSingleModel,
+      log,
+    });
+    expect(bodies[0]).not.toBe(bodies[1]);
+    expect(bodies[0].messages.filter((m) => m.content === "MUT")).toHaveLength(1);
+    expect(bodies[1].messages.filter((m) => m.content === "MUT")).toHaveLength(1);
+  });
+
   it("answers directly with a single-model panel (nothing to fuse)", async () => {
     const handleSingleModel = vi.fn(async () => okResponse("solo"));
     await handleFusionChat({

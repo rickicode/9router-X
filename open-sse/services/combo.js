@@ -356,12 +356,12 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
 
       // Fallback to next model
       lastError = errorText || String(result.status);
-      if (!lastStatus) lastStatus = result.status;
+      lastStatus = result.status;
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });
     } catch (error) {
       // Catch unexpected exceptions to ensure fallback continues
       lastError = error.message || String(error);
-      if (!lastStatus) lastStatus = 500;
+      lastStatus = 500;
       log.warn("COMBO", `Model ${modelStr} threw error, trying next`, { error: lastError });
     }
   }
@@ -581,7 +581,9 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   }
 
   const t0 = Date.now();
-  const calls = panel.map((m) => withTimeout(handleSingleModel(panelBody, m, true), cfg.panelHardTimeoutMs));
+  // Deep-clone per member: translators/RTK mutate body.messages in place, and
+  // sharing one object across parallel panel calls races those mutations.
+  const calls = panel.map((m) => withTimeout(handleSingleModel(structuredClone(panelBody), m, true), cfg.panelHardTimeoutMs));
   const settled = await collectPanel(calls, { ...cfg, minPanel });
   log.info("FUSION", `fan-out collected in ${Date.now() - t0}ms`);
 
@@ -598,7 +600,9 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
       const json = await res.clone().json();
       const text = extractPanelText(json);
       if (text) {
-        answers.push({ model, text });
+        // Keep the original Response: single-survivor non-streaming turns can
+        // return it directly instead of paying for the same model twice.
+        answers.push({ model, text, res });
         log.info("FUSION", `Panel ${model} ok (${text.length} chars)`);
       } else {
         log.warn("FUSION", `Panel ${model} returned empty content`);
@@ -614,12 +618,26 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
     return unavailableResponse(503, "All fusion panel models failed", null, null, { code: "FUSION_PANEL_UNAVAILABLE" });
   }
   if (answers.length === 1) {
+    // Non-streaming clients can reuse the already-paid panel response as-is;
+    // streaming clients need a fresh call so chunks actually stream.
+    if (body.stream === true) {
+      log.info("FUSION", `Only ${answers[0].model} succeeded — re-answering with stream`);
+      return handleSingleModel(body, answers[0].model);
+    }
     log.info("FUSION", `Only ${answers[0].model} succeeded — answering directly (no fusion)`);
-    return handleSingleModel(body, answers[0].model);
+    return answers[0].res;
   }
 
   // 4. Judge analyzes + writes one final answer (streams to client if requested).
+  // The judge itself can 429/503 — fall through the panel as backup judges
+  // instead of failing a fusion that already has good answers in hand.
   const judgeBody = appendUserTurn(body, buildJudgePrompt(answers));
-  log.info("FUSION", `Judging ${answers.length} answers with ${judge}`);
-  return handleSingleModel(judgeBody, judge);
+  let judgeResult = null;
+  for (const judgeCandidate of [...new Set([judge, ...panel])]) {
+    log.info("FUSION", `Judging ${answers.length} answers with ${judgeCandidate}`);
+    judgeResult = await handleSingleModel(judgeBody, judgeCandidate);
+    if (judgeResult.ok) return judgeResult;
+    log.warn("FUSION", `Judge ${judgeCandidate} failed, trying next judge`, { status: judgeResult.status });
+  }
+  return judgeResult;
 }

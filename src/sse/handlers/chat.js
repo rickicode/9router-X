@@ -272,7 +272,24 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
   let lastAttemptedAccount = null;
   let lastAttemptedConnectionId = null;
 
+  // Shared-budget cutoff shared by the loop-top pre-check (avoids a wasted
+  // credential/refresh lookup once the budget is spent) and the post-select
+  // check below. Reads lastError/lastStatus at call time.
+  const rotationBudgetExceededResponse = () => {
+    const budgetMsg = `Max rotation attempts (${MAX_TOTAL_ROTATION_ATTEMPTS}) reached${lastError ? `: ${lastError}` : ""}`;
+    log.warn("FALLBACK", budgetMsg, { provider, model });
+    if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: budgetMsg }).catch(() => {});
+    return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `[${provider}/${model}] ${budgetMsg}`);
+  };
+
   while (true) {
+    // Pre-check: don't pay a credential + token-refresh lookup when the
+    // request already spent its whole rotation budget on previous attempts.
+    // Skipped on the first iteration so empty-credential providers still get
+    // their accurate NO_CREDENTIALS response below.
+    if (rotationBudget && rotationBudget.used >= MAX_TOTAL_ROTATION_ATTEMPTS && excludeConnectionIds.size > 0) {
+      return rotationBudgetExceededResponse();
+    }
     const credentials = await getProviderCredentials(provider, excludeConnectionIds, model);
 
     // All accounts unavailable
@@ -351,10 +368,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     // of hanging the client while every dead account is retried.
     if (rotationBudget) {
       if (rotationBudget.used >= MAX_TOTAL_ROTATION_ATTEMPTS) {
-        const budgetMsg = `Max rotation attempts (${MAX_TOTAL_ROTATION_ATTEMPTS}) reached${lastError ? `: ${lastError}` : ""}`;
-        log.warn("FALLBACK", budgetMsg, { provider, model });
-        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: budgetMsg }).catch(() => {});
-        return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `[${provider}/${model}] ${budgetMsg}`);
+        return rotationBudgetExceededResponse();
       }
       rotationBudget.used++;
     }
