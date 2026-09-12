@@ -46,7 +46,7 @@ export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 // MAX_FALLBACK_ATTEMPTS, but without a shared budget a 5-member combo could
 // burn 5×10 upstream calls before giving up. When the budget is exhausted the
 // request stops immediately with a 503 instead of hanging the client.
-export const MAX_TOTAL_ROTATION_ATTEMPTS = 10;
+export const MAX_TOTAL_ROTATION_ATTEMPTS = 5;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

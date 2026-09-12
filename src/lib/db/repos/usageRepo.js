@@ -354,25 +354,30 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       ? error
       : (error ? (error.message || (typeof error === "object" ? JSON.stringify(error) : String(error))) : null);
 
-    await db.run(
-      `INSERT INTO usage_history
-         (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
-       VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $7, '{}'::jsonb, $8::jsonb)`,
-      [
-        ts,
-        provider || null,
-        model || null,
-        connectionId || null,
-        apiKey || null,
-        endpoint || null,
-        status,
-        JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined }),
-      ],
-    );
-
-    try {
+    // One transaction: history row + daily aggregate + lifetime counter stay
+    // consistent under concurrency (previously three separate statements where
+    // the aggregate/counter could be lost while the history row persisted).
+    await db.transaction(async (tx) => {
       const dateKey = getLocalDateKey(ts);
-      const row = await db.get(`SELECT data FROM usage_daily WHERE date_key = $1`, [dateKey]);
+      await tx.run(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`usage_daily:${dateKey}`]);
+      await tx.run(`SELECT pg_advisory_xact_lock(hashtext('totalRequestsLifetime'))`);
+      await tx.run(
+        `INSERT INTO usage_history
+           (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $7, '{}'::jsonb, $8::jsonb)`,
+        [
+          ts,
+          provider || null,
+          model || null,
+          connectionId || null,
+          apiKey || null,
+          endpoint || null,
+          status,
+          JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined }),
+        ],
+      );
+
+      const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
       const rawData = row?.data;
       const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
         requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
@@ -393,20 +398,20 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
         day.byModel[modelKey].requests = (day.byModel[modelKey].requests || 0) + 1;
         day.byModel[modelKey].failedRequests = (day.byModel[modelKey].failedRequests || 0) + 1;
       }
-      await db.run(
+      await tx.run(
         `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
          ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
         [dateKey, day],
       );
 
-      const current = await db.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
+      const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime' FOR UPDATE`);
       const next = (current ? parseInt(current.value, 10) : 0) + 1;
-      await db.run(
+      await tx.run(
         `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
         [String(next)],
       );
-    } catch (_) {}
+    });
 
     pushToRing({
       timestamp: ts,
@@ -471,25 +476,55 @@ export async function saveRequestUsage(entry) {
         return;
       }
 
-      await tx.run(
-        `INSERT INTO usage_history
-           (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)`,
-        [
-          entry.timestamp,
-          entry.provider || null,
-          entry.model || null,
-          entry.connectionId || null,
-          entry.apiKey || null,
-          entry.endpoint || null,
-          promptTokens,
-          completionTokens,
-          cost || 0,
-          entry.status || "ok",
-          tokens,
-          {},
-        ],
-      );
+      // Idempotency first: concurrent completion callbacks (stream close +
+      // completion event, retry paths) share one request_id. The UNIQUE
+      // (request_id, timestamp) index makes the second insert a no-op so the
+      // attempt is never double-counted in history, daily aggregates, or cost.
+      const requestId = entry.requestId || null;
+      if (requestId) {
+        const idem = await tx.run(
+          `INSERT INTO usage_history
+             (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta, request_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13)
+           ON CONFLICT (request_id, timestamp) DO NOTHING`,
+          [
+            entry.timestamp,
+            entry.provider || null,
+            entry.model || null,
+            entry.connectionId || null,
+            entry.apiKey || null,
+            entry.endpoint || null,
+            promptTokens,
+            completionTokens,
+            cost || 0,
+            entry.status || "ok",
+            tokens,
+            {},
+            requestId,
+          ],
+        );
+        if (!idem || (idem.changes ?? 0) === 0) return;
+      } else {
+        await tx.run(
+          `INSERT INTO usage_history
+             (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)`,
+          [
+            entry.timestamp,
+            entry.provider || null,
+            entry.model || null,
+            entry.connectionId || null,
+            entry.apiKey || null,
+            entry.endpoint || null,
+            promptTokens,
+            completionTokens,
+            cost || 0,
+            entry.status || "ok",
+            tokens,
+            {},
+          ],
+        );
+      }
 
        const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
       const rawData = row?.data;

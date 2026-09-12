@@ -317,7 +317,10 @@ if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
 if (passthrough && clientTool === "claude") anchorClaudeCache(translatedBody);
 
 const executor = getExecutor(provider);
-const requestId = `${connectionId || "direct"}|${provider}|${model}|${requestStartTime}`;
+// Unique per upstream attempt: connection + model + ms timestamp + random
+// suffix (two requests can share a millisecond). Doubles as the usage-write
+// idempotency key so concurrent completion callbacks never double-count.
+const requestId = `${connectionId || "direct"}|${provider}|${model}|${requestStartTime}|${Math.random().toString(36).slice(2, 10)}`;
 trackPendingRequest(model, provider, connectionId, true, false, { isStream: stream, apiKey, requestId });
 appendRequestLog({ model, provider, connectionId, status: "PENDING" }).catch(() => { });
 
@@ -610,7 +613,7 @@ if (!providerResponse.ok) {
   });
 }
 
-const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, isTestRequest, comboName };
+const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, requestId, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, isTestRequest, comboName };
 const appendLog = (extra) => isTestRequest ? Promise.resolve() : appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
 const trackDone = () => trackPendingRequest(model, provider, connectionId, false, false, { requestId });
 

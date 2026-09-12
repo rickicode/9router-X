@@ -84,9 +84,14 @@ async function getObservabilityConfig() {
 async function flushToDatabase() {
   if (isFlushing || writeBuffer.length === 0) return;
   isFlushing = true;
+  // Declared outside the loop: the catch handler below must be able to
+  // requeue the in-flight batch. Referencing the loop-scoped `items` here
+  // used to throw ReferenceError, masking the real DB error and dropping data.
+  let failedItems = [];
   try {
     while (writeBuffer.length > 0) {
       const items = writeBuffer.splice(0, writeBuffer.length);
+      failedItems = items;
       const db = await getAdapter();
       const config = await getObservabilityConfig();
 
@@ -150,7 +155,7 @@ async function flushToDatabase() {
       });
     }
   } catch (error) {
-    writeBuffer = [...items, ...writeBuffer].slice(-MAX_BUFFER_SIZE);
+    writeBuffer = [...failedItems, ...writeBuffer].slice(-MAX_BUFFER_SIZE);
     console.error("[requestDetailsRepo] Batch write failed:", error);
   } finally {
     isFlushing = false;

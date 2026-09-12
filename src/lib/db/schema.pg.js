@@ -174,8 +174,18 @@ CREATE TABLE IF NOT EXISTS usage_history (
   status VARCHAR(32),
   tokens JSONB,
   meta JSONB,
+  request_id TEXT,
   PRIMARY KEY (id, timestamp)
 ) PARTITION BY RANGE (timestamp);
+-- Idempotency key for usage writes: concurrent completion callbacks (stream
+-- close + completion, retry paths) must not double-count one upstream attempt.
+-- Nullable so pre-migration rows are unaffected (PostgreSQL allows many NULLs
+-- in a UNIQUE index); new writes always set it.
+ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS request_id TEXT;
+-- Composite with the partition key: PostgreSQL requires unique indexes on
+-- partitioned tables to include it. NULL request_ids (pre-migration rows)
+-- never conflict with each other.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uh_request_id ON usage_history (request_id, timestamp);
 
 -- Forward-compatible PostgreSQL migrations for databases created before the
 -- current usage schema. CREATE TABLE IF NOT EXISTS does not add new columns.

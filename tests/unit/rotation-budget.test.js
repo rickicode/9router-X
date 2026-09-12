@@ -85,16 +85,16 @@ beforeEach(() => {
 });
 
 describe("shared rotation budget", () => {
-  it("stops a single model after 10 upstream attempts with 503", async () => {
+  it("stops a single model after 5 upstream attempts with 503", async () => {
     const res = await handleSingleModelChat({ ...BODY }, "p/m", null, null, null, null, false, { used: 0 });
-    expect(mocks.handleChatCore).toHaveBeenCalledTimes(10);
+    expect(mocks.handleChatCore).toHaveBeenCalledTimes(5);
     expect(res.status).toBe(503);
-    expect(await res.text()).toContain("Max rotation attempts (10) reached");
+    expect(await res.text()).toContain("Max rotation attempts (5) reached");
   });
 
-  it("caps combo members combined at 10 upstream attempts", async () => {
+  it("caps combo members combined at 5 upstream attempts", async () => {
     const res = await handleSingleModelChat({ ...BODY, model: "combo" }, "combo", null, null, null, null, false, { used: 0 });
-    expect(mocks.handleChatCore).toHaveBeenCalledTimes(10);
+    expect(mocks.handleChatCore).toHaveBeenCalledTimes(5);
     expect(res.status).toBe(503);
   });
 

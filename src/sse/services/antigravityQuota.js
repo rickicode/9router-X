@@ -7,7 +7,7 @@
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { getAntigravityUsage } from "open-sse/services/usage/google.js";
 import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
-import { publishEvent } from "@/lib/redis/client.js";
+import { publishEvent, setModelCooldown, clearModelCooldown } from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
 
 // In-memory cache: connectionId → { [modelId]: { remainingPercentage, resetAt } }
@@ -60,6 +60,9 @@ export function clearAntigravityStrikes(connectionId, model) {
   const key = `${connectionId}|${model}`;
   strikeCounts.delete(key);
   const until = strikeBlocks.get(key);
+  // Always clear the Redis mirror: the pair just proved itself healthy, and a
+  // stale cross-replica cooldown would wrongly exclude a working account.
+  clearModelCooldown(connectionId, model).catch(() => {});
   if (until === undefined) return;
   strikeBlocks.delete(key);
   const cached = quotaCache.get(connectionId);
@@ -234,6 +237,10 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
       cached[model] = { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() };
       quotaCache.set(connectionId, cached);
       strikeBlocks.set(key, blockedUntil);
+      // Mirror to Redis so OTHER replicas/processes skip this pair too — the
+      // in-process maps above are invisible across restarts and instances.
+      // TTL matches the block; fail-open when Redis is unavailable.
+      setModelCooldown(connectionId, model, Math.ceil(STRIKE_BLOCK_MS / 1000)).catch(() => {});
       return blockedUntil;
     }
     return null;
