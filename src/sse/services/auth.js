@@ -179,7 +179,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       let resolvedProxy = null;
 
       if (proxyGroup) {
-        const groupStrategy = strategy !== "none" ? strategy : "round-robin";
+        const groupStrategy = strategy !== "none" ? strategy : "smart";
         resolvedProxy = await resolveConnectionProxyConfig(
           {
             proxyGroup,
@@ -838,6 +838,19 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       /agentic harness|routing_funnel|failed_routing_step|only available|not supported for|upgrade to access|model not supported|model is restricted|endpoint is not available|gate free endpoints/i.test(lowerErr)
     )
   );
+
+  // OpenRouter shared-pool rate limits (is_byok:false, upstream_provider_shared_pool)
+  // are per-model, never per-account. This matches poolside/laguna:free 429s.
+  const isOpenRouterSharedPool429 = providerId === "openrouter"
+    && status === 429
+    && /is_byok["']?\s*:\s*false|shared_pool|temporarily rate-limited upstream/i.test(lowerErr);
+  if (isOpenRouterSharedPool429) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    cooldownMs = Math.max(cooldownMs || 0, Math.min(DEFAULT_RATE_LIMIT_COOLDOWN_MS, 60 * 1000));
+  }
 
   // OpenCode Zen must keep the API-key connection routable for free models.
   // Its paid-model billing/entitlement failures are model-scoped, even when
