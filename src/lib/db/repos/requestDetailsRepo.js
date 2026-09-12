@@ -194,7 +194,21 @@ export async function getRequestDetails(filter = {}) {
   if (filter.provider) add("provider = ?", filter.provider);
   if (filter.model) add("model = ?", filter.model);
   if (filter.connectionId) add("connection_id = ?", filter.connectionId);
-  if (filter.status) add("status = ?", filter.status);
+  if (filter.status) {
+    if (filter.status === "failed") {
+      // All non-success: error, failed, or any non-success status
+      conditions.push(`status != 'success'`);
+    } else {
+      add("status = ?", filter.status);
+    }
+  }
+  if (filter.statusCode) {
+    const code = String(filter.statusCode);
+    params.push(code);
+    const idx = params.length;
+    // Match HTTP code in response/providerResponse/errorCode or status text
+    conditions.push(`(data->'response'->>'status' = $${idx} OR data->'providerResponse'->>'status' = $${idx} OR data->>'errorCode' = $${idx} OR data->>'status' = $${idx} OR status = $${idx})`);
+  }
   if (filter.startDate) add("timestamp >= ?", new Date(filter.startDate).toISOString());
   if (filter.endDate) add("timestamp <= ?", new Date(filter.endDate).toISOString());
 

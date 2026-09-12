@@ -17,6 +17,7 @@ export async function GET(request) {
     const model = searchParams.get("model");
     const connectionId = searchParams.get("connectionId");
     const status = searchParams.get("status");
+    const statusCode = searchParams.get("statusCode");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     
@@ -43,6 +44,12 @@ export async function GET(request) {
     if (model) filter.model = model;
     if (connectionId) filter.connectionId = connectionId;
     if (status) filter.status = status;
+    if (statusCode) filter.statusCode = statusCode;
+    // Back-compat: status can be "success", "failed", or numeric code
+    if (status && /^\d+$/.test(status)) {
+      filter.statusCode = status;
+      delete filter.status;
+    }
     if (startDate) filter.startDate = startDate;
     if (endDate) filter.endDate = endDate;
     

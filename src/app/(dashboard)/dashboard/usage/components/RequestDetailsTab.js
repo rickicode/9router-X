@@ -114,9 +114,27 @@ export default function RequestDetailsTab() {
   const [providerNameCache, setProviderNameCache] = useState(null);
   const [filters, setFilters] = useState({
     provider: "",
+    status: "",
     startDate: "",
     endDate: ""
   });
+
+  const STATUS_OPTIONS = [
+    { value: "", label: "All Status" },
+    { value: "success", label: "✓ Success (200)" },
+    { value: "failed", label: "✗ Request Failed (all errors)" },
+    { value: "400", label: "400 Bad Request" },
+    { value: "401", label: "401 Unauthorized" },
+    { value: "402", label: "402 Payment Required" },
+    { value: "403", label: "403 Forbidden" },
+    { value: "404", label: "404 Not Found" },
+    { value: "408", label: "408 Timeout" },
+    { value: "429", label: "429 Rate Limited" },
+    { value: "500", label: "500 Internal Error" },
+    { value: "502", label: "502 Bad Gateway" },
+    { value: "503", label: "503 Unavailable" },
+    { value: "504", label: "504 Gateway Timeout" },
+  ];
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -139,6 +157,7 @@ export default function RequestDetailsTab() {
         pageSize: pagination.pageSize.toString()
       });
       if (filters.provider) params.append("provider", filters.provider);
+      if (filters.status) params.append("status", filters.status);
       if (filters.startDate) params.append("startDate", filters.startDate);
       if (filters.endDate) params.append("endDate", filters.endDate);
 
@@ -176,21 +195,29 @@ export default function RequestDetailsTab() {
   };
 
   const handleClearFilters = () => {
-    setFilters({ provider: "", startDate: "", endDate: "" });
+    setFilters({ provider: "", status: "", startDate: "", endDate: "" });
+  };
+
+  const getStatusBadge = (detail) => {
+    const httpStatus = detail.response?.status || detail.providerResponse?.status || detail.errorCode;
+    const isSuccess = detail.status === "success";
+    if (isSuccess) return { label: "200 OK", color: "emerald" };
+    if (httpStatus) return { label: `HTTP ${httpStatus}`, color: httpStatus === 429 ? "amber" : httpStatus >= 500 ? "rose" : "orange" };
+    return { label: detail.status || "Error", color: "rose" };
   };
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <Card padding="md">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="provider-filter" className="text-sm font-medium text-text-main">Provider</label>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="provider-filter" className="text-xs font-medium text-text-muted">Provider</label>
             <select
               id="provider-filter"
               value={filters.provider}
               onChange={(e) => setFilters({ ...filters, provider: e.target.value })}
               className={cn(
-                "h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
+                "h-9 px-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
                 "text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20",
                 "w-full min-w-0 cursor-pointer"
               )}
@@ -204,70 +231,86 @@ export default function RequestDetailsTab() {
               ))}
             </select>
           </div>
+
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="status-filter" className="text-xs font-medium text-text-muted">Status</label>
+            <select
+              id="status-filter"
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className={cn(
+                "h-9 px-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
+                "text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20",
+                "w-full min-w-0 cursor-pointer"
+              )}
+              style={{ colorScheme: 'auto' }}
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
           
-          <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="start-date-filter" className="text-sm font-medium text-text-main">Start Date</label>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="start-date-filter" className="text-xs font-medium text-text-muted">Start Date</label>
             <input
               id="start-date-filter"
               type="datetime-local"
               value={filters.startDate}
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className={cn(
-                "h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
+                "h-9 px-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
                 "w-full min-w-0 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20"
               )}
             />
           </div>
 
-          <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="end-date-filter" className="text-sm font-medium text-text-main">End Date</label>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="end-date-filter" className="text-xs font-medium text-text-muted">End Date</label>
             <input
               id="end-date-filter"
               type="datetime-local"
               value={filters.endDate}
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className={cn(
-                "h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
+                "h-9 px-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
                 "w-full min-w-0 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20"
               )}
             />
           </div>
           
-          <div className="flex min-w-0 flex-col gap-2 sm:col-span-2 lg:col-span-1">
-            <span className="hidden text-sm font-medium text-text-main opacity-0 lg:block" aria-hidden="true">Clear</span>
+          <div className="flex min-w-0 flex-col gap-1.5 justify-end">
             <Button 
               variant="ghost" 
               onClick={handleClearFilters}
-              disabled={!filters.provider && !filters.startDate && !filters.endDate}
-              className="w-full"
+              disabled={!filters.provider && !filters.status && !filters.startDate && !filters.endDate}
+              className="w-full h-9"
             >
-              Clear Filters
+              Clear
             </Button>
           </div>
         </div>
       </Card>
 
-      <Card padding="none">
+      <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px]">
-            <thead>
+          <table className="w-full min-w-[980px]">
+            <thead className="bg-black/[0.02] dark:bg-white/[0.02]">
               <tr className="border-b border-black/5 dark:border-white/5">
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Timestamp</th>
-                <th className="text-center p-4 text-sm font-semibold text-text-main w-28">Status</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Model</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Provider</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Input Tokens</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Cached</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Cache Creation</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Output Tokens</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Latency</th>
-                <th className="text-center p-4 text-sm font-semibold text-text-main">Action</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Time</th>
+                <th className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-28">Status</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Model</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Provider</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">In / Cached</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Out</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Latency</th>
+                <th className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-20">Detail</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="p-8 text-center text-text-muted">
+                  <td colSpan="8" className="p-8 text-center text-text-muted">
                     <div className="flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
                       Loading...
@@ -276,73 +319,78 @@ export default function RequestDetailsTab() {
                 </tr>
               ) : details.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="p-8 text-center text-text-muted">
+                  <td colSpan="8" className="p-8 text-center text-text-muted">
                     No request details found
                   </td>
                 </tr>
               ) : (
-                details.map((detail, index) => (
+                details.map((detail, index) => {
+                  const badge = getStatusBadge(detail);
+                  const isSuccess = detail.status === "success";
+                  return (
                   <tr
                     key={`${detail.id}-${index}`}
                     className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
                   >
-                    <td className="whitespace-nowrap p-4 text-sm text-text-main">
-                      {new Date(detail.timestamp).toLocaleString()}
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-text-main">
+                      <div className="font-medium">{new Date(detail.timestamp).toLocaleDateString()}</div>
+                      <div className="text-[11px] text-text-muted">{new Date(detail.timestamp).toLocaleTimeString()}</div>
                     </td>
-                    <td className="p-4 text-center whitespace-nowrap">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
                       <span
                         className={cn(
-                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold",
-                          detail.status === "success"
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border",
+                          badge.color === "emerald"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                            : badge.color === "amber"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                              : badge.color === "orange"
+                                ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                                : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
                         )}
                       >
-                        <span className="material-symbols-outlined !text-[13px] leading-none">
-                          {detail.status === "success" ? "check_circle" : "error"}
+                        <span className="material-symbols-outlined !text-[12px] leading-none">
+                          {isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
                         </span>
-                        {detail.status === "success"
-                          ? "200 OK"
-                          : (detail.response?.status ? `HTTP ${detail.response.status}` : (detail.status || "Error"))}
+                        {badge.label}
                       </span>
                     </td>
-                    <td className="max-w-[260px] truncate p-4 font-mono text-sm text-text-main">
+                    <td className="max-w-[220px] truncate px-3 py-3 font-mono text-xs text-text-main" title={detail.model}>
                       {detail.model}
                     </td>
-                    <td className="max-w-[180px] truncate p-4 text-sm text-text-main">
+                    <td className="max-w-[140px] truncate px-3 py-3 text-xs text-text-main">
                        <span className="font-medium">
                          {getProviderName(detail.provider, providerNameCache)}
                        </span>
                      </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
-                      {getInputTokens(detail.tokens).toLocaleString()}
+                    <td className="px-3 py-3 text-xs text-text-main text-right font-mono">
+                      <div>{getInputTokens(detail.tokens).toLocaleString()}</div>
+                      {getCachedTokens(detail.tokens) > 0 && (
+                        <div className="text-[10px] text-emerald-600">↻ {getCachedTokens(detail.tokens).toLocaleString()} cached</div>
+                      )}
                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
-                      {getCachedTokens(detail.tokens) > 0 ? getCachedTokens(detail.tokens).toLocaleString() : "—"}
+                    <td className="px-3 py-3 text-xs text-text-main text-right font-mono">
+                      {(detail.tokens?.completion_tokens || 0).toLocaleString()}
                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
-                      {getCacheCreationTokens(detail.tokens) > 0 ? getCacheCreationTokens(detail.tokens).toLocaleString() : "—"}
-                    </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
-                      {detail.tokens?.completion_tokens?.toLocaleString() || 0}
-                    </td>
-                    <td className="p-4 text-sm text-text-muted">
+                    <td className="px-3 py-3 text-[11px] text-text-muted">
                       <div className="flex flex-col gap-0.5">
-                        <div>TTFT: <span className="font-mono">{detail.latency?.ttft || 0}ms</span></div>
-                        <div>Total: <span className="font-mono">{detail.latency?.total || 0}ms</span></div>
+                        <span className="font-mono">{detail.latency?.ttft || 0}ms <span className="text-text-muted/60">TTFT</span></span>
+                        <span className="font-mono">{detail.latency?.total || 0}ms <span className="text-text-muted/60">total</span></span>
                       </div>
                     </td>
-                    <td className="p-4 text-center">
+                    <td className="px-3 py-3 text-center">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleViewDetail(detail)}
+                        className="h-7 px-2 text-xs"
                       >
                         Detail
                       </Button>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
