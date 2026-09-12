@@ -192,7 +192,11 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     };
   }
 
-  const choices = parsed?.choices || parsed?.data?.choices;
+  // NOTE: no generic `data.choices` fallback here. Cline-family envelopes are
+  // unwrapped above via unwrapClineEnvelope() for opted-in providers only; a
+  // blanket data-fallback would defeat that opt-in guard (a non-Cline body
+  // shaped {success,data:{choices}} must still report "no completion choices").
+  const choices = parsed?.choices;
   const hasChoices = Array.isArray(choices) && choices.length > 0;
 
   // Soft-pass (issue #3010): a reasoning model may burn its whole budget on

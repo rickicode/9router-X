@@ -74,9 +74,15 @@ describe("OpenCode Free endpoint routing", () => {
     const executor = new OpenCodeExecutor();
     const muse = { max_tokens: 4096, reasoning_effort: "high" };
     executor.transformRequest(MUSE, muse, true, {});
-    expect(muse.max_output_tokens).toBe(4096);
+    // Small budgets are clamped: Muse Spark spends output on reasoning, so a
+    // 4096 cap would finish with no output text (see MUSE_SPARK_MAX_OUTPUT_TOKENS).
+    expect(muse.max_output_tokens).toBe(200000);
     expect(muse.max_tokens).toBeUndefined();
     expect(muse.reasoning).toEqual({ effort: "high", summary: "auto" });
+
+    const museLarge = { max_tokens: 300000, reasoning_effort: "high" };
+    executor.transformRequest(MUSE, museLarge, true, {});
+    expect(museLarge.max_output_tokens).toBe(300000);
 
     const chat = { max_tokens: 4096, reasoning_effort: "high" };
     executor.transformRequest("big-pickle", chat, true, {});

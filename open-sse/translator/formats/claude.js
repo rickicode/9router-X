@@ -226,12 +226,25 @@ export function normalizeClaudePassthrough(body, model = "") {
   // 4. Fold mid-conversation system messages into the neighbouring turn.
   // Hoisting them into body.system would insert volatile content (token counters,
   // reminders) ahead of the whole conversation and invalidate the prefix cache on
-  // every request. Folding in place keeps the cached prefix stable.
+  // every request. Folding in place keeps the cached prefix stable: attach to the
+  // preceding non-system turn, or to the next one when the system turn leads.
   if (Array.isArray(body.messages)) {
     const messages = [];
-    const systemBlocks = [];
+    let pendingBlocks = [];
+    const flushPending = (target) => {
+      if (pendingBlocks.length === 0 || !target) return;
+      if (typeof target.content === "string") {
+        target.content = `${target.content}\n${pendingBlocks.map(b => b.text).join("\n")}`;
+      } else if (Array.isArray(target.content)) {
+        target.content.push(...pendingBlocks);
+      } else {
+        target.content = [...pendingBlocks];
+      }
+      pendingBlocks = [];
+    };
     for (const msg of body.messages) {
       if (msg.role !== ROLE.SYSTEM) {
+        flushPending(messages[messages.length - 1]);
         messages.push(msg);
         continue;
       }
@@ -241,15 +254,21 @@ export function normalizeClaudePassthrough(body, model = "") {
           ? msg.content.map(b => (typeof b === "string" ? b : b?.text || "")).join("\n")
           : "";
       if (!text.trim()) continue;
-      systemBlocks.push({ type: CLAUDE_BLOCK.TEXT, text });
+      pendingBlocks.push({ type: CLAUDE_BLOCK.TEXT, text });
     }
-    if (systemBlocks.length > 0) {
-      if (typeof body.system === "string") {
-        body.system = [{ type: CLAUDE_BLOCK.TEXT, text: body.system }, ...systemBlocks];
-      } else if (Array.isArray(body.system)) {
-        body.system = [...body.system, ...systemBlocks];
+    // Leftover system turn(s): a trailing system block belongs to the preceding
+    // turn (append); a leading one (no preceding turn exists) goes to the
+    // first kept turn (prepend).
+    if (pendingBlocks.length > 0 && messages.length > 0) {
+      const target = messages[messages.length - 1];
+      const blocks = pendingBlocks;
+      pendingBlocks = [];
+      if (typeof target.content === "string") {
+        target.content = `${target.content}\n${blocks.map(b => b.text).join("\n")}`;
+      } else if (Array.isArray(target.content)) {
+        target.content.push(...blocks);
       } else {
-        body.system = systemBlocks;
+        target.content = [...blocks];
       }
     }
     body.messages = messages;

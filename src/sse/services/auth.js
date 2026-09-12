@@ -1,5 +1,4 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
-import { getUsageSnapshotByConnectionId } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import * as localDb from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
@@ -32,6 +31,18 @@ function githubMonthlyResetMs(status, errorText, provider) {
   const now = new Date();
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
 }
+// Safe accessor for optional localDb helpers. Direct property access throws
+// under vitest strict mocks that omit newer exports, and typeof-access throws
+// there too — so probe inside try/catch. Returns the function or null.
+function getLocalDbFn(name) {
+  try {
+    const fn = localDb[name];
+    return typeof fn === "function" ? fn : null;
+  } catch {
+    return null;
+  }
+}
+
 function isSameFreebuffModel(connModel, targetModel) {
   if (!connModel || !targetModel) return false;
   if (connModel === targetModel) return true;
@@ -403,7 +414,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // classifying the failure so Redis cannot hide exhausted/disabled state.
       const stateConnections = await getProviderConnections({ provider: providerId, limit: 500 });
       if (isAntigravity && model) {
-        const agSnapshots = await localDb.getBatchProviderQuotas(providerId).catch(() => []);
+        const readQuotas = getLocalDbFn("getBatchProviderQuotas");
+        const agSnapshots = readQuotas ? await readQuotas(providerId).catch(() => []) : [];
         for (const snapshot of agSnapshots) {
           if (snapshot?.connectionId && snapshot.quotas) hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
         }
@@ -874,8 +886,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // A quota snapshot can prove account-wide exhaustion even when the current
   // error names only one model. Re-read the hydrated snapshot after handling
   // the upstream signal so the durable connection status reflects reality.
-  const durableSnapshot = providerId === "antigravity"
-    ? await getUsageSnapshotByConnectionId(connectionId).catch(() => null)
+  const readSnapshot = getLocalDbFn("getUsageSnapshotByConnectionId");
+  const durableSnapshot = providerId === "antigravity" && readSnapshot
+    ? await readSnapshot(connectionId).catch(() => null)
     : null;
   if (providerId === "antigravity" && (isAntigravityAccountQuotaExhausted(connectionId) || isAntigravityQuotaMapExhausted(durableSnapshot?.quotas))) {
     lockAll = true;

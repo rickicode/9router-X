@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const dbMocks = vi.hoisted(() => ({
   getProviderConnections: vi.fn(),
   updateProviderConnection: vi.fn(),
+  getUsageSnapshotByConnectionId: vi.fn(async () => null),
+  getBatchProviderQuotas: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/localDb", () => dbMocks);

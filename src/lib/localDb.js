@@ -12,7 +12,7 @@ export {
   setModelCooldown, clearModelCooldown,
   lockAccountToModel, unlockAccountModel,
   createProviderConnection, updateProviderConnection,
-  getBatchProviderQuotas,
+  getBatchProviderQuotas, getUsageSnapshotByConnectionId,
   deleteProviderConnection, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,
   bulkResetProviderConnectionsStatus, bulkUpdateProviderProxy,

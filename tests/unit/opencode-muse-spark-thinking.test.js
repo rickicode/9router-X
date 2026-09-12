@@ -59,7 +59,9 @@ describe("OpenCode Free Muse Spark thinking", () => {
 
     expect(out.reasoning).toEqual({ effort: "xhigh", summary: "auto" });
     expect(out.reasoning_effort).toBeUndefined();
-    expect(out.max_output_tokens).toBe(131072);
+    // 131072 < MUSE_SPARK_MAX_OUTPUT_TOKENS floor: reasoning consumes the
+    // budget, so small caps are clamped to 200000.
+    expect(out.max_output_tokens).toBe(200000);
     expect(out.max_tokens).toBeUndefined();
   });
 
@@ -94,7 +96,7 @@ describe("OpenCode Free Muse Spark thinking", () => {
     });
 
     expect(out.reasoning).toEqual({ effort: "xhigh", summary: "auto" });
-    expect(out.max_output_tokens).toBe(131072);
+    expect(out.max_output_tokens).toBe(200000);
     expect(out.max_tokens).toBeUndefined();
   });
 
@@ -128,7 +130,7 @@ describe("OpenCode Free Muse Spark thinking", () => {
       });
 
       expect(out.reasoning).toEqual({ effort: "high", summary: "auto" });
-      expect(out.max_output_tokens).toBe(2048);
+      expect(out.max_output_tokens).toBe(200000);
       expect(out.max_tokens).toBeUndefined();
     }
   });

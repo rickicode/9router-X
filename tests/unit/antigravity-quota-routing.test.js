@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   resolveConnectionProxyConfig: vi.fn(),
   getAntigravityUsage: vi.fn(),
+  getBatchProviderQuotas: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/localDb", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/localDb", () => ({
   getProxyPools: vi.fn(),
   validateApiKey: vi.fn(),
   updateProviderConnection: vi.fn(),
+  getBatchProviderQuotas: mocks.getBatchProviderQuotas,
 }));
 vi.mock("@/lib/network/connectionProxy", () => ({
   resolveConnectionProxyConfig: mocks.resolveConnectionProxyConfig,

@@ -182,10 +182,12 @@ describe("handleVideoCreate", () => {
     expect(init.headers["Content-Type"]).toContain(boundary);
   });
 
-  it("returns 400 when no credentials are connected", async () => {
+  it("returns 503 when no credentials are connected", async () => {
     authMocks.getProviderCredentials.mockResolvedValueOnce(null);
     const res = await handleVideoCreate(makeRequest({ prompt: "x" }), "generations");
-    expect(res.status).toBe(400);
+    // 503 (not 400): no usable credential is a retryable capacity state,
+    // consistent with the chat/combo unavailable contract.
+    expect(res.status).toBe(503);
     expect(await res.text()).toContain("No credentials for provider: xai");
   });
 
