@@ -431,11 +431,17 @@ export default function ModelSelectModal({
     return combos.filter(c => c.name.toLowerCase().includes(query));
   }, [combos, searchQuery, kindFilter]);
 
-  // Sort models alphabetically, with added models floated to top
+  // Free-model detection: id/name ends with -free or contains contributor-free.
+  const isFreeModel = (m) =>
+    /(^|\/)[-a-z0-9]*(-free)$/i.test(m?.id || "") || /(^|\/)[-a-z0-9]*(-free)$/i.test(m?.value || "");
+
+  // Sort models alphabetically, with added models floated to top, then free models.
   const sortModels = (models) => {
     const added = models.filter(m => addedModelValues.includes(m.value)).sort((a, b) => a.name.localeCompare(b.name));
-    const rest = models.filter(m => !addedModelValues.includes(m.value)).sort((a, b) => a.name.localeCompare(b.name));
-    return [...added, ...rest];
+    const rest = models.filter(m => !addedModelValues.includes(m.value));
+    const free = rest.filter(isFreeModel).sort((a, b) => a.name.localeCompare(b.name));
+    const paid = rest.filter(m => !isFreeModel(m)).sort((a, b) => a.name.localeCompare(b.name));
+    return [...added, ...free, ...paid];
   };
 
   // Available provider options for filter
@@ -646,6 +652,11 @@ export default function ModelSelectModal({
                       ) : (
                         <>
                           {model.name}
+                          {isFreeModel(model) && (
+                            <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 tracking-tight">
+                              FREE
+                            </span>
+                          )}
                           <CapacityBadges caps={getCaps(model.value)} />
                         </>
                       )}
