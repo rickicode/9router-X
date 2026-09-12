@@ -883,6 +883,24 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     }
   }
 
+  // Distributor "no available channel" (e.g. UniKey new_api distributor returns
+  // HTTP 503 code model_not_found when no backend channel serves the model).
+  // The model ID exists but the distributor is temporarily out of capacity —
+  // NOT a dead account. Lock the model with a stable cooldown, fall back
+  // immediately, and never disable the account. Without this, the generic
+  // transient-5xx cooldown (seconds) hot-loops every account against a dead
+  // channel.
+  if (model && /no available channel|no healthy channel|all channels .* (busy|failed|unavailable|exhausted)|no channel .* available/i.test(lowerErr)) {
+    shouldFallback = true;
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    newBackoffLevel = 0;
+    cooldownMs = Math.max(cooldownMs || 0, resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  }
+
   // A quota snapshot can prove account-wide exhaustion even when the current
   // error names only one model. Re-read the hydrated snapshot after handling
   // the upstream signal so the durable connection status reflects reality.
