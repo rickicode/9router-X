@@ -259,7 +259,9 @@ export async function getActiveRequests() {
   for (const k of allApiKeys) apiKeyMap[k.key] = k.name;
 
   for (const item of localItems) {
-    const accountName = connectionMap[item.connectionId] || (item.connectionId ? `Account ${item.connectionId.slice(0, 8)}...` : "Direct");
+    const isFreeDirect = item.provider === "opencode" && !item.connectionId;
+    const accountName = connectionMap[item.connectionId]
+      || (item.connectionId ? `Account ${item.connectionId.slice(0, 8)}...` : (isFreeDirect ? "Direct (Free)" : `${item.provider || "Unknown"} (No connection)`));
     const keyName = apiKeyMap[item.apiKey] || (item.apiKey ? maskApiKey(item.apiKey) : "Default Key");
     activeRequests.push({
       model: item.model,

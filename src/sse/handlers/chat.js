@@ -423,9 +423,12 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
         const status = HTTP_STATUS.SERVICE_UNAVAILABLE;
-        const failedAccount = lastAttemptedAccount || credentials.lastAccount || credentials.connectionName;
+        const failedAccount = lastAttemptedAccount || credentials.lastAccount || credentials.connectionName
+          || (credentials.blockedNames?.length ? credentials.blockedNames.join(", ") : null)
+          || `${provider} (all accounts blocked)`;
         const failedConnId = lastAttemptedConnectionId || credentials.lastConnectionId;
-        log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
+        const blockedList = credentials.blockedNames?.length ? ` [${credentials.blockedNames.join(", ")}]` : "";
+        log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})${blockedList}`);
          if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
          if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: failedConnId || null,
@@ -433,7 +436,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
           request: body,
-          response: { error: errorMsg, status, thinking: null },
+          response: { error: errorMsg, status, thinking: null, blockedAccounts: credentials.blockedNames || [] },
           status: "error",
           error: errorMsg,
           errorCode: status,
