@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { detectRequiredCapabilities, reorderByCapabilities } from "../../open-sse/services/combo.js";
+import { describe, it, expect, vi } from "vitest";
+import { detectRequiredCapabilities, reorderByCapabilities, handleComboChat } from "../../open-sse/services/combo.js";
 
 describe("detectRequiredCapabilities", () => {
   it("text-only -> empty", () => {
@@ -74,5 +74,43 @@ describe("reorderByCapabilities", () => {
   it("single model -> unchanged", () => {
     const models = ["a/x"];
     expect(reorderByCapabilities(models, new Set(["vision"]))).toBe(models);
+  });
+});
+
+describe("handleComboChat autoSwitch opt-out", () => {
+  const log = { info: () => {}, warn: () => {}, debug: () => {} };
+  const visionBody = { messages: [{ role: "user", content: [
+    { type: "image_url", image_url: { url: "x" } },
+  ] }] };
+  const models = ["deepseek/deepseek-chat", "anthropic/claude-sonnet-4.6"];
+  const fail503 = () => {
+    const make = () => ({ ok: false, status: 503, statusText: "busy",
+      clone: make, json: async () => ({ error: { message: "busy" } }) });
+    return make();
+  };
+
+  async function triedOrder(opts) {
+    const tried = [];
+    await handleComboChat({
+      body: visionBody,
+      models,
+      handleSingleModel: async (b, m) => { tried.push(m); return fail503(); },
+      log,
+      comboName: "test",
+      comboStrategy: "fallback",
+      ...opts,
+    });
+    return tried;
+  }
+
+  it("reorders vision-capable first by default", async () => {
+    expect(await triedOrder({})).toEqual([
+      "anthropic/claude-sonnet-4.6",
+      "deepseek/deepseek-chat",
+    ]);
+  });
+
+  it("keeps explicit member order with autoSwitch:false", async () => {
+    expect(await triedOrder({ autoSwitch: false })).toEqual(models);
   });
 });

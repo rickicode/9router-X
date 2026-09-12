@@ -68,6 +68,40 @@ describe("fusion combo", () => {
     expect(seen.filter((m) => m === "p/a").length).toBeGreaterThanOrEqual(1);
   });
 
+  it("truncates huge panel answers in the judge prompt", async () => {
+    const big = "A".repeat(30000);
+    const seen = [];
+    const handleSingleModel = vi.fn(async (body, model, isPanel) => {
+      if (isPanel) return okResponse(big);
+      seen.push(body.messages[body.messages.length - 1].content.length);
+      return okResponse("FINAL");
+    });
+    await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/a", "p/b"],
+      handleSingleModel,
+      log,
+    });
+    // 2 sources × capped each, well under raw 60000 chars.
+    expect(seen[0]).toBeLessThan(30000);
+  });
+
+  it("honors minPanel:1 without waiting for stragglers", async () => {
+    const handleSingleModel = vi.fn(async (body, model) =>
+      model === "p/fast" ? okResponse("fast-ans") : okResponse("slow-ans", { delayMs: 30000 }));
+    const t0 = Date.now();
+    await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/fast", "p/slow"],
+      handleSingleModel,
+      log,
+      tuning: { minPanel: 1, stragglerGraceMs: 50, panelHardTimeoutMs: 5000 },
+    });
+    // Quorum=1 + short grace: must finish far below the 30s straggler.
+    expect(Date.now() - t0).toBeLessThan(15000);
+    expect(handleSingleModel).toHaveBeenCalled();
+  });
+
   it("clones the panel body per member (no shared mutation)", async () => {
     const bodies = [];
     const handleSingleModel = vi.fn(async (body) => {

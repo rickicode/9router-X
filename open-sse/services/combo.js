@@ -451,9 +451,21 @@ function appendUserTurn(body, text) {
  * Sources are anonymized ("Source N") so the judge weighs substance, not the
  * reputation of a model brand.
  */
+const MAX_JUDGE_PANEL_CHARS = 24000;
+
 function buildJudgePrompt(answers) {
+  // Cap total panel text: unbounded concatenation blows the judge context and
+  // fails the whole fusion with 400/413. Truncate the longest answers first so
+  // every source stays represented.
+  const budget = MAX_JUDGE_PANEL_CHARS;
+  const perSource = Math.max(2000, Math.floor(budget / Math.max(1, answers.length)));
   const panel = answers
-    .map((a, i) => `[Source ${i + 1}]\n${a.text}`)
+    .map((a, i) => {
+      const text = a.text.length > perSource
+        ? `${a.text.slice(0, perSource)}\n…[truncated ${a.text.length - perSource} chars]`
+        : a.text;
+      return `[Source ${i + 1}]\n${text}`;
+    })
     .join("\n\n");
 
   return [
@@ -562,7 +574,8 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   }
 
   const cfg = { ...FUSION_DEFAULTS, ...(tuning || {}) };
-  const minPanel = Math.min(Math.max(2, cfg.minPanel), panel.length);
+  // minPanel=1 is legal: one fast answer need not wait the straggler grace.
+  const minPanel = Math.min(Math.max(1, cfg.minPanel), panel.length);
   const judge = judgeModel && judgeModel.trim() ? judgeModel.trim() : panel[0];
   log.info("FUSION", `Combo "${comboName}" | panel=${panel.length} [${panel.join(", ")}] | judge=${judge} | quorum=${minPanel}`);
 

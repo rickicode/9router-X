@@ -159,6 +159,9 @@ export async function handleChat(request, clientRawRequest = null) {
     }
 
     const comboStickyLimit = settings.comboStickyRoundRobinLimit;
+    // Per-combo autoSwitch opt-out: cost-ordered combos can keep their explicit
+    // member order even when the request carries media/search. Default true.
+    const comboAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
     log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
     return handleComboChat({
       body,
@@ -170,7 +173,8 @@ export async function handleChat(request, clientRawRequest = null) {
       log,
       comboName: modelStr,
       comboStrategy,
-      comboStickyLimit
+      comboStickyLimit,
+      autoSwitch: comboAutoSwitch
     });
   }
 
@@ -237,6 +241,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       }
 
       const comboStickyLimit = chatSettings.comboStickyRoundRobinLimit;
+      const nestedAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
       log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
       return handleComboChat({
         body,
@@ -248,7 +253,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         log,
         comboName: modelStr,
         comboStrategy,
-        comboStickyLimit
+        comboStickyLimit,
+        autoSwitch: nestedAutoSwitch
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });
