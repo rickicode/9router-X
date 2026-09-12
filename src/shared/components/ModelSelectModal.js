@@ -93,6 +93,7 @@ export default function ModelSelectModal({
   }, [activeProviders, kindFilter]);
   const { getCaps } = useModelCaps();
   const [searchQuery, setSearchQuery] = useState("");
+  const [providerFilter, setProviderFilter] = useState("all");
   const [combos, setCombos] = useState([]);
   const [providerNodes, setProviderNodes] = useState([]);
   const [customModels, setCustomModels] = useState([]);
@@ -437,12 +438,20 @@ export default function ModelSelectModal({
     return [...added, ...rest];
   };
 
-  // Filter models by search query
+  // Available provider options for filter
+  const providerOptions = useMemo(() => {
+    return Object.entries(groupedModels)
+      .map(([id, g]) => ({ id, name: g.name, count: g.models.length }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [groupedModels]);
+
+  // Filter models by provider + search query
   const filteredGroups = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     const filtered = {};
     Object.entries(groupedModels).forEach(([providerId, group]) => {
+      if (providerFilter !== "all" && providerId !== providerFilter) return;
       let models = group.models;
       // Filter by input-modality capability (vision/pdf/audioInput/videoInput).
       if (capFilter) {
@@ -450,11 +459,13 @@ export default function ModelSelectModal({
         if (models.length === 0) return;
       }
       if (query) {
-        const providerNameMatches = group.name.toLowerCase().includes(query);
+        const alias = (group.alias || "").toLowerCase();
+        const providerNameMatches = group.name.toLowerCase().includes(query) || alias.includes(query) || providerId.toLowerCase().includes(query);
         models = models.filter(
           (m) =>
             m.name.toLowerCase().includes(query) ||
-            m.id.toLowerCase().includes(query)
+            m.id.toLowerCase().includes(query) ||
+            m.value.toLowerCase().includes(query)
         );
         if (models.length === 0 && !providerNameMatches) return;
       }
@@ -465,7 +476,7 @@ export default function ModelSelectModal({
     });
 
     return filtered;
-  }, [groupedModels, searchQuery, addedModelValues]);
+  }, [groupedModels, searchQuery, providerFilter, addedModelValues, capFilter]);
 
   const handleSelect = (model) => {
     const value = model?.value || model?.name || model;
@@ -489,10 +500,11 @@ export default function ModelSelectModal({
       onClose={() => {
         onClose();
         setSearchQuery("");
+        setProviderFilter("all");
       }}
       title={title}
-      size="md"
-      className="p-4!"
+      size="xl"
+      className="p-4! sm:max-w-[760px]"
       footer={null}
     >
       {/* Info bar */}
@@ -501,24 +513,44 @@ export default function ModelSelectModal({
         <span>Click to add, click again to remove. Changes are saved automatically.</span>
       </div>
 
-      {/* Search - compact */}
-      <div className="mb-3">
+      {/* Search + provider filter */}
+      <div className="mb-3 flex flex-col gap-2">
         <div className="relative">
           <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">
             search
           </span>
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search models or providers (e.g. gpt, ocz, openrouter)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+            className="w-full pl-8 pr-3 py-2 bg-surface border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
           />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          <span className="text-[11px] text-text-muted shrink-0">Provider:</span>
+          <button
+            onClick={() => setProviderFilter("all")}
+            className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${providerFilter === "all" ? "bg-primary text-white border-primary" : "bg-surface border-border text-text-muted hover:border-primary/50"}`}
+          >
+            All ({Object.keys(groupedModels).length})
+          </button>
+          {providerOptions.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setProviderFilter(p.id)}
+              title={p.name}
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1 ${providerFilter === p.id ? "bg-primary text-white border-primary" : "bg-surface border-border text-text-main hover:border-primary/50"}`}
+            >
+              <span>{p.name}</span>
+              <span className={`text-[10px] px-1 rounded ${providerFilter === p.id ? "bg-white/20" : "bg-black/5 dark:bg-white/10"}`}>{p.count}</span>
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Models grouped by provider - compact */}
-      <div className="max-h-[400px] overflow-y-auto space-y-3">
+      <div className="max-h-[60vh] sm:max-h-[520px] overflow-y-auto space-y-3 pr-1">
         {/* Combos section - always first */}
         {filteredCombos.length > 0 && (
           <div>
