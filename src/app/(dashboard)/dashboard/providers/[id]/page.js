@@ -994,20 +994,24 @@ export default function ProviderDetailPage() {
       message: `Delete ${count} connection${count > 1 ? "s" : ""}? This cannot be undone.`,
       onConfirm: async () => {
         setConfirmState(null);
-        let failed = 0;
         const idsToDelete = [...selectedConnectionIds];
-        for (const id of idsToDelete) {
-          try {
-            const res = await fetch(`/api/providers/${id}`, { method: "DELETE" });
-            if (!res.ok) failed += 1;
-          } catch (error) {
-            console.log("Error deleting connection:", error);
-            failed += 1;
+        try {
+          const res = await fetch("/api/providers", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: idsToDelete }),
+          });
+          if (res.ok) {
+            setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
+            setSelectedConnectionIds([]);
+            notify.success(`Deleted ${idsToDelete.length} connection(s)`);
+          } else {
+            notify.error("Failed to delete connections");
           }
+        } catch (error) {
+          console.log("Error deleting connections:", error);
+          notify.error("Failed to delete connections");
         }
-        setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
-        setSelectedConnectionIds([]);
-        if (failed > 0) alert(`Deleted ${idsToDelete.length - failed} connection(s), ${failed} failed.`);
       }
     });
   };

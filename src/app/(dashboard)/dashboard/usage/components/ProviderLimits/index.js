@@ -812,15 +812,11 @@ export default function ProviderLimits() {
       if (!targetIds.length || bulkToggling) return;
       setBulkToggling(true);
       try {
-        await Promise.all(
-          targetIds.map((id) =>
-            fetch(`/api/providers/${id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ isActive }),
-            }),
-          ),
-        );
+        await fetch("/api/providers", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: targetIds, isActive }),
+        });
         await reconcileConnectionsPage(fetchConnections, page);
       } catch (error) {
         console.error("Error bulk toggling connections:", error);

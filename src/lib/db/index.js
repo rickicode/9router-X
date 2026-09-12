@@ -19,7 +19,7 @@ export {
   setModelCooldown, clearModelCooldown,
   lockAccountToModel, unlockAccountModel,
   createProviderConnection, updateProviderConnection,
-  deleteProviderConnection, deleteProviderConnectionsByProvider,
+  deleteProviderConnection, deleteProviderConnectionsByIds, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,
   bulkResetProviderConnectionsStatus, bulkUpdateProviderProxy,
 } from "./repos/connectionsRepo.js";

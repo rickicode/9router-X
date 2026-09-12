@@ -5,6 +5,8 @@ import {
   createProviderConnection,
   setProviderConnectionsActive,
   setConnectionsActiveByIds,
+  deleteProviderConnectionsByIds,
+  deleteProviderConnectionsByProvider,
   getProviderNodeById,
   getProviderNodes,
   getProxyPoolById,
@@ -186,6 +188,32 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("Error bulk updating provider status:", error);
     return NextResponse.json({ error: "Failed to update provider status" }, { status: 500 });
+  }
+}
+
+// DELETE /api/providers - Batch delete connections by IDs or by provider
+export async function DELETE(request) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const { ids, provider } = body;
+
+    if (Array.isArray(ids)) {
+      if (ids.length === 0) {
+        return NextResponse.json({ success: true, deletedCount: 0 });
+      }
+      const deletedCount = await deleteProviderConnectionsByIds(ids);
+      return NextResponse.json({ success: true, deletedCount });
+    }
+
+    if (provider) {
+      const deletedCount = await deleteProviderConnectionsByProvider(provider);
+      return NextResponse.json({ success: true, deletedCount });
+    }
+
+    return NextResponse.json({ error: "ids or provider is required" }, { status: 400 });
+  } catch (error) {
+    console.error("Error bulk deleting provider connections:", error);
+    return NextResponse.json({ error: "Failed to delete connections" }, { status: 500 });
   }
 }
 

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
-import { invalidateCachedConnections, setAccountCooldown } from "../../redis/client.js";
+import { invalidateCachedConnections, setAccountCooldown, clearBatchAccountCooldown } from "../../redis/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 const MODEL_LOCK_ALL = "__all";
@@ -827,22 +827,21 @@ export async function createProviderConnection(data = {}) {
   const now = new Date().toISOString();
 
   return db.transaction(async (tx) => {
-    const rows = await tx.all(
-      `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
-              locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
-              token_expires_at, last_used_at, model_locks, last_error, error_code,
-              last_error_at, data, created_at, updated_at
-         FROM provider_connections WHERE provider = $1`,
-      [input.provider],
-    );
-    const all = rows.map(rowToConnection);
-
     let existing = null;
     if (input.authType === "oauth" && input.email) {
+      const rows = await tx.all(
+        `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
+                locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+                token_expires_at, last_used_at, model_locks, last_error, error_code,
+                last_error_at, data, created_at, updated_at
+           FROM provider_connections
+          WHERE provider = $1 AND auth_type = 'oauth' AND email = $2`,
+        [input.provider, input.email],
+      );
+      const candidates = rows.map(rowToConnection);
       const incomingUsername = input.providerSpecificData?.username;
       const incomingWorkspace = input.providerSpecificData?.chatgptAccountId;
-      existing = all.find((connection) => {
-        if (connection.authType !== "oauth" || connection.email !== input.email) return false;
+      existing = candidates.find((connection) => {
         if (input.provider === "codex") {
           const currentWorkspace = connection.providerSpecificData?.chatgptAccountId;
           return Boolean(incomingWorkspace && currentWorkspace && incomingWorkspace === currentWorkspace);
@@ -856,7 +855,17 @@ export async function createProviderConnection(data = {}) {
         return true;
       });
     } else if (input.authType === "apikey" && input.name) {
-      existing = all.find((connection) => connection.authType === "apikey" && connection.name === input.name);
+      const row = await tx.get(
+        `SELECT id, provider, auth_type, name, email, priority, is_active, test_status,
+                locked_all_until, rate_limited_until, locked_to_model, locked_to_model_until,
+                token_expires_at, last_used_at, model_locks, last_error, error_code,
+                last_error_at, data, created_at, updated_at
+           FROM provider_connections
+          WHERE provider = $1 AND auth_type = 'apikey' AND name = $2
+          LIMIT 1`,
+        [input.provider, input.name],
+      );
+      if (row) existing = rowToConnection(row);
     }
 
     if (existing) {
@@ -867,31 +876,46 @@ export async function createProviderConnection(data = {}) {
         modelLocks: modelLocksFromConnection(normalized, existing.modelLocks),
         updatedAt: now,
       };
-      return writeConnection(tx, merged, { createdAt: existing.createdAt });
+      const saved = await writeConnection(tx, merged, { createdAt: existing.createdAt });
+      invalidateCachedConnections(input.provider).catch(() => {});
+      return saved;
+    }
+
+    let priority = input.priority;
+    if (priority === undefined) {
+      const maxRow = await tx.get(
+        `SELECT COALESCE(MAX(priority), 0) AS max_p FROM provider_connections WHERE provider = $1`,
+        [input.provider],
+      );
+      priority = (Number(maxRow?.max_p) || 0) + 1;
+    }
+
+    let fallbackName = input.name;
+    if (!fallbackName && (input.authType === "oauth" || input.authType === "access_token")) {
+      const countRow = await tx.get(
+        `SELECT COUNT(*)::int AS cnt FROM provider_connections WHERE provider = $1`,
+        [input.provider],
+      );
+      fallbackName = deriveConnectionName(input, input.email || `Account ${(Number(countRow?.cnt) || 0) + 1}`);
     }
 
     const connection = {
       ...input,
       id: input.id || uuidv4(),
       authType: input.authType || "oauth",
-      name: input.name || null,
+      name: fallbackName || null,
       email: input.email ?? null,
-      priority: input.priority ?? (all.reduce((max, item) => Math.max(max, item.priority || 0), 0) + 1),
+      priority,
       isActive: input.isActive !== undefined ? input.isActive : true,
       testStatus: input.testStatus || "active",
       modelLocks: modelLocksFromConnection(input),
       createdAt: now,
       updatedAt: now,
     };
-    if (!connection.name && (connection.authType === "oauth" || connection.authType === "access_token")) {
-      connection.name = deriveConnectionName(input, input.email || `Account ${all.length + 1}`);
-    }
 
-    await writeConnection(tx, connection);
-    await reorderInTransaction(tx, connection.provider);
-    const reordered = await tx.get(`SELECT * FROM provider_connections WHERE id = $1`, [connection.id]);
+    const saved = await writeConnection(tx, connection);
     invalidateCachedConnections(connection.provider).catch(() => {});
-    return rowToConnection(reordered);
+    return saved;
   });
 }
 
@@ -1016,10 +1040,23 @@ export async function deleteProviderConnection(id) {
     const row = await tx.get(`SELECT provider FROM provider_connections WHERE id = $1`, [id]);
     if (!row) return false;
     await tx.run(`DELETE FROM provider_connections WHERE id = $1`, [id]);
-    await reorderInTransaction(tx, row.provider);
     invalidateCachedConnections(row.provider).catch(() => {});
     return true;
   });
+}
+
+export async function deleteProviderConnectionsByIds(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  const db = await getAdapter();
+  const rows = await db.all(
+    `DELETE FROM provider_connections WHERE id = ANY($1::text[]) RETURNING provider`,
+    [ids],
+  );
+  const affected = new Set(rows.map((r) => r.provider).filter(Boolean));
+  for (const p of affected) {
+    invalidateCachedConnections(p).catch(() => {});
+  }
+  return rows.length;
 }
 
 export async function lockAccountToModel(connectionId, model, durationMs = 3600000) {
@@ -1079,55 +1116,14 @@ export async function reorderProviderConnections(provider) {
 
 export async function cleanupProviderConnections() {
   const db = await getAdapter();
-  return db.transaction(async (tx) => {
-    let cleaned = 0;
-    const rows = await tx.all(`SELECT id, data, model_locks FROM provider_connections`);
-
-    for (const row of rows) {
-      const data = { ...jsonObject(row.data, {}) };
-      const modelLocks = { ...jsonObject(row.model_locks, {}) };
-      let dirty = false;
-
-      for (const field of DATA_FIELDS_TO_CLEAN) {
-        if (Object.prototype.hasOwnProperty.call(data, field) && data[field] == null) {
-          delete data[field];
-          cleaned += 1;
-          dirty = true;
-        }
-      }
-      if (data.modelLocks && typeof data.modelLocks === "object") {
-        for (const [model, until] of Object.entries(data.modelLocks)) {
-          if (modelLocks[model] === undefined && until != null) modelLocks[model] = until;
-        }
-        delete data.modelLocks;
-        cleaned += 1;
-        dirty = true;
-      }
-      for (const key of Object.keys(data)) {
-        if (!key.startsWith(MODEL_LOCK_PREFIX)) continue;
-        const model = key.slice(MODEL_LOCK_PREFIX.length) || MODEL_LOCK_ALL;
-        if (data[key] != null && modelLocks[model] === undefined) modelLocks[model] = data[key];
-        delete data[key];
-        cleaned += 1;
-        dirty = true;
-      }
-      if (data.providerSpecificData && Object.keys(data.providerSpecificData).length === 0) {
-        delete data.providerSpecificData;
-        cleaned += 1;
-        dirty = true;
-      }
-
-      if (dirty) {
-        await tx.run(
-          `UPDATE provider_connections
-              SET model_locks = $1::jsonb, data = $2::jsonb, updated_at = NOW()
-            WHERE id = $3`,
-          [jsonString(modelLocks), jsonString(data), row.id],
-        );
-      }
-    }
-    return cleaned;
-  });
+  const result = await db.run(
+    `UPDATE provider_connections
+        SET data = data - 'id' - 'provider' - 'authType' - 'name' - 'email' - 'priority' - 'isActive' - 'testStatus' - 'lockedAllUntil' - 'rateLimitedUntil' - 'tokenExpiresAt' - 'lastUsedAt' - 'lastError' - 'errorCode' - 'lastErrorAt' - 'createdAt' - 'updatedAt',
+            updated_at = NOW()
+      WHERE jsonb_typeof(data) = 'object'
+        AND (data ? 'id' OR data ? 'provider' OR data ? 'authType' OR data ? 'name')`,
+  );
+  return Number(result?.changes ?? 0);
 }
 
 export async function bulkResetProviderConnectionsStatus({ provider, ids } = {}) {
@@ -1180,9 +1176,7 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
     invalidateCachedConnections(p).catch(() => {});
   }
 
-  for (const r of rows) {
-    setAccountCooldown(r.id, 0).catch(() => {});
-  }
+  clearBatchAccountCooldown(rows.map((r) => r.id)).catch(() => {});
 
   return { ok: true, count: rows.length };
 }

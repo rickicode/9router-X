@@ -100,6 +100,21 @@ export async function setModelCooldown(connId, model, cooldownSeconds) {
 export async function clearAccountCooldown(connId) {
   return setAccountCooldown(connId, 0);
 }
+export async function clearBatchAccountCooldown(connIds) {
+  if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) return false;
+  try {
+    const keys = connIds.map((id) => `cooldown:conn:${id}`);
+    const BATCH = 500;
+    for (let i = 0; i < keys.length; i += BATCH) {
+      const chunk = keys.slice(i, i + BATCH);
+      await redis.del(...chunk);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 
 export async function clearModelCooldown(connId, model) {
   return setModelCooldown(connId, model, 0);

@@ -13,7 +13,7 @@ export {
   lockAccountToModel, unlockAccountModel,
   createProviderConnection, updateProviderConnection,
   getBatchProviderQuotas, getUsageSnapshotByConnectionId,
-  deleteProviderConnection, deleteProviderConnectionsByProvider,
+  deleteProviderConnection, deleteProviderConnectionsByIds, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,
   bulkResetProviderConnectionsStatus, bulkUpdateProviderProxy,
   getProviderNodes, getProviderNodeById,

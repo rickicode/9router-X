@@ -25,6 +25,7 @@ export {
   createProviderConnection,
   updateProviderConnection,
   deleteProviderConnection,
+  deleteProviderConnectionsByIds,
   deleteProviderConnectionsByProvider,
   reorderProviderConnections,
   cleanupProviderConnections,
