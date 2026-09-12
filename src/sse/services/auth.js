@@ -352,7 +352,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // 3. Window scan (up to 2 windows): SQL pre-filters durable eligibility;
     // the second window covers providers whose first `candidateWindow` rows
     // are all transiently filtered (Redis cooldowns / RAM quota blocks).
-    const MAX_SELECTION_WINDOWS = 2;
+    const MAX_SELECTION_WINDOWS = Math.min(10, Math.max(2, Number(process.env.ROUTING_MAX_CANDIDATE_WINDOWS) || 6));
     const isAntigravity = providerId === "antigravity";
     const isFreebuff = providerId === "freebuff";
     let connections = [];
@@ -417,7 +417,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // The routing query intentionally asks for active rows only. Inspect
       // all provider rows before reporting "no credentials" so disabled and
       // unavailable accounts are not confused with a missing provider.
-      const allConnections = await getProviderConnections({ provider: providerId });
+      const allConnections = await getProviderConnections({ provider: providerId, limit: 500 });
       const blocked = classifyBlockedCredentials(provider, model, allConnections);
       if (blocked) return blocked;
       log.warn("AUTH", `No credentials for ${provider}`);

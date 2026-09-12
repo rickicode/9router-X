@@ -470,7 +470,9 @@ export async function getProviderConnections(filter = {}) {
     ? "ORDER BY provider, is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
     : (filter.tokenExpiresBefore
       ? "ORDER BY token_expires_at ASC NULLS FIRST, id ASC"
-      : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST");
+      : (filter.routingModel
+        ? "ORDER BY priority ASC NULLS LAST, last_used_at ASC NULLS FIRST, id ASC"
+        : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"));
 
   const rows = await db.all(
     `SELECT ${distinctClause} id, provider, auth_type, name, email, priority, is_active, test_status,

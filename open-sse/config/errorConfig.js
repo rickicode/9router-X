@@ -69,7 +69,7 @@ export const DEAD_CIRCUIT_THRESHOLD = 3;
 export const DEAD_CIRCUIT_WINDOW_S = 60;
 // Last-known-good pointer TTL: how long one proven account serves as the
 // instant fast path for its provider+model.
-export const LKG_TTL_S = 60;
+export const LKG_TTL_S = Number.isFinite(Number(process.env.LKG_TTL_S)) ? Math.max(0, Number(process.env.LKG_TTL_S)) : 60;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

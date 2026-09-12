@@ -178,13 +178,16 @@ export async function runBackgroundTokenRefreshTick(deps = {}) {
 
     for (let i = 0; i < due.length; i++) {
       const conn = due[i];
+      let refreshResult = null;
       try {
-        await refresh(conn);
-        log.info("BG_TOKEN_REFRESH", "Connection refresh finished", {
-          id: conn.id,
-          email: conn.email || conn.name || conn.id,
-          provider: conn.provider,
-        });
+        refreshResult = await refresh(conn);
+        if (refreshResult !== null) {
+          log.info("BG_TOKEN_REFRESH", "Connection refresh finished", {
+            id: conn.id,
+            email: conn.email || conn.name || conn.id,
+            provider: conn.provider,
+          });
+        }
       } catch (err) {
         log.warn("BG_TOKEN_REFRESH", "Connection refresh failed (swallowed)", {
           id: conn?.id,
@@ -195,7 +198,8 @@ export async function runBackgroundTokenRefreshTick(deps = {}) {
       }
 
       // Sequential delay between accounts to prevent bursting upstream providers (especially Google Cloud)
-      if (i < due.length - 1) {
+      // Only sleep if an actual refresh took place to avoid pausing on skipped/locked accounts
+      if (refreshResult !== null && i < due.length - 1) {
         const isSensitive = SENSITIVE_PROVIDERS.has(conn.provider);
         const baseDelay = isSensitive ? baseSensitiveDelay : baseNormalDelay;
         const jitter = isSensitive ? Math.floor(Math.random() * 4000) : 200;
