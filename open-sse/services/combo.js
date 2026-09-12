@@ -283,7 +283,7 @@ export function getComboModelsFromData(modelStr, combosData) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @returns {Promise<Response>}
  */
-export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true }) {
+export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null }) {
   // Apply rotation strategy if enabled
   let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
 
@@ -306,6 +306,14 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   for (let i = 0; i < rotatedModels.length; i++) {
     const modelStr = rotatedModels[i];
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
+
+    // Fair-share accounting for the shared rotation budget: each member gets
+    // at most ceil(budget/members) upstream attempts so one dead member with
+    // many accounts cannot starve the rest of the combo.
+    if (rotationBudget) {
+      rotationBudget.membersTotal = rotatedModels.length;
+      rotationBudget.memberIndex = i;
+    }
 
     try {
       const result = await handleSingleModel(body, modelStr);

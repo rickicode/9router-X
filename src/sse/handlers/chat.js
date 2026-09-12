@@ -24,7 +24,43 @@ import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S } from "open-sse/config/errorConfig.js";
-import { incrModelFailCount, resetModelFailCount, getModelFailCounts } from "@/lib/redis/client.js";
+import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter } from "@/lib/redis/client.js";
+
+/**
+ * Strict round-robin start index via an atomic Redis counter. Every request
+ * (across all processes/replicas) gets a unique sequence number, so each one
+ * starts at a different member — no thundering herd, no per-process drift.
+ * Honors stickyLimit (N consecutive requests per member). Returns null when
+ * Redis is unavailable so the caller falls back to in-memory rotation.
+ */
+async function strictRRStartIndex(comboName, memberCount, stickyLimit) {
+  const sticky = Math.max(1, Number(stickyLimit) || 1);
+  const seq = await incrSharedCounter(`rr_seq:${comboName || "__default__"}`);
+  if (seq === null || !Number.isFinite(memberCount) || memberCount <= 0) return null;
+  return Math.floor((seq - 1) / sticky) % memberCount;
+}
+
+function rotateFromIndex(models, startIndex) {
+  const n = models.length;
+  const s = ((startIndex % n) + n) % n;
+  return [...models.slice(s), ...models.slice(0, s)];
+}
+
+/**
+ * Prepare combo member order + effective strategy. Round-robin is resolved
+ * here against the shared Redis counter (strict, cross-replica); the inner
+ * combo loop then runs strategy "fallback" over the pre-rotated list so the
+ * order is not rotated twice. Returns { models, strategy }.
+ */
+async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
+  if (strategy === "round-robin" && Array.isArray(models) && models.length > 1) {
+    const start = await strictRRStartIndex(comboName, models.length, stickyLimit).catch(() => null);
+    if (start !== null) {
+      return { models: rotateFromIndex(models, start), strategy: "fallback" };
+    }
+  }
+  return { models, strategy };
+}
 
 /**
  * Reorder combo members by cross-request health: members with
@@ -163,18 +199,21 @@ export async function handleChat(request, clientRawRequest = null) {
     // member order even when the request carries media/search. Default true.
     const comboAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
     log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
+    const preparedTop = await prepareComboOrder(
+      await reorderComboByHealth(augmentedModels), modelStr, comboStrategy, comboStickyLimit);
     return handleComboChat({
       body,
-      models: await reorderComboByHealth(augmentedModels),
+      models: preparedTop.models,
       handleSingleModel: withCapacityAdapterStripping(
         (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
       ),
       log,
       comboName: modelStr,
-      comboStrategy,
+      comboStrategy: preparedTop.strategy,
       comboStickyLimit,
-      autoSwitch: comboAutoSwitch
+      autoSwitch: comboAutoSwitch,
+      rotationBudget
     });
   }
 
@@ -184,16 +223,20 @@ export async function handleChat(request, clientRawRequest = null) {
   if (soloAugmented.length > 1) {
     const adapterAdded = soloAugmented.filter((m) => m !== modelStr);
     log.info("CHAT", `Capacity adapter for [${[...requiredCapabilities].join(",")}] on "${modelStr}" → trying ${soloAugmented.join(", ")}`);
+    const adapterStrategy = getActiveAdapterStrategy(requiredCapabilities, settings);
+    const preparedSolo = await prepareComboOrder(
+      await reorderComboByHealth(soloAugmented), modelStr, adapterStrategy, 1);
     return handleComboChat({
       body,
-      models: await reorderComboByHealth(soloAugmented),
+      models: preparedSolo.models,
       handleSingleModel: withCapacityAdapterStripping(
         (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
       ),
       log,
       comboName: modelStr,
-      comboStrategy: getActiveAdapterStrategy(requiredCapabilities, settings)
+      comboStrategy: preparedSolo.strategy,
+      rotationBudget
     });
   }
 
@@ -243,18 +286,21 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       const comboStickyLimit = chatSettings.comboStickyRoundRobinLimit;
       const nestedAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
       log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
+      const preparedNested = await prepareComboOrder(
+        await reorderComboByHealth(augmentedModels), modelStr, comboStrategy, comboStickyLimit);
       return handleComboChat({
         body,
-        models: await reorderComboByHealth(augmentedModels),
+        models: preparedNested.models,
         handleSingleModel: withCapacityAdapterStripping(
           (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
           adapterAdded
         ),
         log,
         comboName: modelStr,
-        comboStrategy,
+        comboStrategy: preparedNested.strategy,
         comboStickyLimit,
-        autoSwitch: nestedAutoSwitch
+        autoSwitch: nestedAutoSwitch,
+        rotationBudget
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });
@@ -277,6 +323,13 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
   let lastStatus = null;
   let lastAttemptedAccount = null;
   let lastAttemptedConnectionId = null;
+  // Attempts spent on THIS combo member. Fair-share rule: one dead member with
+  // many accounts must not eat the whole shared budget — each member gets at
+  // most ceil(budget/members) attempts so the rest of the combo is still tried.
+  let attemptsThisMember = 0;
+  const memberAttemptCap = rotationBudget?.membersTotal
+    ? Math.max(1, Math.ceil(MAX_TOTAL_ROTATION_ATTEMPTS / Math.max(1, rotationBudget.membersTotal)))
+    : MAX_TOTAL_ROTATION_ATTEMPTS;
 
   // Shared-budget cutoff shared by the loop-top pre-check (avoids a wasted
   // credential/refresh lookup once the budget is spent) and the post-select
@@ -376,7 +429,15 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       if (rotationBudget.used >= MAX_TOTAL_ROTATION_ATTEMPTS) {
         return rotationBudgetExceededResponse();
       }
+      // Fair-share cutoff: hand control back to the combo loop so remaining
+      // members get their share of the budget instead of this member burning
+      // it all on its own dead accounts.
+      if (attemptsThisMember >= memberAttemptCap) {
+        log.warn("FALLBACK", `Member ${modelStr} spent its ${memberAttemptCap} attempt share → next combo member`, { provider, model });
+        return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "Member attempt share exhausted");
+      }
       rotationBudget.used++;
+      attemptsThisMember++;
     }
 
     // Account selection shown in the unified "▶" line (acc:...)

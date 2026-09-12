@@ -143,6 +143,21 @@ export async function resetModelFailCount(member) {
   }
 }
 
+/**
+ * Atomic shared counter (strict round-robin sequence, rate meters, ...).
+ * Returns the post-INCR value, or null when Redis is unavailable/failing.
+ */
+export async function incrSharedCounter(key, expireSeconds = 2592000) {
+  if (!isRedisAvailable() || !key) return null;
+  try {
+    const value = await redis.incr(key);
+    if (value === 1) await redis.expire(key, expireSeconds);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export async function getModelFailCounts(members) {
   if (!isRedisAvailable() || !Array.isArray(members) || members.length === 0) return {};
   try {
