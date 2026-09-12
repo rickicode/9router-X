@@ -5,14 +5,16 @@ import PropTypes from "prop-types";
 import { Button, Modal } from "@/shared/components";
 import { translate } from "@/i18n/runtime";
 
-const PLACEHOLDER = `eyJhbGciOiJIUzUxMiIs...
-eyJhbGciOiJIUzUxMiIs...
+const PLACEHOLDER = `ricki@mail.com|eyJhbGciOiJIUzUxMiIs...
+apikey-abc123xyz
 eyJhbGciOiJIUzUxMiIs...`;
 
 /**
- * Bulk-import raw offline JWT tokens (one per line) as API-key connections.
- * Names auto-follow the DD-MM-YYYY-N pattern; expiresAt decodes from the JWT
- * exp claim. Duplicates already stored on this provider are skipped.
+ * Bulk-import tokens (one per line) as API-key connections. Each line may be:
+ *   name/email|token   → custom connection name
+ *   bare token         → named DD-MM-YYYY-N
+ * JWT expiry decodes from the exp claim; plain API keys have no expiry.
+ * Duplicates already stored on this provider are skipped.
  */
 export default function BulkImportJwtModal({ providerId, isOpen, onClose, onSuccess }) {
   const [tokenText, setTokenText] = useState("");
@@ -65,7 +67,7 @@ export default function BulkImportJwtModal({ providerId, isOpen, onClose, onSucc
       <div className="flex flex-col gap-4">
         <p className="text-xs text-text-muted">
           {translate(
-            "Paste one JWT token per line. Each becomes a connection named DD-MM-YYYY-N; expiry is read from the token. Duplicates are skipped."
+            "Paste one token per line: name/email|token for a custom name, or a bare token (JWT or API key) named DD-MM-YYYY-N. Duplicates are skipped."
           )}
         </p>
 

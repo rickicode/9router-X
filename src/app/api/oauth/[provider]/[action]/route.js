@@ -579,31 +579,41 @@ export async function POST(request, { params }) {
         }
       }
 
-      function extractTokens(raw) {
-        if (typeof raw === "string") {
-          return raw.split(/\s+/).filter((t) => t.startsWith("eyJ"));
-        }
-        if (Array.isArray(raw)) {
-          return raw
-            .map((item) => (typeof item === "string" ? item : item?.accessToken))
-            .filter((t) => typeof t === "string" && t.length > 0);
-        }
+      // Parse "name|token", "email|token", "name/email|token", or bare "token".
+      // Lines are split on whitespace; the "|" separator must be inside one line.
+      function extractTokenEntries(raw) {
+        const toEntries = (list) =>
+          list
+            .map((line) => {
+              if (typeof line === "object" && line !== null) {
+                return { name: line.name || line.email || null, token: line.accessToken || line.token || line.apiKey || null };
+              }
+              const s = String(line || "").trim();
+              if (!s) return null;
+              const sep = s.lastIndexOf("|");
+              if (sep > 0) {
+                return { name: s.slice(0, sep).trim() || null, token: s.slice(sep + 1).trim() || null };
+              }
+              return { name: null, token: s };
+            })
+            .filter((e) => e && e.token && e.token.length > 3);
+
+        if (typeof raw === "string") return toEntries(raw.split(/\s*\n+\s*/).flatMap((l) => l.split(/\s{2,}|\t/)).filter(Boolean));
+        if (Array.isArray(raw)) return toEntries(raw);
         if (raw && typeof raw === "object") {
           if (typeof raw.text === "string") {
-            return raw.text.split(/\s+/).filter((t) => t.startsWith("eyJ"));
+            return toEntries(raw.text.split(/\s*\n+\s*/).flatMap((l) => l.split(/\s{2,}|\t/)).filter(Boolean));
           }
           const list = Array.isArray(raw.tokens) ? raw.tokens : [raw];
-          return list
-            .map((item) => (typeof item === "string" ? item : item?.accessToken))
-            .filter((t) => typeof t === "string" && t.length > 0);
+          return toEntries(list);
         }
         return [];
       }
 
-      const tokens = extractTokens(body);
-      if (tokens.length === 0) {
+      const entries = extractTokenEntries(body);
+      if (entries.length === 0) {
         return NextResponse.json(
-          { error: "No tokens found. Paste one JWT per line." },
+          { error: "No tokens found. Paste one token per line, optionally as name|token." },
           { status: 400 }
         );
       }
@@ -633,8 +643,8 @@ export async function POST(request, { params }) {
       let skipped = 0;
 
       // SERIAL loop — createProviderConnection reorders priorities in a transaction.
-      for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
+      for (let i = 0; i < entries.length; i++) {
+        const { name: customName, token } = entries[i];
         try {
           if (existingTokenSet.has(token)) {
             results.push({ index: i, ok: true, skipped: true, reason: "duplicate" });
@@ -642,24 +652,26 @@ export async function POST(request, { params }) {
             continue;
           }
 
-          const payload = decodeJwtPayload(token);
-          if (!payload) throw new Error("Invalid JWT (cannot decode payload)");
-
-          const exp = typeof payload.exp === "number" ? payload.exp : null;
+          const payload = token.startsWith("eyJ") ? decodeJwtPayload(token) : null;
+          if (token.startsWith("eyJ") && !payload) {
+            throw new Error("Invalid JWT (cannot decode payload)");
+          }
+          const exp = payload && typeof payload.exp === "number" ? payload.exp : null;
           const expiresAt = exp ? new Date(exp * 1000).toISOString() : null;
+          const tokenType = payload ? (payload.typ === "Offline" ? "offline-jwt" : "jwt") : "apikey";
 
-          nextIndex += 1;
+          const name = customName || `${todayPrefix}-${(nextIndex += 1)}`;
           const created = await createProviderConnection({
             provider,
             authType: "apikey",
-            name: `${todayPrefix}-${nextIndex}`,
+            name,
             apiKey: token,
             priority: 3,
             testStatus: "active",
             ...(expiresAt ? { expiresAt } : {}),
           });
 
-          results.push({ index: i, ok: true, id: created.id, name: created.name });
+          results.push({ index: i, ok: true, id: created.id, name: created.name, type: tokenType });
           success++;
         } catch (e) {
           results.push({ index: i, ok: false, error: e.message || "Unknown error" });
