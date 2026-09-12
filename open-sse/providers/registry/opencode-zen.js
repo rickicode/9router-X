@@ -109,8 +109,9 @@ export default {
     { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", supportedFormats: ["openai"] },
     { id: "gemini-3-flash", name: "Gemini 3 Flash", supportedFormats: ["openai"] },
 
-    // Free models (MiMo V2.5 Free is OpenCode Free only, not OpenCode Zen)
+    // Free models
     { id: "big-pickle", name: "Big Pickle (Free)", supportedFormats: ["openai"] },
+    { id: "mimo-v2.5-free", name: "MiMo V2.5 (Free)", supportedFormats: ["openai"] },
     { id: "ling-3.0-flash-fin-free", name: "Ling 3.0 Flash Fin (Free)", supportedFormats: ["openai"] },
     { id: "nemotron-3-ultra-free", name: "Nemotron 3 Ultra (Free)", supportedFormats: ["openai"] },
     { id: "nemotron-3.5-lightning-free", name: "Nemotron 3.5 Lightning (Free)", supportedFormats: ["openai"] },
