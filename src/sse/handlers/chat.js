@@ -203,12 +203,14 @@ export async function handleChat(request, clientRawRequest = null) {
         body,
         models: comboModels,
         handleSingleModel: (b, m, isPanel) => {
+          // 3rd arg is `true` (legacy) or { signal, isPanel } (abort-capable).
+          const panelOpts = isPanel && typeof isPanel === "object" ? isPanel : {};
           let cleanRawReq = clientRawRequest;
           if (isPanel && clientRawRequest) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget, panelOpts.signal || null);
         },
         log,
         comboName: modelStr,
@@ -271,7 +273,7 @@ export async function handleChat(request, clientRawRequest = null) {
  * Handle single model chat request.
  * Exported for unit tests (rotation-budget contract); production entry is handleChat().
  */
-export async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, comboName = null, isTestRequest = false, rotationBudget = null) {
+export async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, comboName = null, isTestRequest = false, rotationBudget = null, externalSignal = null) {
   const modelInfo = await getModelInfo(modelStr);
 
   // If provider is null, this might be a combo name - check and handle
@@ -293,12 +295,13 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           body,
           models: comboModels,
           handleSingleModel: (b, m, isPanel) => {
+            const panelOpts = isPanel && typeof isPanel === "object" ? isPanel : {};
             let cleanRawReq = clientRawRequest;
             if (isPanel && clientRawRequest) {
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget, panelOpts.signal || null);
           },
           log,
           comboName: modelStr,
@@ -545,6 +548,9 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
       isTestRequest,
       comboName,
+      // Fusion straggler / combo target-timeout abort: linked to the stream
+      // controller inside chatCore (fail-open when ignored downstream).
+      externalSignal,
        onCredentialsRefreshed: async (newCreds) => {
          await updateProviderCredentials(credentials.connectionId, {
            ...newCreds,

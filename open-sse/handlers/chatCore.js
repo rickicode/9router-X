@@ -66,7 +66,7 @@ export function stripContinuityFields(body) {
 }
 
 export async function handleChatCore(options) { return observeChatAttempt(options, handleChatCoreInternal); }
-async function handleChatCoreInternal({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, resolveProxyConfig, isTestRequest, comboName }) { const { provider, model } = modelInfo;
+async function handleChatCoreInternal({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, resolveProxyConfig, isTestRequest, comboName, externalSignal }) { const { provider, model } = modelInfo;
 const trackPendingRequest = (...args) => isTestRequest ? undefined : persistPendingRequest(...args);
 const appendRequestLog = (...args) => isTestRequest ? Promise.resolve() : persistRequestLog(...args);
 const saveRequestDetail = (...args) => isTestRequest ? Promise.resolve() : persistRequestDetail(...args);
@@ -335,6 +335,17 @@ const streamController = createStreamController({
   onError: () => trackPendingRequest(model, provider, connectionId, false, false, { requestId }),
   log, provider, model, reqTag
 });
+
+// External abort (combo target-timeout / fusion straggler eviction): kill the
+// upstream fetch via the normal disconnect path. Already-settled streams are
+// unaffected (handleDisconnect is idempotent via `disconnected`).
+if (externalSignal) {
+  if (externalSignal.aborted) {
+    streamController.handleDisconnect("external_abort");
+  } else {
+    externalSignal.addEventListener("abort", () => streamController.handleDisconnect("external_abort"), { once: true });
+  }
+}
 
 // Build proxy options from the resolved provider-specific data. A configured
 // proxy is used when available, while direct egress remains a valid fallback.

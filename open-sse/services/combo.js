@@ -4,6 +4,7 @@
 
 import { checkFallbackError, formatRetryAfter } from "./accountFallback.js";
 import { unavailableResponse } from "../utils/error.js";
+import { COMBO_TARGET_TIMEOUT_MS, COMBO_LOOP_SAFETY_MS } from "../config/errorConfig.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { extractTextContent } from "../translator/formats/gemini.js";
 
@@ -283,7 +284,7 @@ export function getComboModelsFromData(modelStr, combosData) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @returns {Promise<Response>}
  */
-export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null }) {
+export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null, targetTimeoutMs = COMBO_TARGET_TIMEOUT_MS, loopSafetyMs = COMBO_LOOP_SAFETY_MS }) {
   // Apply rotation strategy if enabled
   let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
 
@@ -303,7 +304,53 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   let earliestRetryAfter = null;
   let lastStatus = null;
 
+  // Loop safety net: absolute wall-clock cap for the whole fallback pass so
+  // member timeouts can never stack without bound. Fail-open (timer unref'd).
+  // The deadline also races each in-flight member await — checking a flag
+  // between members is not enough when a member hangs forever.
+  const loopDeadline = loopSafetyMs > 0 ? Date.now() + loopSafetyMs : Infinity;
+  let loopTimer = null;
+  if (loopSafetyMs > 0) {
+    loopTimer = setTimeout(() => {}, loopSafetyMs);
+    if (loopTimer.unref) loopTimer.unref();
+  }
+  const loopTimeoutOutcome = () => {
+    const ms = Math.max(0, loopDeadline - Date.now());
+    return new Promise((resolve) => {
+      const t = setTimeout(() => resolve({ loopTimedOut: true }), ms);
+      if (t.unref) t.unref();
+    });
+  };
+
+  // Race one member attempt against the per-target timeout. On timeout the
+  // attempt's AbortController fires (callers that thread the signal abort the
+  // orphaned upstream); the synthetic 504 stays fallback-eligible and never
+  // penalizes the account. Resolves { result, timedOut } and never rejects.
+  const runMemberWithTimeout = (modelStr) => new Promise((resolve) => {
+    const controller = new AbortController();
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { controller.abort(new Error("combo_target_timeout")); } catch {}
+      resolve({ result: null, timedOut: true });
+    }, Math.max(1, targetTimeoutMs));
+    if (timer.unref) timer.unref();
+    Promise.resolve()
+      .then(() => handleSingleModel(body, modelStr, { signal: controller.signal }))
+      .then(
+        (result) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ result, timedOut: false }); } },
+        (error) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ result: null, thrown: error }); } },
+      );
+  });
+
   for (let i = 0; i < rotatedModels.length; i++) {
+    if (Date.now() >= loopDeadline) {
+      const msg = `Combo loop safety timeout (${loopSafetyMs}ms) exceeded${lastError ? `: ${lastError}` : ""}`;
+      log.warn("COMBO", msg);
+      if (loopTimer) clearTimeout(loopTimer);
+      return unavailableResponse(504, msg, earliestRetryAfter, earliestRetryAfter ? formatRetryAfter(earliestRetryAfter) : null, { code: "COMBO_TIMEOUT" });
+    }
     // Shared-budget short-circuit: once the request spent its whole rotation
     // budget on earlier members, stop here instead of paying a credential
     // lookup + refresh check per remaining member only to 503 each of them.
@@ -311,6 +358,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
         && typeof rotationBudget.max === "number" && rotationBudget.used >= rotationBudget.max) {
       const msg = `Max rotation attempts (${rotationBudget.max}) reached${lastError ? `: ${lastError}` : ""}`;
       log.warn("COMBO", `Rotation budget spent — stopping | ${msg}`);
+      if (loopTimer) clearTimeout(loopTimer);
       return unavailableResponse(503, msg, earliestRetryAfter, earliestRetryAfter ? formatRetryAfter(earliestRetryAfter) : null, { code: "ROTATION_BUDGET" });
     }
     const modelStr = rotatedModels[i];
@@ -325,11 +373,42 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
     }
 
     try {
-      const result = await handleSingleModel(body, modelStr);
-      
-      // Success (2xx) - return response
+      const outcome = loopSafetyMs > 0
+        ? await Promise.race([runMemberWithTimeout(modelStr), loopTimeoutOutcome()])
+        : await runMemberWithTimeout(modelStr);
+      if (outcome.loopTimedOut) {
+        const msg = `Combo loop safety timeout (${loopSafetyMs}ms) exceeded${lastError ? `: ${lastError}` : ""}`;
+        log.warn("COMBO", msg);
+        if (loopTimer) clearTimeout(loopTimer);
+        return unavailableResponse(504, msg, earliestRetryAfter, earliestRetryAfter ? formatRetryAfter(earliestRetryAfter) : null, { code: "COMBO_TIMEOUT" });
+      }
+      const { result, timedOut, thrown } = outcome;
+
+      if (thrown) throw thrown;
+
+      if (timedOut) {
+        // Per-target timeout: move on WITHOUT touching the account. A slow
+        // member is not a dead account — no lock, no cooldown, just next.
+        lastError = `Combo target timeout after ${targetTimeoutMs}ms`;
+        lastStatus = 504;
+        log.warn("COMBO", `Model ${modelStr} timed out after ${targetTimeoutMs}ms, trying next`);
+        continue;
+      }
+
+      // Success (2xx) - validate non-streaming bodies before returning.
       if (result.ok) {
+        // Quality gate (non-streaming only): an "ok" envelope with no text
+        // AND no tool calls is a silent failure — fail over instead of
+        // handing the client an empty answer. Streaming responses cannot be
+        // inspected without consuming them, so they pass through.
+        if (body.stream !== true && await isEmptySuccess(result)) {
+          lastError = "Model returned empty content";
+          lastStatus = 502;
+          log.warn("COMBO", `Model ${modelStr} returned empty content, trying next`);
+          continue;
+        }
         log.info("COMBO", `Model ${modelStr} succeeded`);
+        if (loopTimer) clearTimeout(loopTimer);
         return result;
       }
 
@@ -359,6 +438,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
 
       if (!shouldFallback) {
         log.warn("COMBO", `Model ${modelStr} failed (no fallback)`, { status: result.status });
+        if (loopTimer) clearTimeout(loopTimer);
         return result;
       }
 
@@ -391,6 +471,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   const status = allDisabled ? 503 : (lastStatus || 503);
   const msg = lastError || "All combo models unavailable";
 
+  if (loopTimer) clearTimeout(loopTimer);
   if (earliestRetryAfter) {
     const retryHuman = formatRetryAfter(earliestRetryAfter);
     log.warn("COMBO", `All models failed | ${msg} (${retryHuman})`);
@@ -399,6 +480,50 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
 
   log.warn("COMBO", `All models failed | ${msg}`);
   return unavailableResponse(status, msg, null, null, { code: "COMBO_UNAVAILABLE" });
+}
+
+/**
+ * Quality gate: is this "successful" response actually empty? True only when a
+ * non-streaming JSON body has no assistant text AND no tool calls. Anything
+ * unparseable or streaming-shaped is NOT empty (fail-open: never block a
+ * response we cannot inspect).
+ */
+async function isEmptySuccess(result) {
+  let json = null;
+  try {
+    json = await result.clone().json();
+  } catch {
+    return false;
+  }
+  if (!json || typeof json !== "object") return false;
+  const choice = json.choices?.[0];
+  if (choice) {
+    const msg = choice.message ?? choice.delta ?? {};
+    if (extractTextContent(msg.content)?.trim()) return false;
+    if (typeof choice.text === "string" && choice.text.trim()) return false;
+    const calls = msg.tool_calls || msg.toolCalls;
+    if (Array.isArray(calls) && calls.length > 0) return false;
+    if (msg.function_call) return false;
+    return true;
+  }
+  // Claude messages shape
+  if (Array.isArray(json.content)) {
+    const hasUseful = json.content.some((b) =>
+      (b?.type === "text" && String(b.text || "").trim()) ||
+      (b?.type === "tool_use" && b.name));
+    return !hasUseful;
+  }
+  // Tool-call-only answers are valid (agentic clients live on these).
+  if (Array.isArray(json.output) && json.output.some((o) =>
+    o?.type === "function_call" || (Array.isArray(o?.content) && o.content.some((c) => c?.type === "function_call")))) {
+    return false;
+  }
+  const cands = json.candidates || [];
+  if (cands.some((c) => c?.content?.parts?.some((p) => p?.functionCall))) return false;
+  // Gemini / Responses shapes: any text anywhere counts as content.
+  const text = extractPanelText(json);
+  if (text.trim()) return false;
+  return true;
 }
 
 /**
@@ -617,10 +742,24 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   if (rotationBudget && !rotationBudget.membersTotal) {
     rotationBudget.membersTotal = panel.length + 1; // panel + judge chain
   }
+  // One AbortController per panel member: once quorum/grace/timeout decides,
+  // unfinished upstreams are aborted instead of billing orphaned generations.
+  // Callers that ignore the signal keep the old leak behavior (fail-open).
+  const panelControllers = panel.map(() => new AbortController());
+  const settledFlags = panel.map(() => false);
   // Deep-clone per member: translators/RTK mutate body.messages in place, and
   // sharing one object across parallel panel calls races those mutations.
-  const calls = panel.map((m) => withTimeout(handleSingleModel(structuredClone(panelBody), m, true), cfg.panelHardTimeoutMs));
+  const calls = panel.map((m, i) => withTimeout(
+    Promise.resolve()
+      .then(() => handleSingleModel(structuredClone(panelBody), m, { signal: panelControllers[i].signal, isPanel: true }))
+      .finally(() => { settledFlags[i] = true; }),
+    cfg.panelHardTimeoutMs));
   const settled = await collectPanel(calls, { ...cfg, minPanel });
+  for (let i = 0; i < panel.length; i++) {
+    if (!settledFlags[i]) {
+      try { panelControllers[i].abort(new Error("fusion_straggler_aborted")); } catch {}
+    }
+  }
   log.info("FUSION", `fan-out collected in ${Date.now() - t0}ms`);
 
   // 2. Collect successful answers.

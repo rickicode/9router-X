@@ -47,6 +47,14 @@ export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 // burn 5×10 upstream calls before giving up. When the budget is exhausted the
 // request stops immediately with a 503 instead of hanging the client.
 export const MAX_TOTAL_ROTATION_ATTEMPTS = 5;
+// Combo target timeout: one hung member must not stall the whole fallback
+// chain. Exceeding it synthesizes a 504 that stays fallback-eligible WITHOUT
+// penalizing the account (the provider may be fine; this attempt just ran
+// out of time). The loser is aborted where the plumbing allows.
+export const COMBO_TARGET_TIMEOUT_MS = 120000;
+// Absolute wall-clock cap for one fallback combo pass; exceeding it returns
+// 504 COMBO_TIMEOUT instead of letting member timeouts stack without bound.
+export const COMBO_LOOP_SAFETY_MS = 300000;
 // Combo failover: a member that fails this many times CONSECUTIVELY (across
 // requests, tracked in Redis) is deprioritized to the back of the combo so the
 // next request starts at a healthy model instead of re-burning rotations on
