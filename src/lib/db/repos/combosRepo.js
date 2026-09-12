@@ -46,8 +46,8 @@ export async function createCombo(data) {
 
   await db.run(
     `INSERT INTO combos(id, name, kind, models, created_at, updated_at)
-     VALUES($1, $2, $3, $4, $5, $6)`,
-    [combo.id, combo.name, combo.kind, stringifyJson(combo.models), combo.createdAt, combo.updatedAt],
+     VALUES($1, $2, $3, $4::jsonb, $5, $6)`,
+    [combo.id, combo.name, combo.kind, combo.models || [], combo.createdAt, combo.updatedAt],
   );
   return combo;
 }
@@ -63,9 +63,9 @@ export async function updateCombo(id, data) {
     const merged = { ...rowToCombo(row), ...data, updatedAt: new Date().toISOString() };
     await tx.run(
       `UPDATE combos
-       SET name = $1, kind = $2, models = $3, updated_at = $4
+       SET name = $1, kind = $2, models = $3::jsonb, updated_at = $4
        WHERE id = $5`,
-      [merged.name, merged.kind ?? null, stringifyJson(merged.models || []), merged.updatedAt, id],
+      [merged.name, merged.kind ?? null, merged.models || [], merged.updatedAt, id],
     );
     result = merged;
   });

@@ -135,7 +135,7 @@ async function flushToDatabase() {
               record.model,
               record.connectionId,
               record.status,
-              JSON.stringify(record),
+              record,
             ],
           );
         }

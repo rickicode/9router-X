@@ -38,6 +38,64 @@ UPDATE provider_connections
  WHERE jsonb_typeof(data) = 'string'
    AND (data #>> '{}') LIKE '{%';
 
+UPDATE provider_connections
+   SET model_locks = (model_locks #>> '{}')::jsonb
+ WHERE jsonb_typeof(model_locks) = 'string'
+   AND (model_locks #>> '{}') LIKE '{%';
+
+UPDATE combos
+   SET models = (models #>> '{}')::jsonb
+ WHERE jsonb_typeof(models) = 'string'
+   AND (models #>> '{}') LIKE '[%';
+
+UPDATE proxy_groups
+   SET pool_ids = (pool_ids #>> '{}')::jsonb
+ WHERE jsonb_typeof(pool_ids) = 'string'
+   AND (pool_ids #>> '{}') LIKE '[%';
+
+UPDATE proxy_groups
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
+UPDATE settings
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
+UPDATE provider_nodes
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
+UPDATE proxy_pools
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
+UPDATE usage_snapshots
+   SET quotas = (quotas #>> '{}')::jsonb
+ WHERE jsonb_typeof(quotas) = 'string'
+   AND (quotas #>> '{}') LIKE '{%';
+
+UPDATE usage_snapshots
+   SET rate_limits = NULL
+ WHERE rate_limits = '"null"'::jsonb OR rate_limits = to_jsonb('null'::text);
+
+UPDATE request_details
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
+UPDATE usage_history
+   SET tokens = (tokens #>> '{}')::jsonb
+ WHERE jsonb_typeof(tokens) = 'string'
+   AND (tokens #>> '{}') LIKE '{%';
+
+UPDATE usage_history
+   SET meta = (meta #>> '{}')::jsonb
+ WHERE jsonb_typeof(meta) = 'string'
+   AND (meta #>> '{}') LIKE '{%';
 
 CREATE INDEX IF NOT EXISTS idx_pc_routing ON provider_connections (provider, priority, last_used_at NULLS FIRST)
 WHERE is_active = true;

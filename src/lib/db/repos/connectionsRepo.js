@@ -250,7 +250,7 @@ async function writeConnection(db, connection, options = {}) {
         token_expires_at, last_used_at, model_locks, last_error, error_code,
         last_error_at, data, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-             $13, $14, $15, $16, $17, $18, $19, $20, $21)
+             $13, $14, $15::jsonb, $16, $17, $18, $19::jsonb, $20, $21)
      ON CONFLICT (id) DO UPDATE SET
        provider = EXCLUDED.provider,
        auth_type = EXCLUDED.auth_type,
@@ -796,7 +796,12 @@ export async function setModelCooldown(id, model, untilIso) {
   const db = await getAdapter();
   const row = await db.get(
     `UPDATE provider_connections
-        SET model_locks = jsonb_set(COALESCE(model_locks, '{}'::jsonb), ARRAY[$2], to_jsonb($3::text), true),
+        SET model_locks = jsonb_set(
+              CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END,
+              ARRAY[$2],
+              to_jsonb($3::text),
+              true
+            ),
             updated_at = NOW()
       WHERE id = $1
       RETURNING provider`,
@@ -810,7 +815,7 @@ export async function clearModelCooldown(id, model) {
   const db = await getAdapter();
   const row = await db.get(
     `UPDATE provider_connections
-        SET model_locks = COALESCE(model_locks, '{}'::jsonb) - $2,
+        SET model_locks = (CASE WHEN jsonb_typeof(model_locks) = 'object' THEN model_locks ELSE '{}'::jsonb END) - $2,
             updated_at = NOW()
       WHERE id = $1
       RETURNING provider`,

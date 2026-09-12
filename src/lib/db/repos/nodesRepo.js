@@ -21,7 +21,7 @@ function nodeToRow(node) {
     id,
     type: type ?? null,
     name: name ?? null,
-    data: stringifyJson(rest),
+    data: rest,
     createdAt,
     updatedAt,
   };
@@ -31,7 +31,7 @@ async function upsert(db, node) {
   const row = nodeToRow(node);
   await db.run(
     `INSERT INTO provider_nodes(id, type, name, data, created_at, updated_at)
-     VALUES($1, $2, $3, $4, $5, $6)
+     VALUES($1, $2, $3, $4::jsonb, $5, $6)
      ON CONFLICT(id) DO UPDATE SET
        type = excluded.type,
        name = excluded.name,

@@ -115,9 +115,9 @@ export async function updateSettings(updates) {
     next = { ...current, ...updates };
     await tx.run(
       `INSERT INTO settings(id, data, updated_at)
-       VALUES(1, $1, $2)
+       VALUES(1, $1::jsonb, $2)
        ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
-      [stringifyJson(next), updatedAt],
+      [next, updatedAt],
     );
   });
 

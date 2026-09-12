@@ -242,7 +242,7 @@ export async function importDb(payload) {
     if (payload.settings) {
       await tx.raw`
         INSERT INTO settings(id, data, updated_at)
-        VALUES(1, ${tx.raw.json(payload.settings)}, NOW())
+        VALUES(1, ${tx.raw.json(typeof payload.settings === "string" ? parseJson(payload.settings, {}) : (payload.settings || {}))}, NOW())
         ON CONFLICT(id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
       `;
     }
@@ -291,7 +291,7 @@ export async function importDb(payload) {
           rate_limited_until: c.rateLimitedUntil ? new Date(c.rateLimitedUntil) : null,
           token_expires_at: c.tokenExpiresAt ? new Date(c.tokenExpiresAt) : (c.expiresAt ? new Date(c.expiresAt) : null),
           last_used_at: c.lastUsedAt ? new Date(c.lastUsedAt) : null,
-          model_locks: tx.raw.json(c.modelLocks || {}),
+          model_locks: tx.raw.json(typeof c.modelLocks === "string" ? parseJson(c.modelLocks, {}) : (c.modelLocks || {})),
           last_error: c.lastError || null,
           error_code: c.errorCode !== undefined && c.errorCode !== null ? String(c.errorCode) : null,
           last_error_at: c.lastErrorAt ? new Date(c.lastErrorAt) : null,
@@ -338,7 +338,7 @@ export async function importDb(payload) {
           id: String(n.id),
           type: n.type || null,
           name: n.name || null,
-          data: tx.raw.json(extra),
+          data: tx.raw.json(typeof extra === "string" ? parseJson(extra, {}) : (extra || {})),
           created_at: n.createdAt ? new Date(n.createdAt) : new Date(),
           updated_at: n.updatedAt ? new Date(n.updatedAt) : new Date(),
         };
@@ -383,7 +383,7 @@ export async function importDb(payload) {
           test_status: p.testStatus || "unknown",
           last_tested_at: p.lastTestedAt ? new Date(p.lastTestedAt) : null,
           last_error: p.lastError || null,
-          data: tx.raw.json(extra),
+          data: tx.raw.json(typeof extra === "string" ? parseJson(extra, {}) : (extra || {})),
           created_at: p.createdAt ? new Date(p.createdAt) : new Date(),
           updated_at: p.updatedAt ? new Date(p.updatedAt) : new Date(),
         };
@@ -409,8 +409,8 @@ export async function importDb(payload) {
         description: g.description || "",
         is_sticky: g.isSticky === true || g.is_sticky === true,
         sticky_limit: Number(g.stickyLimit || g.sticky_limit) || 3,
-        pool_ids: tx.raw.json(g.poolIds || g.pool_ids || []),
-        data: tx.raw.json(g.data || {}),
+        pool_ids: tx.raw.json(typeof (g.poolIds || g.pool_ids) === "string" ? parseJson(g.poolIds || g.pool_ids, []) : (g.poolIds || g.pool_ids || [])),
+        data: tx.raw.json(typeof g.data === "string" ? parseJson(g.data, {}) : (g.data || {})),
         created_at: g.createdAt ? new Date(g.createdAt) : new Date(),
         updated_at: g.updatedAt ? new Date(g.updatedAt) : new Date(),
       }));
@@ -451,7 +451,7 @@ export async function importDb(payload) {
         id: String(c.id),
         name: String(c.name),
         kind: c.kind || null,
-        models: tx.raw.json(c.models || []),
+        models: tx.raw.json(typeof c.models === "string" ? parseJson(c.models, []) : (c.models || [])),
         created_at: c.createdAt ? new Date(c.createdAt) : new Date(),
         updated_at: c.updatedAt ? new Date(c.updatedAt) : new Date(),
       }));
