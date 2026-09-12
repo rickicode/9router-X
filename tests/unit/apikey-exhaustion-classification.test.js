@@ -37,7 +37,7 @@ describe("API-key provider exhaustion classification", () => {
       { id: "d", isActive: false, testStatus: "disabled" },
     ]);
     expect(result).toMatchObject({ allRateLimited: true, lastErrorCode: "MODEL_EXHAUSTED" });
-    expect(result.retryAfterHuman).toMatch(/quota reset/);
+    expect(result.retryAfterHuman).toMatch(/reset after/);
     expect(result.statusBreakdown).toMatchObject({ modelExhausted: 2, disabled: 2 });
   });
 });
