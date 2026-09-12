@@ -651,13 +651,18 @@ export async function POST(request, { params }) {
             skipped++;
             continue;
           }
+          // Track within the batch too: a repeated token inside one payload
+          // must skip on the second occurrence, not create a second row.
+          existingTokenSet.add(token);
 
           const payload = token.startsWith("eyJ") ? decodeJwtPayload(token) : null;
           if (token.startsWith("eyJ") && !payload) {
             throw new Error("Invalid JWT (cannot decode payload)");
           }
-          const exp = payload && typeof payload.exp === "number" ? payload.exp : null;
-          const expiresAt = exp ? new Date(exp * 1000).toISOString() : null;
+          const exp = payload && typeof payload.exp === "number" && Number.isFinite(payload.exp) ? payload.exp : null;
+          const expMs = exp !== null ? exp * 1000 : null;
+          // Guard RangeError: NaN / out-of-Date-range exp must not crash.
+          const expiresAt = expMs !== null && expMs <= 8.64e15 ? new Date(expMs).toISOString() : null;
           const tokenType = payload ? (payload.typ === "Offline" ? "offline-jwt" : "jwt") : "apikey";
 
           const name = customName || `${todayPrefix}-${(nextIndex += 1)}`;

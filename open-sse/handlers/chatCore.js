@@ -201,7 +201,10 @@ if (passthrough) {
 } else {
   translatedBody = translateRequest(sourceFormat, targetFormat, upstreamModel, body, stream, credentials, provider, reqLogger, stripList, connectionId, clientTool);
   if (!translatedBody) {
-    trackPendingRequest(model, provider, connectionId, false, true, { requestId });
+    // requestId is declared later (line ~323); compute a stable early-exit id
+    // from the same components so this path can still log without TDZ crash.
+    const earlyRequestId = `${connectionId || "direct"}|${provider}|${model}|${requestStartTime}|early-translate-fail`;
+    trackPendingRequest(model, provider, connectionId, false, true, { requestId: earlyRequestId });
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Failed to translate request for ${sourceFormat} → ${targetFormat}`);
   }
   toolNameMap = translatedBody._toolNameMap;

@@ -145,6 +145,8 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
   // lock below still serializes this worker.
   const redisKey = `refresh:${credentials?.connectionId || key}`;
   let redisHeld = await acquireLock(redisKey, 45).catch(() => false);
+  let redisToken = typeof redisHeld === "string" ? redisHeld : null;
+  redisHeld = Boolean(redisHeld);
   // Brief grace: a peer (usually the background tick) holding the lock is
   // typically seconds from finishing with a FRESH token — waiting avoids a
   // concurrent refresh against a rotating refresh token. Bounded to ~3s so a
@@ -154,7 +156,9 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
   if (!redisHeld && isRedisAvailable()) {
     for (let i = 0; i < 3 && !redisHeld; i++) {
       await new Promise((r) => setTimeout(r, 1000));
-      redisHeld = await acquireLock(redisKey, 45).catch(() => false);
+      const held = await acquireLock(redisKey, 45).catch(() => false);
+      redisToken = typeof held === "string" ? held : null;
+      redisHeld = Boolean(held);
     }
   }
 
@@ -162,7 +166,7 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
     .then(refreshFn)
     .finally(() => {
       refreshLocks.delete(key);
-      if (redisHeld) releaseLock(redisKey).catch(() => {});
+      if (redisToken) releaseLock(redisKey, redisToken).catch(() => {});
     });
 
   refreshLocks.set(key, pending);

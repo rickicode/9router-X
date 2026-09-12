@@ -97,7 +97,8 @@ async function loadActiveConnections() {
 async function refreshOne(connection) {
   // Use distributed lock to avoid concurrent refresh across cluster nodes
   const lockKey = `refresh:${connection.id}`;
-  const acquired = await acquireLock(lockKey, 45);
+  const lockToken = await acquireLock(lockKey, 45);
+  const acquired = Boolean(lockToken);
   let localLocked = false;
   if (!acquired) {
     if (!isRedisAvailable()) {
@@ -151,7 +152,7 @@ async function refreshOne(connection) {
     if (localLocked) {
       localRefreshLocks.delete(connection.id);
     } else {
-      await releaseLock(lockKey).catch(() => {});
+      await releaseLock(lockKey, lockToken).catch(() => {});
     }
   }
 }

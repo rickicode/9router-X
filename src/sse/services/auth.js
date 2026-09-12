@@ -183,21 +183,45 @@ function isConnectionRoutable(c, ctx) {
   if (!c || excludeSet.has(c.id)) return false;
   if (locallyExhaustedIds?.has(c.id)) return false;
   if (cooledDownIds?.has(c.id)) return false;
-  const refreshBlocked = c.providerSpecificData?.refreshBlocked === true || c.providerSpecificData?.refreshBlocked === "true";
+  // Background refresh writes string markers ("invalid_grant", …) — use the
+  // shared helper instead of a strict boolean check or dead accounts route.
+  const refreshBlocked = isRefreshBlockedMarker(c.providerSpecificData?.refreshBlocked);
   const fatalError = typeof c.lastError === "string"
     && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(c.lastError);
   if (c.isActive === false || c.disabledAt || c.testStatus === "disabled" || refreshBlocked || fatalError) return false;
-  if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
+  // unavailable/exhausted ride a timed account-wide lock: once the lock window
+  // (lockedAllUntil / rateLimitedUntil) lapses the account must become
+  // routable again. Only hard-block while that window is still live —
+  // otherwise the status row permanently locks the account with no sweeper
+  // to reset it. "error"/"expired"/"invalid" carry no expiry semantics in
+  // practice and stay blocked until an admin/success resets them.
+  if (c.testStatus === "exhausted" || c.testStatus === "unavailable") {
+    // These statuses ride a timed account-wide lock. If the lock window has
+    // visibly lapsed (timestamp present but past) the account must become
+    // routable again — no sweeper resets stale status rows. With NO lock
+    // timestamp at all the status is a durable verdict (admin-set /
+    // permanent exhaustion) and stays blocked.
+    const hasLockWindow = Boolean(c.lockedAllUntil || c.rateLimitedUntil);
+    const lockLive = (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now())
+      || (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now());
+    if (hasLockWindow && !lockLive) return true; // window lapsed → recoverable
+    return false;
+  }
+  if (["error", "expired", "invalid"].includes(c.testStatus)) return false;
   if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
   if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
   if (isModelLockActive(c, model)) return false;
   if (isAntigravity && model && antigravityQuotaCache) {
     let quota = antigravityQuotaCache.get(c.id)?.[model];
+    const modelLower = model.toLowerCase();
     if (!quota) {
-      const modelLower = model.toLowerCase();
-      const weeklyKey = (modelLower.startsWith("gemini-") && !modelLower.includes("image"))
+      // model may arrive provider-qualified (google/gemini-2.5-pro,
+      // antigravity/gemini-...): strip the "vendor/" prefix before matching,
+      // else the weekly-key check silently never fires.
+      const bareModel = modelLower.includes("/") ? modelLower.split("/").pop() : modelLower;
+      const weeklyKey = (bareModel.startsWith("gemini-") && !bareModel.includes("image"))
         ? "gemini_weekly"
-        : (modelLower.startsWith("claude-") || modelLower.startsWith("gpt-"))
+        : (bareModel.startsWith("claude-") || bareModel.startsWith("gpt-"))
           ? "claude_gpt_weekly"
           : null;
       if (weeklyKey) quota = antigravityQuotaCache.get(c.id)?.[weeklyKey];
@@ -984,7 +1008,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // e.g. a Cline daily cap with no "Try again in" hint does not retry-storm
     // every 30 minutes against an 8-24h upstream reset window.
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
-      ? resetsAtMs - Date.now()
+      ? Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS)
       : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
     isExhausted = lockAll;
   }

@@ -85,7 +85,10 @@ http.createServer = (...args) => {
     }
 
     const contentLength = Number(req.headers["content-length"] || 0);
-    if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+    // Cap buffered body: an unauthenticated upgrade with a giant
+    // content-length would buffer until OOM.
+    const H2C_MAX_BODY = 32 * 1024 * 1024;
+    if (!Number.isSafeInteger(contentLength) || contentLength < 0 || contentLength > H2C_MAX_BODY) {
       socket.destroy();
       return true;
     }
@@ -108,10 +111,14 @@ http.createServer = (...args) => {
     };
     if (received >= contentLength) serve();
     else {
+      // Slowloris guard: an upgrade that stalls mid-body must not hold a
+      // socket (and its buffered chunks) open forever.
+      socket.setTimeout(30000, () => socket.destroy());
       socket.on("data", function readBody(chunk) {
         chunks.push(chunk);
         received += chunk.length;
         if (received < contentLength) return;
+        socket.setTimeout(0);
         socket.off("data", readBody);
         serve();
       });

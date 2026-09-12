@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import Redis from "ioredis";
 
 // Singleton client to survive Next.js dev server hot-reload
@@ -140,13 +141,12 @@ export async function incrModelFailCount(member, windowSeconds) {
   if (!isRedisAvailable() || !member) return 0;
   try {
     const key = `modelfail:${member}`;
-    const count = await redis.incr(key);
-    if (count === 1) {
-      // Expire must never void a successful increment — a Redis blip here
-      // would silently undercount failover and skew rotation.
-      try { await redis.expire(key, Math.max(60, windowSeconds || 900)); } catch {}
-    }
-    return count;
+    // INCR+EXPIRE atomically: a crash between the two left a permanent
+    // no-TTL zombie key (count > 1 on every later call → expire never set).
+    const count = await redis.eval(
+      INCR_EXPIRE_LUA, { keys: [key], arguments: [String(Math.max(60, windowSeconds || 900))] },
+    );
+    return Number(count);
   } catch {
     return 0;
   }
@@ -169,11 +169,10 @@ export async function resetModelFailCount(member) {
 export async function incrSharedCounter(key, expireSeconds = 2592000) {
   if (!isRedisAvailable() || !key) return null;
   try {
-    const value = await redis.incr(key);
-    if (value === 1) {
-      try { await redis.expire(key, expireSeconds); } catch {}
-    }
-    return value;
+    const value = await redis.eval(
+      INCR_EXPIRE_LUA, { keys: [key], arguments: [String(expireSeconds)] },
+    );
+    return Number(value);
   } catch {
     return null;
   }
@@ -353,20 +352,34 @@ export async function invalidateCachedConnections(provider) {
 /**
  * Distributed Lock (Anti-Race Condition for OAuth Token Refresh)
  */
+const LOCK_TOKEN_PREFIX = "locktok:";
+const RELEASE_LOCK_LUA = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end`;
+const INCR_EXPIRE_LUA = `local v = redis.call("INCR", KEYS[1]) if v == 1 then redis.call("EXPIRE", KEYS[1], tonumber(ARGV[1])) end return v`;
+
 export async function acquireLock(key, ttlSeconds = 30) {
-  if (!isRedisAvailable()) return false;
+  if (!isRedisAvailable()) return null;
   try {
-    const result = await redis.set(`lock:${key}`, "1", "EX", ttlSeconds, "NX");
-    return result === "OK";
+    // Unique owner token per acquisition: releaseLock may only delete the
+    // lock this caller owns. A static "1" value lets a caller whose TTL
+    // expired delete the next process's live lock (mutual-exclusion hole).
+    const token = crypto.randomUUID();
+    const result = await redis.set(`lock:${key}`, token, "EX", ttlSeconds, "NX");
+    return result === "OK" ? token : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export async function releaseLock(key) {
+export async function releaseLock(key, token) {
   if (!isRedisAvailable()) return;
   try {
-    await redis.del(`lock:${key}`);
+    if (token) {
+      // Compare-and-delete: never release someone else's lock.
+      await redis.eval(RELEASE_LOCK_LUA, { keys: [`lock:${key}`], arguments: [token] });
+    } else {
+      // Legacy callers without a token: best-effort delete (old semantics).
+      await redis.del(`lock:${key}`);
+    }
   } catch {}
 }
 

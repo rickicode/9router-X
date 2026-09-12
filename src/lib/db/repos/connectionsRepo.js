@@ -83,7 +83,15 @@ function resetHealthStateOnActivation(existing, patch) {
     lastErrorAt: Object.hasOwn(patch, "lastErrorAt") ? patch.lastErrorAt : null,
     errorCode: null,
     rateLimitedUntil: null,
+    lockedAllUntil: null,
+    lockedToModel: null,
+    lockedToModelUntil: null,
     backoffLevel: 0,
+    // Re-activation must clear disabled markers or rowToConnection keeps
+    // reporting isActive=false from the stale data.disabledAt.
+    disabledAt: null,
+    disabledReason: null,
+    disabledBy: null,
   };
 
   for (const key of Object.keys(existing || {})) {
@@ -1148,7 +1156,8 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
 
   const rows = await db.all(
     `UPDATE provider_connections
-        SET test_status = 'active',
+        SET is_active = true,
+            test_status = 'active',
             last_error = NULL,
             last_error_at = NULL,
             error_code = NULL,
