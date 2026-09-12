@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/db/driver";
 import { isRedisAvailable, getRedis } from "@/lib/redis/client";
+import { getRoutingMetrics } from "open-sse/services/routingMetrics";
 
 export async function GET() {
   const check = {
@@ -40,6 +41,8 @@ export async function GET() {
     check.redis = false;
     check.redisError = err.message;
   }
+
+  check.routing = getRoutingMetrics();
 
   const httpStatus = check.postgres ? 200 : 503;
   return NextResponse.json(check, { status: httpStatus });

@@ -59,6 +59,14 @@ export const STREAM_STALL_TIMEOUT_MS = envMs("STREAM_STALL_TIMEOUT_MS", 360 * 10
 // Time-to-first-token timeout (prompt prefill). Env: STREAM_FIRST_CHUNK_TIMEOUT_MS.
 export const STREAM_FIRST_CHUNK_TIMEOUT_MS = envMs("STREAM_FIRST_CHUNK_TIMEOUT_MS", 200 * 1000);
 
+// Stream commit peek: after upstream headers arrive, wait this long for the
+// first transformed byte before committing the stream as successful. A stream
+// that dies with zero bytes is returned as a fallback-eligible failure
+// instead of hanging the client on an SSE that never delivers. Timeout (or an
+// inconclusive whitespace keepalive) commits as today — fail-open.
+// Env: STREAM_COMMIT_PEEK_MS.
+export const STREAM_COMMIT_PEEK_MS = envMs("STREAM_COMMIT_PEEK_MS", 8 * 1000);
+
 // Fetch connect timeout: abort if upstream doesn't return response headers within this duration
 export const FETCH_CONNECT_TIMEOUT_MS = envMs("FETCH_CONNECT_TIMEOUT_MS", 60 * 1000);
 

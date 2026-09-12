@@ -237,3 +237,90 @@ export function pipeWithDisconnect(providerResponse, transformStream, streamCont
   );
 }
 
+/**
+ * Peek at the first chunk of a transformed SSE stream before committing it as
+ * successful. Returns { stream } to continue (original stream untouched when
+ * inconclusive, rebuilt with the head chunk replayed when data arrived), or
+ * { failed, error } when the stream died with zero bytes / errored / carried
+ * non-SSE garbage — the caller should fail over instead of hanging the client.
+ * Never throws; timeout and whitespace-only keepalives are inconclusive
+ * (fail-open: commit as today).
+ */
+export async function peekStreamHead(stream, timeoutMs) {
+  const fail = (error) => ({ failed: true, error });
+  let reader = null;
+  try {
+    reader = stream.getReader();
+  } catch (e) {
+    return fail(e);
+  }
+  let timer = null;
+  try {
+    const readOutcome = await Promise.race([
+      reader.read().then(
+        (v) => ({ ...v, timedOut: false }),
+        (e) => ({ error: e }),
+      ),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve({ timedOut: true }), Math.max(1, timeoutMs));
+        if (timer.unref) timer.unref();
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+
+    // Timeout or whitespace keepalive: inconclusive — release the lock and let
+    // the caller commit the original stream untouched.
+    if (readOutcome.timedOut) {
+      try { reader.releaseLock(); } catch {}
+      return { stream, timedOut: true };
+    }
+    if (readOutcome.error || readOutcome.done) {
+      try { await reader.cancel(); } catch {}
+      try { reader.releaseLock(); } catch {}
+      return fail(readOutcome.error || new Error("upstream closed stream with zero bytes"));
+    }
+
+    const head = readOutcome.value;
+    let headText = "";
+    try {
+      headText = new TextDecoder().decode(head).trim();
+    } catch {}
+    // Non-SSE garbage (e.g. an error page behind an SSE content-type):
+    // fail over instead of piping junk to the client.
+    if (headText && !headText.startsWith("data:") && !headText.startsWith("event:")
+        && !headText.startsWith(":") && !headText.startsWith("{") && !headText.startsWith("[DONE]")) {
+      try { await reader.cancel(); } catch {}
+      try { reader.releaseLock(); } catch {}
+      return fail(new Error(`upstream first chunk is not SSE: ${headText.slice(0, 120)}`));
+    }
+
+    // Rebuild the stream with the head chunk replayed, then keep pumping the
+    // still-locked reader. releaseLock happens at natural close below.
+    const rebuilt = new ReadableStream({
+      start(controller) { controller.enqueue(head); },
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (done) {
+            controller.close();
+            try { reader.releaseLock(); } catch {}
+          } else {
+            controller.enqueue(value);
+          }
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+      async cancel() {
+        try { await reader.cancel(); } catch {}
+        try { reader.releaseLock(); } catch {}
+      },
+    });
+    return { stream: rebuilt };
+  } catch (e) {
+    if (timer) clearTimeout(timer);
+    try { reader?.releaseLock(); } catch {}
+    return fail(e);
+  }
+}
+

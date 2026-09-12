@@ -188,7 +188,9 @@ describe("fusion combo", () => {
     expect(judgeText).toContain("ans-p/a");
     expect(judgeText).toContain("ans-p/b");
     expect(judgeText).toContain("ans-p/c");
-    expect(judgeText).toContain("Source 1");
+    expect(judgeText).toContain('<source id="1">');
+    expect(judgeText).toContain("SECURITY BOUNDARY");
+    expect(judgeText).not.toContain("[Source 1]");
     expect(judgeBody.stream).toBe(true);
     expect(isPanel).toBeUndefined();
 

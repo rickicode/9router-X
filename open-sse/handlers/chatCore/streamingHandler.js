@@ -1,7 +1,9 @@
 import { FORMATS } from "../../translator/formats.js";
 import { needsTranslation } from "../../translator/index.js";
 import { createSSETransformStreamWithLogger, createPassthroughStreamWithLogger } from "../../utils/stream.js";
-import { pipeWithDisconnect } from "../../utils/streamHandler.js";
+import { pipeWithDisconnect, peekStreamHead } from "../../utils/streamHandler.js";
+import { STREAM_COMMIT_PEEK_MS } from "../../config/runtimeConfig.js";
+import { bumpRoutingMetric } from "../../services/routingMetrics.js";
 import { PROVIDERS } from "../../config/providers.js";
 import { STREAM_STALL_TIMEOUT_MS } from "../../config/runtimeConfig.js";
 import { buildAbortedResponsesTerminalBytes } from "../../utils/responsesStreamHelpers.js";
@@ -44,13 +46,17 @@ function buildTransformStream({ provider, sourceFormat, targetFormat, userAgent,
  * Handle streaming response — pipe provider SSE through transform stream to client.
  */
 export async function handleStreamingResponse({ providerResponse, provider, model, sourceFormat, targetFormat, userAgent, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, pxpipe, reqTag, log, credentials }) {
-  if (onRequestSuccess) {
+  // Success side-effects fire only once the stream is COMMITTED (first data
+  // byte seen or peek timeout) — never for zero-byte deaths, which fail over
+  // below instead of hanging the client on a stillborn SSE.
+  const fireRequestSuccess = () => {
+    if (!onRequestSuccess) return;
     Promise.resolve()
       .then(onRequestSuccess)
       .catch(err => {
         console.error("[ChatCore] onRequestSuccess failed:", err?.message || err);
       });
-  }
+  };
 
   // When upstream returns HTML/text instead of SSE (e.g. Cloudflare 5xx error
   // page), piping it through the SSE transform stream causes Next.js
@@ -98,6 +104,42 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
   const stallTimeoutMs = PROVIDERS[provider]?.stallTimeoutMs || STREAM_STALL_TIMEOUT_MS;
   const transformedBody = pipeWithDisconnect(providerResponse, transformStream, streamController, onAbortTerminal, stallTimeoutMs);
 
+  // Commit gate: a stream that dies with zero bytes (accepted headers, dead
+  // socket) must fail over like any other upstream failure — not commit as a
+  // success that hangs the client forever. Timeout/keepalive = inconclusive,
+  // commit as before (fail-open).
+  const peeked = await peekStreamHead(transformedBody, STREAM_COMMIT_PEEK_MS);
+  if (peeked.failed) {
+    const errMsg = peeked.error?.message || "upstream stream produced no data";
+    if (log?.errorLine) log.errorLine(reqTag, "✗", `STILLBORN ${provider}/${model} · ${errMsg}`);
+    else console.warn(`[STREAM] ${provider} | ${model} | stillborn stream: ${errMsg}`);
+    bumpRoutingMetric("stillbornStreams");
+    streamController?.handleError?.(peeked.error || new Error(errMsg));
+    // Mirrors the non-SSE early-return path above (same unconditional saves).
+    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: 502, isStream: true, error: errMsg }).catch(() => { });
+    saveRequestDetail(buildRequestDetail({
+      provider, model, connectionId,
+      latency: { ttft: 0, total: Date.now() - requestStartTime },
+      tokens: { prompt_tokens: 0, completion_tokens: 0 },
+      request: extractRequestConfig(body, stream),
+      providerRequest: finalBody || translatedBody || null,
+      response: { error: errMsg, status: 502, thinking: null },
+      pxpipe,
+      status: "error"
+    })).catch(() => { });
+    return {
+      success: false,
+      status: 502,
+      error: errMsg,
+      response: new Response(JSON.stringify({ error: { message: `[502 · ${provider}/${model}]: ${errMsg}` } }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      }),
+    };
+  }
+  const committedBody = peeked.stream;
+  fireRequestSuccess();
+
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
@@ -114,7 +156,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
 
   return {
     success: true,
-    response: new Response(transformedBody, { headers: SSE_HEADERS })
+    response: new Response(committedBody, { headers: SSE_HEADERS })
   };
 }
 

@@ -25,6 +25,7 @@ import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S } from "open-sse/config/errorConfig.js";
 import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter } from "@/lib/redis/client.js";
+import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 /**
  * Strict round-robin start index via an atomic Redis counter. Every request
@@ -99,6 +100,7 @@ async function reorderComboByHealth(models) {
   if (failing.size === 0 || failing.size >= models.length) return models;
   const healthy = models.filter((m) => !failing.has(m));
   const bad = models.filter((m) => failing.has(m));
+  bumpRoutingMetric("failoverDemotions", bad.length);
   log.info("CHAT", `Failover reorder: ${bad.join(", ")} failing ${MODEL_FAILOVER_THRESHOLD}x+ → back`);
   return [...healthy, ...bad];
 }
@@ -482,6 +484,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       refreshedRetryPending = false;
       rotationBudget.used++;
       attemptsThisMember++;
+      bumpRoutingMetric("upstreamAttempts");
     }
 
     // Account selection shown in the unified "▶" line (acc:...)
