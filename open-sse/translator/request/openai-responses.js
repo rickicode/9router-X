@@ -451,6 +451,28 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
     }).filter(Boolean);
   }
 
+  // Pass through tool_choice (Responses API uses {type, name} not {type, function:{name}})
+  if (body.tool_choice !== undefined) {
+    const tc = body.tool_choice;
+    if (typeof tc === "string") {
+      result.tool_choice = tc;
+    } else if (tc && typeof tc === "object") {
+      if (tc.type === "function" || tc.type === "function_call") {
+        const name = tc.name || tc.function?.name;
+        if (name && typeof name === "string" && name.trim()) {
+          result.tool_choice = { type: "function", name: name.trim() };
+        } else {
+          // Fallback requires name - drop invalid choice to avoid 400
+          result.tool_choice = "auto";
+        }
+      } else if (tc.type) {
+        result.tool_choice = tc;
+      } else if (tc.function?.name) {
+        result.tool_choice = { type: "function", name: tc.function.name };
+      }
+    }
+  }
+
   // Pass through other relevant fields
   if (body.temperature !== undefined) result.temperature = body.temperature;
   if (body.max_output_tokens !== undefined) {
