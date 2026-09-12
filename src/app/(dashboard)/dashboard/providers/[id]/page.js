@@ -1569,7 +1569,12 @@ export default function ProviderDetailPage() {
     ].filter((m) => { const k = getModelKind(m); return !k || k === "llm"; });
     const disabledSet = new Set(disabledModelIds);
     const activeModels = allModels.filter((m) => !disabledSet.has(m.id));
-    const displayModels = sortModelsByFree(activeModels, [], providerId);
+    const hidePaidOnClineFree = providerId === "cline-free";
+    const displayModels = sortModelsByFree(
+      activeModels.filter((m) => !hidePaidOnClineFree || isFreeModel(m, providerId)),
+      [],
+      providerId
+    );
     const disabledDisplayModels = allModels.filter((m) => disabledSet.has(m.id));
     const customModelRows = getProviderCustomModelRows({
       customModels,

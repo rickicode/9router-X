@@ -450,6 +450,11 @@ export default function ModelSelectModal({
     Object.entries(groupedModels).forEach(([providerId, group]) => {
       if (providerFilter !== "all" && providerId !== providerFilter) return;
       let models = group.models;
+      // cline-free: only free models (paid models coexist in catalog but require other providers)
+      if (providerId === "cline-free") {
+        models = models.filter((m) => isFreeModel(m, providerId));
+        if (models.length === 0) return;
+      }
       // Filter by input-modality capability (vision/pdf/audioInput/videoInput).
       if (capFilter) {
         models = models.filter((m) => getCaps(m.value)?.[capFilter] === true);
