@@ -4,6 +4,7 @@ import { trackPendingRequest, appendRequestLog } from "@/lib/usageDb.js";
 import { extractUsage, mergeUsage, hasValidUsage, estimateUsage, logUsage, addBufferToUsage, filterUsageForFormat, COLORS } from "./usageTracking.js";
 import { parseSSELine, hasValuableContent, fixInvalidId, formatSSE } from "./streamHelpers.js";
 import { getOpenAIResponsesEventName, isOpenAIResponsesTerminalEvent, formatIncompleteOpenAIResponsesStreamFailure } from "./responsesStreamHelpers.js";
+import { getFunctionTools, repairNamelessStreamingToolCalls } from "../translator/concerns/toolCall.js";
 import { dbg, isDebugEnabled } from "./debugLog.js";
 
 import { SSE_DONE, SSE_HEADERS, SSE_HEADERS_NO_BUFFER } from "./sseConstants.js";
@@ -70,6 +71,8 @@ export function createSSEStream(options = {}) {
   let sseLineCount = 0;
   let sseEmittedCount = 0;
   const eventTypeCounts = {};
+  // Per-stream state for nameless-streaming-tool-call repair (see concerns/toolCall.js)
+  let toolNameBackfillCtx = null;
 
   // Track Responses API event framing for same-format passthrough (codex)
   let currentOpenAIResponsesEvent = null;
@@ -175,6 +178,20 @@ export function createSSEStream(options = {}) {
                     delete choice.delta.tool_calls;
                     fieldsInjected = true;
                   }
+                }
+              }
+
+              // Backfill missing streaming tool names for Gemini-backed
+              // OpenAI-compatible upstreams (e.g. UniKey gemini models stream
+              // deltas with id+arguments but no function.name, which strict
+              // clients reject as "invalid tool call"). Lazily built once per
+              // stream; no-op for providers/models without function tools.
+              if (parsed?.choices && (provider === "unikey" || /^((google\/)?gemini)/i.test(model || ""))) {
+                if (!toolNameBackfillCtx) {
+                  toolNameBackfillCtx = { tools: getFunctionTools(body), pending: new Map(), warned: false };
+                }
+                if (repairNamelessStreamingToolCalls(parsed, toolNameBackfillCtx)) {
+                  fieldsInjected = true;
                 }
               }
 

@@ -261,6 +261,110 @@ export function fixMissingToolResponses(body) {
   return body;
 }
 
+// ---------------------------------------------------------------------------
+// Streaming tool-name backfill for Gemini-backed OpenAI-compatible upstreams
+// (e.g. UniKey `uk/gemini-3.5-flash`).
+//
+// Observed upstream bug: streaming `delta.tool_calls[]` entries carry `id`
+// and `arguments` but NEVER `function.name`, while the equivalent
+// non-streaming response includes the name correctly. Strict clients
+// (Cline/Roo/OpenCode) reject the assembled nameless call with
+// "Model generated invalid tool call".
+//
+// Repair strategy (OpenAI merge-by-index compatible):
+// - Exactly one function tool in the request → set the name immediately.
+// - Multiple tools → accumulate argument fragments per index; when a finish
+//   chunk arrives, JSON-parse the assembled args and pick the tool only on an
+//   unambiguous match (all required present, no unknown keys). Ambiguous or
+//   unparseable args are left untouched — a wrong guess could execute the
+//   wrong tool, which is worse than a client-side validation error.
+// ---------------------------------------------------------------------------
+
+export function getFunctionTools(body) {
+  if (!body?.tools || !Array.isArray(body.tools)) return [];
+  const out = [];
+  for (const t of body.tools) {
+    if (t?.type === "function" && t.function?.name) {
+      out.push({ name: t.function.name, parameters: t.function.parameters || {} });
+    } else if (t?.name && !t.type) {
+      // Claude-format tool declaration carried on an OpenAI path
+      out.push({ name: t.name, parameters: t.input_schema || {} });
+    }
+  }
+  return out;
+}
+
+function argsMatchTool(argsObj, parameters) {
+  if (!argsObj || typeof argsObj !== "object" || Array.isArray(argsObj)) return false;
+  const props = parameters?.properties || {};
+  for (const req of parameters?.required || []) {
+    if (!(req in argsObj)) return false;
+  }
+  for (const key of Object.keys(argsObj)) {
+    if (!(key in props)) return false;
+  }
+  return true;
+}
+
+export function matchToolByArgs(argsStr, tools) {
+  let argsObj;
+  try {
+    argsObj = JSON.parse(argsStr);
+  } catch {
+    return null;
+  }
+  const hits = tools.filter((t) => argsMatchTool(argsObj, t.parameters));
+  return hits.length === 1 ? hits[0].name : null;
+}
+
+// Mutates an OpenAI chat-completion chunk in place. Returns true when the
+// chunk was modified and must be re-serialized before forwarding.
+// ctx: { tools, pending: Map(index -> { id, args }), warned }
+export function repairNamelessStreamingToolCalls(parsed, ctx) {
+  if (!ctx || !Array.isArray(ctx.tools) || ctx.tools.length === 0) return false;
+  const choices = parsed?.choices;
+  if (!Array.isArray(choices)) return false;
+  let fixed = false;
+
+  for (const choice of choices) {
+    const deltas = choice?.delta?.tool_calls;
+    if (Array.isArray(deltas)) {
+      for (const tc of deltas) {
+        if (!tc || !tc.function || tc.function.name) continue;
+        const idx = tc.index ?? 0;
+        if (ctx.tools.length === 1) {
+          tc.function.name = ctx.tools[0].name;
+          fixed = true;
+        } else {
+          const slot = ctx.pending.get(idx) || { id: tc.id || null, args: "" };
+          if (tc.id && !slot.id) slot.id = tc.id;
+          if (typeof tc.function.arguments === "string") slot.args += tc.function.arguments;
+          ctx.pending.set(idx, slot);
+        }
+      }
+    }
+
+    // Late repair: finish chunk closes the call — resolve pending indices now.
+    if (choice?.finish_reason && ctx.pending.size > 0) {
+      const repairs = [];
+      for (const [idx, slot] of ctx.pending) {
+        const name = matchToolByArgs(slot.args, ctx.tools);
+        if (name) repairs.push({ index: idx, id: slot.id, function: { name, arguments: "" } });
+      }
+      ctx.pending.clear();
+      if (repairs.length > 0) {
+        if (!choice.delta || typeof choice.delta !== "object") choice.delta = {};
+        choice.delta.tool_calls = (choice.delta.tool_calls || []).concat(repairs);
+        fixed = true;
+      } else if (!ctx.warned) {
+        ctx.warned = true;
+        console.warn(`[toolCall] nameless streaming tool_calls left unrepaired (ambiguous args, tools=${ctx.tools.length})`);
+      }
+    }
+  }
+  return fixed;
+}
+
 // Default `type: "custom"` on Claude-format tools that arrive without one.
 // Anthropic's Claude tool schema requires `type` to be explicitly set; strict gateways
 // (e.g., MiniMax Anthropic-compatible endpoint, error 2013) reject legacy payloads that
