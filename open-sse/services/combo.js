@@ -285,8 +285,11 @@ export function getComboModelsFromData(modelStr, combosData) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @returns {Promise<Response>}
  */
-export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null, targetTimeoutMs = COMBO_TARGET_TIMEOUT_MS, loopSafetyMs = COMBO_LOOP_SAFETY_MS }) {
+export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null, targetTimeoutMs = COMBO_TARGET_TIMEOUT_MS, loopSafetyMs = COMBO_LOOP_SAFETY_MS, externalSignal = null }) {
   bumpRoutingMetric("comboRequests");
+  // Client-gone detection: without this a disconnected client's fallback loop
+  // keeps billing upstream members to completion.
+  const clientGone = () => Boolean(externalSignal?.aborted);
   // Apply rotation strategy if enabled
   let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
 
@@ -348,6 +351,12 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   });
 
   for (let i = 0; i < rotatedModels.length; i++) {
+    if (clientGone()) {
+      log.warn("COMBO", `Client disconnected — stopping fallback after ${i} member(s)`);
+      bumpRoutingMetric("comboClientAbortStops");
+      if (loopTimer) clearTimeout(loopTimer);
+      return unavailableResponse(499, "Client disconnected during combo fallback", null, null, { code: "CLIENT_DISCONNECTED" });
+    }
     if (Date.now() >= loopDeadline) {
       const msg = `Combo loop safety timeout (${loopSafetyMs}ms) exceeded${lastError ? `: ${lastError}` : ""}`;
       log.warn("COMBO", msg);
@@ -714,7 +723,8 @@ function collectPanel(calls, { minPanel, stragglerGraceMs, panelHardTimeoutMs })
  * @param {Object} [options.tuning] - Override FUSION_DEFAULTS (minPanel, grace, timeout)
  * @returns {Promise<Response>}
  */
-export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning, rotationBudget = null }) {
+export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning, rotationBudget = null, externalSignal = null }) {
+  const clientGone = () => Boolean(externalSignal?.aborted);
   const panel = Array.isArray(models) ? models.filter(Boolean) : [];
   if (panel.length === 0) {
     return new Response(
@@ -824,11 +834,43 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   // instead of failing a fusion that already has good answers in hand.
   const judgeBody = appendUserTurn(body, buildJudgePrompt(answers));
   let judgeResult = null;
+  // Judge gets its own hard timeout: a hung judge must not stall a fusion
+  // that already holds good panel answers. Throw is caught per-candidate so
+  // the next judge in the fallback chain still gets its chance.
+  const judgeTimeoutMs = cfg.panelHardTimeoutMs;
   for (const judgeCandidate of [...new Set([judge, ...panel])]) {
+    if (clientGone()) {
+      log.warn("FUSION", "Client disconnected during judge chain — stopping");
+      bumpRoutingMetric("fusionClientAbortStops");
+      return unavailableResponse(499, "Client disconnected during fusion", null, null, { code: "CLIENT_DISCONNECTED" });
+    }
     log.info("FUSION", `Judging ${answers.length} answers with ${judgeCandidate}`);
-    judgeResult = await handleSingleModel(judgeBody, judgeCandidate);
+    judgeResult = await withTimeout(
+      Promise.resolve().then(() => handleSingleModel(judgeBody, judgeCandidate)),
+      judgeTimeoutMs,
+    );
+    if (judgeResult.__timeout) {
+      log.warn("FUSION", `Judge ${judgeCandidate} timed out, trying next judge`);
+      continue;
+    }
+    if (judgeResult.__error) {
+      log.warn("FUSION", `Judge ${judgeCandidate} threw, trying next judge`, { error: judgeResult.__error?.message || String(judgeResult.__error) });
+      continue;
+    }
     if (judgeResult.ok) return judgeResult;
     log.warn("FUSION", `Judge ${judgeCandidate} failed, trying next judge`, { status: judgeResult.status });
+  }
+  // Every judge failed but we hold valid panel answers: return the best one
+  // instead of a 503 that discards already-paid work (non-streaming only —
+  // streaming needs the re-answer path below).
+  if (body.stream !== true && answers.length > 0) {
+    log.warn("FUSION", "All judges failed — returning best panel answer");
+    return answers[0].res;
+  }
+  if (body.stream === true) {
+    // Streaming client: re-answer with the first panel model so chunks flow.
+    log.warn("FUSION", "All judges failed — falling back to single-model stream");
+    return handleSingleModel(body, answers[0].model);
   }
   return judgeResult;
 }

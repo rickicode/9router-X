@@ -1178,8 +1178,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
         },
       } : {}),
     });
-    // Long L2 cooldown so the Redis-cached path also stops returning it
+    // Long L2 cooldown so the Redis-cached path also stops returning it.
+    // Also drop the cached connection list itself: L2 cooldown keys only gate
+    // already-cached rows, and stale caches kept serving the dead credential.
     redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+    if (providerId) invalidateCachedConnections(providerId).catch(() => {});
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
     log.warn("AUTH", `${connName} account auth fatal error — DISABLED (is_active=false), removed from routing`);
     if (provider && status && reason) {
@@ -1271,14 +1274,22 @@ export async function clearAccountError(connectionId, currentConnection, model =
   if (!connectionId || connectionId === "noauth") return;
   const conn = currentConnection._connection || currentConnection;
   const now = Date.now();
-  const allLockKeys = Object.keys(conn).filter(k => k.startsWith("modelLock_"));
+  // Locks live BOTH as flat modelLock_* fields and inside the modelLocks JSON
+  // map (rowToConnection merges both, but credentials objects may carry only
+  // the JSON map). Scan both, else a JSON-map-only lock never clears.
+  const jsonLocks = conn.modelLocks && typeof conn.modelLocks === "object" ? conn.modelLocks : {};
+  const allLockKeys = [...new Set([
+    ...Object.keys(conn).filter(k => k.startsWith("modelLock_")),
+    ...Object.keys(jsonLocks).map(m => `modelLock_${m}`),
+  ])];
+  const lockValue = (k) => conn[k] ?? jsonLocks[k.slice("modelLock_".length)];
 
   if (!conn.testStatus && !conn.lastError && allLockKeys.length === 0) return;
 
   // Keys to clear: current model's lock + all expired locks
   const keysToClear = allLockKeys.filter(k => {
     if (model && k === `modelLock_${model}`) return true; // succeeded model
-    const expiry = conn[k];
+    const expiry = lockValue(k);
     return expiry && new Date(expiry).getTime() <= now;   // expired
   });
 
@@ -1287,7 +1298,7 @@ export async function clearAccountError(connectionId, currentConnection, model =
   // Check if any active locks remain after clearing
   const remainingActiveLocks = allLockKeys.filter(k => {
     if (keysToClear.includes(k)) return false;
-    const expiry = conn[k];
+    const expiry = lockValue(k);
     return expiry && new Date(expiry).getTime() > now;
   });
 
@@ -1295,7 +1306,7 @@ export async function clearAccountError(connectionId, currentConnection, model =
 
   // Reset testStatus to active if no account-wide lock (modelLock___all or lockedAllUntil) is active
   const hasActiveAccountLock = Boolean(
-    (conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now)
+    (lockValue("modelLock___all") && new Date(lockValue("modelLock___all")).getTime() > now)
     || (conn.lockedAllUntil && new Date(conn.lockedAllUntil).getTime() > now)
     || (conn.rateLimitedUntil && new Date(conn.rateLimitedUntil).getTime() > now)
   );

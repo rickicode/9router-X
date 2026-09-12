@@ -585,8 +585,19 @@ if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
           providerResponse = retryResult.response;
           providerUrl = retryResult.url;
           providerResponseFormat = retryResult.responseFormat || targetFormat;
+        } else {
+          // Refreshed-token retry answered with a real upstream error: report
+          // THAT status instead of the stale pre-refresh 401/403, so downstream
+          // lock/classification sees the actual failure.
+          log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh still failed: ${retryResult.response.status}`);
+          try { providerResponse.body?.cancel(); } catch {}
+          providerResponse = retryResult.response;
+          providerUrl = retryResult.url;
+          providerResponseFormat = retryResult.responseFormat || targetFormat;
         }
-      } catch { log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh failed`); }
+      } catch (retryError) {
+        log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh threw: ${retryError?.message || retryError}`);
+      }
     } else {
       log?.warn?.("TOKEN", `${provider.toUpperCase()} | refresh failed`);
     }
@@ -635,6 +646,12 @@ const trackDone = () => trackPendingRequest(model, provider, connectionId, false
 if (!clientRequestedStreaming && providerRequiresStreaming) {
   const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, customToolNames, trackDone, appendLog });
   if (result) { streamController.handleComplete(); return result; }
+  // Conversion failed: do NOT fall through to the streaming handler — the
+  // client asked for JSON and would receive a raw SSE stream it cannot parse.
+  // Cancel the upstream stream and answer with a clean 502.
+  try { providerResponse.body?.cancel(); } catch {}
+  streamController.handleError(new Error("sse_to_json_conversion_failed"));
+  return createErrorResult(HTTP_STATUS.BAD_GATEWAY, `Provider ${provider} only supports streaming and SSE→JSON conversion failed`);
 }
 
 // True non-streaming response

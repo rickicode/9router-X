@@ -282,6 +282,8 @@ export async function getDeadCircuit(provider, model) {
  * High-performance batch cooldown check for hundreds/thousands of connections in 1 roundtrip.
  * Returns a Set of connection IDs that are in cooldown (either account-wide or model-specific).
  */
+const COOLDOWN_MGET_CHUNK = 500;
+
 export async function getBatchCooldowns(connIds, model = null) {
   if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) {
     return { ids: new Set(), healthy: false };
@@ -295,7 +297,12 @@ export async function getBatchCooldowns(connIds, model = null) {
       }
     }
 
-    const values = await redis.mget(keys);
+    // Chunked MGET: one giant MGET with thousands of keys stalls the
+    // single-threaded Redis event loop (mirror of clearBatchAccountCooldown).
+    const values = [];
+    for (let c = 0; c < keys.length; c += COOLDOWN_MGET_CHUNK) {
+      values.push(...await redis.mget(keys.slice(c, c + COOLDOWN_MGET_CHUNK)));
+    }
     const cooledDown = new Set();
     const stride = model ? 2 : 1;
 

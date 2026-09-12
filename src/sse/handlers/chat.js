@@ -218,7 +218,8 @@ export async function handleChat(request, clientRawRequest = null) {
         comboName: modelStr,
         judgeModel: comboStrategies[modelStr]?.judgeModel,
         tuning: comboStrategies[modelStr]?.fusionTuning,
-        rotationBudget
+        rotationBudget,
+        externalSignal
       });
     }
 
@@ -241,7 +242,8 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStrategy: preparedTop.strategy,
       comboStickyLimit,
       autoSwitch: comboAutoSwitch,
-      rotationBudget
+      rotationBudget,
+        externalSignal,
     });
   }
 
@@ -264,7 +266,8 @@ export async function handleChat(request, clientRawRequest = null) {
       log,
       comboName: modelStr,
       comboStrategy: preparedSolo.strategy,
-      rotationBudget
+      rotationBudget,
+        externalSignal,
     });
   }
 
@@ -309,7 +312,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           comboName: modelStr,
           judgeModel: comboStrategies[modelStr]?.judgeModel,
           tuning: comboStrategies[modelStr]?.fusionTuning,
-          rotationBudget
+          rotationBudget,
+          externalSignal
         });
       }
 
@@ -330,7 +334,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         comboStrategy: preparedNested.strategy,
         comboStickyLimit,
         autoSwitch: nestedAutoSwitch,
-        rotationBudget
+        rotationBudget,
+        externalSignal,
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });

@@ -412,8 +412,13 @@ export async function POST(request, { params }) {
         }
       }
 
-      // Detect if "code" is actually a raw JWT access token (starts with eyJ)
-      if (code && code.startsWith("eyJ") && code.includes(".")) {
+      // Detect if "code" is actually a raw JWT access token (starts with eyJ).
+      // Codex-only: this path stores ChatGPT auth claims; for any other
+      // provider the JWT would be saved as a blindly-trusted access_token.
+      if (provider !== "codex" && code && code.startsWith("eyJ") && code.includes(".")) {
+        return NextResponse.json({ error: `Raw JWT exchange is only supported for codex, not ${provider}` }, { status: 400 });
+      }
+      if (provider === "codex" && code && code.startsWith("eyJ") && code.includes(".")) {
         const { extractCodexAccountInfo } = await import("@/lib/oauth/providers");
         const info = extractCodexAccountInfo(code);
 
