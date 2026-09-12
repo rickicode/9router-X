@@ -14,6 +14,9 @@ const counters = {
   stillbornStreams: 0,
   panelOrphansAborted: 0,
   qualityGateTrips: 0,
+  circuitTrips: 0,
+  lkgHits: 0,
+  lkgStale: 0,
 };
 
 export function bumpRoutingMetric(name, by = 1) {

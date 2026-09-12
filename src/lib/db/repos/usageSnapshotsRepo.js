@@ -1,5 +1,40 @@
 import { getAdapter } from "../driver.js";
 import { stringifyJson } from "../helpers/jsonCol.js";
+import { getRedis, isRedisAvailable } from "../../redis/client.js";
+
+// Short-TTL cache for the full-provider quota join: the routing hot path
+// calls getBatchProviderQuotas on EVERY antigravity selection, and the join
+// over thousands of snapshot rows is the most expensive per-request query.
+// 20s TTL bounds staleness (quota resets are minutes/hours away); upserts
+// invalidate immediately below. Fail-open without Redis.
+const SNAPSHOT_CACHE_TTL_S = 20;
+const snapshotCacheKey = (provider) => `agqsnap:${provider}`;
+
+async function readSnapshotCache(provider) {
+  if (!isRedisAvailable()) return null;
+  try {
+    const raw = await getRedis().get(snapshotCacheKey(provider));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeSnapshotCache(provider, value) {
+  if (!isRedisAvailable()) return;
+  try {
+    await getRedis().set(snapshotCacheKey(provider), JSON.stringify(value), "EX", SNAPSHOT_CACHE_TTL_S);
+  } catch {}
+}
+
+async function invalidateSnapshotCache(provider) {
+  if (!isRedisAvailable() || !provider) return;
+  try {
+    await getRedis().del(snapshotCacheKey(provider));
+  } catch {}
+}
 
 function jsonValue(value, fallback) {
   return value === undefined || value === null ? fallback : value;
@@ -38,6 +73,9 @@ export async function upsertUsageSnapshot({
   if (!provider) throw new Error("provider is required");
 
   const db = await getAdapter();
+  // Write-through invalidation so the routing hot path never serves a quota
+  // state that a fresh refresh just overwrote.
+  await invalidateSnapshotCache(provider);
   const row = await db.get(
     `INSERT INTO usage_snapshots
        (connection_id, provider, plan, quotas, rate_limits, remaining_pct, raw_dosage, reset_at, updated_at)
@@ -89,6 +127,8 @@ export async function getUsageSnapshotsByProvider(provider) {
 
 export async function getBatchProviderQuotas(provider) {
   if (!provider) return [];
+  const cached = await readSnapshotCache(provider);
+  if (cached) return cached;
   const db = await getAdapter();
   const rows = await db.all(
     `SELECT
@@ -114,7 +154,7 @@ export async function getBatchProviderQuotas(provider) {
     [provider],
   );
 
-  return rows.map((row) => ({
+  const mapped = rows.map((row) => ({
     ...snapshotFromRow(row),
     name: row.name,
     email: row.email,
@@ -123,4 +163,6 @@ export async function getBatchProviderQuotas(provider) {
     lockedAllUntil: row.locked_all_until,
     providerSpecificData: row.provider_specific_data || {},
   }));
+  await writeSnapshotCache(provider, mapped);
+  return mapped;
 }

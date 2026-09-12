@@ -23,8 +23,8 @@ import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActi
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
-import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S } from "open-sse/config/errorConfig.js";
-import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter } from "@/lib/redis/client.js";
+import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
+import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter, setLkg, resetDeadCircuit } from "@/lib/redis/client.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 /**
@@ -567,6 +567,11 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         // The model just proved itself healthy — reset its failover counter so
         // a recovered member returns to the front of the combo immediately.
         resetModelFailCount(modelStr).catch(() => {});
+        // Publish this account as last-known-good: the next selection for the
+        // same provider+model fast-paths straight here (60s TTL) instead of
+        // scanning PG + Redis. Also closes any dead-circuit for the pair.
+        setLkg(provider, model, credentials.connectionId, LKG_TTL_S).catch(() => {});
+        resetDeadCircuit(provider, model).catch(() => {});
         await clearAccountError(credentials.connectionId, credentials, model);
         // "Consecutive" strikes: a success clears the breaker for this pair.
         clearAntigravityStrikes(credentials.connectionId, model);

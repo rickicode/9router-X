@@ -77,6 +77,12 @@ vi.mock("@/lib/redis/client.js", () => ({
     if (mocks.redisDown) throw new Error("redis down");
     return ++mocks.rrSeq;
   }),
+  setLkg: vi.fn(async () => true),
+  resetDeadCircuit: vi.fn(async () => true),
+  getLkg: vi.fn(async () => null),
+  delLkg: vi.fn(async () => true),
+  getDeadCircuit: vi.fn(async () => 0),
+  incrDeadCircuit: vi.fn(async () => 1),
 }));
 
 const { handleSingleModelChat } = await import("@/sse/handlers/chat.js");

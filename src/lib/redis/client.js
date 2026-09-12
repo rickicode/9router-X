@@ -192,6 +192,79 @@ export async function getModelFailCounts(members) {
 }
 
 /**
+ * Last-known-good account per provider+model: the fast path that lets a
+ * request skip the PG candidate scan when the fleet just proved an account
+ * healthy. Short TTL (stale pointers self-heal on first use). All fail-open.
+ */
+export async function getLkg(provider, model) {
+  if (!isRedisAvailable() || !provider) return null;
+  try {
+    return (await redis.get(`lkg:${provider}|${model || "*"}`)) || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setLkg(provider, model, connectionId, ttlSeconds = 60) {
+  if (!isRedisAvailable() || !provider || !connectionId) return false;
+  try {
+    await redis.set(`lkg:${provider}|${model || "*"}`, connectionId, "EX", ttlSeconds);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function delLkg(provider, model) {
+  if (!isRedisAvailable() || !provider) return false;
+  try {
+    await redis.del(`lkg:${provider}|${model || "*"}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Dead provider/model circuit: counts CONSECUTIVE fleet-wide empty selections
+ * (no routable account found). At threshold, selections short-circuit to a
+ * fast 503 without scanning PG or burning rotation budget. Any successful
+ * selection resets. Fail-open: without Redis the circuit never engages.
+ */
+export async function incrDeadCircuit(provider, model, windowSeconds = 60) {
+  if (!isRedisAvailable() || !provider) return 0;
+  try {
+    const key = `deadpm:${provider}|${model || "*"}`;
+    const count = await redis.incr(key);
+    if (count === 1) {
+      try { await redis.expire(key, windowSeconds); } catch {}
+    }
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+export async function resetDeadCircuit(provider, model) {
+  if (!isRedisAvailable() || !provider) return false;
+  try {
+    await redis.del(`deadpm:${provider}|${model || "*"}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getDeadCircuit(provider, model) {
+  if (!isRedisAvailable() || !provider) return 0;
+  try {
+    return Number(await redis.get(`deadpm:${provider}|${model || "*"}`) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * High-performance batch cooldown check for hundreds/thousands of connections in 1 roundtrip.
  * Returns a Set of connection IDs that are in cooldown (either account-wide or model-specific).
  */

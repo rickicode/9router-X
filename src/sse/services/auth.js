@@ -2,7 +2,7 @@ import { getProviderConnections, validateApiKey, updateProviderConnection, getSe
 import * as localDb from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
-import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
+import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS, DEAD_CIRCUIT_THRESHOLD, DEAD_CIRCUIT_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted } from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
@@ -16,8 +16,15 @@ import {
   getCachedConnections,
   setCachedConnections,
   invalidateCachedConnections,
+  getLkg,
+  setLkg,
+  delLkg,
+  incrDeadCircuit,
+  resetDeadCircuit,
+  getDeadCircuit,
 } from "@/lib/redis/client.js";
 import * as log from "../utils/logger.js";
+import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 // Per-provider mutex map to prevent race conditions during account selection without blocking unrelated providers
 const selectionMutexes = new Map();
@@ -144,6 +151,46 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
 
 
 /**
+ * Durable + transient eligibility filter shared by the window scan and the
+ * last-known-good fast path. Returns true when the connection may serve
+ * provider/model right now. Pure w.r.t. its inputs (no I/O).
+ */
+function isConnectionRoutable(c, ctx) {
+  const { excludeSet, locallyExhaustedIds, cooledDownIds, model, providerId, isAntigravity, isFreebuff, antigravityQuotaCache, freebuffQuotaCache } = ctx;
+  if (!c || excludeSet.has(c.id)) return false;
+  if (locallyExhaustedIds?.has(c.id)) return false;
+  if (cooledDownIds?.has(c.id)) return false;
+  const refreshBlocked = c.providerSpecificData?.refreshBlocked === true || c.providerSpecificData?.refreshBlocked === "true";
+  const fatalError = typeof c.lastError === "string"
+    && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(c.lastError);
+  if (c.isActive === false || c.disabledAt || c.testStatus === "disabled" || refreshBlocked || fatalError) return false;
+  if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
+  if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
+  if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
+  if (isModelLockActive(c, model)) return false;
+  if (isAntigravity && model && antigravityQuotaCache) {
+    let quota = antigravityQuotaCache.get(c.id)?.[model];
+    if (!quota) {
+      const modelLower = model.toLowerCase();
+      const weeklyKey = (modelLower.startsWith("gemini-") && !modelLower.includes("image"))
+        ? "gemini_weekly"
+        : (modelLower.startsWith("claude-") || modelLower.startsWith("gpt-"))
+          ? "claude_gpt_weekly"
+          : null;
+      if (weeklyKey) quota = antigravityQuotaCache.get(c.id)?.[weeklyKey];
+    }
+    if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) return false;
+  }
+  if (isFreebuff && model && freebuffQuotaCache) {
+    const cacheMap = freebuffQuotaCache.get(c.id);
+    const canonical = canonicalFreebuffModel(model);
+    const quota = cacheMap?.[canonical] || cacheMap?.[model];
+    if (quota && !quota.unlimited && quota.remaining !== null && quota.remaining <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) return false;
+  }
+  return true;
+}
+
+/**
  * Get provider credentials from localDb
  * Filters out unavailable accounts and returns the selected account based on strategy
  * @param {string} provider - Provider name
@@ -230,18 +277,117 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // loaded every active credential for a provider into Node and Redis, which
     // is unsafe for providers with tens of thousands of accounts.
     const candidateWindow = Math.min(Math.max(Number(options.candidateLimit) || 100, 25), 500);
-    let connections = await getProviderConnections({
-      provider: providerId,
-      isActive: true,
-      routingModel: model,
-      excludeIds: [...excludeSet],
-      limit: candidateWindow,
-      offset: 0,
-    });
-    let connectionsFromCache = false;
-
     const settings = await getSettings();
     const providerOverride = (settings.providerStrategies || {})[providerId] || {};
+
+    // 1. Dead provider/model circuit: consecutive fleet-wide empty selections
+    // short-circuit to a fast 503 — no PG scan, no rotation budget burned.
+    const deadCount = await getDeadCircuit(providerId, model).catch(() => 0);
+    if (deadCount >= DEAD_CIRCUIT_THRESHOLD) {
+      const retryAfter = new Date(Date.now() + DEAD_CIRCUIT_WINDOW_S * 1000).toISOString();
+      log.warn("AUTH", `${providerId} | circuit open (${deadCount}x empty) — fast 503 for ${model || "any"}`);
+      bumpRoutingMetric("circuitTrips");
+      return {
+        allRateLimited: true,
+        retryAfter,
+        retryAfterHuman: "1m",
+        lastError: `All ${providerId} accounts recently exhausted (circuit) — retry shortly.`,
+        lastErrorCode: "PROVIDER_CIRCUIT_OPEN",
+      };
+    }
+
+    // 2. Last-known-good fast path: one proven account skips the whole scan
+    // (2 cheap roundtrips: Redis GET + single-row PG read + 1-id cooldown
+    // batch). Honors exclusions; stale pointers self-heal via delLkg on the
+    // error path.
+    const lkgId = await getLkg(providerId, model).catch(() => null);
+    if (lkgId && !excludeSet.has(lkgId)) {
+      try {
+        const lkgRow = await localDb.getProviderConnectionById(lkgId).catch(() => null);
+        if (lkgRow && lkgRow.provider === providerId) {
+          const lkgCool = await getBatchCooldowns([lkgId], model).catch(() => ({ ids: new Set(), healthy: true }));
+          const lkgCtx = {
+            excludeSet, locallyExhaustedIds: new Set(),
+            cooledDownIds: lkgCool?.ids instanceof Set ? lkgCool.ids : lkgCool,
+            model, providerId,
+            isAntigravity: providerId === "antigravity",
+            isFreebuff: providerId === "freebuff",
+            antigravityQuotaCache: getAntigravityQuotaCache(),
+            freebuffQuotaCache: getFreebuffQuotaCache(),
+          };
+          if (isConnectionRoutable(lkgRow, lkgCtx)) {
+            bumpRoutingMetric("lkgHits");
+            log.debug("AUTH", `${providerId} | LKG hit ${lkgId.slice(0, 8)} for ${model || "any"}`);
+            if (excludeSet.size === 0) resetDeadCircuit(providerId, model).catch(() => {});
+            return finalizeSelection(lkgRow);
+          }
+          bumpRoutingMetric("lkgStale");
+        }
+      } catch {}
+    }
+
+    // 3. Window scan (up to 2 windows): SQL pre-filters durable eligibility;
+    // the second window covers providers whose first `candidateWindow` rows
+    // are all transiently filtered (Redis cooldowns / RAM quota blocks).
+    const MAX_SELECTION_WINDOWS = 2;
+    const isAntigravity = providerId === "antigravity";
+    const isFreebuff = providerId === "freebuff";
+    let connections = [];
+    let availableConnections = [];
+    let cooledDownIds = new Set();
+    let redisCooldownHealthy = true;
+    let locallyExhaustedIds = new Set();
+    let lastCandidateIds = [];
+    for (let windowIdx = 0; windowIdx < MAX_SELECTION_WINDOWS; windowIdx++) {
+      const batch = await getProviderConnections({
+        provider: providerId,
+        isActive: true,
+        routingModel: model,
+        excludeIds: [...excludeSet],
+        limit: candidateWindow,
+        offset: windowIdx * candidateWindow,
+      });
+      if (batch.length === 0) break;
+      connections = connections.concat(batch);
+
+      if (isAntigravity && model) {
+        const antigravityQuotaCache = getAntigravityQuotaCache();
+        let snapshots = [];
+        try {
+          const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
+          if (typeof getSnapshots === "function") {
+            snapshots = await getSnapshots(providerId).catch(() => []);
+          }
+        } catch {}
+        for (const snapshot of snapshots) {
+          if (snapshot?.connectionId && snapshot.quotas) {
+            hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
+          }
+        }
+        locallyExhaustedIds = new Set(
+          batch
+            .filter((connection) => isAntigravityAccountQuotaExhausted(connection.id))
+            .map((connection) => connection.id),
+        );
+      }
+
+      const candidateIds = batch.map(c => c.id).filter(id => !excludeSet.has(id));
+      lastCandidateIds = candidateIds;
+      const cooldownResult = await getBatchCooldowns(candidateIds, model);
+      cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
+      redisCooldownHealthy = cooldownResult?.healthy !== false;
+
+      const ctx = {
+        excludeSet, locallyExhaustedIds, cooledDownIds, model, providerId,
+        isAntigravity, isFreebuff,
+        antigravityQuotaCache: isAntigravity && model ? getAntigravityQuotaCache() : null,
+        freebuffQuotaCache: isFreebuff && model ? getFreebuffQuotaCache() : null,
+      };
+      availableConnections = batch.filter(c => isConnectionRoutable(c, ctx));
+      if (availableConnections.length > 0) break;
+    }
+    let connectionsFromCache = false;
+
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
 
     if (connections.length === 0) {
@@ -252,102 +398,19 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const blocked = classifyBlockedCredentials(provider, model, allConnections);
       if (blocked) return blocked;
       log.warn("AUTH", `No credentials for ${provider}`);
+      // Rows exist but none are routable (and this is a fresh selection):
+      // feed the dead-circuit like the filtered-empty path below. A provider
+      // with zero rows at all is misconfiguration, not exhaustion — skip it.
+      if (excludeSet.size === 0 && allConnections.length > 0) {
+        incrDeadCircuit(providerId, model, DEAD_CIRCUIT_WINDOW_S).catch(() => {});
+      }
       return null;
     }
 
-    // Antigravity quota cache is lazy: only populated after that account returns 409/429.
-    const isAntigravity = providerId === "antigravity";
+    // Live quota-cache maps (RAM, hydrated per window above). Hoisted for the
+    // empty-window diagnostics below; the window loop owns hydration.
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
-    // RAM quota state is process-local. Hydrate it from PostgreSQL so a
-    // restart or a second replica cannot route into an already exhausted account.
-     if (isAntigravity && model && antigravityQuotaCache) {
-      let snapshots = [];
-      try {
-        const getSnapshots = localDb.getBatchProviderQuotas;
-        if (typeof getSnapshots === "function") {
-          snapshots = await getSnapshots(providerId).catch(() => []);
-        }
-      } catch {
-        // Test/minimal adapters may not expose snapshot reads; RAM remains a
-        // safe fallback for that process.
-      }
-       for (const snapshot of snapshots) {
-         if (snapshot?.connectionId && snapshot.quotas) {
-           hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
-         }
-       }
-      // Materialize the durable account state once all tracked model/family
-      // buckets are exhausted. This prevents every replica from rediscovering
-      // the same account through a stale active connection row.
-       // Snapshot rows are the durable source of truth after a restart. They
-       // are used below as a routing hint; status writes happen on the error
-       // path, not in this hot query.
-    }
-
-    // Do not wait for the asynchronous DB materialization above. The current
-    // request must honor the hydrated quota snapshot immediately.
-    const locallyExhaustedIds = new Set(
-      connections
-        .filter((connection) => isAntigravity && isAntigravityAccountQuotaExhausted(connection.id))
-        .map((connection) => connection.id),
-    );
-
-    const isFreebuff = providerId === "freebuff";
     const freebuffQuotaCache = isFreebuff && model ? getFreebuffQuotaCache() : null;
-
-    // Check Redis L2 Cooldown in 1 single BATCH call (O(1) roundtrip for 1000s of accounts)
-    const candidateIds = connections.map(c => c.id).filter(id => !excludeSet.has(id));
-    const cooldownResult = await getBatchCooldowns(candidateIds, model);
-    const cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
-    const redisCooldownHealthy = cooldownResult?.healthy !== false;
-
-    // Filter out model-locked, excluded, and Antigravity/Freebuff quota-exhausted connections.
-    let availableConnections = connections.filter(c => {
-      if (excludeSet.has(c.id)) return false;
-      if (locallyExhaustedIds.has(c.id)) return false;
-      if (cooledDownIds.has(c.id)) return false;
-      const refreshBlocked = c.providerSpecificData?.refreshBlocked === true || c.providerSpecificData?.refreshBlocked === "true";
-      const fatalError = typeof c.lastError === "string"
-        && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(c.lastError);
-      if (c.isActive === false || c.disabledAt || c.testStatus === "disabled" || refreshBlocked || fatalError) return false;
-      if (["unavailable", "error", "expired", "invalid", "disabled", "exhausted"].includes(c.testStatus)) return false;
-      if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
-      if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
-      if (isModelLockActive(c, model)) return false;
-      // Antigravity: skip if live quota exhausted for this model
-      if (isAntigravity && model && antigravityQuotaCache) {
-        let quota = antigravityQuotaCache.get(c.id)?.[model];
-        if (!quota) {
-          // Fallback for free-tier accounts that only have weekly group quotas mapped
-          const modelLower = model.toLowerCase();
-          const weeklyKey = (modelLower.startsWith("gemini-") && !modelLower.includes("image"))
-            ? "gemini_weekly"
-            : (modelLower.startsWith("claude-") || modelLower.startsWith("gpt-"))
-              ? "claude_gpt_weekly"
-              : null;
-          if (weeklyKey) {
-            quota = antigravityQuotaCache.get(c.id)?.[weeklyKey];
-          }
-        }
-        if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
-          const account = c.id?.slice(0, 8) || "unknown";
-          log.info("AG_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
-          return false;
-        }
-      }
-      // Freebuff: skip if live quota exhausted for this model
-      if (isFreebuff && model && freebuffQuotaCache) {
-        const cacheMap = freebuffQuotaCache.get(c.id);
-        const canonical = canonicalFreebuffModel(model);
-        const quota = cacheMap?.[canonical] || cacheMap?.[model];
-        if (quota && !quota.unlimited && quota.remaining !== null && quota.remaining <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
-          const account = c.id?.slice(0, 8) || "unknown";
-          log.info("FB_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
-          return false;
-        }
-      }
-      return true;
-    });
 
     // Freebuff 1-hour dynamic model affinity lock:
     // 1 account can only serve 1 model at a time. If locked to model X, it can only serve model X.
@@ -449,15 +512,23 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         };
       }
 
-      const excludedAll = candidateIds.length === 0 && excludeSet.size > 0;
+      const excludedAll = lastCandidateIds.length === 0 && excludeSet.size > 0;
       const blocked = classifyBlockedCredentials(provider, model, stateConnections, {
-        cooledDown: redisCooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= candidateIds.length,
+        cooledDown: redisCooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= lastCandidateIds.length,
       });
       if (blocked) return blocked;
 
       log.warn("AUTH", `${provider} | all ${connections.length} accounts unavailable`);
+      // Fleet signal: a FRESH selection (no exclusions) that finds nothing
+      // means the provider/model is likely fully dead — count toward the
+      // dead-circuit so subsequent requests short-circuit fast.
+      if (excludeSet.size === 0) incrDeadCircuit(providerId, model, DEAD_CIRCUIT_WINDOW_S).catch(() => {});
       return null;
     }
+
+    // A routable account exists — the provider/model has capacity; make sure
+    // a previously opened dead-circuit is closed.
+    if (excludeSet.size === 0) resetDeadCircuit(providerId, model).catch(() => {});
 
     // Per-provider strategy overrides global setting
     const strategy = providerOverride.fallbackStrategy || settings.fallbackStrategy || "fill-first";
@@ -533,6 +604,13 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       }
     }
 
+    return finalizeSelection(connection);
+
+    // Single shape builder for the credentials contract (connectionId, tokens,
+    // proxy resolution). Both the window scan and the LKG fast path return
+    // through here so callers never see a raw DB row. Function declaration
+    // (hoisted) because the LKG fast path above uses it before this line.
+    async function finalizeSelection(connection) {
     // Scope the region-aware picker to this provider/model (e.g. freebuff::gpt-5.6-luna)
     const hasPoolConfig = connection.providerSpecificData?.proxyPoolIds?.length || connection.providerSpecificData?.proxyGroup;
     const psdForProxy = hasPoolConfig
@@ -569,7 +647,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       lastError: connection.lastError,
       // Pass full connection for clearAccountError to read modelLock_* keys
       _connection: connection
-    };
+      };
+    }
   } finally {
     if (resolveMutex) resolveMutex();
     if (selectionMutexes.get(providerId) === nextMutex) {
@@ -998,6 +1077,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     : isExhausted
       ? "exhausted"
       : (isAccountWideLock ? "unavailable" : (conn?.testStatus || "active"));
+
+  // The account just proved itself unusable for this model: drop any
+  // last-known-good pointer so the next selection re-scans instead of
+  // fast-pathing straight back into the same dead account.
+  delLkg(providerId, model).catch(() => {});
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,

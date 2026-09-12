@@ -61,6 +61,15 @@ export const COMBO_LOOP_SAFETY_MS = 300000;
 // the dead one. A success resets the count; the window TTL auto-forgives.
 export const MODEL_FAILOVER_THRESHOLD = 3;
 export const MODEL_FAILOVER_WINDOW_S = 900;
+// Fleet-wide dead provider/model circuit: this many CONSECUTIVE empty
+// selections (no routable account found) short-circuits selection to a fast
+// 503 without scanning PG or burning rotation budget. Any successful
+// selection resets. Only engages with Redis (shared fleet state).
+export const DEAD_CIRCUIT_THRESHOLD = 3;
+export const DEAD_CIRCUIT_WINDOW_S = 60;
+// Last-known-good pointer TTL: how long one proven account serves as the
+// instant fast path for its provider+model.
+export const LKG_TTL_S = 60;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

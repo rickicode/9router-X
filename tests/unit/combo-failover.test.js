@@ -76,6 +76,12 @@ vi.mock("@/lib/redis/client.js", () => ({
     for (const m of members) out[m] = mocks.failCounts[m] || 0;
     return out;
   }),
+  setLkg: vi.fn(async () => true),
+  resetDeadCircuit: vi.fn(async () => true),
+  getLkg: vi.fn(async () => null),
+  delLkg: vi.fn(async () => true),
+  getDeadCircuit: vi.fn(async () => 0),
+  incrDeadCircuit: vi.fn(async () => 1),
 }));
 
 const { handleSingleModelChat } = await import("@/sse/handlers/chat.js");

@@ -35,6 +35,11 @@ vi.mock("@/lib/redis/client.js", () => ({
   setAccountCooldown: mocks.redisSetAccountCooldown,
   setModelCooldown: mocks.redisSetModelCooldown,
   invalidateCachedConnections: vi.fn(async () => {}),
+  getLkg: vi.fn(async () => null),
+  delLkg: vi.fn(async () => true),
+  getDeadCircuit: vi.fn(async () => 0),
+  incrDeadCircuit: vi.fn(async () => 1),
+  resetDeadCircuit: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/network/connectionProxy", () => ({
