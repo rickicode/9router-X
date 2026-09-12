@@ -47,7 +47,9 @@ vi.mock("@/sse/services/model.js", () => ({
     return { provider, model: rest.join("/") };
   }),
   getComboModels: vi.fn(async (modelStr) =>
-    modelStr === "rr" ? ["p/m1", "p/m2", "p/m3"] : null),
+    modelStr === "rr" ? ["p/m1", "p/m2", "p/m3"]
+    : modelStr === "rr4" ? ["p/m1", "p/m2", "p/m3", "p/m4"]
+    : null),
 }));
 vi.mock("open-sse/handlers/chatCore.js", () => ({
   handleChatCore: mocks.handleChatCore,
@@ -138,6 +140,20 @@ describe("strict round-robin", () => {
       await handleSingleModelChat({ ...BODY }, "rr", null, null, null, null, false, { used: 0 });
     }
     expect(tried).toEqual(["p/m1", "p/m2", "p/m3"]);
+  });
+
+  it("dynamic fair-share: 5 slots over 4 dead members go 1/1/1/2", async () => {
+    mocks.getSettings.mockResolvedValue({ comboStrategy: "fallback" });
+    const tried = [];
+    mocks.handleChatCore.mockImplementation(async (opts) => {
+      tried.push(`${opts.modelInfo.provider}/${opts.modelInfo.model}`);
+      return { success: false, status: 503, error: "dead" };
+    });
+    const res = await handleSingleModelChat({ ...BODY, model: "rr4" }, "rr4", null, null, null, null, false, { used: 0, max: 5 });
+    expect(res.status).toBe(503);
+    // M1 floor(5/4)=1, M2 floor(4/3)=1, M3 floor(3/2)=1, M4 floor(2/1)=2.
+    // Static ceil() would grant 2/2 and starve M3/M4 — every member is tried.
+    expect(tried).toEqual(["p/m1", "p/m2", "p/m3", "p/m4", "p/m4"]);
   });
 
   it("fair-share: dead first member cannot starve the combo", async () => {

@@ -126,7 +126,11 @@ export async function incrModelFailCount(member, windowSeconds) {
   try {
     const key = `modelfail:${member}`;
     const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, Math.max(60, windowSeconds || 900));
+    if (count === 1) {
+      // Expire must never void a successful increment — a Redis blip here
+      // would silently undercount failover and skew rotation.
+      try { await redis.expire(key, Math.max(60, windowSeconds || 900)); } catch {}
+    }
     return count;
   } catch {
     return 0;
@@ -151,10 +155,26 @@ export async function incrSharedCounter(key, expireSeconds = 2592000) {
   if (!isRedisAvailable() || !key) return null;
   try {
     const value = await redis.incr(key);
-    if (value === 1) await redis.expire(key, expireSeconds);
+    if (value === 1) {
+      try { await redis.expire(key, expireSeconds); } catch {}
+    }
     return value;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Delete a shared counter (e.g. rr_seq:<combo> after a combo edit/delete so a
+ * stale position never addresses a reordered member list). Fail-open.
+ */
+export async function delSharedCounter(key) {
+  if (!isRedisAvailable() || !key) return false;
+  try {
+    await redis.del(key);
+    return true;
+  } catch {
+    return false;
   }
 }
 

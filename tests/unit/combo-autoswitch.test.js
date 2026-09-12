@@ -113,4 +113,22 @@ describe("handleComboChat autoSwitch opt-out", () => {
   it("keeps explicit member order with autoSwitch:false", async () => {
     expect(await triedOrder({ autoSwitch: false })).toEqual(models);
   });
+
+  it("short-circuits remaining members once the shared budget is spent", async () => {
+    const tried = [];
+    const res = await handleComboChat({
+      body: { messages: [{ role: "user", content: "hi" }] },
+      models: ["a/x", "b/y", "c/z"],
+      handleSingleModel: async (b, m) => { tried.push(m); return fail503(); },
+      log,
+      comboName: "test",
+      comboStrategy: "fallback",
+      rotationBudget: { used: 5, max: 5 },
+    });
+    expect(tried).toEqual([]);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error.message).toContain("Max rotation attempts (5) reached");
+  });
+
 });

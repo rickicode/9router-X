@@ -304,6 +304,15 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   let lastStatus = null;
 
   for (let i = 0; i < rotatedModels.length; i++) {
+    // Shared-budget short-circuit: once the request spent its whole rotation
+    // budget on earlier members, stop here instead of paying a credential
+    // lookup + refresh check per remaining member only to 503 each of them.
+    if (rotationBudget && typeof rotationBudget.used === "number"
+        && typeof rotationBudget.max === "number" && rotationBudget.used >= rotationBudget.max) {
+      const msg = `Max rotation attempts (${rotationBudget.max}) reached${lastError ? `: ${lastError}` : ""}`;
+      log.warn("COMBO", `Rotation budget spent — stopping | ${msg}`);
+      return unavailableResponse(503, msg, earliestRetryAfter, earliestRetryAfter ? formatRetryAfter(earliestRetryAfter) : null, { code: "ROTATION_BUDGET" });
+    }
     const modelStr = rotatedModels[i];
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
 
@@ -567,7 +576,7 @@ function collectPanel(calls, { minPanel, stragglerGraceMs, panelHardTimeoutMs })
  * @param {Object} [options.tuning] - Override FUSION_DEFAULTS (minPanel, grace, timeout)
  * @returns {Promise<Response>}
  */
-export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning }) {
+export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning, rotationBudget = null }) {
   const panel = Array.isArray(models) ? models.filter(Boolean) : [];
   if (panel.length === 0) {
     return new Response(
@@ -602,6 +611,12 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
   }
 
   const t0 = Date.now();
+  // Bound the parallel burst against the shared rotation budget: each panel
+  // member (plus the judge chain below) draws from the same slots, so tell
+  // member loops how many sharers exist for the fair-share cap.
+  if (rotationBudget && !rotationBudget.membersTotal) {
+    rotationBudget.membersTotal = panel.length + 1; // panel + judge chain
+  }
   // Deep-clone per member: translators/RTK mutate body.messages in place, and
   // sharing one object across parallel panel calls races those mutations.
   const calls = panel.map((m) => withTimeout(handleSingleModel(structuredClone(panelBody), m, true), cfg.panelHardTimeoutMs));

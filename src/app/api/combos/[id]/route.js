@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
 import { resetComboRotation } from "open-sse/services/combo.js";
+import { delSharedCounter } from "@/lib/redis/client.js";
+
+// Reset both rotation states for a combo name: the in-memory map and the
+// shared Redis sequence (a stale rr_seq would address the wrong member after
+// a member add/remove/reorder).
+function resetComboRotationState(name) {
+  if (!name) return;
+  resetComboRotation(name);
+  delSharedCounter(`rr_seq:${name}`).catch(() => {});
+}
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -50,8 +60,8 @@ export async function PUT(request, { params }) {
     }
 
     // Invalidate rotation state (models/strategy/name may have changed)
-    if (prev?.name) resetComboRotation(prev.name);
-    if (combo.name && combo.name !== prev?.name) resetComboRotation(combo.name);
+    if (prev?.name) resetComboRotationState(prev.name);
+    if (combo.name && combo.name !== prev?.name) resetComboRotationState(combo.name);
 
     return NextResponse.json(combo);
   } catch (error) {
@@ -71,7 +81,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
 
-    if (prev?.name) resetComboRotation(prev.name);
+    if (prev?.name) resetComboRotationState(prev.name);
     
     return NextResponse.json({ success: true });
   } catch (error) {
