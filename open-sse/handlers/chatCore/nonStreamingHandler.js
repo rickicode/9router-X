@@ -367,11 +367,19 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
   // Chat clients never receive an empty completion from response.output[].
   const actualResponsesPayload = Array.isArray(responseBody?.output)
     && responseBody?.object === "response";
+  if (actualResponsesPayload) {
+    console.log(`[OC-DEBUG] raw response id=${responseBody.id} status=${responseBody.status} outputLen=${responseBody.output?.length} keys=${Object.keys(responseBody).join(",")}`);
+    if (responseBody.output?.[0]) console.log(`[OC-DEBUG] first output ${JSON.stringify(responseBody.output[0]).slice(0,800)}`);
+    if (responseBody.usage) console.log(`[OC-DEBUG] usage ${JSON.stringify(responseBody.usage)}`);
+  }
   const translatedResponse = actualResponsesPayload && sourceFormat !== FORMATS.OPENAI_RESPONSES
     ? responsesCompletionToOpenAI(responseBody)
     : needsTranslation(targetFormat, sourceFormat)
       ? translateNonStreamingResponse(responseBody, targetFormat, sourceFormat, customToolNames)
       : responseBody;
+  if (actualResponsesPayload) {
+    console.log(`[OC-DEBUG] translated choices=${translatedResponse?.choices?.[0]?.message?.content?.slice(0,200) || "EMPTY"} finish=${translatedResponse?.choices?.[0]?.finish_reason}`);
+  }
   const isClaudeMessageResponse = sourceFormat === FORMATS.CLAUDE && translatedResponse?.type === "message";
   // Responses-format translation produces a `object:"response"` body with no
   // `choices`; skip the Chat-Completions-specific post-processing below for it.
