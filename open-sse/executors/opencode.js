@@ -100,6 +100,9 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_tokens;
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
+      // Preserve client's requested mode; do not force SSE for non-streaming
+      // clients — the JSON path correctly returns response.output.
+      body.stream = stream === true;
     }
     return injectReasoningContent({ provider: this.provider, model, body });
   }
