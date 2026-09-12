@@ -144,6 +144,19 @@ export function getModelLockKey(model) {
  * Check if a model lock on a connection is still active.
  * Reads flat field `modelLock_${model}` (or `modelLock___all` when model=null).
  */
+/**
+ * Normalized refreshBlocked check. Background writes the raw error string
+ * (e.g. "invalid_grant"), request paths write true — every consumer must
+ * treat any meaningful truthy marker as blocked, except explicit false-ish
+ * strings left by cleanup code.
+ */
+export function isRefreshBlockedMarker(v) {
+  if (v === true) return true;
+  if (typeof v !== "string") return false;
+  const s = v.trim().toLowerCase();
+  return s !== "" && s !== "false" && s !== "0" && s !== "null" && s !== "undefined";
+}
+
 export function isModelLockActive(connection, model) {
   if (!connection) return false;
   // Permanent lock for suspended, deleted, banned, or unrecoverable accounts

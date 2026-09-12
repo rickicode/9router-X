@@ -251,7 +251,21 @@ export async function checkAndRefreshToken(provider, credentials, options = {}) 
       log.warn("TOKEN_REFRESH", `Refresh token unrecoverable for ${provider} — re-login required`, {
         error: newCreds.error,
       });
-      return { ...creds, refreshError: newCreds.error, refreshErrorAt: new Date().toISOString() };
+      const refreshErrorAt = new Date().toISOString();
+      // Persist the block marker NOW (not only via the background tick):
+      // routing excludes refreshBlocked accounts, so a dead token stops being
+      // selected on the very next request instead of after up to a full tick.
+      // Only the marker — full disable stays the background path's job.
+      if (creds?.connectionId) {
+        updateProviderCredentials(creds.connectionId, {
+          existingProviderSpecificData: {
+            ...(creds.providerSpecificData || {}),
+            refreshBlocked: newCreds.error || "unrecoverable",
+            refreshBlockedAt: refreshErrorAt,
+          },
+        }).catch(() => {});
+      }
+      return { ...creds, refreshError: newCreds.error, refreshErrorAt };
     }
     if (newCreds?.accessToken || newCreds?.apiKey || newCreds?.copilotToken) {
       const mergedCreds = {

@@ -4,6 +4,7 @@ import {
   refreshTokenByProvider,
 } from "./tokenRefresh.js";
 import { PROVIDER_OAUTH } from "../providers/index.js";
+import { acquireLock, releaseLock, isRedisAvailable } from "@/lib/redis/client.js";
 
 // Single source: codex.oauth.maxRefreshAgeMs (8 days) — proactive refresh window
 export const CODEX_MAX_REFRESH_AGE_MS = PROVIDER_OAUTH["codex"]?.maxRefreshAgeMs;
@@ -136,10 +137,32 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
   const existing = refreshLocks.get(key);
   if (existing) return existing;
 
+  // Cross-worker exclusion on top of the in-process lock: without this, a
+  // request-path refresh and a background-tick refresh (which uses only the
+  // Redis lock) — or two workers — can refresh the same connection
+  // concurrently and invalidate rotating refresh tokens (Codex, xAI).
+  // Fail-open: when Redis is down or the peer lock is held, the in-process
+  // lock below still serializes this worker.
+  const redisKey = `refresh:${credentials?.connectionId || key}`;
+  let redisHeld = await acquireLock(redisKey, 45).catch(() => false);
+  // Brief grace: a peer (usually the background tick) holding the lock is
+  // typically seconds from finishing with a FRESH token — waiting avoids a
+  // concurrent refresh against a rotating refresh token. Bounded to ~3s so a
+  // stuck peer can never head-of-line-block chat. Skipped entirely without
+  // Redis (acquireLock fails open with false there — waiting would just add
+  // 3s of dead latency to every refresh).
+  if (!redisHeld && isRedisAvailable()) {
+    for (let i = 0; i < 3 && !redisHeld; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      redisHeld = await acquireLock(redisKey, 45).catch(() => false);
+    }
+  }
+
   const pending = Promise.resolve()
     .then(refreshFn)
     .finally(() => {
       refreshLocks.delete(key);
+      if (redisHeld) releaseLock(redisKey).catch(() => {});
     });
 
   refreshLocks.set(key, pending);

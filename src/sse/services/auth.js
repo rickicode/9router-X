@@ -1,7 +1,7 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
 import * as localDb from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
-import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
+import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, isRefreshBlockedMarker, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS, DEAD_CIRCUIT_THRESHOLD, DEAD_CIRCUIT_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted } from "./antigravityQuota.js";
@@ -79,8 +79,10 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
 
   for (const connection of connections) {
     const disabled = connection.isActive === false || connection.disabledAt || connection.testStatus === "disabled";
-    const refreshBlocked = connection.providerSpecificData?.refreshBlocked === true
-      || connection.providerSpecificData?.refreshBlocked === "true";
+    // Normalized marker check (background writes raw error strings like
+    // "invalid_grant", request paths write true) — strict === comparisons
+    // silently miss the string form and keep dead accounts routable.
+    const refreshBlocked = isRefreshBlockedMarker(connection.providerSpecificData?.refreshBlocked);
     const fatalError = typeof connection.lastError === "string"
       && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError);
     const accountLock =
@@ -944,8 +946,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // quota locks receive testStatus=exhausted.
   if (status === 429 && !is524Timeout) {
     const lowerErrorText = String(errorText || "").toLowerCase();
-    // Daily/individual quota exhaustion → lock ALL models on this account
-    const isDailyCap429 = /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    // Daily/individual quota exhaustion → lock ALL models on this account.
+    // OpenCode Zen is exempt: its "Rate limit exceeded" wrapper never names a
+    // window, so treating it as daily-cap locked every model on the account
+    // (big-pickle outage). Zen rate limits are always model-scoped.
+    const isZen429 = providerId === "opencode-zen";
+    const isDailyCap429 = !isZen429 && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }

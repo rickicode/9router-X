@@ -268,7 +268,9 @@ export class KiroExecutor extends BaseExecutor {
     // CLIRO parity for the Amazon surfaces: the Kiro runtime accepts the
     // SSO bearer header + agent-mode marker. Without these the deprecated
     // path gateway answers REQUEST_BODY_INVALID for modern payloads.
-    if (credentials?.accessToken) {
+    // Never on API-key auth: there accessToken IS the key and surfaces
+    // reject the key sent as both Authorization and x-amz-sso-bearer.
+    if (credentials?.accessToken && !isApiKey) {
       headers["x-amz-sso-bearer"] = credentials.accessToken;
     }
     headers["x-amzn-kiro-agent-mode"] = "spec";
@@ -312,7 +314,13 @@ export class KiroExecutor extends BaseExecutor {
     // reject foreign tokens with 401/403, which DO fall through, so trying
     // q/codewhisperer first is safe for every auth method (CLIRO parity).
 
-    const region = (credentials?.providerSpecificData?.region || "us-east-1").trim();
+    // Account-supplied region: validate strictly so a malformed value yields a
+    // clear config error instead of a broken host and a low-quality fetch throw.
+    const rawRegion = (credentials?.providerSpecificData?.region || "us-east-1").trim();
+    if (!/^[a-z]{2}-[a-z]+-[0-9]+$/.test(rawRegion)) {
+      throw new Error(`Kiro: invalid AWS region "${rawRegion}" (expected like us-east-1)`);
+    }
+    const region = rawRegion;
     const regionalize = (u) =>
       region && region !== "us-east-1" && u.includes("amazonaws.com")
         ? u.replace(/([a-z]+)\.[a-z0-9-]+\.amazonaws\.com/, `$1.${region}.amazonaws.com`)

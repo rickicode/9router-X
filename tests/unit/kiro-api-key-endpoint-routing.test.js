@@ -36,6 +36,30 @@ describe("Kiro auth-aware endpoint routing", () => {
     ]);
   });
 
+  it("never sends x-amz-sso-bearer on API-key auth", () => {
+    const headers = executor.buildHeaders(
+      { apiKey: "KEY-123", accessToken: "KEY-123", providerSpecificData: { authMethod: "api_key" } },
+      false, "https://q.us-east-1.amazonaws.com/x");
+    expect(headers["Authorization"]).toBe("Bearer KEY-123");
+    expect(headers["x-amz-sso-bearer"]).toBeUndefined();
+  });
+
+  it("still sends x-amz-sso-bearer on OAuth auth", () => {
+    const headers = executor.buildHeaders(
+      { accessToken: "tok", providerSpecificData: { authMethod: "builder-id" } },
+      false, "https://q.us-east-1.amazonaws.com/x");
+    expect(headers["x-amz-sso-bearer"]).toBe("tok");
+  });
+
+  it("rejects malformed account regions with a clear error", () => {
+    expect(() => executor.getOrderedBaseUrls(
+      { providerSpecificData: { authMethod: "builder-id", region: "us-east-1/evil" } }
+    )).toThrow(/invalid AWS region/);
+    expect(() => executor.getOrderedBaseUrls(
+      { providerSpecificData: { authMethod: "builder-id", region: "" } }
+    )).not.toThrow();
+  });
+
   it("regionalizes AWS endpoints for IDC with Q first", () => {
     expect(executor.getOrderedBaseUrls(credentials("idc", "eu-west-1"))).toEqual([
       "https://q.eu-west-1.amazonaws.com/generateAssistantResponse",
