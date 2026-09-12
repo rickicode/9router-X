@@ -24,6 +24,7 @@ import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
+import BulkImportJwtModal from "./BulkImportJwtModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 const CONNECTION_PAGE_SIZE = 50;
@@ -97,6 +98,7 @@ export default function ProviderDetailPage() {
   const [addConnectionError, setAddConnectionError] = useState("");
   const [showBulkImportCodex, setShowBulkImportCodex] = useState(false);
   const [showBulkImportGrokCli, setShowBulkImportGrokCli] = useState(false);
+  const [showBulkImportJwt, setShowBulkImportJwt] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showEditNodeModal, setShowEditNodeModal] = useState(false);
   const [showBulkProxyModal, setShowBulkProxyModal] = useState(false);
@@ -2107,6 +2109,11 @@ export default function ProviderDetailPage() {
                         {translate("Bulk Add")}
                       </Button>
                     )}
+                    {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+                      <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)}>
+                        {translate("Bulk Add")}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       icon="add"
@@ -2303,6 +2310,18 @@ export default function ProviderDetailPage() {
                       {translate("Bulk Add")}
                     </Button>
                   )}
+                  {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+                    <Button
+                      size="sm"
+                      icon="playlist_add"
+                      variant="secondary"
+                      onClick={() => setShowBulkImportJwt(true)}
+                      title={translate("Bulk import CodeBuddy offline JWT tokens")}
+                      className="w-full sm:w-auto"
+                    >
+                      {translate("Bulk Add")}
+                    </Button>
+                  )}
                   {hasDualAuthModes ? (
                     <>
                       <Button
@@ -2494,6 +2513,15 @@ export default function ProviderDetailPage() {
         <BulkImportGrokCliModal
           isOpen={showBulkImportGrokCli}
           onClose={() => setShowBulkImportGrokCli(false)}
+          onSuccess={fetchConnections}
+        />
+      )}
+
+      {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+        <BulkImportJwtModal
+          providerId={providerId}
+          isOpen={showBulkImportJwt}
+          onClose={() => setShowBulkImportJwt(false)}
           onSuccess={fetchConnections}
         />
       )}
