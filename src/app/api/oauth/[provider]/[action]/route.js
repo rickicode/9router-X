@@ -559,6 +559,117 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: true, connection });
     }
 
+    if (action === "bulk-jwt") {
+      const JWT_PROVIDERS = ["codebuddy-intl", "codebuddy-cn"];
+      if (!JWT_PROVIDERS.includes(provider)) {
+        return NextResponse.json({ error: "Provider not supported" }, { status: 400 });
+      }
+
+      const { createProviderConnection, getProviderConnections } = await import("@/models");
+
+      function decodeJwtPayload(token) {
+        try {
+          const parts = String(token).split(".");
+          if (parts.length < 2) return null;
+          let seg = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+          while (seg.length % 4) seg += "=";
+          return JSON.parse(Buffer.from(seg, "base64").toString("utf8"));
+        } catch {
+          return null;
+        }
+      }
+
+      function extractTokens(raw) {
+        if (typeof raw === "string") {
+          return raw.split(/\s+/).filter((t) => t.startsWith("eyJ"));
+        }
+        if (Array.isArray(raw)) {
+          return raw
+            .map((item) => (typeof item === "string" ? item : item?.accessToken))
+            .filter((t) => typeof t === "string" && t.length > 0);
+        }
+        if (raw && typeof raw === "object") {
+          if (typeof raw.text === "string") {
+            return raw.text.split(/\s+/).filter((t) => t.startsWith("eyJ"));
+          }
+          const list = Array.isArray(raw.tokens) ? raw.tokens : [raw];
+          return list
+            .map((item) => (typeof item === "string" ? item : item?.accessToken))
+            .filter((t) => typeof t === "string" && t.length > 0);
+        }
+        return [];
+      }
+
+      const tokens = extractTokens(body);
+      if (tokens.length === 0) {
+        return NextResponse.json(
+          { error: "No tokens found. Paste one JWT per line." },
+          { status: 400 }
+        );
+      }
+
+      let existing = [];
+      try {
+        existing = await getProviderConnections(provider);
+      } catch {
+        existing = [];
+      }
+      const existingTokenSet = new Set(
+        existing
+          .map((c) => c.apiKey || c.providerSpecificData?.accessToken || c.data?.accessToken)
+          .filter(Boolean)
+      );
+      const today = new Date();
+      const todayPrefix = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()}`;
+      const nameRe = new RegExp(`^${todayPrefix}-(\\d+)$`);
+      let nextIndex = existing.reduce((max, c) => {
+        const m = nameRe.exec(c.name || "");
+        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+      }, 0);
+
+      const results = [];
+      let success = 0;
+      let failed = 0;
+      let skipped = 0;
+
+      // SERIAL loop — createProviderConnection reorders priorities in a transaction.
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        try {
+          if (existingTokenSet.has(token)) {
+            results.push({ index: i, ok: true, skipped: true, reason: "duplicate" });
+            skipped++;
+            continue;
+          }
+
+          const payload = decodeJwtPayload(token);
+          if (!payload) throw new Error("Invalid JWT (cannot decode payload)");
+
+          const exp = typeof payload.exp === "number" ? payload.exp : null;
+          const expiresAt = exp ? new Date(exp * 1000).toISOString() : null;
+
+          nextIndex += 1;
+          const created = await createProviderConnection({
+            provider,
+            authType: "apikey",
+            name: `${todayPrefix}-${nextIndex}`,
+            apiKey: token,
+            priority: 3,
+            testStatus: "active",
+            ...(expiresAt ? { expiresAt } : {}),
+          });
+
+          results.push({ index: i, ok: true, id: created.id, name: created.name });
+          success++;
+        } catch (e) {
+          results.push({ index: i, ok: false, error: e.message || "Unknown error" });
+          failed++;
+        }
+      }
+
+      return NextResponse.json({ success, failed, skipped, results });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
     console.log("OAuth POST error:", error);
