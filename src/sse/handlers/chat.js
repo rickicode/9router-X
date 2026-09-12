@@ -436,6 +436,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           response: { error: errorMsg, status, thinking: null },
           status: "error",
           error: errorMsg,
+          errorCode: status,
          }).catch(() => {});
         return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman, {
           code: credentials.lastErrorCode,
@@ -460,6 +461,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           response: { error: noCredMsg, status: HTTP_STATUS.SERVICE_UNAVAILABLE, thinking: null },
           status: "error",
           error: noCredMsg,
+          errorCode: HTTP_STATUS.SERVICE_UNAVAILABLE,
         }).catch(() => {});
         return unavailableResponse(
           HTTP_STATUS.SERVICE_UNAVAILABLE,
@@ -473,7 +475,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       const noMoreMsg = lastError || "All accounts unavailable";
       const noMoreStatus = lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE;
        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
-       if (!isTestRequest) saveRequestDetail({
+        if (!isTestRequest) saveRequestDetail({
         provider, model, connectionId: lastAttemptedConnectionId || null,
         account: lastAttemptedAccount,
         latency: { ttft: 0, total: 0 },
@@ -482,6 +484,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         response: { error: noMoreMsg, status: noMoreStatus, thinking: null },
         status: "error",
         error: noMoreMsg,
+        errorCode: noMoreStatus,
       }).catch(() => {});
       return errorResponse(noMoreStatus, noMoreMsg);
     }
