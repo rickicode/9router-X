@@ -361,7 +361,9 @@ export async function releaseLock(key) {
 export async function incrementInFlight(connId) {
   if (!isRedisAvailable()) return 1;
   try {
-    return await redis.incr(`active_req:${connId}`);
+    const count = await redis.incr(`active_req:${connId}`);
+    await redis.expire(`active_req:${connId}`, ACTIVE_REQUEST_TTL_SECONDS).catch(() => {});
+    return count;
   } catch {
     return 1;
   }
@@ -375,13 +377,14 @@ export async function decrementInFlight(connId) {
       await redis.del(`active_req:${connId}`);
       return 0;
     }
+    await redis.expire(`active_req:${connId}`, ACTIVE_REQUEST_TTL_SECONDS).catch(() => {});
     return count;
   } catch {
     return 0;
   }
 }
 
-const ACTIVE_REQUEST_TTL_SECONDS = 120;
+const ACTIVE_REQUEST_TTL_SECONDS = 30;
 const ACTIVE_REQUEST_INDEX = "active_req:index";
 
 export async function registerActiveRequest(requestId, detail) {
