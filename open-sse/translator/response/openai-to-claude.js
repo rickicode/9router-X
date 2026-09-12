@@ -3,6 +3,7 @@ import { FORMATS } from "../formats.js";
 import { ROLE, CLAUDE_BLOCK, MODEL_FALLBACK } from "../schema/index.js";
 import { fromOpenAIFinish } from "../concerns/finishReason.js";
 import { extractReasoningText } from "../concerns/reasoning.js";
+import { resolveNamelessTool, shouldDeferNamelessStart } from "../concerns/toolCall.js";
 
 // Legacy "proxy_" prefix used by older request translators. Response strips it
 // defensively so tool names from such turns resolve back (e.g. proxy_Read → Read
@@ -54,6 +55,29 @@ function stopThinkingBlock(state, results) {
     index: state.thinkingBlockIndex
   });
   state.thinkingBlockStarted = false;
+}
+
+function stripToolPrefix(toolName) {
+  if (toolName.startsWith(CLAUDE_OAUTH_TOOL_PREFIX)) {
+    return toolName.slice(CLAUDE_OAUTH_TOOL_PREFIX.length);
+  }
+  return toolName;
+}
+
+function emitToolBlockStart(state, results, idx) {
+  const toolInfo = state.toolCalls.get(idx);
+  if (!toolInfo || toolInfo.started) return;
+  toolInfo.started = true;
+  results.push({
+    type: "content_block_start",
+    index: toolInfo.blockIndex,
+    content_block: {
+      type: CLAUDE_BLOCK.TOOL_USE,
+      id: toolInfo.id,
+      name: toolInfo.name,
+      input: {}
+    }
+  });
 }
 
 // Helper: stop text block if started
@@ -183,6 +207,7 @@ export function openaiToClaudeResponse(chunk, state) {
   if (delta?.tool_calls) {
     for (const tc of delta.tool_calls) {
       const idx = tc.index ?? 0;
+      const incomingName = stripToolPrefix(tc.function?.name || "");
 
       // GLM/fireworks repeats id+null-name on every arg chunk; open block once per idx
       if (tc.id && !state.toolCalls.has(idx)) {
@@ -190,24 +215,22 @@ export function openaiToClaudeResponse(chunk, state) {
         stopTextBlock(state, results);
 
         const toolBlockIndex = state.nextBlockIndex++;
-        state.toolCalls.set(idx, { id: tc.id, name: tc.function?.name || "", blockIndex: toolBlockIndex });
+        state.toolCalls.set(idx, { id: tc.id, name: incomingName, blockIndex: toolBlockIndex, started: false });
 
-        // Strip prefix from tool name for response
-        let toolName = tc.function?.name || "";
-        if (toolName.startsWith(CLAUDE_OAUTH_TOOL_PREFIX)) {
-          toolName = toolName.slice(CLAUDE_OAUTH_TOOL_PREFIX.length);
+        // Nameless-streaming upstreams (UniKey-fronted Gemini omits
+        // function.name in every delta) must not emit content_block_start
+        // with name:"" — strict clients reject it as an invalid tool call.
+        // Defer the start until the name arrives or the turn finishes.
+        const deferStart = !incomingName && shouldDeferNamelessStart(state.provider, state.model);
+        if (!deferStart) {
+          emitToolBlockStart(state, results, idx);
         }
-
-        results.push({
-          type: "content_block_start",
-          index: toolBlockIndex,
-          content_block: {
-            type: CLAUDE_BLOCK.TOOL_USE,
-            id: tc.id,
-            name: toolName,
-            input: {}
-          }
-        });
+      } else if (incomingName) {
+        const toolInfo = state.toolCalls.get(idx);
+        if (toolInfo && !toolInfo.name) {
+          toolInfo.name = incomingName;
+          if (!toolInfo.started) emitToolBlockStart(state, results, idx);
+        }
       }
 
       if (tc.function?.arguments) {
@@ -227,6 +250,20 @@ export function openaiToClaudeResponse(chunk, state) {
     stopTextBlock(state, results);
 
     for (const [idx, toolInfo] of state.toolCalls) {
+      // Resolve deferred nameless starts: single-tool or unambiguous
+      // args-match wins; unresolvable blocks are SKIPPED (never emitted with
+      // name:"") so the client sees a degraded turn, not an invalid one.
+      if (!toolInfo.started) {
+        const buffered = state.toolArgBuffers?.get(idx) || "";
+        const resolved = toolInfo.name || resolveNamelessTool(state.functionTools, buffered);
+        if (resolved) {
+          toolInfo.name = resolved;
+          emitToolBlockStart(state, results, idx);
+        } else {
+          console.warn(`[openai-to-claude] dropping nameless tool_use ${toolInfo.id} (provider=${state.provider}, model=${state.model}): name unresolvable`);
+          continue;
+        }
+      }
       // Emit buffered + sanitized args as single delta before stop
       const buffered = state.toolArgBuffers?.get(idx);
       if (buffered) {

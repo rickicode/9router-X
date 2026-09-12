@@ -317,6 +317,24 @@ export function matchToolByArgs(argsStr, tools) {
   return hits.length === 1 ? hits[0].name : null;
 }
 
+// Whether a nameless streaming tool start must be deferred instead of
+// emitted with name:"". Only for upstreams proven to omit function.name in
+// every streaming delta (UniKey-fronted Gemini models). Other providers keep
+// legacy immediate-start behavior.
+export function shouldDeferNamelessStart(provider, model) {
+  if (provider === "unikey") return true;
+  return /^((google\/)?gemini)/i.test(model || "");
+}
+
+// Resolve a nameless tool index to a tool name. Single-tool requests are
+// deterministic; multi-tool requests require an unambiguous args match.
+// Returns the name or null (never guesses).
+export function resolveNamelessTool(tools, argsStr) {
+  if (!Array.isArray(tools) || tools.length === 0) return null;
+  if (tools.length === 1) return tools[0].name;
+  return matchToolByArgs(argsStr, tools);
+}
+
 // Mutates an OpenAI chat-completion chunk in place. Returns true when the
 // chunk was modified and must be re-serialized before forwarding.
 // ctx: { tools, pending: Map(index -> { id, args }), warned }

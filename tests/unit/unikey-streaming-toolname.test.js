@@ -3,6 +3,8 @@ import {
   getFunctionTools,
   matchToolByArgs,
   repairNamelessStreamingToolCalls,
+  resolveNamelessTool,
+  shouldDeferNamelessStart,
 } from "../../open-sse/translator/concerns/toolCall.js";
 
 const TOOLS = [
@@ -58,6 +60,20 @@ describe("streaming tool-name backfill (unikey gemini)", () => {
 
   it("matchToolByArgs rejects extra unknown keys", () => {
     expect(matchToolByArgs('{"filePath":"a","bogus":1}', TOOLS)).toBe(null);
+  });
+
+  it("shouldDeferNamelessStart gates to unikey/gemini paths", () => {
+    expect(shouldDeferNamelessStart("unikey", "anything")).toBe(true);
+    expect(shouldDeferNamelessStart("openai", "google/gemini-3.5-flash")).toBe(true);
+    expect(shouldDeferNamelessStart("openai", "gpt-5")).toBe(false);
+    expect(shouldDeferNamelessStart("glm", "glm-4")).toBe(false);
+  });
+
+  it("resolveNamelessTool is deterministic for single tool, strict otherwise", () => {
+    expect(resolveNamelessTool([{ name: "only", parameters: {} }], "{bad json")).toBe("only");
+    expect(resolveNamelessTool(TOOLS, '{"filePath":"a.js"}')).toBe("read");
+    expect(resolveNamelessTool(TOOLS, '{"nope":1}')).toBe(null);
+    expect(resolveNamelessTool([], '{"a":1}')).toBe(null);
   });
 
   it("getFunctionTools extracts openai function tools", () => {
