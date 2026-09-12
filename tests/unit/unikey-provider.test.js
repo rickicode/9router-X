@@ -31,7 +31,13 @@ describe("UniKey provider", () => {
 
     // verify google/gemini-3.5-flash and gemini-3.5-flash are distinct
     expect("google/gemini-3.5-flash").not.toBe("gemini-3.5-flash");
-    expect(defaultModels.length).toBe(22);
+    expect(defaultModels).toContain("gpt-5.6-luna");
+    expect(defaultModels).toContain("gpt-5.6-terra");
+    expect(defaultModels).toContain("z-ai/glm-5.1");
+    expect(defaultModels).toContain("deepseek/deepseek-v4-pro");
+    expect(defaultModels).toContain("deepseek/deepseek-v4-flash");
+    expect(defaultModels).toContain("x-ai/grok-4.3");
+    expect(defaultModels.length).toBe(29);
   });
 
   it("configures modelsFetcher for dynamic discovery", () => {

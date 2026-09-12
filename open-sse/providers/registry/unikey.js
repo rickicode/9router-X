@@ -47,6 +47,13 @@ export default {
     { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
     { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro" },
     { id: "gpt-6-astra", name: "GPT-6 Astra" },
+    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", capabilities: ["vision"] },
+    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", capabilities: ["vision"] },
+    { id: "gpt-5.5", name: "GPT-5.5" },
+    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash" },
+    { id: "x-ai/grok-4.3", name: "Grok 4.3" },
     {
       id: "bytedance-seed/seedream-5-0-pro",
       name: "Bytedance Seedream 5.0 Pro",
