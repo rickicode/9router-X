@@ -259,9 +259,7 @@ export async function getActiveRequests() {
   for (const k of allApiKeys) apiKeyMap[k.key] = k.name;
 
   for (const item of localItems) {
-    const isFreeDirect = item.provider === "opencode" && !item.connectionId;
-    const accountName = connectionMap[item.connectionId]
-      || (item.connectionId ? `Account ${item.connectionId.slice(0, 8)}...` : (isFreeDirect ? "Direct (Free)" : `${item.provider || "Unknown"} (No connection)`));
+    const accountName = connectionMap[item.connectionId] || item.connectionId || `Unknown Account (${item.provider})`;
     const keyName = apiKeyMap[item.apiKey] || (item.apiKey ? maskApiKey(item.apiKey) : "Default Key");
     activeRequests.push({
       model: item.model,
@@ -281,7 +279,7 @@ export async function getActiveRequests() {
     for (const [connectionId, models] of Object.entries(pendingRequests.byAccount)) {
       for (const [modelKey, count] of Object.entries(models)) {
         if (count > 0) {
-          const accountName = connectionMap[connectionId] || `Account ${connectionId.slice(0, 8)}...`;
+          const accountName = connectionMap[connectionId] || connectionId || `Unknown Account`;
           const match = modelKey.match(/^(.*) \((.*)\)$/);
           activeRequests.push({
             model: match ? match[1] : modelKey,
@@ -317,7 +315,7 @@ export async function getActiveRequests() {
         timestamp: ts,
         model: entry.model,
         provider: entry.provider || "",
-        account: entry.account || meta.account || connectionMap[entry.connectionId] || (entry.connectionId ? `Account ${entry.connectionId.slice(0, 8)}...` : "Direct"),
+        account: entry.account || meta.account || connectionMap[entry.connectionId] || (entry.provider === "opencode" ? "Direct (Free)" : entry.provider || "Unknown"),
         connectionId: entry.connectionId || null,
         apiKey: keyName,
         clientApiKey: keyName,
@@ -792,7 +790,7 @@ export async function getUsageStats(period = "all") {
         timestamp: ts,
         model: row.model,
         provider: row.provider || "",
-        account: connectionMap[row.connection_id] || (row.connection_id ? `Account ${row.connection_id.slice(0, 8)}...` : "Direct"),
+        account: connectionMap[row.connection_id] || (row.provider === "opencode" ? "Direct (Free)" : row.provider || "Unknown"),
         connectionId: row.connection_id || null,
         apiKey: keyName,
         clientApiKey: keyName,
