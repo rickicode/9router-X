@@ -75,13 +75,11 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
   };
   const accountLocks = new Set();
   const modelLocks = new Set();
+  const blockedNames = [];
   const retryExpiries = [];
 
   for (const connection of connections) {
     const disabled = connection.isActive === false || connection.disabledAt || connection.testStatus === "disabled";
-    // Normalized marker check (background writes raw error strings like
-    // "invalid_grant", request paths write true) — strict === comparisons
-    // silently miss the string form and keep dead accounts routable.
     const refreshBlocked = isRefreshBlockedMarker(connection.providerSpecificData?.refreshBlocked);
     const fatalError = typeof connection.lastError === "string"
       && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError);
@@ -94,19 +92,30 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
     const modelLock = modelLockValue && Number.isFinite(new Date(modelLockValue).getTime())
       && new Date(modelLockValue).getTime() > Date.now();
     const unavailable = refreshBlocked || fatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus);
+    const connName = connection.name || connection.email || connection.displayName
+      || (connection.id ? `${connection.id.slice(0, 8)}...` : "unknown");
 
-    if (disabled) breakdown.disabled++;
-    else if (connection.testStatus === "exhausted" || accountLock) {
-      breakdown.accountExhausted++;
-      accountLocks.add(connection.id);
-      const expiry = getEarliestModelLockUntil(connection, null);
-      if (expiry) retryExpiries.push(expiry);
-    } else if (modelLock) {
+    // Check model lock BEFORE disabled: a disabled account with an active model lock
+    // should still count as model-exhausted, not just disabled.
+    if (modelLock) {
       breakdown.modelExhausted++;
       modelLocks.add(connection.id);
       const expiry = getEarliestModelLockUntil(connection, model);
       if (expiry) retryExpiries.push(expiry);
-    } else if (unavailable) breakdown.unavailable++;
+      blockedNames.push(connName);
+    } else if (disabled) {
+      breakdown.disabled++;
+      blockedNames.push(connName);
+    } else if (connection.testStatus === "exhausted" || accountLock) {
+      breakdown.accountExhausted++;
+      accountLocks.add(connection.id);
+      const expiry = getEarliestModelLockUntil(connection, null);
+      if (expiry) retryExpiries.push(expiry);
+      blockedNames.push(connName);
+    } else if (unavailable) {
+      breakdown.unavailable++;
+      blockedNames.push(connName);
+    }
   }
 
   const blocked = breakdown.accountExhausted + breakdown.modelExhausted
@@ -116,7 +125,18 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
   const allAccountExhausted = breakdown.accountExhausted === connections.length;
   const onlyModelExhausted = breakdown.modelExhausted > 0
     && breakdown.modelExhausted === connections.length;
-  const allModelExhausted = onlyModelExhausted;
+  // All active (non-disabled) connections are model-locked — disabled accounts are just
+  // dead keys and don't count against the model availability assessment.
+  const activeConnections = connections.filter((c) =>
+    !(c.isActive === false || c.disabledAt || c.testStatus === "disabled")
+  );
+  const allActiveModelExhausted = activeConnections.length > 0
+    && model
+    && activeConnections.every((c) => {
+      const v = c[`modelLock_${model}`] || c.modelLocks?.[model];
+      return v && Number.isFinite(new Date(v).getTime()) && new Date(v).getTime() > Date.now();
+    });
+  const allModelExhausted = onlyModelExhausted || allActiveModelExhausted;
   const allBlockedBySameState = breakdown.accountExhausted + breakdown.modelExhausted + breakdown.unavailable + breakdown.disabled === connections.length;
   const code = allAccountExhausted
     ? "ACCOUNT_EXHAUSTED"
@@ -147,6 +167,7 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
       lastErrorCode: code,
       statusBreakdown: breakdown,
       blockedConnectionIds: [...accountLocks, ...modelLocks],
+      blockedNames: blockedNames.slice(0, 5),
     };
   }
 }
