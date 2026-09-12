@@ -432,8 +432,10 @@ export default function ModelSelectModal({
   }, [combos, searchQuery, kindFilter]);
 
   // Free-model detection: id/name ends with -free or contains contributor-free.
-  const isFreeModel = (m) =>
-    /(^|\/)[-a-z0-9]*(-free)$/i.test(m?.id || "") || /(^|\/)[-a-z0-9]*(-free)$/i.test(m?.value || "");
+  const isFreeModel = (m) => {
+    const str = `${m?.id || ""} ${m?.value || ""} ${m?.name || ""}`.toLowerCase();
+    return str.includes("free");
+  };
 
   // Sort models alphabetically, with added models floated to top, then free models.
   const sortModels = (models) => {
