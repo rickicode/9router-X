@@ -272,6 +272,11 @@ export async function importDb(payload) {
         delete extraData.lastErrorAt;
         delete extraData.createdAt;
         delete extraData.updatedAt;
+        if (extraData.data !== undefined) {
+          const parsed = typeof extraData.data === "string" ? parseJson(extraData.data, {}) : extraData.data;
+          delete extraData.data;
+          if (parsed && typeof parsed === "object") Object.assign(extraData, parsed);
+        }
 
         return {
           id: String(c.id),

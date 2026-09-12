@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS provider_connections (
 
 ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model TEXT;
 ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model_until TIMESTAMPTZ;
+-- Auto-repair legacy / imported scalar strings into valid JSONB objects
+UPDATE provider_connections
+   SET data = (data #>> '{}')::jsonb
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%';
+
 
 CREATE INDEX IF NOT EXISTS idx_pc_routing ON provider_connections (provider, priority, last_used_at NULLS FIRST)
 WHERE is_active = true;

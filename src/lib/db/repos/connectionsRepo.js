@@ -937,7 +937,7 @@ export async function setProviderConnectionsActive(provider, authTypes, isActive
               data = jsonb_set(
                 jsonb_set(
                   jsonb_set(
-                    jsonb_set(COALESCE(data, '{}'::jsonb), '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
+                    jsonb_set(CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END, '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
                     '{disabledReason}', '"Manually disabled by user"'::jsonb, true
                   ),
                   '{disabledAt}', to_jsonb($3::text), true
@@ -952,8 +952,8 @@ export async function setProviderConnectionsActive(provider, authTypes, isActive
     result = await db.run(
       `UPDATE provider_connections
           SET is_active = true,
-              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE(data->>'previousStatus', 'active') ELSE test_status END,
-              data = (COALESCE(data, '{}'::jsonb) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
+              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE((CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END)->>'previousStatus', 'active') ELSE test_status END,
+              data = ((CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
               updated_at = NOW()
         WHERE provider = $1 AND auth_type = ANY($2::text[])`,
       [provider, types],
@@ -977,7 +977,7 @@ export async function setConnectionsActiveByIds(ids, isActive) {
               data = jsonb_set(
                 jsonb_set(
                   jsonb_set(
-                    jsonb_set(COALESCE(data, '{}'::jsonb), '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
+                    jsonb_set(CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END, '{previousStatus}', to_jsonb(COALESCE(test_status, 'active')), true),
                     '{disabledReason}', '"Manually disabled by user"'::jsonb, true
                   ),
                   '{disabledAt}', to_jsonb($2::text), true
@@ -993,8 +993,8 @@ export async function setConnectionsActiveByIds(ids, isActive) {
     rows = await db.all(
       `UPDATE provider_connections
           SET is_active = true,
-              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE(data->>'previousStatus', 'active') ELSE test_status END,
-              data = (COALESCE(data, '{}'::jsonb) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
+              test_status = CASE WHEN test_status = 'disabled' THEN COALESCE((CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END)->>'previousStatus', 'active') ELSE test_status END,
+              data = ((CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END) - 'disabledReason' - 'disabledAt' - 'disabledBy'),
               updated_at = NOW()
         WHERE id = ANY($1::text[])
          RETURNING provider`,
