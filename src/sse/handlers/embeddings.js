@@ -52,6 +52,8 @@ function estimateEmbeddingTokens(input) {
  * @param {Request} request
  */
 export async function handleEmbeddings(request) {
+  // Model probes must not pollute production usage or routing state.
+  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
   let body;
   try {
     body = await request.json();
@@ -161,13 +163,15 @@ export async function handleEmbeddings(request) {
         });
       },
       onRequestSuccess: async () => {
-        await clearAccountError(credentials.connectionId, credentials, model);
+        // Probes must not rewire production routing state.
+        if (!isTestRequest) await clearAccountError(credentials.connectionId, credentials, model);
       }
     });
 
     if (result.success) {
       const usage = resolveEmbeddingUsage(result.usage, body.input);
-      if (usage) {
+      // Probes must not pollute production usage history.
+      if (usage && !isTestRequest) {
         saveRequestUsage({
           provider,
           model,
@@ -181,7 +185,10 @@ export async function handleEmbeddings(request) {
       return result.response;
     }
 
-    const { shouldFallback } = await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+    // Probes never mutate production account state (locks, cooldowns).
+    const { shouldFallback } = isTestRequest
+      ? { shouldFallback: true }
+      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
 
     if (shouldFallback) {
       log.warn("AUTH", `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`);

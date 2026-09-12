@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { BaseExecutor } from "./base.js";
+import { BaseExecutor, abortableSleep } from "./base.js";
 import { PROVIDERS } from "../config/providers.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { dbg } from "../utils/debugLog.js";
@@ -1008,6 +1008,9 @@ export class FreebuffExecutor extends BaseExecutor {
     const doChat = async () => {
       let networkAttempts = 0;
       const MAX_NETWORK_ATTEMPTS = 2;
+      // Per-status retry counts: network blips must not consume the
+      // status-retry budget (previously one shared `attempt` counter did).
+      const statusRetryCounts = {};
       for (let attempt = 0; ; attempt++) {
         const transformedBody = buildBody();
         const bodyStr = JSON.stringify(transformedBody);
@@ -1038,16 +1041,21 @@ export class FreebuffExecutor extends BaseExecutor {
           if (networkAttempts >= MAX_NETWORK_ATTEMPTS) throw markRelayFailure(error, proxyOptions);
           networkAttempts += 1;
           log?.debug?.("RETRY", `network error on ${url} (${error.message}), retry ${networkAttempts}/${MAX_NETWORK_ATTEMPTS}`);
-          await new Promise((resolve) => setTimeout(resolve, 750));
+          await abortableSleep(750, signal);
           continue;
         } finally {
           clearTimeout(connectTimer);
         }
 
         const entry = resolveRetryEntry(retryConfig[response.status]);
-        if (entry && attempt < entry.attempts) {
-          log?.debug?.("RETRY", `${response.status} on ${url}, retry ${attempt + 1}/${entry.attempts} after ${entry.delayMs / 1000}s`);
-          await new Promise((resolve) => setTimeout(resolve, entry.delayMs));
+        const usedStatusRetries = statusRetryCounts[response.status] || 0;
+        if (entry && usedStatusRetries < entry.attempts) {
+          // Drain the doomed body first: an unread error body pins the socket
+          // half-open across the backoff sleep.
+          try { await response.body?.cancel(); } catch {}
+          statusRetryCounts[response.status] = usedStatusRetries + 1;
+          log?.debug?.("RETRY", `${response.status} on ${url}, retry ${usedStatusRetries + 1}/${entry.attempts} after ${entry.delayMs / 1000}s`);
+          await abortableSleep(entry.delayMs, signal);
           continue;
         }
         return { response, transformedBody };

@@ -31,6 +31,8 @@ export async function handleImageGeneration(request) {
   }
 
   const url = new URL(request.url);
+  // Model probes must not mutate production routing state.
+  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
   const wantsStream = (request.headers.get("accept") || "").includes("text/event-stream");
   const binaryOutput = url.searchParams.get("response_format") === "binary";
@@ -132,13 +134,17 @@ async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutpu
         });
       },
       onRequestSuccess: async () => {
-        await clearAccountError(credentials.connectionId, credentials, model);
+        // Probes must not rewire production routing state.
+        if (!isTestRequest) await clearAccountError(credentials.connectionId, credentials, model);
       }
     });
 
     if (result.success) return result.response;
 
-    const { shouldFallback } = await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+    // Probes never mutate production account state (locks, cooldowns).
+    const { shouldFallback } = isTestRequest
+      ? { shouldFallback: true }
+      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
 
     if (shouldFallback) {
       excludeConnectionIds.add(credentials.connectionId);

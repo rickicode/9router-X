@@ -104,3 +104,51 @@ describe("BaseExecutor.execute — computeRetryDelay hook veto", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("BaseExecutor.execute — socket/abort hygiene", () => {
+  it("drains the doomed body before status retry", async () => {
+    const cancel = vi.fn(async () => {});
+    const ex = makeExec({ baseUrl: "https://x/api", retry: { 502: { attempts: 1, delayMs: 0 } } });
+    fetchMock
+      .mockResolvedValueOnce({ status: 502, headers: { get: () => "" }, body: { cancel } })
+      .mockResolvedValueOnce(res(200));
+    await ex.execute({ model: "m", body: {}, stream: false, credentials: creds });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("client abort during backoff rejects as AbortError without retry", async () => {
+    const ctrl = new AbortController();
+    const ex = makeExec({ baseUrl: "https://x/api", retry: { 502: { attempts: 3, delayMs: 60000 } } });
+    fetchMock.mockResolvedValueOnce(res(502));
+    const p = ex.execute({ model: "m", body: {}, stream: false, credentials: creds, signal: ctrl.signal });
+    ctrl.abort();
+    let thrown = null;
+    try { await p; } catch (e) { thrown = e; }
+    expect(thrown?.name).toBe("AbortError");
+    // No retry after the abort: only the initial fetch happened.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("client abort racing the connect timer is not rewritten to connect timeout", async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const ex = makeExec({ baseUrl: "https://x/api", timeoutMs: 1 });
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    let thrown = null;
+    try {
+      await ex.execute({ model: "m", body: {}, stream: false, credentials: creds, signal: ctrl.signal });
+    } catch (e) { thrown = e; }
+    expect(thrown?.name).toBe("AbortError");
+    expect(String(thrown?.message || "")).not.toContain("connect timeout");
+  });
+
+  it("passes binary bodies through without JSON corruption", async () => {
+    const ex = makeExec({ baseUrl: "https://x/api" });
+    const bin = new Uint8Array([1, 2, 3]);
+    ex.transformRequest = () => bin;
+    fetchMock.mockResolvedValueOnce(res(200));
+    await ex.execute({ model: "m", body: {}, stream: false, credentials: creds });
+    expect(fetchMock.mock.calls[0][1].body).toBe(bin);
+  });
+});

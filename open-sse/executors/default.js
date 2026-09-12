@@ -17,9 +17,12 @@ const AUTH_DESCRIPTORS = Object.fromEntries(
     .map(([id, t]) => [id, t.auth])
 );
 
-// Apply a token to a header per scheme (matches legacy: combined always sets, even when undefined).
+// Apply a token to a header per scheme. Missing/empty tokens are skipped —
+// sending the literal string "Bearer undefined" only produces confusing
+// upstream 401s and defeats no-auth detection downstream.
 function setAuth(headers, spec, token) {
   const tokenVal = spec?.hooks?.includes("clineHeaders") ? getClineAccessToken(token) : token;
+  if (tokenVal === null || tokenVal === undefined || tokenVal === "") return;
   headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${tokenVal}` : tokenVal;
 }
 
@@ -256,7 +259,9 @@ export class DefaultExecutor extends BaseExecutor {
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify(body)
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const tokens = await response.json();
     return { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || body.refresh_token, expiresIn: tokens.expires_in };
   }
@@ -267,7 +272,9 @@ export class DefaultExecutor extends BaseExecutor {
       headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
       body: new URLSearchParams(params)
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const tokens = await response.json();
     return { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || params.refresh_token, expiresIn: tokens.expires_in };
   }
@@ -279,7 +286,9 @@ export class DefaultExecutor extends BaseExecutor {
       headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "Authorization": `Basic ${basicAuth}` },
       body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: PROVIDERS.iflow.clientId, client_secret: PROVIDERS.iflow.clientSecret })
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const tokens = await response.json();
     return { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || refreshToken, expiresIn: tokens.expires_in };
   }
@@ -290,7 +299,9 @@ export class DefaultExecutor extends BaseExecutor {
       headers: { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "kiro-cli/1.0.0" },
       body: JSON.stringify({ refreshToken })
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const tokens = await response.json();
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken || refreshToken, expiresIn: tokens.expiresIn };
   }
@@ -301,7 +312,9 @@ export class DefaultExecutor extends BaseExecutor {
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ refreshToken, grantType: "refresh_token", clientType: "extension" })
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const payload = await response.json();
     const data = payload?.data || payload;
     const expiresAtIso = data?.expiresAt;
@@ -328,7 +341,9 @@ export class DefaultExecutor extends BaseExecutor {
       },
       body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: cfg.clientId })
     }, proxyOptions);
-    if (!response.ok) return null;
+    // Release the upstream socket before bailing: an unread error body
+    // pins the connection half-open until GC.
+    if (!response.ok) { try { await response.body?.cancel(); } catch {} return null; }
     const tokens = await response.json();
     return { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || refreshToken, expiresIn: tokens.expires_in };
   }

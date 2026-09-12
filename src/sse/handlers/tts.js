@@ -20,6 +20,8 @@ const CREDENTIALED_PROVIDERS = new Set(
 );
 
 export async function handleTts(request) {
+  // Model probes must not mutate production routing state.
+  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
   let body;
   try {
     body = await request.json();
@@ -109,7 +111,10 @@ async function handleSingleModelTts(body, modelStr, responseFormat, language, st
 
     if (result.success) return result.response;
 
-    const { shouldFallback } = await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+    // Probes never mutate production account state (locks, cooldowns).
+    const { shouldFallback } = isTestRequest
+      ? { shouldFallback: true }
+      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
     if (shouldFallback) {
       excludeConnectionIds.add(credentials.connectionId);
       lastError = result.error;

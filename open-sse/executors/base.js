@@ -8,6 +8,43 @@ import { resolveOpenAICompatibleApiType } from "../services/provider.js";
 /**
  * BaseExecutor - Base class for provider executors
  */
+/**
+ * Sleep that rejects promptly on client abort instead of waiting out the
+ * full backoff. Shared by executors with local retry loops.
+ */
+export function abortableSleep(ms, signal) {
+  // Rejections MUST carry name "AbortError": executor catch blocks classify
+  // on error.name, and a plain Error would be retried as a network failure
+  // after the client already disconnected.
+  const abortError = () => {
+    // Wrap (never mutate): the signal reason is shared state owned by whoever
+    // aborted, while executor catch blocks classify on error.name.
+    const reason = signal?.reason;
+    const message = reason instanceof Error ? (reason.message || "aborted")
+      : (typeof reason === "string" && reason ? reason : "aborted");
+    const err = new Error(message);
+    err.name = "AbortError";
+    err.cause = reason;
+    return err;
+  };
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.("abort", onAbort);
+      resolve();
+    }, Math.max(0, ms));
+    if (timer.unref) timer.unref();
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+  });
+}
+
 export class BaseExecutor {
   constructor(provider, config) {
     this.provider = provider;
@@ -109,6 +146,11 @@ export class BaseExecutor {
     // Merge default retry config with provider-specific config
     const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...this.config.retry };
 
+    // Abort-aware sleep: a client disconnect during backoff rejects promptly
+    // instead of waiting out the full delay (the rejection propagates as a
+    // client abort through the catch below, not as a retryable error).
+    const abortableSleepHere = (ms) => abortableSleep(ms, signal);
+
     // Schedule retry via retryConfig[statusKey]. Returns true when caller should `urlIndex--; continue`
     // response (optional) lets a subclass hook compute a dynamic delay (e.g. antigravity Retry-After).
     const tryRetry = async (urlIndex, statusKey, reason, response = null) => {
@@ -121,9 +163,12 @@ export class BaseExecutor {
         if (dynamic === false) return false; // hook vetoes retry (e.g. Retry-After too long)
         if (dynamic != null) waitMs = dynamic;
       }
+      // Drain a doomed response body before sleeping/retrying so the upstream
+      // socket returns to the pool instead of lingering half-open.
+      try { await response?.body?.cancel(); } catch {}
       retryAttemptsByUrl[urlIndex]++;
       log?.debug?.("RETRY", `${reason} retry ${retryAttemptsByUrl[urlIndex]}/${attempts} after ${waitMs / 1000}s`);
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+      await abortableSleepHere(waitMs);
       return true;
     };
 
@@ -141,7 +186,11 @@ export class BaseExecutor {
       const mergedSignal = signal ? AbortSignal.any([signal, connectCtrl.signal]) : connectCtrl.signal;
 
       try {
-        const bodyStr = JSON.stringify(transformedBody);
+        // Subclasses with binary bodies (protobuf, NDJSON) pass through
+        // untouched — JSON.stringify would corrupt them into {"type":"Buffer"}.
+        const bodyStr = typeof transformedBody === "string" || transformedBody instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(transformedBody))
+          ? transformedBody
+          : JSON.stringify(transformedBody);
         const response = await proxyAwareFetch(url, {
           method: "POST",
           headers,
@@ -154,6 +203,7 @@ export class BaseExecutor {
 
         if (this.shouldRetry(response.status, urlIndex)) {
           log?.debug?.("RETRY", `${response.status} on ${url}, trying fallback ${urlIndex + 1}`);
+          try { await response.body?.cancel(); } catch {}
           lastStatus = response.status;
           continue;
         }
@@ -161,12 +211,15 @@ export class BaseExecutor {
         return { response, url, headers, transformedBody };
       } catch (error) {
         clearTimeout(connectTimer);
-        lastError = error;
-        const isConnectTimeout = connectCtrl.signal.aborted && (error.name === "AbortError" || !signal?.aborted);
+        // Client abort takes precedence: when both the client signal and the
+        // connect timer fired, this is a disconnect, not a connect timeout.
+        // Misclassifying it would rewrite a client abort into a retryable 502.
+        const isConnectTimeout = error.name === "AbortError" && connectCtrl.signal.aborted && !signal?.aborted;
         if (isConnectTimeout && !error.message?.toLowerCase().includes("timeout")) {
           error = new Error("fetch connect timeout");
           error.status = HTTP_STATUS.BAD_GATEWAY;
         }
+        lastError = error;
         dbg("FETCH", `${this.provider.toUpperCase()} ✖ ${error.name}: ${error.message}${isConnectTimeout ? " (connect timeout)" : ""}`);
         // Connect timeout is internal — convert to retryable network error, don't propagate AbortError
         if (error.name === "AbortError" && !isConnectTimeout) throw error;
