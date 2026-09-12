@@ -686,6 +686,7 @@ export class CursorExecutor extends BaseExecutor {
       try {
         return await this.executeAgent({ model, body, stream, credentials, signal });
       } catch (error) {
+        if (error?.name === "AbortError") throw error;
         return {
           response: new Response(JSON.stringify({
             error: { message: error.message, type: "connection_error", code: "" },
@@ -728,6 +729,10 @@ export class CursorExecutor extends BaseExecutor {
 
       return { response: transformedResponse, url, headers, transformedBody: body };
     } catch (error) {
+      // Client disconnects must propagate as aborts — mapping them to a fake
+      // upstream 500 would poison account-fallback accounting (cooldowns and
+      // locks against a healthy account for a client-side event).
+      if (error?.name === "AbortError") throw error;
       const errorResponse = new Response(JSON.stringify({
         error: {
           message: error.message,

@@ -376,6 +376,16 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     return memberAttemptCap;
   };
 
+  // Probe pinning (model Test buttons): x-connection-id selects the exact
+  // account under test; x-connection-pin: strict turns a missed pin into an
+  // honest error instead of silently testing a sibling account.
+  const pinnedConnectionId = request?.headers?.get?.("x-connection-id") || null;
+  const strictPinProbe = request?.headers?.get?.("x-connection-pin") === "strict";
+  // Set after a successful 401 token refresh: the retry must use the account
+  // whose token was just refreshed (see F8 handling below).
+  let pinnedRetryConnectionId = null;
+  const effectivePin = () => pinnedRetryConnectionId || pinnedConnectionId;
+
   // Shared-budget cutoff shared by the loop-top pre-check (avoids a wasted
   // credential/refresh lookup once the budget is spent) and the post-select
   // check below. Reads lastError/lastStatus at call time.
@@ -394,7 +404,19 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     if (rotationBudget && rotationBudget.used >= MAX_TOTAL_ROTATION_ATTEMPTS && excludeConnectionIds.size > 0) {
       return rotationBudgetExceededResponse();
     }
-    const credentials = await getProviderCredentials(provider, excludeConnectionIds, model);
+    // Model probes pin to the tested connection (x-connection-id); strict pin
+    // means a missed pin is an honest error, never a sibling account.
+    // A 401-refresh retry pins to the refreshed account for the same reason.
+    const pin = effectivePin();
+    const credentials = await getProviderCredentials(provider, excludeConnectionIds, model,
+      pin ? { preferredConnectionId: pin, strictPin: strictPinProbe } : undefined);
+
+    // Strict probe pin missed the tested connection — report it, don't route.
+    if (credentials?.pinnedMiss) {
+      const msg = credentials.lastError || "Pinned connection unavailable";
+      log.warn("CHAT", `[${provider}/${model}] probe pin missed: ${msg}`);
+      return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `[${provider}/${model}] ${msg}`);
+    }
 
     // All accounts unavailable
     if (!credentials || credentials.allRateLimited) {
@@ -564,6 +586,12 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
          });
       },
       onRequestSuccess: async () => {
+        // Model probes must not rewire production routing: no failover
+        // resets, no LKG pointer, no affinity/proxy locks from test traffic.
+        // (Usage stats are already suppressed for probes in chatCore.)
+        if (isTestRequest) {
+          return;
+        }
         // The model just proved itself healthy — reset its failover counter so
         // a recovered member returns to the front of the combo immediately.
         resetModelFailCount(modelStr).catch(() => {});
@@ -606,6 +634,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         // member here would throw away the just-refreshed token. The retry
         // still consumes one shared-budget slot below like any attempt.
         refreshedRetryPending = true;
+        // Pin the retry to the refreshed account: without this the loop top
+        // may select a different account (LKG/jitter) and waste both the
+        // fresh token and a budget slot on an unrefreshed sibling.
+        pinnedRetryConnectionId = credentials.connectionId;
         continue;
       }
     }
@@ -640,6 +672,15 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     // Preserve upstream status/kind because chatCore returns thrown upstream
     // errors as a 502 gateway response.
     const effectiveStatus = upstreamStatus;
+
+    // Strict probe pin: report the pinned account's actual upstream outcome
+    // without touching ANY routing state — no locks, no cooldowns, no token
+    // refresh, no failover counters. The probe verdict must describe exactly
+    // the tested connection.
+    if (strictPinProbe && pinnedConnectionId) {
+      const probeStatus = effectiveStatus || result.status || HTTP_STATUS.SERVICE_UNAVAILABLE;
+      return errorResponse(probeStatus, `[${provider}/${model}] ${result.error || "Probe request failed"}`);
+    }
 
     // When Freebuff upstream reports model_locked, immediately bind account to currentModel and fallback to next account
     if (provider === "freebuff") {
@@ -683,7 +724,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       const banReason = rawError.includes(connName)
         ? rawError
         : `Freebuff account "${connName}" banned (403): ${rawError}`;
-      await markAccountUnavailable(
+      // Probes never mutate production account state (locks, disables).
+      if (!isTestRequest) await markAccountUnavailable(
         credentials.connectionId,
        effectiveStatus || 403,
         banReason,
@@ -706,15 +748,20 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     const quotaFailure = provider === "antigravity"
       && (effectiveStatus === 409 || effectiveStatus === 429)
       && /resource_exhausted|quota_exhausted|exhausted|capacity|rate.?limit|try again/i.test(String(result.error || ""));
-    const shouldFallback = (await markAccountUnavailable(
-      credentials.connectionId,
-      effectiveStatus,
-      result.error,
-      provider,
-      model,
-      resetsAtMs,
-      result.extra?.freebuffKind,
-     )).shouldFallback;
+    // Probes never mutate production account state (locks, cooldowns). The
+    // in-request exclusion loop below still applies so one probe request can
+    // try several accounts and report honestly.
+    const shouldFallback = isTestRequest
+      ? true
+      : (await markAccountUnavailable(
+        credentials.connectionId,
+        effectiveStatus,
+        result.error,
+        provider,
+        model,
+        resetsAtMs,
+        result.extra?.freebuffKind,
+       )).shouldFallback;
 
     if (quotaFailure) {
       excludeConnectionIds.add(credentials.connectionId);
@@ -725,8 +772,9 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       // Consecutive-failure tracking for combo failover: after
       // MODEL_FAILOVER_THRESHOLD straight failures this member is deprioritized
       // on subsequent requests. Only fallback-class errors count — a 400-class
-      // client error must never penalize a healthy model.
-      incrModelFailCount(modelStr, MODEL_FAILOVER_WINDOW_S).catch(() => {});
+      // client error must never penalize a healthy model. Probe traffic never
+      // counts either.
+      if (!isTestRequest) incrModelFailCount(modelStr, MODEL_FAILOVER_WINDOW_S).catch(() => {});
       lastError = result.error;
       lastStatus = effectiveStatus || result.status;
       if (excludeConnectionIds.size >= MAX_FALLBACK_ATTEMPTS) {

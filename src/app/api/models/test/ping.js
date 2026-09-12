@@ -39,7 +39,7 @@ function createSilentWavFile() {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
-async function getInternalHeaders() {
+async function getInternalHeaders(connectionId = null) {
   let apiKey = null;
   try {
     const keys = await getApiKeys();
@@ -51,13 +51,19 @@ async function getInternalHeaders() {
     // Probes use the gateway pipeline but must not pollute production usage.
     "x-9router-test-request": "1",
   };
+  // Pin the probe to the exact connection under test. Strict pin turns a
+  // missed pin into an honest error instead of silently testing a sibling.
+  if (connectionId) {
+    headers["x-connection-id"] = connectionId;
+    headers["x-connection-pin"] = "strict";
+  }
   if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
   headers["x-9r-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
   return headers;
 }
 
-export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`) {
-  const headers = await getInternalHeaders();
+export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`, connectionId = null) {
+  const headers = await getInternalHeaders(connectionId);
   const start = Date.now();
 
   if (kind === "embedding") {

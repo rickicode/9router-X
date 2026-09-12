@@ -534,11 +534,22 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const strategy = providerOverride.fallbackStrategy || settings.fallbackStrategy || "fill-first";
 
     let connection;
-    // Pin to preferred connection if specified and available
+    // Pin to preferred connection if specified and available.
+    // Strict pin (model probes): a missed pin is an honest error, never a
+    // silent fallback to a sibling account (which would report health for
+    // the wrong connection).
     if (preferredConnectionId) {
       connection = availableConnections.find((c) => c.id === preferredConnectionId);
       if (connection) {
         log.info("AUTH", `${provider} | pinned to ${connection.id?.slice(0, 8)} (${connection.name || connection.email || "unnamed"})`);
+      } else if (options?.strictPin) {
+        log.warn("AUTH", `${provider} | strict pin missed: ${preferredConnectionId.slice(0, 8)} not routable`);
+        return {
+          pinnedMiss: true,
+          connectionId: preferredConnectionId,
+          lastError: `Pinned connection ${preferredConnectionId.slice(0, 8)}... is not currently routable (locked, cooling down, or disabled).`,
+          lastErrorCode: "PINNED_UNAVAILABLE",
+        };
       }
     }
     if (connection) {
