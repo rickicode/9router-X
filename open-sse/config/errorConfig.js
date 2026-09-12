@@ -41,6 +41,12 @@ export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 // Hard cap for provider-reported rate limit cooldown (defaults to 7 days for long upstream reset windows)
 export const MAX_RATE_LIMIT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
+// Total upstream account attempts per client request, across ALL combo
+// members combined. The per-model loop below is additionally capped by
+// MAX_FALLBACK_ATTEMPTS, but without a shared budget a 5-member combo could
+// burn 5×10 upstream calls before giving up. When the budget is exhausted the
+// request stops immediately with a 503 instead of hanging the client.
+export const MAX_TOTAL_ROTATION_ATTEMPTS = 10;
 
 // Maximum number of accounts to attempt per request before giving up (prevents hammering hundreds of accounts)
 export const MAX_FALLBACK_ATTEMPTS = 10;

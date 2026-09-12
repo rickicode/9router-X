@@ -23,7 +23,7 @@ import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActi
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
-import { MAX_FALLBACK_ATTEMPTS } from "open-sse/config/errorConfig.js";
+import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS } from "open-sse/config/errorConfig.js";
 import { detectFormatByEndpoint } from "open-sse/translator/formats.js";
 import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
@@ -98,6 +98,12 @@ export async function handleChat(request, clientRawRequest = null) {
 
   const requiredCapabilities = detectRequiredCapabilities(body);
 
+  // Shared rotation budget for this client request: every upstream account
+  // attempt across every combo member consumes one slot. Caps total upstream
+  // calls at MAX_TOTAL_ROTATION_ATTEMPTS so a long combo of dead accounts
+  // stops with a 503 instead of hanging the client.
+  const rotationBudget = { used: 0 };
+
   // Check if model is a combo (has multiple models with fallback)
   const comboModels = await getComboModels(modelStr);
   if (comboModels) {
@@ -122,7 +128,7 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget);
         },
         log,
         comboName: modelStr,
@@ -137,7 +143,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
       ),
       log,
@@ -157,7 +163,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: soloAugmented,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
         adapterAdded
       ),
       log,
@@ -166,13 +172,14 @@ export async function handleChat(request, clientRawRequest = null) {
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, null, isTestRequest);
+  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, null, isTestRequest, rotationBudget);
 }
 
 /**
- * Handle single model chat request
+ * Handle single model chat request.
+ * Exported for unit tests (rotation-budget contract); production entry is handleChat().
  */
-async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, comboName = null, isTestRequest = false) {
+export async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, comboName = null, isTestRequest = false, rotationBudget = null) {
   const modelInfo = await getModelInfo(modelStr);
 
   // If provider is null, this might be a combo name - check and handle
@@ -199,7 +206,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, modelStr, isTestRequest, rotationBudget);
           },
           log,
           comboName: modelStr,
@@ -214,7 +221,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest),
+          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
           adapterAdded
         ),
         log,
@@ -317,6 +324,19 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     lastAttemptedConnectionId = credentials.connectionId;
     lastAttemptedAccount = credentials.connectionName || credentials.name || credentials.email || (credentials.connectionId ? `Account ${credentials.connectionId.slice(0, 8)}...` : null);
+
+    // Shared rotation budget: stop the whole request (all combo members) once
+    // MAX_TOTAL_ROTATION_ATTEMPTS upstream account attempts are spent, instead
+    // of hanging the client while every dead account is retried.
+    if (rotationBudget) {
+      if (rotationBudget.used >= MAX_TOTAL_ROTATION_ATTEMPTS) {
+        const budgetMsg = `Max rotation attempts (${MAX_TOTAL_ROTATION_ATTEMPTS}) reached${lastError ? `: ${lastError}` : ""}`;
+        log.warn("FALLBACK", budgetMsg, { provider, model });
+        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: budgetMsg }).catch(() => {});
+        return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `[${provider}/${model}] ${budgetMsg}`);
+      }
+      rotationBudget.used++;
+    }
 
     // Account selection shown in the unified "▶" line (acc:...)
     const refreshedCredentials = await checkAndRefreshToken(provider, credentials);
