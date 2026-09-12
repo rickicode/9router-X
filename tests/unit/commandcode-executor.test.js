@@ -186,7 +186,10 @@ describe("CommandCode in Combo Fallback", () => {
     const data = await comboResponse.json();
     expect(data.choices[0].message.content).toBe("Fallback success!");
     expect(handleSingleModel).toHaveBeenCalledTimes(2);
-    expect(handleSingleModel).toHaveBeenNthCalledWith(1, expect.anything(), "commandcode/poolside/laguna-s-2.1-free");
-    expect(handleSingleModel).toHaveBeenNthCalledWith(2, expect.anything(), "openai/gpt-4o-mini");
+    // 3rd arg carries the per-target AbortSignal (combo target-timeout).
+    expect(handleSingleModel).toHaveBeenNthCalledWith(1, expect.anything(), "commandcode/poolside/laguna-s-2.1-free",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(handleSingleModel).toHaveBeenNthCalledWith(2, expect.anything(), "openai/gpt-4o-mini",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
