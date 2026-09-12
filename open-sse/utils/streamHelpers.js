@@ -3,24 +3,22 @@ import { FORMATS } from "../translator/formats.js";
 // Parse SSE data line
 export function parseSSELine(line, format = null) {
   if (!line) return null;
+  const trimmed = typeof line === "string" ? line.trim() : "";
+  if (!trimmed) return null;
 
-  // NDJSON format (Ollama): raw JSON lines without "data:" prefix
-  if (format === FORMATS.OLLAMA) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("{")) {
-      try {
-        return JSON.parse(trimmed);
-      } catch (error) {
-        return null;
-      }
+  // NDJSON format / raw JSON object line without "data:" prefix
+  if (trimmed.charCodeAt(0) === 123) { // '{' = 123
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
     }
-    return null;
   }
 
   // Standard SSE format: "data: {...}"
-  if (line.charCodeAt(0) !== 100) return null; // 'd' = 100
+  if (!trimmed.startsWith("data:")) return null;
 
-  const data = line.slice(5).trim();
+  const data = trimmed.slice(5).trim();
   if (data === "[DONE]") return { done: true };
 
   try {

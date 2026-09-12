@@ -7,6 +7,7 @@ import ProviderIcon from "./ProviderIcon";
 import CapacityBadges from "./CapacityBadges";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
+import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
@@ -431,20 +432,8 @@ export default function ModelSelectModal({
     return combos.filter(c => c.name.toLowerCase().includes(query));
   }, [combos, searchQuery, kindFilter]);
 
-  // Free-model detection: id/name ends with -free or contains contributor-free.
-  const isFreeModel = (m) => {
-    const str = `${m?.id || ""} ${m?.value || ""} ${m?.name || ""}`.toLowerCase();
-    return str.includes("free");
-  };
-
   // Sort models alphabetically, with added models floated to top, then free models.
-  const sortModels = (models) => {
-    const added = models.filter(m => addedModelValues.includes(m.value)).sort((a, b) => a.name.localeCompare(b.name));
-    const rest = models.filter(m => !addedModelValues.includes(m.value));
-    const free = rest.filter(isFreeModel).sort((a, b) => a.name.localeCompare(b.name));
-    const paid = rest.filter(m => !isFreeModel(m)).sort((a, b) => a.name.localeCompare(b.name));
-    return [...added, ...free, ...paid];
-  };
+  const sortModels = (models) => sortModelsByFree(models, addedModelValues);
 
   // Available provider options for filter
   const providerOptions = useMemo(() => {

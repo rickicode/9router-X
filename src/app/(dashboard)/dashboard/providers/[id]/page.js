@@ -15,6 +15,7 @@ import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { translate } from "@/i18n/runtime";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
+import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
 import ModelRow from "./ModelRow";
 import PassthroughModelsSection from "./PassthroughModelsSection";
 import CompatibleModelsSection from "./CompatibleModelsSection";
@@ -1567,12 +1568,8 @@ export default function ProviderDetailPage() {
       ...kiloFreeModels.filter((fm) => !models.some((m) => m.id === fm.id)),
     ].filter((m) => { const k = getModelKind(m); return !k || k === "llm"; });
     const disabledSet = new Set(disabledModelIds);
-    const isFree = (m) => m?.isFree || m?.id?.toLowerCase().includes("free") || m?.name?.toLowerCase().includes("free");
     const activeModels = allModels.filter((m) => !disabledSet.has(m.id));
-    const displayModels = [
-      ...activeModels.filter(isFree),
-      ...activeModels.filter((m) => !isFree(m)),
-    ];
+    const displayModels = sortModelsByFree(activeModels, [], providerId);
     const disabledDisplayModels = allModels.filter((m) => disabledSet.has(m.id));
     const customModelRows = getProviderCustomModelRows({
       customModels,
@@ -1630,7 +1627,7 @@ export default function ProviderDetailPage() {
               testStatus={modelTestResults[model.id]}
               onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
               isTesting={testingModelIds.has(model.id)}
-              isFree={model.isFree || model.id.toLowerCase().includes("free") || model.name?.toLowerCase().includes("free")}
+              isFree={isFreeModel(model, providerId) || model.id.toLowerCase().includes("free") || model.name?.toLowerCase().includes("free")}
               onDisable={() => handleDisableModel(model.id)}
               caps={getCaps(`${providerId}/${model.id}`)}
               thinkingSuffix={resolveThinkingSuffix(model.id)}
