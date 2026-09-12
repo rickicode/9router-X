@@ -126,6 +126,10 @@ export function filterToOpenAIFormat(body, opts = {}) {
       body.tool_choice = "required";
     } else if (choice.type === "tool" && choice.name) {
       body.tool_choice = { type: OPENAI_BLOCK.FUNCTION, function: { name: choice.name } };
+    } else if (choice.type === OPENAI_BLOCK.FUNCTION && choice.function?.name) {
+      // Unikey gemini Responses fallback expects top-level name; keep both for compat
+      const name = String(choice.function.name).trim();
+      if (name) body.tool_choice = { type: OPENAI_BLOCK.FUNCTION, function: { name }, name };
     }
   }
 
