@@ -131,7 +131,7 @@ describe("OpenCode Zen executor", () => {
     });
 
     expect(body.reasoning).toMatchObject({ effort: "low", summary: "auto" });
-    expect(body.max_output_tokens).toBe(16);
+    expect(body.max_output_tokens).toBe(200000);
     expect(body.max_tokens).toBeUndefined();
   });
 

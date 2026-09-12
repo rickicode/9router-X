@@ -75,6 +75,8 @@ function normalizeOpencodeReasoning(model, body) {
 // as "rate", "quota", "exhausted", and "retry" also occur in account/model
 // limits. Treating those as pool failures bypasses account cooldowns and can
 // repeatedly call the same exhausted OpenCode account.
+const MUSE_SPARK_MAX_OUTPUT_TOKENS = 200000;
+
 const IP_LIMIT_BODY = /(?:egress|proxy|ip[_ -]?limit|client[_ -]?ip|source[_ -]?ip|remote[_ -]?address|network[_ -]?limit|too many requests from (?:this|your) (?:ip|network))/i;
 
 export class OpenCodeExecutor extends BaseExecutor {
@@ -91,6 +93,9 @@ export class OpenCodeExecutor extends BaseExecutor {
       if (body.max_output_tokens === undefined) {
         if (body.max_completion_tokens !== undefined) body.max_output_tokens = body.max_completion_tokens;
         else if (body.max_tokens !== undefined) body.max_output_tokens = body.max_tokens;
+      }
+      if (!Number.isFinite(Number(body.max_output_tokens)) || Number(body.max_output_tokens) < MUSE_SPARK_MAX_OUTPUT_TOKENS) {
+        body.max_output_tokens = MUSE_SPARK_MAX_OUTPUT_TOKENS;
       }
       delete body.max_tokens;
       delete body.max_completion_tokens;
