@@ -770,11 +770,15 @@ export function extractValidationUrl(errorText) {
     };
   }
 
-  // Last resort: bare verification URL inside a human message
-  // ("...visit https://... to verify your account...").
-  const bareUrl = str.match(/https?:\/\/[^\s"'<>\\]+(?:verif[a-z]*|valid[a-z]*|action[a-z]*|challenge|confirm)[^\s"'<>\\]*/i);
-  if (bareUrl) {
-    return { url: bareUrl[0].trim(), message: "Verification required by Google" };
+  // Last resort: bare actionable URL inside a human message. The gate above
+  // already proved action-required markers exist in the text, so the markers
+  // live around the URL, not necessarily inside it — real Google links look
+  // like accounts.google.com/signin/continue?... with no "verify" in the URL
+  // itself. Prefer sign-in/auth/verify hosts, else take the first URL.
+  const allUrls = [...str.matchAll(/https?:\/\/[^\s"'<>\\]+/gi)].map((m) => m[0].trim());
+  const actionable = allUrls.find((u) => /accounts\.google\.|signin|oauth|auth|verif|valid|challenge|confirm|validate/i.test(u));
+  if (actionable || allUrls.length > 0) {
+    return { url: (actionable || allUrls[0]).trim(), message: "Verification required by Google" };
   }
 
   return null;
