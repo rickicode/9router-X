@@ -44,6 +44,7 @@ export default function RealtimeRequestsCard({
   const [selectedError, setSelectedError] = useState(null);
   const [errorDetailsLoading, setErrorDetailsLoading] = useState(false);
   const [fetchedError, setFetchedError] = useState(null);
+  const [showActiveModal, setShowActiveModal] = useState(false);
 
   const handleOpenErrorModal = (req) => {
     setSelectedError(req);
@@ -135,25 +136,49 @@ export default function RealtimeRequestsCard({
         </div>
       }
     >
-      {/* Active In-Flight Requests (Sedang Stream) */}
-      {activeRequests.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-xl bg-brand-500/5 border border-brand-500/20 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-500"></span>
-              </span>
-              <span className="text-xs font-bold uppercase tracking-wide text-brand-500">
-                Sedang Stream ({activeRequests.length} active)
-              </span>
-            </div>
-            <span className="text-[11px] text-text-muted">
-              Live processing in-flight
+      {/* Active In-Flight Requests — summary only, details via modal */}
+      <div className="flex flex-col gap-2 rounded-xl bg-brand-500/5 border border-brand-500/20 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`absolute inline-flex h-full w-full rounded-full ${activeRequests.length > 0 ? "animate-ping bg-brand-500 opacity-75" : "bg-text-muted/40"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${activeRequests.length > 0 ? "bg-brand-500" : "bg-text-muted/40"}`}></span>
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wide text-brand-500">
+              Sedang Stream ({activeRequests.length} active)
             </span>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowActiveModal(true)}
+            disabled={activeRequests.length === 0}
+            className="!h-7 !px-2.5 !text-[11px] font-semibold inline-flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined !text-[13px] leading-none">
+              visibility
+            </span>
+            Lihat Detail
+          </Button>
+        </div>
+        <span className="text-[11px] text-text-muted">
+          Klik Lihat Detail untuk memantau request yang sedang berjalan. Menutup modal menghentikan polling detail.
+        </span>
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-1">
+      {/* In-Flight Detail Modal — closes stop polling feed */}
+      <Modal
+        isOpen={showActiveModal}
+        onClose={() => setShowActiveModal(false)}
+        title={`Sedang Stream (${activeRequests.length} active)`}
+        size="lg"
+      >
+        {activeRequests.length === 0 ? (
+          <div className="flex items-center justify-center p-8 text-xs text-text-muted">
+            Tidak ada request yang sedang berjalan.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pr-1">
             {activeRequests.map((req, idx) => (
               <div
                 key={req.id || idx}
@@ -198,8 +223,8 @@ export default function RealtimeRequestsCard({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Control Bar: Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">

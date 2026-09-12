@@ -244,8 +244,11 @@ export async function trackPendingRequest(model, provider, connectionId, started
 
 export async function getActiveRequests() {
   const activeRequests = [];
-  const distributed = await getActiveRequestsDistributed();
-  const localItems = distributed.length ? distributed : [...liveActiveRequests.values()];
+  // Single-node: prefer in-memory map (instantly accurate, 0 stale).
+  // Redis is only needed for multi-replica deployments.
+  const localItems = [...liveActiveRequests.values()];
+  const distributed = localItems.length ? [] : await getActiveRequestsDistributed();
+  const items = localItems.length ? localItems : distributed;
   const connectionMap = await getConnectionMapCached();
   let allApiKeys = [];
   try {
