@@ -5,7 +5,7 @@ import { cacheGetRaw, cacheSetRaw, cacheDelRaw, isRedisAvailable } from "../../r
 // calls getBatchProviderQuotas on EVERY antigravity selection, and the join
 // over thousands of snapshot rows is the most expensive per-request query.
 // 20s TTL bounds staleness (quota resets are minutes/hours away); upserts
-// invalidate immediately below. Fail-open without Redis.
+// invalidate immediately below. Fail-open without cache.
 const SNAPSHOT_CACHE_TTL_S = 20;
 const snapshotCacheKey = (provider) => `agqsnap:${provider}`;
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/db/driver";
-import { memSize } from "@/lib/redis/memoryStore";
+import { memSize } from "@/lib/cache/memoryStore";
 import { getRoutingMetrics } from "open-sse/services/routingMetrics";
 
 export async function GET() {
@@ -8,9 +8,9 @@ export async function GET() {
     status: "healthy",
     timestamp: new Date().toISOString(),
     postgres: false,
-    // Redis removed (single-container): memory speed layer is always up.
-    redis: true,
-    redisNote: "memory-only (no external redis)",
+    // Single-container: in-memory speed layer is always up.
+    cache: true,
+    cacheNote: "memory-only speed layer",
     latencyMs: {},
   };
 

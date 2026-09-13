@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson } from "../helpers/jsonCol.js";
-import { incrementInFlight, decrementInFlight, registerActiveRequest, unregisterActiveRequest, getActiveRequestsDistributed } from "../../redis/client.js";
+import { incrementInFlight, decrementInFlight, registerActiveRequest, unregisterActiveRequest, getActiveRequestsDistributed } from "../cache/client.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -215,7 +215,7 @@ export async function trackPendingRequest(model, provider, connectionId, started
       }
     }
 
-    // In-flight concurrency tracker in Redis
+    // In-flight concurrency tracker (memory speed layer)
     if (started) {
       incrementInFlight(connectionId).catch(() => {});
     } else {
@@ -245,7 +245,7 @@ export async function trackPendingRequest(model, provider, connectionId, started
 export async function getActiveRequests() {
   const activeRequests = [];
   // Single-node: prefer in-memory map (instantly accurate, 0 stale).
-  // Redis is only needed for multi-replica deployments.
+  // Memory map is authoritative single-container; PG is durable fallback.
   const localItems = [...liveActiveRequests.values()];
   const distributed = localItems.length ? [] : await getActiveRequestsDistributed();
   const items = localItems.length ? localItems : distributed;

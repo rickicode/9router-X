@@ -12,17 +12,17 @@ import { memSet, memGet, memDel, memMget, memIncr, memExpire } from "./memorySto
 // - TTL expiry matches the old Redis EX values.
 // - acquireLock/releaseLock use owner tokens (single-process mutex).
 
-// Singleton placeholder (kept for import compatibility).
-if (!global._redisClient) {
-  global._redisClient = null;
-}
-
 export function getRedis() {
   return null;
 }
 
 export function isRedisAvailable() {
   // Memory layer is always available in-process.
+  // Kept for backward compat; prefer isCacheAvailable().
+  return true;
+}
+
+export function isCacheAvailable() {
   return true;
 }
 

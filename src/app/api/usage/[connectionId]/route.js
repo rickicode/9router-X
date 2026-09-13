@@ -7,7 +7,7 @@ import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
-import { publishEvent } from "@/lib/redis/client.js";
+import { publishEvent } from "@/lib/cache/client.js";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -213,7 +213,7 @@ export async function GET(request, { params }) {
       }
     }
 
-    // Persist usage snapshot to PostgreSQL and publish to Redis speed layer (Decision #10)
+    // Persist usage snapshot to PostgreSQL and emit speed-layer event (Decision #10)
     if (usage && !usage.error) {
       const remainingPct = typeof usage.remainingPercentage === "number" ? usage.remainingPercentage : null;
       upsertUsageSnapshot({

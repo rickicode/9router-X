@@ -4,7 +4,7 @@ import {
   getProviderConnections,
   updateProviderConnection,
 } from "@/lib/localDb";
-import { setAccountCooldown, setModelCooldown } from "@/lib/redis/client.js";
+import { setAccountCooldown, setModelCooldown } from "@/lib/cache/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 

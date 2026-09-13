@@ -2,10 +2,10 @@
 // Fail-open everywhere: tick errors and per-connection failures never kill the interval.
 
 import * as log from "../utils/logger.js";
-import { acquireLock, releaseLock, isRedisAvailable } from "@/lib/redis/client.js";
+import { acquireLock, releaseLock, isCacheAvailable } from "@/lib/cache/client.js";
 
-// In-process fallback for single-node / no-Redis deployments: without this,
-// refreshOne silently skips every connection (Redis acquireLock fails open
+// Single-process guard: without this,
+// refreshOne silently skips every connection (acquireLock fails open
 // with `false`) while logging a misleading "finished" line.
 const localRefreshLocks = new Set();
 import { getRefreshLeadMs } from "open-sse/services/tokenRefresh.js";
@@ -101,15 +101,15 @@ async function refreshOne(connection) {
   const acquired = Boolean(lockToken);
   let localLocked = false;
   if (!acquired) {
-    if (!isRedisAvailable()) {
-      // No Redis: serialize in-process instead of skipping silently.
+    if (!isCacheAvailable()) {
+      // Serialize in-process instead of skipping silently.
       if (localRefreshLocks.has(connection.id)) {
         log.debug("BG_TOKEN_REFRESH", `Skipping refresh for ${connection.id}: local refresh in flight`);
         return null;
       }
       localRefreshLocks.add(connection.id);
       localLocked = true;
-      log.debug("BG_TOKEN_REFRESH", `No Redis — using in-process refresh lock for ${connection.id}`);
+      log.debug("BG_TOKEN_REFRESH", `Using in-process refresh lock for ${connection.id}`);
     } else {
       log.debug("BG_TOKEN_REFRESH", `Skipping refresh for ${connection.id}: locked by another worker`);
       return null;

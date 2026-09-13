@@ -7,7 +7,7 @@
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { getAntigravityUsage } from "open-sse/services/usage/google.js";
 import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
-import { publishEvent, setModelCooldown, clearModelCooldown } from "@/lib/redis/client.js";
+import { publishEvent, setModelCooldown, clearModelCooldown } from "@/lib/cache/client.js";
 import * as log from "../utils/logger.js";
 
 // In-memory cache: connectionId → { [modelId]: { remainingPercentage, resetAt } }

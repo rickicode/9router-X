@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProviderConnectionById, updateProviderConnection } from "@/models";
 import { clearAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
-import { setAccountCooldown } from "@/lib/redis/client.js";
+import { setAccountCooldown } from "@/lib/cache/client.js";
 
 export async function POST(request, { params }) {
   try {
@@ -57,7 +57,7 @@ export async function POST(request, { params }) {
 
     const updated = await updateProviderConnection(id, updates);
 
-    // Clear Redis L2 speed layer cooldown
+    // Clear speed-layer cooldown (memory + PG)
     setAccountCooldown(id, 0).catch(() => {});
 
     // Clear Antigravity in-memory cache if applicable

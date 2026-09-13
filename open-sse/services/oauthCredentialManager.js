@@ -4,7 +4,7 @@ import {
   refreshTokenByProvider,
 } from "./tokenRefresh.js";
 import { PROVIDER_OAUTH } from "../providers/index.js";
-import { acquireLock, releaseLock, isRedisAvailable } from "@/lib/redis/client.js";
+import { acquireLock, releaseLock, isCacheAvailable } from "@/lib/cache/client.js";
 
 // Single source: codex.oauth.maxRefreshAgeMs (8 days) — proactive refresh window
 export const CODEX_MAX_REFRESH_AGE_MS = PROVIDER_OAUTH["codex"]?.maxRefreshAgeMs;
@@ -139,26 +139,26 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
 
   // Cross-worker exclusion on top of the in-process lock: without this, a
   // request-path refresh and a background-tick refresh (which uses only the
-  // Redis lock) — or two workers — can refresh the same connection
+  // lock) — or two workers — can refresh the same connection
   // concurrently and invalidate rotating refresh tokens (Codex, xAI).
-  // Fail-open: when Redis is down or the peer lock is held, the in-process
+  // Fail-open: when the peer lock is held, the in-process
   // lock below still serializes this worker.
-  const redisKey = `refresh:${credentials?.connectionId || key}`;
-  let redisHeld = await acquireLock(redisKey, 45).catch(() => false);
-  let redisToken = typeof redisHeld === "string" ? redisHeld : null;
-  redisHeld = Boolean(redisHeld);
+  const lockKey = `refresh:${credentials?.connectionId || key}`;
+  let lockHeld = await acquireLock(lockKey, 45).catch(() => false);
+  let lockToken = typeof lockHeld === "string" ? lockHeld : null;
+  lockHeld = Boolean(lockHeld);
   // Brief grace: a peer (usually the background tick) holding the lock is
   // typically seconds from finishing with a FRESH token — waiting avoids a
   // concurrent refresh against a rotating refresh token. Bounded to ~3s so a
   // stuck peer can never head-of-line-block chat. Skipped entirely without
-  // Redis (acquireLock fails open with false there — waiting would just add
+  // (acquireLock fails open with false there — waiting would just add
   // 3s of dead latency to every refresh).
-  if (!redisHeld && isRedisAvailable()) {
-    for (let i = 0; i < 3 && !redisHeld; i++) {
+  if (!lockHeld && isCacheAvailable()) {
+    for (let i = 0; i < 3 && !lockHeld; i++) {
       await new Promise((r) => setTimeout(r, 1000));
-      const held = await acquireLock(redisKey, 45).catch(() => false);
-      redisToken = typeof held === "string" ? held : null;
-      redisHeld = Boolean(held);
+      const held = await acquireLock(lockKey, 45).catch(() => false);
+      lockToken = typeof held === "string" ? held : null;
+      lockHeld = Boolean(held);
     }
   }
 
@@ -166,7 +166,7 @@ export async function withCredentialRefreshLock(provider, credentials, refreshFn
     .then(refreshFn)
     .finally(() => {
       refreshLocks.delete(key);
-      if (redisToken) releaseLock(redisKey, redisToken).catch(() => {});
+      if (lockToken) releaseLock(lockKey, lockToken).catch(() => {});
     });
 
   refreshLocks.set(key, pending);

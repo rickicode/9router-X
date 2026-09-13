@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
 import { resetComboRotation } from "open-sse/services/combo.js";
-import { delSharedCounter } from "@/lib/redis/client.js";
+import { delSharedCounter } from "@/lib/cache/client.js";
 
 // Reset both rotation states for a combo name: the in-memory map and the
-// shared Redis sequence (a stale rr_seq would address the wrong member after
+// shared sequence (a stale rr_seq would address the wrong member after
 // a member add/remove/reorder).
 function resetComboRotationState(name) {
   if (!name) return;

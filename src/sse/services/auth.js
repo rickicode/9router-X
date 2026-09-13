@@ -8,10 +8,10 @@ import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAc
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
-  setAccountCooldown as redisSetAccountCooldown,
-  isAccountInCooldown as redisIsAccountInCooldown,
-  setModelCooldown as redisSetModelCooldown,
-  isModelInCooldown as redisIsModelInCooldown,
+  setAccountCooldown as cacheSetAccountCooldown,
+  isAccountInCooldown as cacheIsAccountInCooldown,
+  setModelCooldown as cacheSetModelCooldown,
+  isModelInCooldown as cacheIsModelInCooldown,
   getBatchCooldowns,
   getCachedConnections,
   setCachedConnections,
@@ -22,7 +22,7 @@ import {
   incrDeadCircuit,
   resetDeadCircuit,
   getDeadCircuit,
-} from "@/lib/redis/client.js";
+} from "@/lib/cache/client.js";
 import * as log from "../utils/logger.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
@@ -387,7 +387,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     let connections = [];
     let availableConnections = [];
     let cooledDownIds = new Set();
-    let redisCooldownHealthy = true;
+    let cooldownHealthy = true;
     let locallyExhaustedIds = new Set();
     let lastCandidateIds = [];
     for (let windowIdx = 0; windowIdx < MAX_SELECTION_WINDOWS; windowIdx++) {
@@ -427,7 +427,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       lastCandidateIds = candidateIds;
       const cooldownResult = await getBatchCooldowns(candidateIds, model);
       cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
-      redisCooldownHealthy = cooldownResult?.healthy !== false;
+      cooldownHealthy = cooldownResult?.healthy !== false;
 
       const ctx = {
         excludeSet, locallyExhaustedIds, cooledDownIds, model, providerId,
@@ -566,7 +566,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
       const excludedAll = lastCandidateIds.length === 0 && excludeSet.size > 0;
       const blocked = classifyBlockedCredentials(provider, model, stateConnections, {
-        cooledDown: redisCooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= lastCandidateIds.length,
+        cooledDown: cooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= lastCandidateIds.length,
       });
       if (blocked) return blocked;
 
@@ -903,7 +903,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
           rateLimitedUntil: null,
         }).then(() => {
           invalidateCachedConnections(providerIdEarly).catch(() => {});
-          redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+          cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
           log.warn("AUTH", `${connName} Freebuff account banned (verified direct) — DISABLED (is_active=false), removed from routing`);
         }).catch((e) => {
           log.warn("AUTH", `Failed to disable banned Freebuff account ${connName}:`, e);
@@ -920,7 +920,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       || /accesstier["']?\s*:\s*["']?limited|pool["']?\s*:\s*["']?freebucks|limited-tier|limited_ip/i.test(String(errorText || "")));
   if (freebuffLimitedIp) {
     if (model) {
-      redisSetModelCooldown(connectionId, model, 30).catch(() => {});
+      cacheSetModelCooldown(connectionId, model, 30).catch(() => {});
     }
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
     log.warn("AUTH", `${connName} Freebuff limited IP tier (proxy-bound) — setting 30s in-memory/Redis cooldown for ${model || "all"} (no DB model lock)`);
@@ -959,7 +959,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     });
     await invalidateCachedConnections(providerId).catch(() => {});
     // Long L2 cooldown so the Redis-cached path also stops returning it.
-    redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+    cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
     log.warn("AUTH", `${connName} Freebuff account banned — DISABLED (is_active=false), removed from routing`);
     console.error(`❌ ${provider} [${status}]: ${reason}`);
     return { shouldFallback: true, cooldownMs: 0 };
@@ -1213,7 +1213,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // Long L2 cooldown so the Redis-cached path also stops returning it.
     // Also drop the cached connection list itself: L2 cooldown keys only gate
     // already-cached rows, and stale caches kept serving the dead credential.
-    redisSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
+    cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
     if (providerId) invalidateCachedConnections(providerId).catch(() => {});
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
     log.warn("AUTH", `${connName} account auth fatal error — DISABLED (is_active=false), removed from routing`);
@@ -1280,9 +1280,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const cooldownSecs = Math.ceil(cooldownMs / 1000);
   if (cooldownSecs > 0) {
     if (isAccountWideLock) {
-      redisSetAccountCooldown(connectionId, cooldownSecs).catch(() => {});
+      cacheSetAccountCooldown(connectionId, cooldownSecs).catch(() => {});
     } else if (model) {
-      redisSetModelCooldown(connectionId, model, cooldownSecs).catch(() => {});
+      cacheSetModelCooldown(connectionId, model, cooldownSecs).catch(() => {});
     }
   }
 
@@ -1361,10 +1361,10 @@ export async function clearAccountError(connectionId, currentConnection, model =
         clearObj.providerSpecificData = psd;
       }
     }
-    redisSetAccountCooldown(connectionId, 0).catch(() => {});
+    cacheSetAccountCooldown(connectionId, 0).catch(() => {});
   }
   if (model) {
-    redisSetModelCooldown(connectionId, model, 0).catch(() => {});
+    cacheSetModelCooldown(connectionId, model, 0).catch(() => {});
   }
 
   await updateProviderConnection(connectionId, clearObj);

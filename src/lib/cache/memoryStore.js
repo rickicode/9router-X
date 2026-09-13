@@ -1,5 +1,4 @@
-// In-memory key-value store with TTL — drop-in replacement for the Redis
-// speed layer on single-container deployments. All entries are process-local.
+// In-memory key-value store with TTL — speed layer for single-container deployments. All entries are process-local.
 // PG remains the durable source of truth for locks/cooldowns; this store is
 // purely a fast-path cache. Restart clears it (safe: PG re-read on miss).
 if (!global._memoryStore) {

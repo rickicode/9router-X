@@ -24,11 +24,11 @@ import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
-import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter, setLkg, resetDeadCircuit } from "@/lib/redis/client.js";
+import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter, setLkg, resetDeadCircuit } from "@/lib/cache/client.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 /**
- * Strict round-robin start index via an atomic Redis counter. Every request
+ * Strict round-robin start index via an atomic shared counter. Every request
  * (across all processes/replicas) gets a unique sequence number, so each one
  * starts at a different member — no thundering herd, no per-process drift.
  * Honors stickyLimit (N consecutive requests per member). Returns null when
