@@ -1,4 +1,5 @@
 import { WORKBUDDY_CONFIG } from "../constants/oauth.js";
+import { extractEmailFromAccessToken } from "../providerHelpers.js";
 
 // WorkBuddy (workbuddy.ai) — mirrors the CodeBuddy Intl device-code flow, but
 // against the workbuddy.ai host with X-Domain: www.workbuddy.ai. The /login page
@@ -66,12 +67,20 @@ const workbuddy = {
     if (data.code === 11217) return { ok: true, data: { error: "authorization_pending" } };
     return { ok: false, data: { error: data.msg || "unknown_error" } };
   },
-  mapTokens: (tokens) => ({
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresIn: tokens.expires_in || 86400,
-    providerSpecificData: {},
-  }),
-};
+  mapTokens: (tokens) => {
+    // WorkBuddy shares CodeBuddy's Keycloak (realm "copilot") auth, so the
+    // access token is a JWT carrying email / preferred_username claims. Surface
+    // it as the connection email so createProviderConnection can de-dup/merge
+    // and show a real name instead of the generic "Account N" fallback.
+    const email = extractEmailFromAccessToken(tokens.access_token) || null;
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in || 86400,
+      email,
+      displayName: email || undefined,
+      providerSpecificData: {},
+    };
+  },
 
 export default workbuddy;
