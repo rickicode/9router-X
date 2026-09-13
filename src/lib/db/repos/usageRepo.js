@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson } from "../helpers/jsonCol.js";
-import { incrementInFlight, decrementInFlight, registerActiveRequest, unregisterActiveRequest, getActiveRequestsDistributed } from "../cache/client.js";
+import { incrementInFlight, decrementInFlight, registerActiveRequest, unregisterActiveRequest, getActiveRequestsDistributed } from "@/lib/cache/client.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;

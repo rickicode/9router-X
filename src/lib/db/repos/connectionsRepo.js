@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
-import { invalidateCachedConnections, setAccountCooldown, clearBatchAccountCooldown } from "../cache/client.js";
+import { invalidateCachedConnections, setAccountCooldown, clearBatchAccountCooldown } from "@/lib/cache/client.js";
 
 const MODEL_LOCK_PREFIX = "modelLock_";
 const MODEL_LOCK_ALL = "__all";

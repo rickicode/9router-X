@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { cacheGetRaw, cacheSetRaw, cacheDelRaw, isCacheAvailable } from "../cache/client.js";
+import { cacheGetRaw, cacheSetRaw, cacheDelRaw, isCacheAvailable } from "@/lib/cache/client.js";
 
 // Short-TTL cache for the full-provider quota join: the routing hot path
 // calls getBatchProviderQuotas on EVERY antigravity selection, and the join
