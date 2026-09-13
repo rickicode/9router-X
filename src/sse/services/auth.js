@@ -1001,14 +1001,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // window, so treating it as daily-cap locked every model on the account
     // (big-pickle outage). Zen rate limits are always model-scoped.
     const isZen429 = providerId === "opencode-zen";
-    // CodeBuddy: 14018 "Credits exhausted" is per-model credit pool (hy3 habis
-    // tapi glm masih ada credit). Lock model saja, bukan semua model.
-    // Account-wide lock hanya jika teks eksplisit bilang account/billing habis.
-    // Rate limit / credit throttle = 5-minute model cooldown, never account exhausted.
-    const isCodebuddyModelScoped = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
-      && (/too many requests|rate.?limit exceeded|rate limited|credits exhausted|insufficient credits/i.test(lowerErrorText))
-      && !/account|billing|subscription|plan|daily|quota.*reset/i.test(lowerErrorText);
-    if (isCodebuddyModelScoped) {
+    // CodeBuddy/Workbuddy throttle: 14003 "too many requests" = transient,
+    // 2-minute model cooldown only. Never account exhausted.
+    const isCodebuddyThrottle = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
+      && /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText)
+      && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
+    if (isCodebuddyThrottle) {
       lockAll = false;
       disableAccount = false;
       isExhausted = false;
@@ -1017,8 +1015,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       // the global default (DEFAULT_RATE_LIMIT_COOLDOWN_MS via errorConfig rules).
       cooldownMs = 2 * 60 * 1000;
     }
+    // CodeBuddy/Workbuddy 14018 "Credits exhausted" = spending pool empty for
+    // ALL models on this account. Account exhausted, retry in 7 days.
+    // (Lock stays account-wide so other models don't burn rotation budget.)
+    const isCodebuddyCreditExhausted = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
+      && /credits exhausted|insufficient credits/i.test(lowerErrorText);
+    if (isCodebuddyCreditExhausted) {
+      lockAll = true;
+      disableAccount = false;
+      isExhausted = true;
+      shouldFallback = true;
+      cooldownMs = 7 * 24 * 60 * 60 * 1000;
+    }
 
-    const isDailyCap429 = !isZen429 && !isCodebuddyModelScoped && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }
