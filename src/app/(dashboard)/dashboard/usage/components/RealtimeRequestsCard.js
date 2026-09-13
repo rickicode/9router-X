@@ -137,12 +137,13 @@ export default function RealtimeRequestsCard({
       }
     >
       {/* Active In-Flight Requests — summary only, details via modal */}
+      {activeRequests.length > 0 && (
       <div className="flex flex-col gap-2 rounded-xl bg-brand-500/5 border border-brand-500/20 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
-              <span className={`absolute inline-flex h-full w-full rounded-full ${activeRequests.length > 0 ? "animate-ping bg-brand-500 opacity-75" : "bg-text-muted/40"}`}></span>
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${activeRequests.length > 0 ? "bg-brand-500" : "bg-text-muted/40"}`}></span>
+              <span className="absolute inline-flex h-full w-full rounded-full animate-ping bg-brand-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-500"></span>
             </span>
             <span className="text-xs font-bold uppercase tracking-wide text-brand-500">
               Sedang Stream ({activeRequests.length} active)
@@ -152,7 +153,6 @@ export default function RealtimeRequestsCard({
             variant="outline"
             size="sm"
             onClick={() => setShowActiveModal(true)}
-            disabled={activeRequests.length === 0}
             className="!h-7 !px-2.5 !text-[11px] font-semibold inline-flex items-center gap-1"
           >
             <span className="material-symbols-outlined !text-[13px] leading-none">
@@ -165,6 +165,7 @@ export default function RealtimeRequestsCard({
           Klik Lihat Detail untuk memantau request yang sedang berjalan. Menutup modal menghentikan polling detail.
         </span>
       </div>
+      )}
 
       {/* In-Flight Detail Modal */}
       <Modal
