@@ -18,7 +18,7 @@ export default {
     color: "#006EFF",
     website: "https://www.workbuddy.ai",
     notice: {
-      signupUrl: "https://www.workbuddy.ai",
+      signupUrl: "https://workbuddy.ai/invite?code=FUACYYR4",
     },
   },
   category: "oauth",
