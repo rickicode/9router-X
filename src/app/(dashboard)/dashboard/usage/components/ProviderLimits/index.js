@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import QuotaTable from "./QuotaTable";
 import Toggle from "@/shared/components/Toggle";
@@ -129,6 +130,12 @@ function formatTimeRemaining(value) {
 
 export default function ProviderLimits() {
   const { copied, copy } = useCopyToClipboard();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Reflect filter state into the URL so the view is shareable/bookmarkable and
+  // survives reloads. Read once on mount; the setters below also push updates.
   const [connections, setConnections] = useState([]);
   const [quotaData, setQuotaData] = useState({});
   const [loading, setLoading] = useState({});
@@ -148,10 +155,16 @@ export default function ProviderLimits() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [proxyPools, setProxyPools] = useState([]);
-  const [providerFilter, setProviderFilter] = useState("all");
+  const [providerFilter, setProviderFilter] = useState(
+    () => searchParams.get("provider") || "all",
+  );
   const [providerOptions, setProviderOptions] = useState([]);
-  const [accountFilter, setAccountFilter] = useState("all");
-  const [quotaSortMode, setQuotaSortMode] = useState("default");
+  const [accountFilter, setAccountFilter] = useState(
+    () => searchParams.get("account") || "all",
+  );
+  const [quotaSortMode, setQuotaSortMode] = useState(
+    () => searchParams.get("sort") || "default",
+  );
   const [quotaVisibility, setQuotaVisibility] = useState({});
   const [expiringFirst, setExpiringFirst] = useState(false);
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
@@ -705,6 +718,30 @@ export default function ProviderLimits() {
     if (typeof window === "undefined" || !hasHydratedAutoRefresh) return;
     window.localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(autoRefresh));
   }, [autoRefresh, hasHydratedAutoRefresh]);
+
+  // Reflect filter state into the URL (shareable / bookmarkable / reload-safe).
+  // Wrapped in startTransition so rapid filter clicks don't block the UI.
+  const syncFiltersToUrl = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(searchParams.toString());
+    const setOrDelete = (key, value, fallback) => {
+      if (value && value !== fallback) params.set(key, value);
+      else params.delete(key);
+    };
+    setOrDelete("provider", providerFilter, "all");
+    setOrDelete("account", accountFilter, "all");
+    setOrDelete("sort", quotaSortMode, "default");
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    else params.delete("q");
+    const next = `${pathname}?${params.toString()}`;
+    if (next !== `${pathname}?${searchParams.toString()}`) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [searchParams, pathname, providerFilter, accountFilter, quotaSortMode, debouncedSearch]);
+
+  useEffect(() => {
+    syncFiltersToUrl();
+  }, [syncFiltersToUrl]);
 
   // Load auto-ping per-connection maps
   useEffect(() => {
