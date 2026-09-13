@@ -24,7 +24,18 @@ import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { MAX_FALLBACK_ATTEMPTS, MAX_TOTAL_ROTATION_ATTEMPTS, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
-import { incrModelFailCount, resetModelFailCount, getModelFailCounts, incrSharedCounter, setLkg, resetDeadCircuit } from "@/lib/cache/client.js";
+import {
+  incrModelFailCount,
+  resetModelFailCount,
+  setModelFailCount,
+  getModelFailCounts,
+  incrSharedCounter,
+  setLkg,
+  resetDeadCircuit,
+  setProviderDead,
+  isProviderDead,
+  clearProviderDead,
+} from "@/lib/cache/client.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 /**
@@ -94,14 +105,37 @@ async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
 async function reorderComboByHealth(models) {
   if (!Array.isArray(models) || models.length <= 1) return models;
   const counts = await withRedisDeadline(getModelFailCounts(models)).catch(() => ({})) || {};
-  const failing = new Set(
-    models.filter((m) => (counts[m] || 0) >= MODEL_FAILOVER_THRESHOLD),
-  );
+  const failing = new Set();
+
+  for (const m of models) {
+    if ((counts[m] || 0) >= MODEL_FAILOVER_THRESHOLD) {
+      failing.add(m);
+      continue;
+    }
+    try {
+      const info = await getModelInfo(m);
+      if (info?.provider) {
+        // Entire provider is marked dead (100% accounts exhausted/dead): demote all its models
+        if (await isProviderDead(info.provider)) {
+          failing.add(m);
+          continue;
+        }
+        const canonical = `${info.provider}/${info.model}`;
+        if (canonical !== m) {
+          const canonicalCounts = await withRedisDeadline(getModelFailCounts([canonical])).catch(() => ({})) || {};
+          if ((canonicalCounts[canonical] || 0) >= MODEL_FAILOVER_THRESHOLD) {
+            failing.add(m);
+          }
+        }
+      }
+    } catch {}
+  }
+
   if (failing.size === 0 || failing.size >= models.length) return models;
   const healthy = models.filter((m) => !failing.has(m));
   const bad = models.filter((m) => failing.has(m));
   bumpRoutingMetric("failoverDemotions", bad.length);
-  log.info("CHAT", `Failover reorder: ${bad.join(", ")} failing ${MODEL_FAILOVER_THRESHOLD}x+ → back`);
+  log.info("CHAT", `Failover reorder: ${bad.join(", ")} failing/dead → back`);
   return [...healthy, ...bad];
 }
 import { detectFormatByEndpoint } from "open-sse/translator/formats.js";
@@ -435,6 +469,18 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         const failedConnId = lastAttemptedConnectionId || credentials.lastConnectionId;
         const blockedList = credentials.blockedNames?.length ? ` [${credentials.blockedNames.join(", ")}]` : "";
         log.warn("CHAT", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})${blockedList}`);
+        if (!isTestRequest) {
+          setModelFailCount(modelStr, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S).catch(() => {});
+          if (provider && model && `${provider}/${model}` !== modelStr) {
+            setModelFailCount(`${provider}/${model}`, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S).catch(() => {});
+          }
+          if (credentials.lastErrorCode === "ACCOUNT_EXHAUSTED" || credentials.lastErrorCode === "ACCOUNT_UNAVAILABLE") {
+            const ttlSec = credentials.retryAfter && new Date(credentials.retryAfter).getTime() > Date.now()
+              ? Math.min(Math.ceil((new Date(credentials.retryAfter).getTime() - Date.now()) / 1000), 86400)
+              : 300;
+            setProviderDead(provider, ttlSec).catch(() => {});
+          }
+        }
          if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
          if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: failedConnId || null,
@@ -456,6 +502,13 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         });
       }
       if (excludeConnectionIds.size === 0) {
+        if (!isTestRequest) {
+          setModelFailCount(modelStr, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S).catch(() => {});
+          if (provider && model && `${provider}/${model}` !== modelStr) {
+            setModelFailCount(`${provider}/${model}`, MODEL_FAILOVER_THRESHOLD, MODEL_FAILOVER_WINDOW_S).catch(() => {});
+          }
+          setProviderDead(provider, 300).catch(() => {});
+        }
         // No credentials exist for this provider at all (or none active).
         // 503, not 404: the provider/node EXISTS but has no usable account —
         // 404 tells clients the endpoint/model is wrong and they stop retrying.
@@ -607,6 +660,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         // The model just proved itself healthy — reset its failover counter so
         // a recovered member returns to the front of the combo immediately.
         resetModelFailCount(modelStr).catch(() => {});
+        if (provider && model && `${provider}/${model}` !== modelStr) {
+          resetModelFailCount(`${provider}/${model}`).catch(() => {});
+        }
+        clearProviderDead(provider).catch(() => {});
         // Publish this account as last-known-good: the next selection for the
         // same provider+model fast-paths straight here (60s TTL) instead of
         // scanning PG + Redis. Also closes any dead-circuit for the pair.

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { memSet, memGet, memDel, memMget, memIncr, memExpire } from "./memoryStore.js";
+import { memSet, memGet, memDel, memDelPrefix, memMget, memIncr, memExpire } from "./memoryStore.js";
 
 // ── Memory-first speed layer (single-container) ──────────────────────────
 // Redis/Valkey removed: overengineering for one replica. All fast-path state
@@ -67,6 +67,7 @@ export async function setAccountCooldown(connId, cooldownSeconds) {
   try {
     if (cooldownSeconds <= 0) {
       memDel(`cooldown:conn:${connId}`);
+      memDelPrefix(`cooldown:model:${connId}:`);
       return true;
     }
     memSet(`cooldown:conn:${connId}`, "1", Math.ceil(cooldownSeconds));
@@ -107,6 +108,9 @@ export async function clearBatchAccountCooldown(connIds) {
   if (!Array.isArray(connIds) || connIds.length === 0) return false;
   try {
     memDel(...connIds.map((id) => `cooldown:conn:${id}`));
+    for (const id of connIds) {
+      memDelPrefix(`cooldown:model:${id}:`);
+    }
     return true;
   } catch {
     return false;
@@ -144,6 +148,17 @@ export async function resetModelFailCount(member) {
   if (!member) return false;
   try {
     memDel(`modelfail:${member}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function setModelFailCount(member, count, windowSeconds = 900) {
+  if (!member) return false;
+  try {
+    const key = `modelfail:${member}`;
+    memSet(key, String(count), Math.max(60, windowSeconds || 900));
     return true;
   } catch {
     return false;
@@ -248,6 +263,40 @@ export async function getDeadCircuit(provider, model) {
     return Number(memGet(`deadpm:${provider}|${model || "*"}`) || 0);
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Fleet-wide provider dead tracker: marks a provider as completely unusable
+ * when 100% of its accounts are exhausted or unavailable. Combos check this
+ * to immediately demote ALL models from this provider to the back.
+ */
+export async function setProviderDead(provider, ttlSeconds = 60) {
+  if (!provider) return false;
+  try {
+    memSet(`deadprov:${provider}`, "1", Math.max(10, ttlSeconds));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function isProviderDead(provider) {
+  if (!provider) return false;
+  try {
+    return memGet(`deadprov:${provider}`) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function clearProviderDead(provider) {
+  if (!provider) return false;
+  try {
+    memDel(`deadprov:${provider}`);
+    return true;
+  } catch {
+    return false;
   }
 }
 

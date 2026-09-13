@@ -46,6 +46,18 @@ export function memDel(...keys) {
   return n;
 }
 
+export function memDelPrefix(prefix) {
+  if (!prefix) return 0;
+  let n = 0;
+  for (const key of store().keys()) {
+    if (key.startsWith(prefix)) {
+      clearTimer(key);
+      if (store().delete(key)) n++;
+    }
+  }
+  return n;
+}
+
 export function memMget(keys) {
   return keys.map((k) => memGet(k));
 }

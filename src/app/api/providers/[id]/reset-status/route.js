@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProviderConnectionById, updateProviderConnection } from "@/models";
 import { clearAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
-import { setAccountCooldown } from "@/lib/cache/client.js";
+import { setAccountCooldown, clearProviderDead } from "@/lib/cache/client.js";
 
 export async function POST(request, { params }) {
   try {
@@ -59,6 +59,9 @@ export async function POST(request, { params }) {
 
     // Clear speed-layer cooldown (memory + PG)
     setAccountCooldown(id, 0).catch(() => {});
+    if (connection.provider) {
+      clearProviderDead(connection.provider).catch(() => {});
+    }
 
     // Clear Antigravity in-memory cache if applicable
     if (typeof clearAntigravityConnectionCache === "function") {
