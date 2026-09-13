@@ -51,7 +51,15 @@ const PATTERN_THINKING = [
   { provider: "codebuddy-cn", pattern: "glm-5.2",      levels: ["high", "xhigh"] },
   { provider: "codebuddy-cn", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
   { provider: "codebuddy-cn", pattern: "hy3*",         levels: ["low", "high"] },
-  { provider: "codebuddy-cn", pattern: "hy4*",         levels: ["high"] },
+  // workbuddy.ai shares the same Intl gateway generation as codebuddy-cn — same
+  // model backbone, so mirror the per-model effort sets (the gateway silently
+  // clamps levels outside a model's supportedEfforts, so the picker stays
+  // authoritative). Model names fall through to the openai format default.
+  { provider: "workbuddy", pattern: "glm-5.3*",     levels: ["low", "high", "max"] },
+  { provider: "workbuddy", pattern: "glm-5.2",      levels: ["high", "xhigh"] },
+  { provider: "workbuddy", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
+  { provider: "workbuddy", pattern: "hy3*",         levels: ["low", "high"] },
+  { provider: "workbuddy", pattern: "hy4*",         levels: ["high"] },
 ];
 
 // Returns valid thinking levels for a model, or null when the model has no reasoning.

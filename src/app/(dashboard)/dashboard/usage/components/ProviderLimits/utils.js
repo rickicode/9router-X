@@ -681,6 +681,24 @@ export function parseQuotaData(provider, data) {
             });
           });
         }
+      case "workbuddy":
+        // WorkBuddy shares CodeBuddy's billing backend: recurring refill packs
+        // (Monthly/Weekly/...) mix with one-shot bonus packs ("Bonus Pack N").
+        // Forward `recurring`, `price`, `priceNote` so the UI shows "Expires in"
+        // (hard expiry) for bonus packs and renders the live price tagline.
+        if (data.quotas) {
+          Object.entries(data.quotas).forEach(([name, quota]) => {
+            normalizedQuotas.push({
+              name,
+              used: quota.used || 0,
+              total: quota.total || 0,
+              resetAt: quota.resetAt || null,
+              recurring: quota.recurring !== false,
+              price: quota.price,
+              priceNote: quota.priceNote,
+            });
+          });
+        }
         break;
 
       case "grok-cli":

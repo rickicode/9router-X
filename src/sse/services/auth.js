@@ -1013,7 +1013,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       disableAccount = false;
       isExhausted = false;
       shouldFallback = true;
-      // Rate limit / credit throttle = 1-minute model cooldown, never account exhausted.
+      // CodeBuddy/Workbuddy only: 1-minute model cooldown. Other providers keep
+      // the global 5-minute default (DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30m? no, 5m via transients).
       cooldownMs = 1 * 60 * 1000;
     }
 
