@@ -1039,9 +1039,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // (24h): keep the larger of the two when no precise reset time exists, so
     // e.g. a Cline daily cap with no "Try again in" hint does not retry-storm
     // every 30 minutes against an 8-24h upstream reset window.
+    // CodeBuddy/Workbuddy carry their own explicit cooldowns above (2-min model
+    // throttle, 7-day credit exhaustion) — never overwrite them with the 30-min
+    // default. isDailyCap429 keeps max() semantics (larger of rule/default).
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
       ? Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS)
-      : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
+      : isCodebuddyThrottle || isCodebuddyCreditExhausted
+        ? (cooldownMs || 0)
+        : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
     isExhausted = lockAll;
   }
 
