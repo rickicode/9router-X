@@ -1013,7 +1013,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       disableAccount = false;
       isExhausted = false;
       shouldFallback = true;
-      cooldownMs = 5 * 60 * 1000;
+      // Rate limit / credit throttle = 1-minute model cooldown, never account exhausted.
+      cooldownMs = 1 * 60 * 1000;
     }
 
     const isDailyCap429 = !isZen429 && !isCodebuddyModelScoped && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
