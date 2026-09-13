@@ -262,6 +262,7 @@ export async function GET(request, { params }) {
         "kilocode",
         "codebuddy-cn",
         "codebuddy-intl",
+        "workbuddy",
         "qoder",
         "grok-cli",
         "freebuff",
@@ -498,7 +499,7 @@ export async function POST(request, { params }) {
       }
 
       // Providers that don't use PKCE for device code
-      const noPkceProviders = ["github", "kimi", "kimi-coding", "kilocode", "codebuddy-cn", "codebuddy-intl"];
+      const noPkceProviders = ["github", "kimi", "kimi-coding", "kilocode", "codebuddy-cn", "codebuddy-intl", "workbuddy"];
       let result;
       if (noPkceProviders.includes(provider)) {
         // kimi needs extraData._kimiDeviceId for stable X-Msh-Device-Id (CLIProxyAPI parity)
@@ -565,7 +566,7 @@ export async function POST(request, { params }) {
     }
 
     if (action === "bulk-jwt") {
-      const JWT_PROVIDERS = ["codebuddy-intl", "codebuddy-cn"];
+      const JWT_PROVIDERS = ["codebuddy-intl", "codebuddy-cn", "workbuddy"];
       if (!JWT_PROVIDERS.includes(provider)) {
         return NextResponse.json({ error: "Provider not supported" }, { status: 400 });
       }

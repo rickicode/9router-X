@@ -199,7 +199,8 @@
     "xai": "xai",
     "xiaomi-mimo": "xiaomi-mimo",
     "xiaomi-tokenplan": "xiaomi-tokenplan",
-    "zed": "zd"
+    "zed": "zd",
+    "workbuddy": "wb"
   },
   "modelKeys": [
     "af",
@@ -295,6 +296,7 @@
     "vertex-partner",
     "volcengine-ark",
     "voyage-ai",
+    "wb",
     "xai",
     "xiaomi-mimo",
     "xiaomi-mimo-tts-models",

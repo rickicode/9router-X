@@ -2120,7 +2120,7 @@ export default function ProviderDetailPage() {
                         {translate("Bulk Add")}
                       </Button>
                     )}
-                    {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+                    {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
                       <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)}>
                         {translate("Bulk Add")}
                       </Button>
@@ -2321,7 +2321,7 @@ export default function ProviderDetailPage() {
                       {translate("Bulk Add")}
                     </Button>
                   )}
-                  {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+                  {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
                     <Button
                       size="sm"
                       icon="playlist_add"
@@ -2528,7 +2528,7 @@ export default function ProviderDetailPage() {
         />
       )}
 
-      {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn") && (
+      {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
         <BulkImportJwtModal
           providerId={providerId}
           isOpen={showBulkImportJwt}

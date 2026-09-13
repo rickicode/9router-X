@@ -172,6 +172,15 @@ export const PROVIDER_CAPABILITIES = {
     "claude-opus-5": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
     "claude-sonnet-4.6": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
   },
+  // WorkBuddy rides the same Intl gateway generation as CodeBuddy Intl, so
+  // mirror its overrides until a workbuddy.ai product-config is confirmed.
+  "workbuddy": {
+    "glm-5.3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1000000, maxOutput: 48000 },
+    "kimi-k3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", contextWindow: 1000000, maxOutput: 32000 },
+    "hy3": { tools: true, vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: false, contextWindow: 192000, maxOutput: 64000 },
+    "claude-opus-5": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
+    "claude-sonnet-4.6": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
+  },
   // NVIDIA NIM is OpenAI-compatible → rejects MiniMax/GLM native `thinking` field.
   // Force openai reasoning_effort format for its reasoning models. #issue
   "nvidia": {

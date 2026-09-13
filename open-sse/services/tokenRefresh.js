@@ -160,6 +160,7 @@ const REFRESH_HANDLERS = {
   gcli: (c, log, proxy) => refreshXaiToken(c.refreshToken, log),
   "codebuddy-cn": (c, log, proxy) => refreshCodebuddyToken(c.refreshToken, log, proxy),
   "codebuddy-intl": (c, log, proxy) => refreshCodebuddyIntlToken(c.refreshToken, log, proxy),
+  "workbuddy": (c, log, proxy) => refreshWorkbuddyToken(c.refreshToken, log, proxy),
   trae: (c, log, proxy) => refreshTraeToken(c.refreshToken, c, log, proxy),
   cline: (c, log, proxy) => refreshClineToken(c.refreshToken, log, proxy),
   "cline-free": (c, log, proxy) => refreshClineToken(c.refreshToken, log, proxy),

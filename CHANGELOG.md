@@ -1,3 +1,8 @@
+# Unreleased
+
+## Features
+- **WorkBuddy**: add Tencent WorkBuddy (workbuddy.ai) as a provider — shares the CodeBuddy Intl OpenAI-compatible gateway (`/v2/chat/completions`) but on its own host/brand. Device-code OAuth (Google/GitHub upstream), forced stream, OpenAI `reasoning_effort`/`reasoning_summary` mirroring, `passthroughModels`, and usage via the shared CodeBuddy billing handler. Catalog mirrors CodeBuddy-Intl (`wb` alias).
+
 # v0.5.75 (2026-09-10)
 
 ## Features

@@ -626,6 +626,60 @@ export async function refreshCodebuddyIntlToken(refreshToken, log, proxyOptions 
   }, log);
 }
 
+// WorkBuddy (workbuddy.ai) refresh — same plugin refresh endpoint shape as
+// CodeBuddy Intl (X-Refresh-Token header + empty JSON body), own host/domain.
+export async function refreshWorkbuddyToken(refreshToken, log, proxyOptions = null) {
+  if (!refreshToken) return null;
+  return dedupRefresh("workbuddy", refreshToken, async () => {
+    const oauth = PROVIDER_OAUTH["workbuddy"] || {};
+    const fetchFn = proxyOptions ? ((u, opt) => proxyAwareFetch(u, opt, proxyOptions)) : fetch;
+    const response = await fetchFn(oauth.refreshUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": oauth.userAgent,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-Domain": "www.workbuddy.ai",
+        "X-Refresh-Token": refreshToken,
+        "X-Auth-Refresh-Source": "plugin",
+        "X-Product": "SaaS",
+      },
+      body: "{}",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log?.error?.("TOKEN_REFRESH", "Failed to refresh WorkBuddy token", {
+        status: response.status,
+        error: errorText,
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.code !== 0 || !data.data?.accessToken) {
+      log?.error?.("TOKEN_REFRESH", "WorkBuddy token refresh returned no token", {
+        code: data.code,
+        msg: data.msg,
+      });
+      return null;
+    }
+
+    log?.info?.("TOKEN_REFRESH", "Successfully refreshed WorkBuddy token", {
+      hasNewAccessToken: !!data.data.accessToken,
+      hasNewRefreshToken: !!data.data.refreshToken,
+      expiresIn: data.data.expiresIn,
+    });
+
+    return {
+      accessToken: data.data.accessToken,
+      refreshToken: data.data.refreshToken || refreshToken,
+      expiresIn: data.data.expiresIn,
+    };
+  }, log);
+}
+
 // Trae refresh — POST ExchangeToken with JSON body {ClientID, RefreshToken, ClientSecret, UserID}.
 // Response: {Result: {AccessToken, RefreshToken, TokenType, ExpiresAt}}.
 export async function refreshTraeToken(refreshToken, credentials, log, proxyOptions = null) {
