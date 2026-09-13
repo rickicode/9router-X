@@ -1001,26 +1001,22 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // window, so treating it as daily-cap locked every model on the account
     // (big-pickle outage). Zen rate limits are always model-scoped.
     const isZen429 = providerId === "opencode-zen";
-    // CodeBuddy Intl: 429 code:14003 "too many requests" is a transient throttle
-    // (credit masih banyak) — treat as model cooldown, not account exhausted.
-    const isCodebuddyThrottle429 = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
-      && /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText)
-      && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
     // CodeBuddy: 14018 "Credits exhausted" is per-model credit pool (hy3 habis
     // tapi glm masih ada credit). Lock model saja, bukan semua model.
     // Account-wide lock hanya jika teks eksplisit bilang account/billing habis.
-    const isCodebuddyModelCreditExhausted = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
-      && /credits exhausted|insufficient credits/i.test(lowerErrorText)
-      && !/account|billing|subscription|plan/i.test(lowerErrorText);
-    if (isCodebuddyModelCreditExhausted) {
+    // Rate limit / credit throttle = 5-minute model cooldown, never account exhausted.
+    const isCodebuddyModelScoped = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
+      && (/too many requests|rate.?limit exceeded|rate limited|credits exhausted|insufficient credits/i.test(lowerErrorText))
+      && !/account|billing|subscription|plan|daily|quota.*reset/i.test(lowerErrorText);
+    if (isCodebuddyModelScoped) {
       lockAll = false;
       disableAccount = false;
       isExhausted = false;
       shouldFallback = true;
-      cooldownMs = Math.max(cooldownMs || 0, DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+      cooldownMs = 5 * 60 * 1000;
     }
 
-    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle429 && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isDailyCap429 = !isZen429 && !isCodebuddyModelScoped && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }
