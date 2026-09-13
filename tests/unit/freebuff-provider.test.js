@@ -472,7 +472,7 @@ describe("freebuff run registration", () => {
     expect(rootAgentIdForModel("mimo/mimo-v2.5")).toBe("base3-free-mimo");
     expect(rootAgentIdForModel("openai/gpt-5.6-luna")).toBe("base3-free-luna");
     expect(rootAgentIdForModel("upstage/solar-pro4")).toBe("base3-free-solar-pro4");
-    expect(rootAgentIdForModel("meta/muse-spark-1.3-contributor")).toBe("base3-free-muse-spark-1-3");
+    expect(rootAgentIdForModel("meta/muse-spark-1.2-contributor")).toBe("base3-free-muse-spark");
   });
 
   it("keeps roots for released clients using paused models", () => {

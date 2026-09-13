@@ -74,11 +74,14 @@ export default {
   // auto-checks before claiming); the model is otherwise refused.
   models: [
     { id: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash" },
-    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash" },
+    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4.1 Flash" },
     { id: "openai/gpt-5.6-luna", name: "GPT-5.6 Luna" },
     { id: "mimo/mimo-v2.5", name: "MiMo 2.5" },
     { id: "upstage/solar-pro4", name: "Solar Pro 4" },
-    { id: "meta/muse-spark-1.3-contributor", name: "Muse Spark 1.3" },
+    // meta/muse-spark-1.3-contributor was withdrawn upstream 2026-09-07
+    // (Meta 404 model_not_found on every key); replaced in the picker by
+    // 1.2-contributor on the same Contributor terms/pool.
+    { id: "meta/muse-spark-1.2-contributor", name: "Muse Spark 1.2" },
     { id: "anthropic/claude-fable-5", name: "Claude Fable 5 (limited offer)" },
   ],
   // Login-flow host — the CLI in freebuff mode logs in via freebuff.com, and

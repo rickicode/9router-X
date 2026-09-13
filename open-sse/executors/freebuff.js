@@ -129,12 +129,25 @@ const FREE_ROOT_AGENT_BY_MODEL = {
   "mimo/mimo-v2.5": "base3-free-mimo",
   "openai/gpt-5.6-luna": "base3-free-luna",
   "upstage/solar-pro4": "base3-free-solar-pro4",
-  "meta/muse-spark-1.3-contributor": "base3-free-muse-spark-1-3",
+  "meta/muse-spark-1.2-contributor": "base3-free-muse-spark",
   "anthropic/claude-fable-5": "base3-free-fable",
   // Retain roots for sessions from released clients while paused/retired models drain.
   "deepseek/deepseek-v4-pro": "base3-free-deepseek",
   "minimax/minimax-m3": "base3-free-minimax-m3",
 };
+// Session admission-gate statuses (both HTTP 200 pre-join refusals and 4xx
+// envelopes carry these in data.status).
+const GATE_MESSAGES = {
+  country_blocked: "Freebuff is not available in your region (country blocked).",
+  banned: "Your Freebuff account has been banned.",
+  ip_capped: "Freebuff IP cap reached — try again later.",
+  rate_limited: "Freebuff session limit reached for this model — try again later.",
+  spend_limited: "Freebuff spend limit reached — add credits or wait for the window to reset.",
+  model_locked: "Freebuff session is locked to another model — end it in the CLI or wait for it to expire.",
+  model_unavailable: "This model is not available on Freebuff right now.",
+  premium_slot_taken: "Freebuff premium slot is taken — try another model.",
+};
+
 
 // Per-token+model session cache (in-memory; keyed so multi-account setups
 // don't share one session row). Re-claims are driven by the cache expiring or
@@ -558,6 +571,26 @@ async function requestSession(token, rawModel, proxyOptions) {
         throw err;
       }
     }
+    // Gate statuses ride BOTH 200 (pre-join refusals) and 4xx — the backend
+    // sends spend_limited/rate_limited as HTTP 429 with the gate in the body.
+    // Handle them BEFORE the generic !ok throw so exhaustion carries
+    // resetsAtMs (skip-until-reset) instead of a bare status.
+    const gateStatus = String(data?.status || "");
+    if (GATE_MESSAGES[gateStatus]) {
+      const gateMessage = data?.message ? `${GATE_MESSAGES[gateStatus]} ${data.message}` : GATE_MESSAGES[gateStatus];
+      const gateErr = new Error(gateMessage);
+      if (gateStatus === "rate_limited" || gateStatus === "spend_limited") {
+        gateErr.status = 429;
+        const resetAt = Date.parse(data?.resetAt || "");
+        const retryAfter = Number(data?.retryAfterMs);
+        if (Number.isFinite(resetAt) && resetAt > Date.now()) {
+          gateErr.resetsAtMs = resetAt;
+        } else if (Number.isFinite(retryAfter) && retryAfter > 0) {
+          gateErr.resetsAtMs = Date.now() + Math.min(retryAfter, 26 * 60 * 60 * 1000);
+        }
+      }
+      throw gateErr;
+    }
     const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
     err.status = response.status;
     throw err;
@@ -579,16 +612,6 @@ async function requestSession(token, rawModel, proxyOptions) {
     return { instanceId: null, status: "none" };
   }
 
-  const GATE_MESSAGES = {
-    country_blocked: "Freebuff is not available in your region (country blocked).",
-    banned: "Your Freebuff account has been banned.",
-    ip_capped: "Freebuff IP cap reached — try again later.",
-    rate_limited: "Freebuff session limit reached for this model — try again later.",
-    spend_limited: "Freebuff spend limit reached — add credits or wait for the window to reset.",
-    model_locked: "Freebuff session is locked to another model — end it in the CLI or wait for it to expire.",
-    model_unavailable: "This model is not available on Freebuff right now.",
-    premium_slot_taken: "Freebuff premium slot is taken — try another model.",
-  };
   if (status === "rate_limited") {
     const bodyText = JSON.stringify(data || {});
     if (

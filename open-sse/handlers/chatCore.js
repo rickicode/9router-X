@@ -538,10 +538,14 @@ try {
     return createErrorResult(499, "Request aborted");
   }
   const errMsg = formatProviderError(error, provider, model, HTTP_STATUS.BAD_GATEWAY);
+  // Carry the executor's own status (429/409 quota gates) when it threw one;
+  // fall back to 502 for generic throws. A 429 misreported as 502 gets the
+  // wrong lock classification downstream.
+  const thrownStatus = Number(error?.status) || HTTP_STATUS.BAD_GATEWAY;
   if (log?.errorLine) {
-    log.errorLine(reqTag, "✗", `ERROR 502 · ${provider}/${model} · ${Date.now() - requestStartTime}ms\n    ${errMsg}`);
+    log.errorLine(reqTag, "✗", `ERROR ${thrownStatus} · ${provider}/${model} · ${Date.now() - requestStartTime}ms\n    ${errMsg}`);
   }
-  return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg, error?.resetsAtMs || undefined, {
+  return createErrorResult(thrownStatus, errMsg, error?.resetsAtMs || undefined, {
     poolScoped: error?.poolScoped,
     upstreamStatus: error?.upstreamStatus || error?.status,
     freebuffKind: error?.freebuffKind,
