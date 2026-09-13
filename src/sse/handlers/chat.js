@@ -187,6 +187,7 @@ export async function handleChat(request, clientRawRequest = null) {
   const rotationBudget = { used: 0, max: MAX_TOTAL_ROTATION_ATTEMPTS };
 
   // Check if model is a combo (has multiple models with fallback)
+  const externalSignal = request?.signal ?? null;
   const comboModels = await getComboModels(modelStr);
   if (comboModels) {
     // Check for combo-specific strategy first, fallback to global
