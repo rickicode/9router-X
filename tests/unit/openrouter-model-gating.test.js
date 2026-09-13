@@ -21,7 +21,7 @@ vi.mock("@/lib/localDb", () => ({
   getProxyPools: vi.fn(async () => []),
 }));
 
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   getCachedConnections: vi.fn(async () => null),
   setCachedConnections: vi.fn(async () => {}),
   getBatchCooldowns: vi.fn(async () => new Set()),

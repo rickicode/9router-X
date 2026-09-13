@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   resetDeadCircuit: vi.fn(async () => true),
 }));
 
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   setAccountCooldown: vi.fn(async () => true),
   isAccountInCooldown: vi.fn(async () => false),
   setModelCooldown: vi.fn(async () => true),

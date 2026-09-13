@@ -27,7 +27,7 @@ vi.mock("@/shared/constants/providers", () => ({
 vi.mock("@/lib/db/repos/usageSnapshotsRepo.js", () => ({
   upsertUsageSnapshot: (...args) => (mocks.upsertUsageSnapshot(...args), Promise.resolve()),
 }));
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   publishEvent: (...args) => (mocks.publishEvent(...args), Promise.resolve()),
 }));
 

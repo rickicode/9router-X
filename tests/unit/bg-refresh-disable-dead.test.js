@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const NOW = Date.parse("2026-09-07T12:00:00.000Z");
 
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   acquireLock: vi.fn(async () => true),
   releaseLock: vi.fn(async () => {}),
 }));

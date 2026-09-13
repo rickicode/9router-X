@@ -64,7 +64,7 @@ vi.mock("@/sse/utils/logger.js", () => ({
   tagForSession: vi.fn(), nextTag: vi.fn(() => ""),
   maskKey: vi.fn((k) => k),
 }));
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   incrModelFailCount: vi.fn(async () => 0),
   resetModelFailCount: vi.fn(async () => true),
   getModelFailCounts: vi.fn(async () => ({})),

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(async () => ({ comboStrategy: "round-robin", comboStickyRoundRobinLimit: 1 })),
   checkAndRefreshToken: vi.fn(async (provider, creds) => creds),
   rrSeq: 0,
-  redisDown: false,
+  cacheDown: false,
 }));
 
 vi.mock("@/sse/services/auth.js", () => ({
@@ -69,12 +69,12 @@ vi.mock("@/sse/utils/logger.js", () => ({
   tagForSession: vi.fn(), nextTag: vi.fn(() => ""),
   maskKey: vi.fn((k) => k),
 }));
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   incrModelFailCount: vi.fn(async () => 0),
   resetModelFailCount: vi.fn(async () => true),
   getModelFailCounts: vi.fn(async () => ({})),
   incrSharedCounter: vi.fn(async () => {
-    if (mocks.redisDown) throw new Error("redis down");
+    if (mocks.cacheDown) throw new Error("cache down");
     return ++mocks.rrSeq;
   }),
   setLkg: vi.fn(async () => true),
@@ -93,7 +93,7 @@ const BODY = { model: "rr", messages: [{ role: "user", content: "hi" }] };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.rrSeq = 0;
-  mocks.redisDown = false;
+  mocks.cacheDown = false;
   mocks.getSettings.mockResolvedValue({ comboStrategy: "round-robin", comboStickyRoundRobinLimit: 1 });
   let n = 0;
   mocks.getProviderCredentials.mockImplementation(async () => ({
@@ -135,7 +135,7 @@ describe("strict round-robin", () => {
   });
 
   it("falls back to in-memory rotation when Redis is down", async () => {
-    mocks.redisDown = true;
+    mocks.cacheDown = true;
     resetComboRotation("rr");
     const tried = [];
     mocks.handleChatCore.mockImplementation(async (opts) => {

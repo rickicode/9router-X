@@ -326,7 +326,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     }
 
     // Query a bounded candidate window from PostgreSQL. The previous path
-    // loaded every active credential for a provider into Node and Redis, which
+    // loaded every active credential for a provider into memory, which
     // is unsafe for providers with tens of thousands of accounts.
     const candidateWindow = Math.min(Math.max(Number(options.candidateLimit) || 100, 25), 500);
     const settings = await getSettings();
@@ -349,7 +349,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     }
 
     // 2. Last-known-good fast path: one proven account skips the whole scan
-    // (2 cheap roundtrips: Redis GET + single-row PG read + 1-id cooldown
+    // (fast roundtrip: cache GET + single-row PG read + 1-id cooldown
     // batch). Honors exclusions; stale pointers self-heal via delLkg on the
     // error path.
     const lkgId = await getLkg(providerId, model).catch(() => null);
@@ -380,7 +380,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     // 3. Window scan (up to 2 windows): SQL pre-filters durable eligibility;
     // the second window covers providers whose first `candidateWindow` rows
-    // are all transiently filtered (Redis cooldowns / RAM quota blocks).
+    // are all transiently filtered (cache cooldowns / RAM quota blocks).
     const MAX_SELECTION_WINDOWS = Math.min(10, Math.max(2, Number(process.env.ROUTING_MAX_CANDIDATE_WINDOWS) || 6));
     const isAntigravity = providerId === "antigravity";
     const isFreebuff = providerId === "freebuff";
@@ -526,7 +526,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     if (availableConnections.length === 0) {
       // A cached connection list may be stale. Re-read all rows before
-      // classifying the failure so Redis cannot hide exhausted/disabled state.
+      // classifying the failure so cache cannot hide exhausted/disabled state.
       const stateConnections = await getProviderConnections({ provider: providerId, limit: 500 });
       if (isAntigravity && model) {
         const readQuotas = getLocalDbFn("getBatchProviderQuotas");
@@ -914,7 +914,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   }
 
   // Freebuff limited IP tier (rate limited on proxy IP, e.g. Freebucks 25/25 limit)
-  // is NOT an account fault — set 30s Redis cooldown only, do NOT lock model in DB.
+  // is NOT an account fault — set 30s cache cooldown only, do NOT lock model in DB.
   const freebuffLimitedIp = providerIdEarly === "freebuff"
     && (freebuffKind === "limited_ip"
       || /accesstier["']?\s*:\s*["']?limited|pool["']?\s*:\s*["']?freebucks|limited-tier|limited_ip/i.test(String(errorText || "")));
@@ -923,7 +923,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cacheSetModelCooldown(connectionId, model, 30).catch(() => {});
     }
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
-    log.warn("AUTH", `${connName} Freebuff limited IP tier (proxy-bound) — setting 30s in-memory/Redis cooldown for ${model || "all"} (no DB model lock)`);
+    log.warn("AUTH", `${connName} Freebuff limited IP tier (proxy-bound) — setting 30s in-memory cooldown for ${model || "all"} (no DB model lock)`);
     return { shouldFallback: true, cooldownMs: 30000 };
   }
 
@@ -958,7 +958,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       rateLimitedUntil: null,
     });
     await invalidateCachedConnections(providerId).catch(() => {});
-    // Long L2 cooldown so the Redis-cached path also stops returning it.
+    // Long L2 cooldown so the speed-layer cache also stops returning it.
     cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
     log.warn("AUTH", `${connName} Freebuff account banned — DISABLED (is_active=false), removed from routing`);
     console.error(`❌ ${provider} [${status}]: ${reason}`);
@@ -1215,7 +1215,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
         },
       } : {}),
     });
-    // Long L2 cooldown so the Redis-cached path also stops returning it.
+    // Long L2 cooldown so the speed-layer cache also stops returning it.
     // Also drop the cached connection list itself: L2 cooldown keys only gate
     // already-cached rows, and stale caches kept serving the dead credential.
     cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
@@ -1281,7 +1281,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     log.warn("AUTH", `${connName} locked ${lockKey} for ${Math.round(cooldownMs / 1000)}s [${status}]`);
   }
 
-  // Sync with Redis L2 Cooldown Layer
+  // Sync with speed-layer cache
   const cooldownSecs = Math.ceil(cooldownMs / 1000);
   if (cooldownSecs > 0) {
     if (isAccountWideLock) {

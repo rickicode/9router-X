@@ -4,8 +4,8 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   updateProviderConnection: vi.fn(async () => {}),
   getProviderConnections: vi.fn(async () => []),
-  redisSetModelCooldown: vi.fn(async () => true),
-  redisSetAccountCooldown: vi.fn(async () => true),
+  cacheSetModelCooldown: vi.fn(async () => true),
+  cacheSetAccountCooldown: vi.fn(async () => true),
   markPoolUnfit: vi.fn(),
 }));
 
@@ -28,12 +28,12 @@ vi.mock("@/lib/localDb", () => ({
   lockProxyPoolForScope: vi.fn(async () => {}),
 }));
 
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   getCachedConnections: vi.fn(async () => null),
   setCachedConnections: vi.fn(async () => {}),
   getBatchCooldowns: vi.fn(async () => new Set()),
-  setAccountCooldown: mocks.redisSetAccountCooldown,
-  setModelCooldown: mocks.redisSetModelCooldown,
+  setAccountCooldown: mocks.cacheSetAccountCooldown,
+  setModelCooldown: mocks.cacheSetModelCooldown,
   invalidateCachedConnections: vi.fn(async () => {}),
   getLkg: vi.fn(async () => null),
   delLkg: vi.fn(async () => true),
@@ -226,7 +226,7 @@ describe("Freebuff Limited Tier (Proxy/IP Rate Limit)", () => {
       );
 
       expect(result).toEqual({ shouldFallback: true, cooldownMs: 30000 });
-      expect(mocks.redisSetModelCooldown).toHaveBeenCalledWith(
+      expect(mocks.cacheSetModelCooldown).toHaveBeenCalledWith(
         "conn-fb-1",
         "meta/muse-spark-1.3-contributor",
         30,
@@ -250,7 +250,7 @@ describe("Freebuff Limited Tier (Proxy/IP Rate Limit)", () => {
       );
 
       expect(result).toEqual({ shouldFallback: true, cooldownMs: 30000 });
-      expect(mocks.redisSetModelCooldown).toHaveBeenCalledWith(
+      expect(mocks.cacheSetModelCooldown).toHaveBeenCalledWith(
         "conn-fb-2",
         "meta/muse-spark-1.3-contributor",
         30,

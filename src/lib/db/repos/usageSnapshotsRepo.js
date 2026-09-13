@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { cacheGetRaw, cacheSetRaw, cacheDelRaw, isRedisAvailable } from "../../redis/client.js";
+import { cacheGetRaw, cacheSetRaw, cacheDelRaw, isCacheAvailable } from "../cache/client.js";
 
 // Short-TTL cache for the full-provider quota join: the routing hot path
 // calls getBatchProviderQuotas on EVERY antigravity selection, and the join
@@ -10,7 +10,7 @@ const SNAPSHOT_CACHE_TTL_S = 20;
 const snapshotCacheKey = (provider) => `agqsnap:${provider}`;
 
 async function readSnapshotCache(provider) {
-  if (!isRedisAvailable()) return null;
+  if (!isCacheAvailable()) return null;
   try {
     const raw = await cacheGetRaw(snapshotCacheKey(provider));
     if (!raw) return null;
@@ -22,14 +22,14 @@ async function readSnapshotCache(provider) {
 }
 
 async function writeSnapshotCache(provider, value) {
-  if (!isRedisAvailable()) return;
+  if (!isCacheAvailable()) return;
   try {
     await cacheSetRaw(snapshotCacheKey(provider), JSON.stringify(value), SNAPSHOT_CACHE_TTL_S);
   } catch {}
 }
 
 async function invalidateSnapshotCache(provider) {
-  if (!isRedisAvailable() || !provider) return;
+  if (!isCacheAvailable() || !provider) return;
   try {
     await cacheDelRaw(snapshotCacheKey(provider));
   } catch {}

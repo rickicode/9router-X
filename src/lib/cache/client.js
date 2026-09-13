@@ -2,25 +2,14 @@ import crypto from "node:crypto";
 import { memSet, memGet, memDel, memDelPrefix, memMget, memIncr, memExpire } from "./memoryStore.js";
 
 // ── Memory-first speed layer (single-container) ──────────────────────────
-// Redis/Valkey removed: overengineering for one replica. All fast-path state
-// lives in a process-local Map with TTL (memoryStore.js); PG remains the
-// durable source of truth for locks/cooldowns. API is unchanged so the 14
-// importing files need no edits.
+// All fast-path state lives in a process-local Map with TTL (memoryStore.js);
+// PG remains the durable source of truth for locks/cooldowns. API is unchanged
+// so the 14 importing files need no edits.
 //
 // Semantics preserved:
 // - Every setter is fail-open (returns safe default on error).
-// - TTL expiry matches the old Redis EX values.
+// - TTL expiry handles auto-cleanup.
 // - acquireLock/releaseLock use owner tokens (single-process mutex).
-
-export function getRedis() {
-  return null;
-}
-
-export function isRedisAvailable() {
-  // Memory layer is always available in-process.
-  // Kept for backward compat; prefer isCacheAvailable().
-  return true;
-}
 
 export function isCacheAvailable() {
   return true;

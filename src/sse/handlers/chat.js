@@ -42,8 +42,7 @@ import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
  * Strict round-robin start index via an atomic shared counter. Every request
  * (across all processes/replicas) gets a unique sequence number, so each one
  * starts at a different member — no thundering herd, no per-process drift.
- * Honors stickyLimit (N consecutive requests per member). Returns null when
- * Redis is unavailable so the caller falls back to in-memory rotation.
+ * Honors stickyLimit (N consecutive requests per member).
  */
 async function strictRRStartIndex(comboName, memberCount, stickyLimit) {
   const sticky = Math.max(1, Number(stickyLimit) || 1);
@@ -59,11 +58,11 @@ function rotateFromIndex(models, startIndex) {
 }
 
 /**
- * Race a Redis read against a deadline so a stalled Redis can never
+ * Race a cache read against a deadline so a slow read can never
  * head-of-line-block combo routing — on timeout the caller takes its
  * fail-open path (in-memory rotation / unchanged order).
  */
-function withRedisDeadline(promise, ms = 500) {
+function withDeadline(promise, ms = 500) {
   let timer = null;
   const timeout = new Promise((resolve) => {
     timer = setTimeout(() => resolve(null), ms);
@@ -75,7 +74,7 @@ function withRedisDeadline(promise, ms = 500) {
 
 /**
  * Prepare combo member order + effective strategy. Composition order is
- * deliberate: ROTATE first (strict Redis round-robin over the configured
+ * deliberate: ROTATE first (strict round-robin over the configured
  * order), then stable-partition healthy members front (health reorder never
  * drops anyone, so the rotated relative order survives and a healthy head is
  * guaranteed whenever one exists). The inner combo loop then runs strategy
@@ -86,7 +85,7 @@ async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
   let ordered = Array.isArray(models) ? models : [];
   let effectiveStrategy = strategy;
   if (strategy === "round-robin" && ordered.length > 1) {
-    const start = await withRedisDeadline(strictRRStartIndex(comboName, ordered.length, stickyLimit));
+    const start = await withDeadline(strictRRStartIndex(comboName, ordered.length, stickyLimit));
     if (start !== null) {
       ordered = rotateFromIndex(ordered, start);
       effectiveStrategy = "fallback";
@@ -100,11 +99,11 @@ async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
  * MODEL_FAILOVER_THRESHOLD consecutive upstream failures are moved to the
  * back so the next request starts at a working model instead of re-burning
  * rotations on the dead one. Never drops a member — if all are failing the
- * original order is kept. No-op without Redis.
+ * original order is kept.
  */
 async function reorderComboByHealth(models) {
   if (!Array.isArray(models) || models.length <= 1) return models;
-  const counts = await withRedisDeadline(getModelFailCounts(models)).catch(() => ({})) || {};
+  const counts = await withDeadline(getModelFailCounts(models)).catch(() => ({})) || {};
   const failing = new Set();
 
   for (const m of models) {
@@ -122,7 +121,7 @@ async function reorderComboByHealth(models) {
         }
         const canonical = `${info.provider}/${info.model}`;
         if (canonical !== m) {
-          const canonicalCounts = await withRedisDeadline(getModelFailCounts([canonical])).catch(() => ({})) || {};
+          const canonicalCounts = await withDeadline(getModelFailCounts([canonical])).catch(() => ({})) || {};
           if ((canonicalCounts[canonical] || 0) >= MODEL_FAILOVER_THRESHOLD) {
             failing.add(m);
           }
@@ -666,7 +665,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         clearProviderDead(provider).catch(() => {});
         // Publish this account as last-known-good: the next selection for the
         // same provider+model fast-paths straight here (60s TTL) instead of
-        // scanning PG + Redis. Also closes any dead-circuit for the pair.
+        // scanning PG. Also closes any dead-circuit for the pair.
         setLkg(provider, model, credentials.connectionId, LKG_TTL_S).catch(() => {});
         resetDeadCircuit(provider, model).catch(() => {});
         await clearAccountError(credentials.connectionId, credentials, model);

@@ -10,7 +10,7 @@ vi.mock("@/lib/localDb", () => ({
   validateApiKey: vi.fn(async () => null),
   updateProviderConnection: vi.fn(async () => ({})),
 }));
-vi.mock("@/lib/redis/client.js", () => ({
+vi.mock("@/lib/cache/client.js", () => ({
   setAccountCooldown: vi.fn(async () => true),
   isAccountInCooldown: vi.fn(async () => false),
   setModelCooldown: vi.fn(async () => true),

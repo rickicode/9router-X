@@ -56,7 +56,7 @@ export const COMBO_TARGET_TIMEOUT_MS = 120000;
 // 504 COMBO_TIMEOUT instead of letting member timeouts stack without bound.
 export const COMBO_LOOP_SAFETY_MS = 300000;
 // Combo failover: a member that fails this many times CONSECUTIVELY (across
-// requests, tracked in Redis) is deprioritized to the back of the combo so the
+// requests, tracked in memory cache) is deprioritized to the back of the combo so the
 // next request starts at a healthy model instead of re-burning rotations on
 // the dead one. A success resets the count; the window TTL auto-forgives.
 export const MODEL_FAILOVER_THRESHOLD = 3;
@@ -64,7 +64,7 @@ export const MODEL_FAILOVER_WINDOW_S = 900;
 // Fleet-wide dead provider/model circuit: this many CONSECUTIVE empty
 // selections (no routable account found) short-circuits selection to a fast
 // 503 without scanning PG or burning rotation budget. Any successful
-// selection resets. Only engages with Redis (shared fleet state).
+// selection resets.
 export const DEAD_CIRCUIT_THRESHOLD = 3;
 export const DEAD_CIRCUIT_WINDOW_S = 60;
 // Last-known-good pointer TTL: how long one proven account serves as the

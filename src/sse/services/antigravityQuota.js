@@ -60,8 +60,7 @@ export function clearAntigravityStrikes(connectionId, model) {
   const key = `${connectionId}|${model}`;
   strikeCounts.delete(key);
   const until = strikeBlocks.get(key);
-  // Always clear the Redis mirror: the pair just proved itself healthy, and a
-  // stale cross-replica cooldown would wrongly exclude a working account.
+  // Always clear speed-layer cache: the pair just proved itself healthy.
   clearModelCooldown(connectionId, model).catch(() => {});
   if (until === undefined) return;
   strikeBlocks.delete(key);
@@ -157,7 +156,7 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
     const finalQuotas = applyActiveStrikeBlocks(connectionId, usage.quotas);
     quotaCache.set(connectionId, finalQuotas);
 
-    // Write-through to PostgreSQL and publish event to Redis (Decision #10 & Phase 3)
+    // Write-through to PostgreSQL and emit event (Decision #10 & Phase 3)
     let minRemaining = null;
     let earliestReset = null;
     for (const q of Object.values(finalQuotas)) {
@@ -237,9 +236,8 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
       cached[model] = { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() };
       quotaCache.set(connectionId, cached);
       strikeBlocks.set(key, blockedUntil);
-      // Mirror to Redis so OTHER replicas/processes skip this pair too — the
-      // in-process maps above are invisible across restarts and instances.
-      // TTL matches the block; fail-open when Redis is unavailable.
+      // Mirror to speed-layer cache so other selections skip this pair too.
+      // TTL matches the block; fail-open.
       setModelCooldown(connectionId, model, Math.ceil(STRIKE_BLOCK_MS / 1000)).catch(() => {});
       return blockedUntil;
     }
