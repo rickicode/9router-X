@@ -349,6 +349,84 @@ export default function ProviderLimits() {
     }
   }, []);
 
+  // Batch quota fetch for antigravity: single round-trip through the
+  // 20s-TTL server snapshot cache (GET /api/usage/quotas?provider=antigravity)
+  // instead of N per-connection upstream hits to Google. Read-only — does not
+  // upsert snapshots, so it never thrashes the routing cache. Connections
+  // without a snapshot yet fall back to per-connection fetch.
+  const fetchBatchAntigravityQuotas = useCallback(
+    async (connectionList) => {
+      const targets = (connectionList || []).filter(
+        (conn) => conn?.provider === "antigravity",
+      );
+      if (targets.length === 0) return false;
+      setLoading((prev) => ({
+        ...prev,
+        ...Object.fromEntries(targets.map((conn) => [conn.id, true])),
+      }));
+      try {
+        const response = await fetch(
+          `/api/usage/quotas?provider=antigravity&_t=${Date.now()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) throw new Error("Batch quota fetch failed");
+        const data = await response.json();
+        const byId = new Map(
+          (data.quotas || []).map((item) => [item.connectionId, item]),
+        );
+        const missing = [];
+        setQuotaData((prev) => {
+          const next = { ...prev };
+          for (const conn of targets) {
+            const item = byId.get(conn.id);
+            if (!item) {
+              missing.push(conn);
+              continue;
+            }
+            const parsedQuotas = parseQuotaData(conn.provider, {
+              quotas: item.quotas || {},
+            });
+            const quotaEntry = {
+              quotas: parsedQuotas,
+              plan: item.plan || null,
+              message: null,
+              raw: { quotas: item.quotas || {}, plan: item.plan || null },
+            };
+            next[conn.id] = quotaEntry;
+            setQuotaCache(conn.id, quotaEntry);
+          }
+          return next;
+        });
+        setErrors((prev) => {
+          const next = { ...prev };
+          for (const conn of targets) {
+            if (byId.has(conn.id)) next[conn.id] = null;
+          }
+          return next;
+        });
+        if (missing.length > 0) {
+          await Promise.all(
+            missing.map((conn) => fetchQuota(conn.id, conn.provider)),
+          );
+        }
+        return true;
+      } catch (error) {
+        console.error("[ProviderLimits] Batch antigravity quota failed, falling back:", error);
+        await Promise.all(
+          targets.map((conn) => fetchQuota(conn.id, conn.provider)),
+        );
+        return false;
+      } finally {
+        setLoading((prev) => {
+          const next = { ...prev };
+          for (const conn of targets) next[conn.id] = false;
+          return next;
+        });
+      }
+    },
+    [fetchQuota],
+  );
+
   // Refresh quota for a specific provider
   const refreshProvider = useCallback(
     async (connectionId, provider) => {
@@ -563,11 +641,18 @@ export default function ProviderLimits() {
         filterQuotaStateByConnections(prev, visibleConnections),
       );
 
-      await Promise.all(
-        visibleConnections
-          .filter(shouldFetch)
-          .map((conn) => fetchQuota(conn.id, conn.provider)),
-      );
+      const fetchable = visibleConnections.filter(shouldFetch);
+      const allAntigravity =
+        fetchable.length > 0 &&
+        fetchable.every((conn) => conn.provider === "antigravity");
+      if (allAntigravity && !force) {
+        // Bulk path: 1 cached snapshot read, no upstream fan-out, no cache thrash.
+        await fetchBatchAntigravityQuotas(fetchable);
+      } else {
+        await Promise.all(
+          fetchable.map((conn) => fetchQuota(conn.id, conn.provider)),
+        );
+      }
 
       setLastUpdated(new Date());
     } catch (error) {
@@ -575,7 +660,7 @@ export default function ProviderLimits() {
     } finally {
       setRefreshingAll(false);
     }
-  }, [refreshingAll, fetchConnections, fetchQuota, page]);
+  }, [refreshingAll, fetchConnections, fetchQuota, fetchBatchAntigravityQuotas, page]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -592,14 +677,21 @@ export default function ProviderLimits() {
         filterQuotaStateByConnections(prev, visibleConnections),
       );
 
-      await Promise.all(
-        visibleConnections.map((conn) => fetchQuota(conn.id, conn.provider)),
-      );
+      const allAntigravity =
+        visibleConnections.length > 0 &&
+        visibleConnections.every((conn) => conn.provider === "antigravity");
+      if (allAntigravity) {
+        await fetchBatchAntigravityQuotas(visibleConnections);
+      } else {
+        await Promise.all(
+          visibleConnections.map((conn) => fetchQuota(conn.id, conn.provider)),
+        );
+      }
       setLastUpdated(new Date());
     };
 
     initializeData();
-  }, [fetchConnections, fetchQuota, page]);
+  }, [fetchConnections, fetchQuota, fetchBatchAntigravityQuotas, page]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
