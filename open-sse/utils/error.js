@@ -133,6 +133,14 @@ export function extractQuotaResetMs(bodyText, response) {
     // "resets in 2 hours", or Cline "Try again in 8h 26m" — note the space
     // between unit components, which the h/m/s groups must tolerate).
     if (!resetsAtMs) {
+      const absoluteMatch = String(bodyText).match(/(?:reset|usage will reset|resets?)\s+at\s+([^\n,"]+UTC[^\n,"]*)/i);
+      if (absoluteMatch) {
+        const t = Date.parse(absoluteMatch[1]);
+        if (!isNaN(t) && t > now) resetsAtMs = t;
+      }
+    }
+
+    if (!resetsAtMs) {
       const compoundMatch = String(bodyText).match(/(?:resets?|try again)\s+in\s+(\d+)h\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i);
       if (compoundMatch) {
         const h = parseInt(compoundMatch[1] || "0", 10);

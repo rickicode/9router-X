@@ -975,7 +975,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
-  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false;
+  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false, frequencyLimitReset = false;
   if (githubResetAtMs) {
     shouldFallback = true;
     cooldownMs = githubResetAtMs - Date.now();
@@ -985,7 +985,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     shouldFallback = true;
     cooldownMs = Math.min(resetsAtMs - Date.now(), resolveProviderId(provider) === "freebuff" ? 26 * 60 * 60 * 1000 : MAX_RATE_LIMIT_COOLDOWN_MS);
     newBackoffLevel = 0;
-    if (isPooledQuotaProvider) lockAll = true;
+    // Explicit frequency-limit reset ("usage exceeds frequency limit, ...
+    // usage will reset at <time>, ... switch to the other models") is a
+    // per-model throttle with a precise wake time — never account-wide, even
+    // on pooled-quota providers. The frequencyLimit flag also keeps the
+    // isCodebuddyThrottle daily-cap rule below from re-locking all models.
+    const isFrequencyLimitReset = /usage exceeds frequency limit|exceeds.*frequency limit|frequency.?limit/i.test(String(errorText || ""));
+    frequencyLimitReset = isFrequencyLimitReset;
+    if (isPooledQuotaProvider && !isFrequencyLimitReset) lockAll = true;
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
@@ -1004,7 +1011,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // CodeBuddy/Workbuddy throttle: 14003 "too many requests" = transient,
     // 2-minute model cooldown only. Never account exhausted.
     const isCodebuddyThrottle = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
-      && /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText)
+      && /too many requests|rate.?limit exceeded|rate limited|usage exceeds frequency limit/i.test(lowerErrorText)
       && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
     if (isCodebuddyThrottle) {
       lockAll = false;
