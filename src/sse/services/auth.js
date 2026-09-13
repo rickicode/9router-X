@@ -1013,9 +1013,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       disableAccount = false;
       isExhausted = false;
       shouldFallback = true;
-      // CodeBuddy/Workbuddy only: 1-minute model cooldown. Other providers keep
-      // the global 5-minute default (DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30m? no, 5m via transients).
-      cooldownMs = 1 * 60 * 1000;
+      // CodeBuddy/Workbuddy only: 2-minute model cooldown. Other providers keep
+      // the global default (DEFAULT_RATE_LIMIT_COOLDOWN_MS via errorConfig rules).
+      cooldownMs = 2 * 60 * 1000;
     }
 
     const isDailyCap429 = !isZen429 && !isCodebuddyModelScoped && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
