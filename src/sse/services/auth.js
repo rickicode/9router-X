@@ -971,7 +971,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
 
   // Providers whose quota/credits are account-wide across ALL models
   // Cline-free free tier: all models share a single daily request budget
-  const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "github", "grok-cli", "cline-free"]);
+  const POOLED_QUOTA_PROVIDERS = new Set(["codex", "codebuddy-cn", "codebuddy-intl", "workbuddy", "github", "grok-cli", "cline-free"]);
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
@@ -1003,10 +1003,23 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     const isZen429 = providerId === "opencode-zen";
     // CodeBuddy Intl: 429 code:14003 "too many requests" is a transient throttle
     // (credit masih banyak) — treat as model cooldown, not account exhausted.
-    // Only explicit quota/billing exhaustion locks the account.
-    const isCodebuddyThrottle429 = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl")
+    const isCodebuddyThrottle429 = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
       && /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText)
       && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
+    // CodeBuddy: 14018 "Credits exhausted" is per-model credit pool (hy3 habis
+    // tapi glm masih ada credit). Lock model saja, bukan semua model.
+    // Account-wide lock hanya jika teks eksplisit bilang account/billing habis.
+    const isCodebuddyModelCreditExhausted = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl" || providerId === "workbuddy")
+      && /credits exhausted|insufficient credits/i.test(lowerErrorText)
+      && !/account|billing|subscription|plan/i.test(lowerErrorText);
+    if (isCodebuddyModelCreditExhausted) {
+      lockAll = false;
+      disableAccount = false;
+      isExhausted = false;
+      shouldFallback = true;
+      cooldownMs = Math.max(cooldownMs || 0, DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+    }
+
     const isDailyCap429 = !isZen429 && !isCodebuddyThrottle429 && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
