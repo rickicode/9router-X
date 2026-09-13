@@ -1001,7 +1001,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // window, so treating it as daily-cap locked every model on the account
     // (big-pickle outage). Zen rate limits are always model-scoped.
     const isZen429 = providerId === "opencode-zen";
-    const isDailyCap429 = !isZen429 && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    // CodeBuddy Intl: 429 code:14003 "too many requests" is a transient throttle
+    // (credit masih banyak) — treat as model cooldown, not account exhausted.
+    // Only explicit quota/billing exhaustion locks the account.
+    const isCodebuddyThrottle429 = (providerId === "codebuddy-cn" || providerId === "codebuddy-intl")
+      && /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText)
+      && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
+    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle429 && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }
