@@ -43,9 +43,14 @@ export default {
       url: "https://www.codebuddy.ai/v2/billing/meter/get-user-resource",
     },
   },
-  // Intl catalog is independent of CN; retain existing IDs for compatibility.
-  // Additions verified against the Intl gateway (2026-09-10).
+  // Intl catalog mirrors full CLI list; additions verified against CLI (2026-09-13).
   models: [
+    { id: "hy4-preview", name: "Hy4 Preview" },
+    { id: "hy3", name: "Hy3" },
+    { id: "hy3-x", name: "Hy3 X" },
+    { id: "deepseek-v4.1-flash", name: "DeepSeek-V4.1-Flash" },
+    { id: "glm-5.3", name: "GLM-5.3" },
+    { id: "glm-5.3-flash", name: "GLM-5.3-Flash" },
     { id: "glm-5.2", name: "GLM-5.2" },
     { id: "glm-5.1", name: "GLM-5.1" },
     { id: "glm-5.0", name: "GLM-5.0" },
@@ -54,6 +59,9 @@ export default {
     { id: "glm-4.7", name: "GLM-4.7" },
     { id: "minimax-m3", name: "MiniMax-M3" },
     { id: "minimax-m2.7", name: "MiniMax-M2.7" },
+    { id: "kimi-k3-1", name: "Kimi-K3" },
+    { id: "kimi-k3", name: "Kimi-K3" },
+    { id: "kimi-k2.8-preview", name: "Kimi-K2.8-Preview" },
     { id: "kimi-k2.7", name: "Kimi-K2.7-Code" },
     { id: "kimi-k2.6", name: "Kimi-K2.6" },
     { id: "kimi-k2.5", name: "Kimi-K2.5" },
@@ -61,9 +69,6 @@ export default {
     { id: "deepseek-v4-pro", name: "DeepSeek-V4-Pro" },
     { id: "deepseek-v4-flash", name: "DeepSeek-V4-Flash" },
     { id: "deepseek-v3-2-volc", name: "DeepSeek-V3.2" },
-    { id: "glm-5.3", name: "GLM-5.3" },
-    { id: "kimi-k3", name: "Kimi-K3" },
-    { id: "hy3", name: "Hy3" },
     { id: "claude-opus-5", name: "Claude Opus 5" },
     { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
   ],
