@@ -69,6 +69,7 @@ export default {
     { id: "deepseek-v4-pro", name: "DeepSeek-V4-Pro" },
     { id: "deepseek-v4-flash", name: "DeepSeek-V4-Flash" },
     { id: "deepseek-v3-2-volc", name: "DeepSeek-V3.2" },
+    { id: "gpt-5.6-luna", name: "GPT-5.6-Luna" },
     { id: "claude-opus-5", name: "Claude Opus 5" },
     { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
   ],
