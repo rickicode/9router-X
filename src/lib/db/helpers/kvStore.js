@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "./jsonCol.js";
+import { parseJson } from "./jsonCol.js";
 
 export function makeKv(scope) {
   return {
@@ -17,10 +17,13 @@ export function makeKv(scope) {
     },
     async set(key, value) {
       const db = await getAdapter();
+      const rawValue = typeof value === "string" && (value.startsWith("{") || value.startsWith("["))
+        ? parseJson(value, value)
+        : (value ?? null);
       await db.run(
         `INSERT INTO kv(scope, key, value) VALUES($1, $2, $3)
          ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-        [scope, key, stringifyJson(value)],
+        [scope, key, rawValue],
       );
     },
     async setMany(obj) {
@@ -28,10 +31,13 @@ export function makeKv(scope) {
        await db.transaction(async (tx) => {
          for (const [k, v] of Object.entries(obj)) {
            await tx.get("SELECT value FROM kv WHERE scope = $1 AND key = $2 FOR UPDATE", [scope, k]);
+          const rawValue = typeof v === "string" && (v.startsWith("{") || v.startsWith("["))
+            ? parseJson(v, v)
+            : (v ?? null);
           await tx.run(
             `INSERT INTO kv(scope, key, value) VALUES($1, $2, $3)
              ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-            [scope, k, stringifyJson(v)],
+            [scope, k, rawValue],
           );
         }
       });

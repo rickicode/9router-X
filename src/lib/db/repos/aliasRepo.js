@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { parseJson } from "../helpers/jsonCol.js";
 
 const MODEL_ALIASES_SCOPE = "modelAliases";
 const CUSTOM_MODELS_SCOPE = "customModels";
@@ -21,11 +21,14 @@ async function getValue(scope, key, fallback = null) {
 
 async function setValue(scope, key, value) {
   const db = await getAdapter();
+  const rawValue = typeof value === "string" && (value.startsWith("{") || value.startsWith("["))
+    ? parseJson(value, value)
+    : (value ?? null);
   await db.run(
     `INSERT INTO kv(scope, key, value)
      VALUES($1, $2, $3)
      ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-    [scope, key, stringifyJson(value)],
+    [scope, key, rawValue],
   );
 }
 
@@ -75,7 +78,7 @@ export async function addCustomModel({ providerAlias, id, type = "llm", name, ca
       };
       await tx.run(
         "UPDATE kv SET value = $1 WHERE scope = $2 AND key = $3",
-        [stringifyJson(next), CUSTOM_MODELS_SCOPE, key],
+        [next, CUSTOM_MODELS_SCOPE, key],
       );
       return;
     }
@@ -89,7 +92,7 @@ export async function addCustomModel({ providerAlias, id, type = "llm", name, ca
     };
     await tx.run(
       "INSERT INTO kv(scope, key, value) VALUES($1, $2, $3)",
-      [CUSTOM_MODELS_SCOPE, key, stringifyJson(value)],
+      [CUSTOM_MODELS_SCOPE, key, value],
     );
     added = true;
   });

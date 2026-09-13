@@ -272,3 +272,18 @@ export function clearAntigravityConnectionCache(connectionId) {
     if (key.startsWith(`${connectionId}|`)) strikeBlocks.delete(key);
   }
 }
+
+/**
+ * Batch variant for bulk reset paths: single call, no per-id loop at caller.
+ * Internal iteration only; keeps single-id export intact (additive).
+ */
+export function clearBatchAntigravityConnectionCache(connectionIds) {
+  if (!Array.isArray(connectionIds) || connectionIds.length === 0) return 0;
+  let cleared = 0;
+  for (const connectionId of connectionIds) {
+    if (!connectionId) continue;
+    clearAntigravityConnectionCache(connectionId);
+    cleared += 1;
+  }
+  return cleared;
+}

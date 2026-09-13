@@ -224,6 +224,13 @@ function connectionData(connection) {
 }
 
 function connectionValues(connection, { createdAt } = {}) {
+  const data = connectionData(connection);
+  // Sync invariant: the disabled marker and the column move together. Any
+  // write carrying data.disabledAt (or testStatus disabled) forces
+  // is_active=false, so the DISABLED bucket (purely is_active=false) can
+  // never miss a disabled row. Enable paths clear both (see
+  // resetHealthStateOnActivation and the SQL enable branches).
+  const isDisabled = data.disabledAt != null || connection.testStatus === "disabled";
   return {
     id: connection.id,
     provider: connection.provider,
@@ -231,7 +238,7 @@ function connectionValues(connection, { createdAt } = {}) {
     name: connection.name ?? null,
     email: connection.email ?? null,
     priority: connection.priority ?? 999,
-    isActive: booleanValue(connection.isActive),
+    isActive: isDisabled ? false : booleanValue(connection.isActive),
     testStatus: connection.testStatus ?? "active",
     lockedAllUntil: connection.lockedAllUntil ?? null,
     rateLimitedUntil: connection.rateLimitedUntil ?? null,
@@ -243,7 +250,7 @@ function connectionValues(connection, { createdAt } = {}) {
     lastError: connection.lastError ?? null,
     errorCode: connection.errorCode ?? null,
     lastErrorAt: connection.lastErrorAt ?? null,
-    data: connectionData(connection),
+    data,
     createdAt: createdAt ?? connection.createdAt ?? new Date().toISOString(),
     updatedAt: connection.updatedAt ?? new Date().toISOString(),
   };
@@ -360,6 +367,10 @@ const FUTURE_MODEL_LOCK_SQL = `EXISTS (
 // (locked_all_until, model_locks.__all, rate_limited_until) -> "unavailable".
 // Permanent failures (fatal errors, bad test_status, refreshBlocked) ->
 // "unavailable". Active only when none apply.
+// Buckets partition every row: DISABLED is purely is_active=false (disable
+// paths always sync the column with the data.disabledAt marker, enable paths
+// clear both). EXHAUSTED wins ties over UNAVAILABLE to mirror the classifier
+// order (model-lock > disabled > exhausted > unavailable).
 const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid', 'disabled')";
 const DISABLED_DATA_SQL = "data->>'disabledAt' IS NOT NULL";
 const PERMANENT_UNAVAILABLE_SQL = `(
@@ -386,6 +397,7 @@ const EXHAUSTED_CONNECTION_SQL = `(
 const UNAVAILABLE_CONNECTION_SQL = `(
   is_active = true
   AND COALESCE(test_status, 'active') <> 'exhausted'
+  AND NOT ${FUTURE_MODEL_LOCK_SQL}
   AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL})
 )`;
 const ROUTABLE_CONNECTION_SQL = `(
@@ -418,8 +430,8 @@ function buildConnectionFilterConditions(filter, params) {
   if (filter.isActive !== undefined) {
     params.push(filter.isActive);
     where.push(filter.isActive
-      ? `(is_active = true AND NOT ${DISABLED_DATA_SQL} AND COALESCE(test_status, 'active') <> 'disabled')`
-      : `(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
+      ? `(is_active = true)`
+      : `(is_active = false)`);
   }
   if (filter.search && typeof filter.search === "string" && filter.search.trim()) {
     params.push(`%${filter.search.trim()}%`);
@@ -433,7 +445,7 @@ function buildConnectionFilterConditions(filter, params) {
     } else if (filter.status === "unavailable") {
       where.push(UNAVAILABLE_CONNECTION_SQL);
     } else if (filter.status === "disabled") {
-      where.push(`(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
+      where.push(`(is_active = false)`);
     }
   }
   // Routing uses a model-specific durable eligibility predicate. Do not use
@@ -531,7 +543,7 @@ export async function getProviderSummaryStats() {
       provider,
       auth_type,
       COUNT(*)::int AS total,
-       COUNT(CASE WHEN is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled' THEN 1 END)::int AS disabled_count,
+       COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled_count,
       COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable_count,
       COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted_count,
       COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active_count,
@@ -655,11 +667,10 @@ export async function getClientUsageConnections({
   } else if (accountStatus === "unavailable") {
     where.push(UNAVAILABLE_CONNECTION_SQL);
   } else if (accountStatus === "disabled" || accountStatus === "inactive") {
-    where.push(`(is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled')`);
+    where.push(`(is_active = false)`);
   } else if (accountStatus !== "all_with_disabled") {
-    // Default / "all": only show accounts that are routable at the account
-    // level. Include the JSONB legacy disabled marker in this predicate.
-    where.push(`is_active = true AND NOT ${DISABLED_DATA_SQL} AND COALESCE(test_status, 'active') <> 'disabled'`);
+    // Default / "all": routable baseline — only depends on the canonical column.
+    where.push(`is_active = true`);
   }
 
   if (search && typeof search === "string" && search.trim()) {
@@ -748,7 +759,7 @@ export async function getClientUsageMeta({
        COUNT(CASE WHEN ${ACTIVE_CONNECTION_SQL} THEN 1 END)::int AS active,
        COUNT(CASE WHEN ${EXHAUSTED_CONNECTION_SQL} THEN 1 END)::int AS exhausted,
        COUNT(CASE WHEN ${UNAVAILABLE_CONNECTION_SQL} THEN 1 END)::int AS unavailable,
-        COUNT(CASE WHEN is_active = false OR ${DISABLED_DATA_SQL} OR COALESCE(test_status, 'active') = 'disabled' THEN 1 END)::int AS disabled
+        COUNT(CASE WHEN is_active = false THEN 1 END)::int AS disabled
      FROM provider_connections
      ${statusWhereSql}`,
     statusParams,
@@ -1039,10 +1050,9 @@ export async function setConnectionsActiveByIds(ids, isActive) {
     );
   }
 
-  for (const row of rows) {
-    if (row?.provider) {
-      invalidateCachedConnections(row.provider).catch(() => {});
-    }
+  const affected = new Set(rows.map((row) => row?.provider).filter(Boolean));
+  for (const provider of affected) {
+    invalidateCachedConnections(provider).catch(() => {});
   }
   return rows.length;
 }
@@ -1131,7 +1141,7 @@ export async function cleanupProviderConnections() {
   const db = await getAdapter();
   const result = await db.run(
     `UPDATE provider_connections
-        SET data = data - 'id' - 'provider' - 'authType' - 'name' - 'email' - 'priority' - 'isActive' - 'testStatus' - 'lockedAllUntil' - 'rateLimitedUntil' - 'tokenExpiresAt' - 'lastUsedAt' - 'lastError' - 'errorCode' - 'lastErrorAt' - 'createdAt' - 'updatedAt',
+        SET data = (CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END) - 'id' - 'provider' - 'authType' - 'name' - 'email' - 'priority' - 'isActive' - 'testStatus' - 'lockedAllUntil' - 'rateLimitedUntil' - 'tokenExpiresAt' - 'lastUsedAt' - 'lastError' - 'errorCode' - 'lastErrorAt' - 'createdAt' - 'updatedAt',
             updated_at = NOW()
       WHERE jsonb_typeof(data) = 'object'
         AND (data ? 'id' OR data ? 'provider' OR data ? 'authType' OR data ? 'name')`,

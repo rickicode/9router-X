@@ -1,6 +1,6 @@
 // Public API barrel — all DB functions
 import { getAdapter } from "./driver.js";
-import { stringifyJson, parseJson } from "./helpers/jsonCol.js";
+import { parseJson } from "./helpers/jsonCol.js";
 
 // Settings
 export {
@@ -465,19 +465,25 @@ export async function importDb(payload) {
     }
 
     // 7. KV entries (modelAliases, customModels, mitmAlias, pricing)
+    // Store as raw JSONB objects/arrays, not scalar strings – downstream
+    // parseJson() handles both legacy string payloads and new objects.
     const kvEntries = [];
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
-      kvEntries.push({ scope: "modelAliases", key: a, value: JSON.stringify(m ?? null) });
+      const val = typeof m === "string" ? parseJson(m, m) : (m ?? null);
+      kvEntries.push({ scope: "modelAliases", key: a, value: tx.raw.json(val) });
     }
     for (const m of payload.customModels || []) {
       const k = `${m.providerAlias}|${m.id}|${m.type || "llm"}`;
-      kvEntries.push({ scope: "customModels", key: k, value: JSON.stringify(m ?? {}) });
+      const val = typeof m === "string" ? parseJson(m, {}) : (m ?? {});
+      kvEntries.push({ scope: "customModels", key: k, value: tx.raw.json(val) });
     }
     for (const [tool, mappings] of Object.entries(payload.mitmAlias || {})) {
-      kvEntries.push({ scope: "mitmAlias", key: tool, value: JSON.stringify(mappings || {}) });
+      const rawMappings = typeof mappings === "string" ? parseJson(mappings, {}) : (mappings || {});
+      kvEntries.push({ scope: "mitmAlias", key: tool, value: tx.raw.json(rawMappings) });
     }
     for (const [provider, models] of Object.entries(payload.pricing || {})) {
-      kvEntries.push({ scope: "pricing", key: provider, value: JSON.stringify(models || {}) });
+      const rawModels = typeof models === "string" ? parseJson(models, {}) : (models || {});
+      kvEntries.push({ scope: "pricing", key: provider, value: tx.raw.json(rawModels) });
     }
 
     if (kvEntries.length > 0) {

@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { parseJson } from "../helpers/jsonCol.js";
 
 const SCOPE = "disabledModels";
 
@@ -35,7 +35,7 @@ export async function disableModels(providerAlias, ids) {
       `INSERT INTO kv(scope, key, value)
        VALUES($1, $2, $3)
        ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-      [SCOPE, providerAlias, stringifyJson(merged)],
+      [SCOPE, providerAlias, merged],
     );
   });
 }
@@ -65,7 +65,7 @@ export async function enableModels(providerAlias, ids) {
         `INSERT INTO kv(scope, key, value)
          VALUES($1, $2, $3)
          ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-        [SCOPE, providerAlias, stringifyJson(next)],
+        [SCOPE, providerAlias, next],
       );
     }
   });

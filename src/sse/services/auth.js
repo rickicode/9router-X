@@ -79,7 +79,11 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
   const retryExpiries = [];
 
   for (const connection of connections) {
-    const disabled = connection.isActive === false || connection.disabledAt || connection.testStatus === "disabled";
+    // Strict buckets mirror SQL: DISABLED is purely is_active=false (disable
+    // paths always sync the column with the data.disabledAt marker, and
+    // rowToConnection already folds stale markers into isActive). Exhausted
+    // rows must never count as disabled.
+    const disabled = connection.isActive === false;
     const refreshBlocked = isRefreshBlockedMarker(connection.providerSpecificData?.refreshBlocked);
     const fatalError = typeof connection.lastError === "string"
       && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(connection.lastError);
@@ -91,12 +95,15 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
     const modelLockValue = Boolean(model) && (connection[`modelLock_${model}`] || connection.modelLocks?.[model]);
     const modelLock = modelLockValue && Number.isFinite(new Date(modelLockValue).getTime())
       && new Date(modelLockValue).getTime() > Date.now();
-    const unavailable = refreshBlocked || fatalError || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus);
+    // Account-wide locks make the account unavailable (no model can use it);
+    // only test_status=exhausted counts as exhausted.
+    const unavailable = refreshBlocked || fatalError || accountLock || ["unavailable", "error", "expired", "invalid"].includes(connection.testStatus);
     const connName = connection.name || connection.email || connection.displayName
       || (connection.id ? `${connection.id.slice(0, 8)}...` : "unknown");
 
-    // Check model lock BEFORE disabled: a disabled account with an active model lock
-    // should still count as model-exhausted, not just disabled.
+    // Strict order: model-lock > disabled > exhausted > unavailable.
+    // Exhausted rows must not be counted as disabled, and unavailable is
+    // only for permanent errors / account locks.
     if (modelLock) {
       breakdown.modelExhausted++;
       modelLocks.add(connection.id);
@@ -106,7 +113,7 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
     } else if (disabled) {
       breakdown.disabled++;
       blockedNames.push(connName);
-    } else if (connection.testStatus === "exhausted" || accountLock) {
+    } else if (connection.testStatus === "exhausted") {
       breakdown.accountExhausted++;
       accountLocks.add(connection.id);
       const expiry = getEarliestModelLockUntil(connection, null);
@@ -127,9 +134,7 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
     && breakdown.modelExhausted === connections.length;
   // All active (non-disabled) connections are model-locked — disabled accounts are just
   // dead keys and don't count against the model availability assessment.
-  const activeConnections = connections.filter((c) =>
-    !(c.isActive === false || c.disabledAt || c.testStatus === "disabled")
-  );
+  const activeConnections = connections.filter((c) => c.isActive !== false);
   const allActiveModelExhausted = activeConnections.length > 0
     && model
     && activeConnections.every((c) => {

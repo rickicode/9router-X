@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { parseJson } from "../helpers/jsonCol.js";
 
 function rowToNode(row) {
   if (!row) return null;

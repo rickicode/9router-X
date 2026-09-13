@@ -1,5 +1,5 @@
 import { getAdapter } from "../driver.js";
-import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { parseJson } from "../helpers/jsonCol.js";
 
 const SCOPE = "pricing";
 const CACHE_TTL_MS = 5000;
@@ -74,7 +74,7 @@ export async function updatePricing(pricingData) {
         `INSERT INTO kv(scope, key, value)
          VALUES($1, $2, $3)
          ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-        [SCOPE, provider, stringifyJson(merged)],
+        [SCOPE, provider, merged],
       );
     }
   });
@@ -107,7 +107,7 @@ export async function resetPricing(provider, model) {
         `INSERT INTO kv(scope, key, value)
          VALUES($1, $2, $3)
          ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`,
-        [SCOPE, provider, stringifyJson(current)],
+        [SCOPE, provider, current],
       );
     }
   });

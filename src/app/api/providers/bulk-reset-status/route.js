@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bulkResetProviderConnectionsStatus } from "@/models";
-import { clearAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
+import { clearBatchAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
 
 export async function POST(request) {
   try {
@@ -13,10 +13,8 @@ export async function POST(request) {
 
     const result = await bulkResetProviderConnectionsStatus({ provider, ids });
 
-    if (provider === "antigravity" && typeof clearAntigravityConnectionCache === "function") {
-      if (Array.isArray(ids)) {
-        for (const id of ids) clearAntigravityConnectionCache(id);
-      }
+    if (provider === "antigravity") {
+      clearBatchAntigravityConnectionCache(ids);
     }
 
     return NextResponse.json(result);

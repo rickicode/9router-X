@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
+import { parseJson } from "../helpers/jsonCol.js";
 
 const POOL_SNAKE_FIELDS = {
   proxy_url: "proxyUrl",
@@ -14,21 +15,10 @@ const POOL_SNAKE_FIELDS = {
 };
 
 function jsonObject(value, fallback = {}) {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-  return value && typeof value === "object" && !Array.isArray(value) ? value : fallback;
+  const parsed = parseJson(value, fallback);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
 }
 
-function jsonString(value) {
-  return JSON.stringify(value ?? {});
-}
 
 function booleanValue(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
@@ -135,7 +125,7 @@ async function writePool(db, pool, options = {}) {
       values.testStatus,
       values.lastTestedAt,
       values.lastError,
-      jsonString(values.data),
+      values.data || {},
       values.createdAt,
       values.updatedAt,
     ],

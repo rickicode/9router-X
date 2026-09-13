@@ -1,5 +1,4 @@
 import { getAdapter } from "../driver.js";
-import { stringifyJson } from "../helpers/jsonCol.js";
 import { getRedis, isRedisAvailable } from "../../redis/client.js";
 
 // Short-TTL cache for the full-provider quota join: the routing hot path
