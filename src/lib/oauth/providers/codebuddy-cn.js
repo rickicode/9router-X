@@ -1,4 +1,5 @@
 import { CODEBUDDY_CONFIG } from "../constants/oauth.js";
+import { extractEmailFromAccessToken } from "../providerHelpers.js";
 
 // CodeBuddy (Tencent) - Browser OAuth Polling Flow
 // 1. POST stateUrl → get { state, authUrl }
@@ -69,12 +70,21 @@ const codebuddyCn = {
     if (data.code === 11217) return { ok: true, data: { error: "authorization_pending" } };
     return { ok: false, data: { error: data.msg || "unknown_error" } };
   },
-  mapTokens: (tokens) => ({
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresIn: tokens.expires_in || 86400,
-    providerSpecificData: {},
-  }),
+  mapTokens: (tokens) => {
+    // The CodeBuddy access token is a Keycloak JWT carrying email /
+    // preferred_username claims. Surface it as the connection email so
+    // createProviderConnection can de-dup/merge and show a real name instead
+    // of the generic "Account N" fallback.
+    const email = extractEmailFromAccessToken(tokens.access_token) || null;
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in || 86400,
+      email,
+      displayName: email || undefined,
+      providerSpecificData: {},
+    };
+  },
 };
 
 export default codebuddyCn;
