@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/db/driver";
-import { isRedisAvailable, getRedis } from "@/lib/redis/client";
+import { memSize } from "@/lib/redis/memoryStore";
 import { getRoutingMetrics } from "open-sse/services/routingMetrics";
 
 export async function GET() {
@@ -8,7 +8,9 @@ export async function GET() {
     status: "healthy",
     timestamp: new Date().toISOString(),
     postgres: false,
-    redis: false,
+    // Redis removed (single-container): memory speed layer is always up.
+    redis: true,
+    redisNote: "memory-only (no external redis)",
     latencyMs: {},
   };
 
@@ -25,22 +27,11 @@ export async function GET() {
     check.status = "degraded";
   }
 
-  // Check Redis
-  const redisStart = Date.now();
+  // Memory speed-layer stats
   try {
-    if (isRedisAvailable()) {
-      const redis = getRedis();
-      const pong = await redis.ping();
-      check.redis = pong === "PONG";
-      check.latencyMs.redis = Date.now() - redisStart;
-    } else {
-      check.redis = false;
-      check.redisNote = "disabled or connecting";
-    }
-  } catch (err) {
-    check.redis = false;
-    check.redisError = err.message;
-  }
+    check.latencyMs.memory = 0;
+    check.memoryKeys = memSize();
+  } catch {}
 
   check.routing = getRoutingMetrics();
 

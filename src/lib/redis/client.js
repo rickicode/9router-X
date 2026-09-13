@@ -1,69 +1,75 @@
 import crypto from "node:crypto";
-import Redis from "ioredis";
+import { memSet, memGet, memDel, memMget, memIncr, memExpire } from "./memoryStore.js";
 
-// Singleton client to survive Next.js dev server hot-reload
+// ── Memory-first speed layer (single-container) ──────────────────────────
+// Redis/Valkey removed: overengineering for one replica. All fast-path state
+// lives in a process-local Map with TTL (memoryStore.js); PG remains the
+// durable source of truth for locks/cooldowns. API is unchanged so the 14
+// importing files need no edits.
+//
+// Semantics preserved:
+// - Every setter is fail-open (returns safe default on error).
+// - TTL expiry matches the old Redis EX values.
+// - acquireLock/releaseLock use owner tokens (single-process mutex).
+
+// Singleton placeholder (kept for import compatibility).
 if (!global._redisClient) {
-  const redisUrl = process.env.REDIS_URL;
-  if (redisUrl) {
-    const client = new Redis(redisUrl, {
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: true,
-      retryStrategy(times) {
-        // Exponential backoff, max 3 seconds
-        return Math.min(times * 100, 3000);
-      },
-      reconnectOnError(err) {
-        const targetError = "READONLY";
-        if (err.message.includes(targetError)) return true;
-        return false;
-      },
-      lazyConnect: true,
-    });
-
-    client.on("connect", () => {
-      console.log("[Redis] Connected to speed layer");
-    });
-
-    client.on("error", (err) => {
-      console.warn(`[Redis] Connection warning: ${err.message}`);
-    });
-
-    global._redisClient = client;
-    // Attempt non-blocking initial connection
-    client.connect().catch(() => {});
-  } else {
-    global._redisClient = null;
-  }
+  global._redisClient = null;
 }
 
-const redis = global._redisClient;
-
 export function getRedis() {
-  if (redis && redis.status === "ready") {
-    return redis;
-  }
   return null;
 }
 
 export function isRedisAvailable() {
-  return !!(redis && redis.status === "ready");
+  // Memory layer is always available in-process.
+  return true;
+}
+
+/**
+ * Generic raw get/set/del (used by usageSnapshotsRepo quota cache).
+ * TTL-aware via memoryStore.
+ */
+export async function cacheGetRaw(key) {
+  if (!key) return null;
+  try {
+    return memGet(key);
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheSetRaw(key, value, ttlSeconds = 60) {
+  if (!key) return false;
+  try {
+    memSet(key, value, ttlSeconds);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cacheDelRaw(key) {
+  if (!key) return false;
+  try {
+    memDel(key);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Fast Cooldown Management (Auto-TTL, Zero DB Cleanup)
  */
 export async function setAccountCooldown(connId, cooldownSeconds) {
-  if (!isRedisAvailable() || !connId) return false;
-  if (cooldownSeconds <= 0) {
-    try {
-      await redis.del(`cooldown:conn:${connId}`);
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  if (!connId) return false;
   try {
-    await redis.set(`cooldown:conn:${connId}`, "1", "EX", Math.ceil(cooldownSeconds));
+    if (cooldownSeconds <= 0) {
+      memDel(`cooldown:conn:${connId}`);
+      return true;
+    }
+    memSet(`cooldown:conn:${connId}`, "1", Math.ceil(cooldownSeconds));
     return true;
   } catch {
     return false;
@@ -71,27 +77,22 @@ export async function setAccountCooldown(connId, cooldownSeconds) {
 }
 
 export async function isAccountInCooldown(connId) {
-  if (!isRedisAvailable() || !connId) return false;
+  if (!connId) return false;
   try {
-    const val = await redis.get(`cooldown:conn:${connId}`);
-    return val === "1";
+    return memGet(`cooldown:conn:${connId}`) === "1";
   } catch {
     return false;
   }
 }
 
 export async function setModelCooldown(connId, model, cooldownSeconds) {
-  if (!isRedisAvailable() || !connId || !model) return false;
-  if (cooldownSeconds <= 0) {
-    try {
-      await redis.del(`cooldown:model:${connId}:${model}`);
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  if (!connId || !model) return false;
   try {
-    await redis.set(`cooldown:model:${connId}:${model}`, "1", "EX", Math.ceil(cooldownSeconds));
+    if (cooldownSeconds <= 0) {
+      memDel(`cooldown:model:${connId}:${model}`);
+      return true;
+    }
+    memSet(`cooldown:model:${connId}:${model}`, "1", Math.ceil(cooldownSeconds));
     return true;
   } catch {
     return false;
@@ -101,31 +102,24 @@ export async function setModelCooldown(connId, model, cooldownSeconds) {
 export async function clearAccountCooldown(connId) {
   return setAccountCooldown(connId, 0);
 }
+
 export async function clearBatchAccountCooldown(connIds) {
-  if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) return false;
+  if (!Array.isArray(connIds) || connIds.length === 0) return false;
   try {
-    const keys = connIds.map((id) => `cooldown:conn:${id}`);
-    const BATCH = 500;
-    for (let i = 0; i < keys.length; i += BATCH) {
-      const chunk = keys.slice(i, i + BATCH);
-      await redis.del(...chunk);
-    }
+    memDel(...connIds.map((id) => `cooldown:conn:${id}`));
     return true;
   } catch {
     return false;
   }
 }
 
-
 export async function clearModelCooldown(connId, model) {
   return setModelCooldown(connId, model, 0);
 }
 
 export async function isModelInCooldown(connId, model) {
-  if (!isRedisAvailable()) return false;
   try {
-    const val = await redis.get(`cooldown:model:${connId}:${model}`);
-    return val === "1";
+    return memGet(`cooldown:model:${connId}:${model}`) === "1";
   } catch {
     return false;
   }
@@ -133,19 +127,13 @@ export async function isModelInCooldown(connId, model) {
 
 /**
  * Consecutive upstream-failure counter per provider/model (combo failover).
- * Keyed by the full member string ("provider/model") so combo members are
- * tracked exactly as configured. All fail-open: without Redis every model
- * simply looks healthy and combo order is unchanged.
  */
 export async function incrModelFailCount(member, windowSeconds) {
-  if (!isRedisAvailable() || !member) return 0;
+  if (!member) return 0;
   try {
     const key = `modelfail:${member}`;
-    // INCR+EXPIRE atomically: a crash between the two left a permanent
-    // no-TTL zombie key (count > 1 on every later call → expire never set).
-    const count = await redis.eval(
-      INCR_EXPIRE_LUA, { keys: [key], arguments: [String(Math.max(60, windowSeconds || 900))] },
-    );
+    const count = memIncr(key);
+    if (count === 1) memExpire(key, Math.max(60, windowSeconds || 900));
     return Number(count);
   } catch {
     return 0;
@@ -153,9 +141,9 @@ export async function incrModelFailCount(member, windowSeconds) {
 }
 
 export async function resetModelFailCount(member) {
-  if (!isRedisAvailable() || !member) return false;
+  if (!member) return false;
   try {
-    await redis.del(`modelfail:${member}`);
+    memDel(`modelfail:${member}`);
     return true;
   } catch {
     return false;
@@ -164,28 +152,22 @@ export async function resetModelFailCount(member) {
 
 /**
  * Atomic shared counter (strict round-robin sequence, rate meters, ...).
- * Returns the post-INCR value, or null when Redis is unavailable/failing.
  */
 export async function incrSharedCounter(key, expireSeconds = 2592000) {
-  if (!isRedisAvailable() || !key) return null;
+  if (!key) return null;
   try {
-    const value = await redis.eval(
-      INCR_EXPIRE_LUA, { keys: [key], arguments: [String(expireSeconds)] },
-    );
-    return Number(value);
+    const count = memIncr(key);
+    if (count === 1) memExpire(key, expireSeconds);
+    return Number(count);
   } catch {
     return null;
   }
 }
 
-/**
- * Delete a shared counter (e.g. rr_seq:<combo> after a combo edit/delete so a
- * stale position never addresses a reordered member list). Fail-open.
- */
 export async function delSharedCounter(key) {
-  if (!isRedisAvailable() || !key) return false;
+  if (!key) return false;
   try {
-    await redis.del(key);
+    memDel(key);
     return true;
   } catch {
     return false;
@@ -193,12 +175,10 @@ export async function delSharedCounter(key) {
 }
 
 export async function getModelFailCounts(members) {
-  if (!isRedisAvailable() || !Array.isArray(members) || members.length === 0) return {};
+  if (!Array.isArray(members) || members.length === 0) return {};
   try {
-    const keys = members.map((m) => `modelfail:${m}`);
-    const values = await redis.mget(...keys);
     const out = {};
-    members.forEach((m, i) => { out[m] = Number(values?.[i] || 0); });
+    for (const m of members) out[m] = Number(memGet(`modelfail:${m}`) || 0);
     return out;
   } catch {
     return {};
@@ -206,23 +186,21 @@ export async function getModelFailCounts(members) {
 }
 
 /**
- * Last-known-good account per provider+model: the fast path that lets a
- * request skip the PG candidate scan when the fleet just proved an account
- * healthy. Short TTL (stale pointers self-heal on first use). All fail-open.
+ * Last-known-good account per provider+model.
  */
 export async function getLkg(provider, model) {
-  if (!isRedisAvailable() || !provider) return null;
+  if (!provider) return null;
   try {
-    return (await redis.get(`lkg:${provider}|${model || "*"}`)) || null;
+    return memGet(`lkg:${provider}|${model || "*"}`) || null;
   } catch {
     return null;
   }
 }
 
 export async function setLkg(provider, model, connectionId, ttlSeconds = 60) {
-  if (!isRedisAvailable() || !provider || !connectionId) return false;
+  if (!provider || !connectionId) return false;
   try {
-    await redis.set(`lkg:${provider}|${model || "*"}`, connectionId, "EX", ttlSeconds);
+    memSet(`lkg:${provider}|${model || "*"}`, connectionId, ttlSeconds);
     return true;
   } catch {
     return false;
@@ -230,9 +208,9 @@ export async function setLkg(provider, model, connectionId, ttlSeconds = 60) {
 }
 
 export async function delLkg(provider, model) {
-  if (!isRedisAvailable() || !provider) return false;
+  if (!provider) return false;
   try {
-    await redis.del(`lkg:${provider}|${model || "*"}`);
+    memDel(`lkg:${provider}|${model || "*"}`);
     return true;
   } catch {
     return false;
@@ -240,19 +218,14 @@ export async function delLkg(provider, model) {
 }
 
 /**
- * Dead provider/model circuit: counts CONSECUTIVE fleet-wide empty selections
- * (no routable account found). At threshold, selections short-circuit to a
- * fast 503 without scanning PG or burning rotation budget. Any successful
- * selection resets. Fail-open: without Redis the circuit never engages.
+ * Dead provider/model circuit.
  */
 export async function incrDeadCircuit(provider, model, windowSeconds = 60) {
-  if (!isRedisAvailable() || !provider) return 0;
+  if (!provider) return 0;
   try {
     const key = `deadpm:${provider}|${model || "*"}`;
-    const count = await redis.incr(key);
-    if (count === 1) {
-      try { await redis.expire(key, windowSeconds); } catch {}
-    }
+    const count = memIncr(key);
+    if (count === 1) memExpire(key, windowSeconds);
     return count;
   } catch {
     return 0;
@@ -260,9 +233,9 @@ export async function incrDeadCircuit(provider, model, windowSeconds = 60) {
 }
 
 export async function resetDeadCircuit(provider, model) {
-  if (!isRedisAvailable() || !provider) return false;
+  if (!provider) return false;
   try {
-    await redis.del(`deadpm:${provider}|${model || "*"}`);
+    memDel(`deadpm:${provider}|${model || "*"}`);
     return true;
   } catch {
     return false;
@@ -270,52 +243,36 @@ export async function resetDeadCircuit(provider, model) {
 }
 
 export async function getDeadCircuit(provider, model) {
-  if (!isRedisAvailable() || !provider) return 0;
+  if (!provider) return 0;
   try {
-    return Number(await redis.get(`deadpm:${provider}|${model || "*"}`) || 0);
+    return Number(memGet(`deadpm:${provider}|${model || "*"}`) || 0);
   } catch {
     return 0;
   }
 }
 
 /**
- * High-performance batch cooldown check for hundreds/thousands of connections in 1 roundtrip.
- * Returns a Set of connection IDs that are in cooldown (either account-wide or model-specific).
+ * High-performance batch cooldown check.
+ * Returns a Set of connection IDs that are in cooldown.
  */
-const COOLDOWN_MGET_CHUNK = 500;
-
 export async function getBatchCooldowns(connIds, model = null) {
-  if (!isRedisAvailable() || !Array.isArray(connIds) || connIds.length === 0) {
-    return { ids: new Set(), healthy: false };
+  if (!Array.isArray(connIds) || connIds.length === 0) {
+    return { ids: new Set(), healthy: true };
   }
   try {
     const keys = [];
     for (const id of connIds) {
       keys.push(`cooldown:conn:${id}`);
-      if (model) {
-        keys.push(`cooldown:model:${id}:${model}`);
-      }
+      if (model) keys.push(`cooldown:model:${id}:${model}`);
     }
-
-    // Chunked MGET: one giant MGET with thousands of keys stalls the
-    // single-threaded Redis event loop (mirror of clearBatchAccountCooldown).
-    const values = [];
-    for (let c = 0; c < keys.length; c += COOLDOWN_MGET_CHUNK) {
-      values.push(...await redis.mget(keys.slice(c, c + COOLDOWN_MGET_CHUNK)));
-    }
+    const values = memMget(keys);
     const cooledDown = new Set();
     const stride = model ? 2 : 1;
-
     for (let i = 0; i < connIds.length; i++) {
-      const connId = connIds[i];
-      const accountVal = values[i * stride];
-      const modelVal = model ? values[i * stride + 1] : null;
-
-      if (accountVal === "1" || modelVal === "1") {
-        cooledDown.add(connId);
+      if (values[i * stride] === "1" || (model && values[i * stride + 1] === "1")) {
+        cooledDown.add(connIds[i]);
       }
     }
-
     return { ids: cooledDown, healthy: true };
   } catch {
     return { ids: new Set(), healthy: false };
@@ -323,13 +280,12 @@ export async function getBatchCooldowns(connIds, model = null) {
 }
 
 /**
- * Cache and retrieve full active connections in Redis (L2 speed layer)
- * Survives across multi-replica and reduces Postgres roundtrips to 0
+ * Cache full active connections (L2 speed layer, TTL 10s).
  */
 export async function getCachedConnections(provider) {
-  if (!isRedisAvailable() || !provider) return null;
+  if (!provider) return null;
   try {
-    const raw = await redis.get(`cache:connections:${provider}`);
+    const raw = memGet(`cache:connections:${provider}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -337,9 +293,9 @@ export async function getCachedConnections(provider) {
 }
 
 export async function setCachedConnections(provider, connections, ttlSeconds = 10) {
-  if (!isRedisAvailable() || !provider || !Array.isArray(connections)) return false;
+  if (!provider || !Array.isArray(connections)) return false;
   try {
-    await redis.set(`cache:connections:${provider}`, JSON.stringify(connections), "EX", ttlSeconds);
+    memSet(`cache:connections:${provider}`, JSON.stringify(connections), ttlSeconds);
     return true;
   } catch {
     return false;
@@ -347,9 +303,9 @@ export async function setCachedConnections(provider, connections, ttlSeconds = 1
 }
 
 export async function invalidateCachedConnections(provider) {
-  if (!isRedisAvailable() || !provider) return false;
+  if (!provider) return false;
   try {
-    await redis.del(`cache:connections:${provider}`);
+    memDel(`cache:connections:${provider}`);
     return true;
   } catch {
     return false;
@@ -357,35 +313,34 @@ export async function invalidateCachedConnections(provider) {
 }
 
 /**
- * Distributed Lock (Anti-Race Condition for OAuth Token Refresh)
+ * Single-process mutex (owner-token compare-and-delete semantics preserved).
  */
-const LOCK_TOKEN_PREFIX = "locktok:";
-const RELEASE_LOCK_LUA = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end`;
-const INCR_EXPIRE_LUA = `local v = redis.call("INCR", KEYS[1]) if v == 1 then redis.call("EXPIRE", KEYS[1], tonumber(ARGV[1])) end return v`;
+const LOCK_PREFIX = "lock:";
+if (!global._memLocks) global._memLocks = new Map();
 
 export async function acquireLock(key, ttlSeconds = 30) {
-  if (!isRedisAvailable()) return null;
+  if (!key) return null;
   try {
-    // Unique owner token per acquisition: releaseLock may only delete the
-    // lock this caller owns. A static "1" value lets a caller whose TTL
-    // expired delete the next process's live lock (mutual-exclusion hole).
+    const lockKey = `${LOCK_PREFIX}${key}`;
+    if (global._memLocks.has(lockKey)) return null;
     const token = crypto.randomUUID();
-    const result = await redis.set(`lock:${key}`, token, "EX", ttlSeconds, "NX");
-    return result === "OK" ? token : null;
+    global._memLocks.set(lockKey, token);
+    const ms = Math.min(ttlSeconds * 1000, 2 ** 31 - 1);
+    const timer = setTimeout(() => global._memLocks.delete(lockKey), ms);
+    if (timer?.unref) timer.unref();
+    return token;
   } catch {
     return null;
   }
 }
 
 export async function releaseLock(key, token) {
-  if (!isRedisAvailable()) return;
   try {
+    const lockKey = `${LOCK_PREFIX}${key}`;
     if (token) {
-      // Compare-and-delete: never release someone else's lock.
-      await redis.eval(RELEASE_LOCK_LUA, { keys: [`lock:${key}`], arguments: [token] });
+      if (global._memLocks.get(lockKey) === token) global._memLocks.delete(lockKey);
     } else {
-      // Legacy callers without a token: best-effort delete (old semantics).
-      await redis.del(`lock:${key}`);
+      global._memLocks.delete(lockKey);
     }
   } catch {}
 }
@@ -393,11 +348,14 @@ export async function releaseLock(key, token) {
 /**
  * In-Flight Concurrency Limiter per Account
  */
+const ACTIVE_REQUEST_TTL_SECONDS = 30;
+const ACTIVE_REQUEST_INDEX = "active_req:index";
+
 export async function incrementInFlight(connId) {
-  if (!isRedisAvailable()) return 1;
+  if (!connId) return 1;
   try {
-    const count = await redis.incr(`active_req:${connId}`);
-    await redis.expire(`active_req:${connId}`, ACTIVE_REQUEST_TTL_SECONDS).catch(() => {});
+    const count = memIncr(`active_req:${connId}`);
+    if (count === 1) memExpire(`active_req:${connId}`, ACTIVE_REQUEST_TTL_SECONDS);
     return count;
   } catch {
     return 1;
@@ -405,32 +363,36 @@ export async function incrementInFlight(connId) {
 }
 
 export async function decrementInFlight(connId) {
-  if (!isRedisAvailable()) return 0;
+  if (!connId) return 0;
   try {
-    const count = await redis.decr(`active_req:${connId}`);
+    const raw = Number(memGet(`active_req:${connId}`) || 0);
+    const count = Math.max(0, raw - 1);
     if (count <= 0) {
-      await redis.del(`active_req:${connId}`);
+      memDel(`active_req:${connId}`);
       return 0;
     }
-    await redis.expire(`active_req:${connId}`, ACTIVE_REQUEST_TTL_SECONDS).catch(() => {});
+    memSet(`active_req:${connId}`, String(count), ACTIVE_REQUEST_TTL_SECONDS);
     return count;
   } catch {
     return 0;
   }
 }
 
-const ACTIVE_REQUEST_TTL_SECONDS = 30;
-const ACTIVE_REQUEST_INDEX = "active_req:index";
-
 export async function registerActiveRequest(requestId, detail) {
-  if (!isRedisAvailable() || !requestId) return false;
+  if (!requestId) return false;
   try {
-    const key = `active_req:detail:${requestId}`;
-    const expiresAt = Date.now() + ACTIVE_REQUEST_TTL_SECONDS * 1000;
-    await redis.multi()
-      .set(key, JSON.stringify({ ...detail, requestId, expiresAt }), "EX", ACTIVE_REQUEST_TTL_SECONDS)
-      .zadd(ACTIVE_REQUEST_INDEX, expiresAt, requestId)
-      .exec();
+    memSet(
+      `active_req:detail:${requestId}`,
+      JSON.stringify({ ...detail, requestId, expiresAt: Date.now() + ACTIVE_REQUEST_TTL_SECONDS * 1000 }),
+      ACTIVE_REQUEST_TTL_SECONDS
+    );
+    // Maintain index as JSON array (single-process, no sorted-set needed).
+    let index = [];
+    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
+    if (!index.includes(requestId)) {
+      index.push(requestId);
+      memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(index), ACTIVE_REQUEST_TTL_SECONDS);
+    }
     return true;
   } catch {
     return false;
@@ -438,12 +400,14 @@ export async function registerActiveRequest(requestId, detail) {
 }
 
 export async function unregisterActiveRequest(requestId) {
-  if (!isRedisAvailable() || !requestId) return false;
+  if (!requestId) return false;
   try {
-    await redis.multi()
-      .del(`active_req:detail:${requestId}`)
-      .zrem(ACTIVE_REQUEST_INDEX, requestId)
-      .exec();
+    memDel(`active_req:detail:${requestId}`);
+    let index = [];
+    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
+    const next = index.filter((id) => id !== requestId);
+    if (next.length) memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(next), ACTIVE_REQUEST_TTL_SECONDS);
+    else memDel(ACTIVE_REQUEST_INDEX);
     return true;
   } catch {
     return false;
@@ -451,48 +415,49 @@ export async function unregisterActiveRequest(requestId) {
 }
 
 export async function getActiveRequestsDistributed() {
-  if (!isRedisAvailable()) return [];
   try {
+    let index = [];
+    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
+    if (!index.length) return [];
     const now = Date.now();
-    const stale = await redis.zrangebyscore(ACTIVE_REQUEST_INDEX, "-inf", now);
-    if (stale.length) await redis.zrem(ACTIVE_REQUEST_INDEX, ...stale);
-    const ids = await redis.zrangebyscore(ACTIVE_REQUEST_INDEX, now, "+inf");
-    if (!ids.length) return [];
-    const values = await redis.mget(...ids.map((id) => `active_req:detail:${id}`));
-    return values.flatMap((value) => {
-      if (!value) return [];
-      try { return [JSON.parse(value)]; } catch { return []; }
-    });
+    const out = [];
+    const alive = [];
+    for (const id of index) {
+      const raw = memGet(`active_req:detail:${id}`);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.expiresAt && parsed.expiresAt <= now) continue;
+        out.push(parsed);
+        alive.push(id);
+      } catch { /* skip corrupt */ }
+    }
+    if (alive.length !== index.length) {
+      if (alive.length) memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(alive), ACTIVE_REQUEST_TTL_SECONDS);
+      else memDel(ACTIVE_REQUEST_INDEX);
+    }
+    return out;
   } catch {
     return [];
   }
 }
 
 /**
- * Cluster Real-Time Pub/Sub
+ * Cluster Real-Time Pub/Sub — no-op single-process (SSE fan-out is in-process).
  */
 export async function publishEvent(channel, payload) {
-  if (!isRedisAvailable()) return false;
-  try {
-    await redis.publish(channel, typeof payload === "string" ? payload : JSON.stringify(payload));
-    return true;
-  } catch {
-    return false;
-  }
+  void channel;
+  void payload;
+  return true;
 }
 
 /**
- * Quota Snapshot Cache Layer (L2 Speed Layer)
+ * Quota Snapshot Cache Layer (TTL 120s).
  */
 export async function setCachedQuota(connId, quotaData, ttlSeconds = 120) {
-  if (!isRedisAvailable() || !connId) return false;
+  if (!connId) return false;
   try {
-    await redis.set(
-      `quota:snapshot:${connId}`,
-      typeof quotaData === "string" ? quotaData : JSON.stringify(quotaData),
-      "EX",
-      ttlSeconds
-    );
+    memSet(`quota:snapshot:${connId}`, typeof quotaData === "string" ? quotaData : JSON.stringify(quotaData), ttlSeconds);
     return true;
   } catch {
     return false;
@@ -500,9 +465,9 @@ export async function setCachedQuota(connId, quotaData, ttlSeconds = 120) {
 }
 
 export async function getCachedQuota(connId) {
-  if (!isRedisAvailable() || !connId) return null;
+  if (!connId) return null;
   try {
-    const raw = await redis.get(`quota:snapshot:${connId}`);
+    const raw = memGet(`quota:snapshot:${connId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -510,9 +475,9 @@ export async function getCachedQuota(connId) {
 }
 
 export async function deleteCachedQuota(connId) {
-  if (!isRedisAvailable() || !connId) return false;
+  if (!connId) return false;
   try {
-    await redis.del(`quota:snapshot:${connId}`);
+    memDel(`quota:snapshot:${connId}`);
     return true;
   } catch {
     return false;
