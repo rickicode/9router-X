@@ -1,3 +1,9 @@
+export {
+  validateProviderFilter,
+  validateModelFilter,
+  validateFilterDimension,
+} from "../../../../../lib/analyticsFilters.js";
+
 export const MIN_SAMPLES = 30;
 const metric = (v) =>
   v === null || v === undefined || !Number.isFinite(Number(v))
@@ -127,8 +133,14 @@ export async function fetchAnalytics(filters, signal, fetcher = fetch) {
     signal,
     cache: "no-store",
   });
-  if (!response.ok)
-    throw new Error(`Analytics request failed (${response.status})`);
+  if (!response.ok) {
+    let message = `Analytics request failed (${response.status})`;
+    try {
+      const errData = await response.json();
+      if (errData?.error) message = errData.error;
+    } catch {}
+    throw new Error(message);
+  }
   return normalizeAnalytics(await response.json());
 }
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import GlobalAnalyticsChart from "./GlobalAnalyticsChart";
 import AnalyticsTrendChart from "./AnalyticsTrendChart";
 import TopProvidersCard from "./TopProvidersCard";
 import Card from "@/shared/components/Card";
-import Input from "@/shared/components/Input";
+import Combobox from "@/shared/components/Combobox";
 import Button from "@/shared/components/Button";
 import Badge from "@/shared/components/Badge";
 import { cn } from "@/shared/utils/cn";
@@ -18,6 +18,8 @@ import {
   fmtTokens,
   TIME_BUCKETS,
   defaultTimeBucket,
+  validateProviderFilter,
+  validateModelFilter,
 } from "./analyticsData";
 
 const ERROR_METADATA = {
@@ -145,6 +147,169 @@ export default function AnalyticsTab({ period }) {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
 
+  // Known providers and models catalogs for combobox suggestions
+  const [knownProviders, setKnownProviders] = useState([]);
+  const [knownModels, setKnownModels] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingOptions(true);
+    Promise.all([
+      fetch("/api/usage/providers")
+        .then((r) => (r.ok ? r.json() : { providers: [] }))
+        .catch(() => ({ providers: [] })),
+      fetch("/api/models")
+        .then((r) => (r.ok ? r.json() : { models: [] }))
+        .catch(() => ({ models: [] })),
+    ])
+      .then(([provData, modelData]) => {
+        if (cancelled) return;
+        if (Array.isArray(provData?.providers)) {
+          setKnownProviders(provData.providers);
+        }
+        if (Array.isArray(modelData?.models)) {
+          setKnownModels(modelData.models);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOptions(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Provider and Model validation
+  const providerValidation = useMemo(
+    () => validateProviderFilter(provider),
+    [provider],
+  );
+  const modelValidation = useMemo(
+    () => validateModelFilter(model),
+    [model],
+  );
+  const hasFilterError = !providerValidation.valid || !modelValidation.valid;
+
+  // Options for Provider Combobox
+  const providerOptions = useMemo(() => {
+    const map = new Map();
+
+    for (const p of knownProviders) {
+      if (!p?.id) continue;
+      map.set(p.id, {
+        value: p.id,
+        label: p.name && p.name !== p.id ? `${p.name} (${p.id})` : p.id,
+        rawName: p.name || p.id,
+        count: null,
+      });
+    }
+
+    if (Array.isArray(data?.byProvider)) {
+      for (const p of data.byProvider) {
+        if (!p?.provider) continue;
+        const existing = map.get(p.provider);
+        const reqCount = Number(p.count || p.requests || 0);
+        map.set(p.provider, {
+          value: p.provider,
+          label:
+            existing?.rawName && existing.rawName !== p.provider
+              ? `${existing.rawName} (${p.provider})`
+              : p.provider,
+          rawName: existing?.rawName || p.provider,
+          count: reqCount,
+          badge: reqCount > 0 ? `${fmtNumber(reqCount)} reqs` : undefined,
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      if ((b.count || 0) !== (a.count || 0)) {
+        return (b.count || 0) - (a.count || 0);
+      }
+      return a.value.localeCompare(b.value);
+    });
+  }, [knownProviders, data?.byProvider]);
+
+  // Options for Model Combobox
+  const modelOptions = useMemo(() => {
+    const map = new Map();
+
+    for (const m of knownModels) {
+      if (!m?.model) continue;
+      if (provider && m.provider && m.provider !== provider) continue;
+
+      map.set(m.model, {
+        value: m.model,
+        label:
+          m.alias && m.alias !== m.model ? `${m.alias} (${m.model})` : m.model,
+        subtitle: m.provider,
+        provider: m.provider,
+        count: null,
+      });
+    }
+
+    if (Array.isArray(data?.models)) {
+      for (const m of data.models) {
+        if (!m?.model) continue;
+        if (provider && m.provider && m.provider !== provider) continue;
+
+        const existing = map.get(m.model);
+        const reqCount = Number(m.requests || m.count || 0);
+        map.set(m.model, {
+          value: m.model,
+          label: existing?.label || m.model,
+          subtitle: m.provider || existing?.subtitle,
+          provider: m.provider || existing?.provider,
+          count: reqCount,
+          badge: reqCount > 0 ? `${fmtNumber(reqCount)} reqs` : undefined,
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      if ((b.count || 0) !== (a.count || 0)) {
+        return (b.count || 0) - (a.count || 0);
+      }
+      return a.value.localeCompare(b.value);
+    });
+  }, [knownModels, data?.models, provider]);
+
+  // Handlers with smart sync
+  const handleProviderChange = useCallback(
+    (newProvider) => {
+      setProvider(newProvider);
+      if (newProvider && model) {
+        const belongs =
+          knownModels.some(
+            (m) => m.provider === newProvider && m.model === model,
+          ) ||
+          data?.models?.some(
+            (m) => m.provider === newProvider && m.model === model,
+          );
+        if (!belongs) {
+          setModel("");
+        }
+      }
+    },
+    [model, knownModels, data?.models],
+  );
+
+  const handleModelChange = useCallback(
+    (newModel) => {
+      setModel(newModel);
+      if (newModel && !provider) {
+        const match =
+          knownModels.find((m) => m.model === newModel) ||
+          data?.models?.find((m) => m.model === newModel);
+        if (match?.provider) {
+          setProvider(match.provider);
+        }
+      }
+    },
+    [provider, knownModels, data?.models],
+  );
+
   // Periodic Auto-Refresh
   useEffect(() => {
     if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
@@ -156,6 +321,11 @@ export default function AnalyticsTab({ period }) {
 
   // Main Data Fetching
   useEffect(() => {
+    if (hasFilterError) {
+      setError(providerValidation.error || modelValidation.error || "Invalid filter");
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
@@ -175,7 +345,17 @@ export default function AnalyticsTab({ period }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [period, provider, model, errorCategory, timeBucket, refresh]);
+  }, [
+    period,
+    provider,
+    model,
+    errorCategory,
+    timeBucket,
+    refresh,
+    hasFilterError,
+    providerValidation.error,
+    modelValidation.error,
+  ]);
 
   // Model selection shortcut
   const handleSelectModel = useCallback((p, m) => {
@@ -258,20 +438,40 @@ export default function AnalyticsTab({ period }) {
       <Card padding="sm" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:min-w-[180px]">
-            <Input
+            <Combobox
+              id="analytics-provider-filter"
               aria-label="Provider filter"
-              placeholder="Provider (exact ID)"
+              placeholder="All Providers"
               value={provider}
-              onChange={(e) => setProvider(e.target.value)}
+              onChange={handleProviderChange}
+              options={providerOptions}
+              icon="cloud"
+              allowCustom
+              clearable
+              loading={loadingOptions}
+              error={
+                providerValidation.valid
+                  ? undefined
+                  : providerValidation.error
+              }
               className="w-full"
             />
           </div>
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:min-w-[180px]">
-            <Input
+            <Combobox
+              id="analytics-model-filter"
               aria-label="Model filter"
-              placeholder="Model (exact ID)"
+              placeholder="All Models"
               value={model}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={handleModelChange}
+              options={modelOptions}
+              icon="psychology"
+              allowCustom
+              clearable
+              loading={loadingOptions}
+              error={
+                modelValidation.valid ? undefined : modelValidation.error
+              }
               className="w-full"
             />
           </div>
@@ -674,7 +874,7 @@ export default function AnalyticsTab({ period }) {
               {/* Top Providers Card */}
               <TopProvidersCard
                 byProvider={data.byProvider || []}
-                onProviderClick={(p) => setProvider(p)}
+                onProviderClick={(p) => handleProviderChange(p)}
               />
 
               {/* Error Distribution Section (Interactive Cards) */}

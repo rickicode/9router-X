@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 vi.mock("../../src/lib/db/driver.js", () => ({ getAdapter: vi.fn() }));
 import { observeChatAttempt } from "../../src/lib/observeChatAttempt.js";
-import { validateAnalyticsFilters } from "../../src/lib/analyticsFilters.js";
+import {
+  validateAnalyticsFilters,
+  validateProviderFilter,
+  validateModelFilter,
+} from "../../src/lib/analyticsFilters.js";
 import { sanitizeAnalyticsEvent } from "../../src/lib/db/repos/analyticsRepo.js";
 import {
   normalizeAnalytics,
@@ -120,5 +124,54 @@ describe("Analytics safety and contract", () => {
       errorCategory: "upstream",
     });
     expect(url).toContain("errorCategory=upstream");
+  });
+
+  it("validates provider and model dimensions and boundaries", () => {
+    expect(validateProviderFilter("openai")).toEqual({ valid: true });
+    expect(validateProviderFilter("")).toEqual({ valid: true });
+    expect(validateProviderFilter(undefined)).toEqual({ valid: true });
+    expect(validateProviderFilter("a".repeat(65)).valid).toBe(false);
+    expect(validateProviderFilter("  openai  ").valid).toBe(false);
+    expect(validateProviderFilter("open\x00ai").valid).toBe(false);
+
+    expect(validateModelFilter("gpt-4o")).toEqual({ valid: true });
+    expect(validateModelFilter("")).toEqual({ valid: true });
+    expect(validateModelFilter(undefined)).toEqual({ valid: true });
+    expect(validateModelFilter("m".repeat(257)).valid).toBe(false);
+    expect(validateModelFilter("  gpt-4o  ").valid).toBe(false);
+    expect(validateModelFilter("gpt\x1fo").valid).toBe(false);
+
+    const valid = validateAnalyticsFilters({
+      provider: "anthropic",
+      model: "claude-3-5-sonnet",
+      timeFrom: "2026-09-08T00:00:00Z",
+      timeTo: "2026-09-09T00:00:00Z",
+    });
+    expect(valid.provider).toBe("anthropic");
+    expect(valid.model).toBe("claude-3-5-sonnet");
+
+    expect(() =>
+      validateAnalyticsFilters({
+        provider: "p".repeat(65),
+        timeFrom: "2026-09-08T00:00:00Z",
+        timeTo: "2026-09-09T00:00:00Z",
+      }),
+    ).toThrow(/Invalid provider/);
+
+    expect(() =>
+      validateAnalyticsFilters({
+        model: "m".repeat(257),
+        timeFrom: "2026-09-08T00:00:00Z",
+        timeTo: "2026-09-09T00:00:00Z",
+      }),
+    ).toThrow(/Invalid model/);
+
+    expect(() =>
+      validateAnalyticsFilters({
+        provider: "  leading-space",
+        timeFrom: "2026-09-08T00:00:00Z",
+        timeTo: "2026-09-09T00:00:00Z",
+      }),
+    ).toThrow(/Invalid provider/);
   });
 });

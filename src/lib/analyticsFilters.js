@@ -6,6 +6,34 @@ const BUCKETS = {
   "1 day": DAY,
 };
 
+export function validateFilterDimension(value, max, name) {
+  if (value === undefined || value === null || value === "") return { valid: true };
+  if (typeof value !== "string") {
+    return { valid: false, error: `Invalid ${name}: must be a string` };
+  }
+  if (value.trim() !== value) {
+    return { valid: false, error: `Invalid ${name}: must not contain leading or trailing whitespace` };
+  }
+  if (value.length === 0) {
+    return { valid: false, error: `Invalid ${name}: cannot be empty` };
+  }
+  if (value.length > max) {
+    return { valid: false, error: `Invalid ${name}: maximum ${max} characters exceeded` };
+  }
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    return { valid: false, error: `Invalid ${name}: contains illegal control characters` };
+  }
+  return { valid: true };
+}
+
+export function validateProviderFilter(value) {
+  return validateFilterDimension(value, 64, "provider");
+}
+
+export function validateModelFilter(value) {
+  return validateFilterDimension(value, 256, "model");
+}
+
 export function validateAnalyticsFilters(raw = {}, now = Date.now()) {
   const allowed = new Set([
     "timeFrom",
@@ -44,14 +72,8 @@ export function validateAnalyticsFilters(raw = {}, now = Date.now()) {
     );
   const dimension = (value, max, name) => {
     if (value === undefined) return undefined;
-    if (
-      typeof value !== "string" ||
-      value.length === 0 ||
-      value.length > max ||
-      /[\x00-\x1f\x7f]/.test(value) ||
-      value.trim() !== value
-    )
-      throw new Error(`Invalid ${name}`);
+    const res = validateFilterDimension(value, max, name);
+    if (!res.valid) throw new Error(res.error);
     return value;
   };
   const validCategories = new Set([
