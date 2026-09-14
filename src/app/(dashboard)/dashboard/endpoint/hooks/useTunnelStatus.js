@@ -7,6 +7,7 @@ import {
   STATUS_POLL_FAST_MS,
   REACHABLE_MISS_THRESHOLD,
   CLIENT_PING_FAST_MS,
+  CLIENT_PING_HEALTHY_MS,
 } from "../endpointConstants";
 import { clientPingUrl, clientPingAny } from "../endpointPing";
 
@@ -101,7 +102,7 @@ export function useTunnelStatus() {
   }, [syncTunnelStatus]);
 
   // Status poll: only while degraded (not yet reachable). Stop once healthy to avoid spam.
-  // Visibility re-check: refresh once when tab becomes visible. Pause on document.hidden.
+  // Visibility re-check: refresh once when tab becomes visible or focused. Pause on document.hidden.
   useEffect(() => {
     const anyEnabled = tunnelEnabled || tsEnabled;
     if (!anyEnabled) return;
@@ -110,16 +111,25 @@ export function useTunnelStatus() {
     const allHealthy = tunnelHealthy && tsHealthy;
     const onVisible = () => { if (!document.hidden) syncTunnelStatus(); };
     document.addEventListener("visibilitychange", onVisible);
-    if (allHealthy) return () => document.removeEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    if (allHealthy) {
+      return () => {
+        document.removeEventListener("visibilitychange", onVisible);
+        window.removeEventListener("focus", onVisible);
+      };
+    }
     const timer = setInterval(() => { if (!document.hidden) syncTunnelStatus(); }, STATUS_POLL_FAST_MS);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, [tunnelEnabled, tsEnabled, tunnelReachable, tsReachable, syncTunnelStatus]);
 
   // Browser-side periodic ping: probes tunnel/tailscale URLs directly so UI stays
   // "reachable" even when backend DNS hiccups. Pause on document.hidden.
+  // When healthy, runs lightweight 30s ping; when degraded, runs fast ping.
+  // Also triggers immediately on window focus and visibilitychange.
   useEffect(() => {
     const probeBoth = async () => {
       if (document.hidden) return;
@@ -165,9 +175,17 @@ export function useTunnelStatus() {
     probeBoth();
     const tunnelHealthy = !tunnelEnabled || tunnelReachable;
     const tsHealthy = !tsEnabled || tsReachable;
-    if (tunnelHealthy && tsHealthy) return;
-    const id = setInterval(probeBoth, CLIENT_PING_FAST_MS);
-    return () => clearInterval(id);
+    const allHealthy = tunnelHealthy && tsHealthy;
+    const intervalMs = allHealthy ? CLIENT_PING_HEALTHY_MS : CLIENT_PING_FAST_MS;
+    const id = setInterval(probeBoth, intervalMs);
+    const onWake = () => { if (!document.hidden) probeBoth(); };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
   }, [tunnelEnabled, tunnelUrl, tunnelPublicUrl, tsEnabled, tsUrl, tunnelReachable, tsReachable]);
 
   // Ping tunnel health until reachable. Race multiple URLs (shortlink + direct)

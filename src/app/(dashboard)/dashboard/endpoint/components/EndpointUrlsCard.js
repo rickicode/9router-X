@@ -69,7 +69,7 @@ export default function EndpointUrlsCard({
               <>
                 <div className="flex-1 min-w-0 w-full">
                   <Input
-                    value={`${tunnel.publicUrl || tunnel.url}/v1`}
+                    value={(tunnel.publicUrl || tunnel.url) ? `${tunnel.publicUrl || tunnel.url}/v1` : "— not provisioned —"}
                     readOnly
                     className="w-full font-mono text-sm"
                   />
@@ -77,8 +77,9 @@ export default function EndpointUrlsCard({
                 <div className="flex items-center justify-end gap-1 shrink-0">
                   <button
                     type="button"
-                    onClick={() => onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_url")}
-                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    disabled={!tunnel.publicUrl && !tunnel.url}
+                    onClick={() => (tunnel.publicUrl || tunnel.url) && onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_url")}
+                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label={copied === "tunnel_url" ? "Copied" : "Copy tunnel URL"}
                   >
                     <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
@@ -121,7 +122,7 @@ export default function EndpointUrlsCard({
               <>
                 <div className="flex-1 min-w-0 w-full">
                   <Input
-                    value={`${tailscale.url}/v1`}
+                    value={(!tailscale.publicUrl && !tailscale.url) ? "— not provisioned —" : `${tailscale.publicUrl || tailscale.url}/v1`}
                     readOnly
                     className="w-full font-mono text-sm"
                   />
@@ -129,8 +130,9 @@ export default function EndpointUrlsCard({
                 <div className="flex items-center justify-end gap-1 shrink-0">
                   <button
                     type="button"
-                    onClick={() => onCopy(`${tailscale.url}/v1`, "ts_url")}
-                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    disabled={!tailscale.publicUrl && !tailscale.url}
+                    onClick={() => (tailscale.publicUrl || tailscale.url) && onCopy(`${tailscale.url}/v1`, "ts_url")}
+                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label={copied === "ts_url" ? "Copied" : "Copy Tailscale URL"}
                   >
                     <span className="material-symbols-outlined text-[18px]" aria-hidden="true">

@@ -172,15 +172,16 @@ export default function TunnelCard({
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <Input
-                    value={`${tunnel.publicUrl || tunnel.url}/v1`}
+                    value={(tunnel.publicUrl || tunnel.url) ? `${tunnel.publicUrl || tunnel.url}/v1` : "— not provisioned —"}
                     readOnly
                     className="flex-1 w-full font-mono text-sm"
                   />
                   <div className="flex items-center justify-end shrink-0 self-end sm:self-auto">
                     <button
                       type="button"
-                      onClick={() => onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
-                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      disabled={!tunnel.publicUrl && !tunnel.url}
+                      onClick={() => (tunnel.publicUrl || tunnel.url) && onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
+                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                       aria-label={copied === "tunnel_card_url" ? "Copied" : "Copy Tunnel URL"}
                     >
                       <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
