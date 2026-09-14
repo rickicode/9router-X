@@ -1022,6 +1022,23 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       // the global default (DEFAULT_RATE_LIMIT_COOLDOWN_MS via errorConfig rules).
       cooldownMs = 2 * 60 * 1000;
     }
+    // B.ai (aggregator) rate throttle: 429001 "The request rate exceeds the
+    // current model TPM/RPM limit ..." is a transient per-model cap (the
+    // upstream window is seconds, not a quota). 2-minute model cooldown only —
+    // never account-wide, never exhausted, so other models keep serving.
+    // Same shape as the CodeBuddy 14003 rule above.
+    const isBaiThrottle = providerId === "bai"
+      && (/exceeds the current model (tpm|rpm) limit/i.test(lowerErrorText)
+        || /(^|[^a-z])429001([^0-9]|$)/.test(lowerErrorText)
+        || /too many requests|rate.?limit exceeded|rate limited/i.test(lowerErrorText))
+      && !/quota|credit|exhaust|deplet|balance|payment|billing/i.test(lowerErrorText);
+    if (isBaiThrottle) {
+      lockAll = false;
+      disableAccount = false;
+      isExhausted = false;
+      shouldFallback = true;
+      cooldownMs = 2 * 60 * 1000;
+    }
     // CodeBuddy/Workbuddy 14018 "Credits exhausted" = spending pool empty for
     // ALL models on this account. Account exhausted, retry in 7 days.
     // (Lock stays account-wide so other models don't burn rotation budget.)
@@ -1035,7 +1052,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }
@@ -1047,11 +1064,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // e.g. a Cline daily cap with no "Try again in" hint does not retry-storm
     // every 30 minutes against an 8-24h upstream reset window.
     // CodeBuddy/Workbuddy carry their own explicit cooldowns above (2-min model
-    // throttle, 7-day credit exhaustion) — never overwrite them with the 30-min
-    // default. isDailyCap429 keeps max() semantics (larger of rule/default).
+    // throttle, 7-day credit exhaustion), as does the B.ai 2-min TPM throttle —
+    // never overwrite them with the 30-min default.
+    // isDailyCap429 keeps max() semantics (larger of rule/default).
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
       ? Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS)
-      : isCodebuddyThrottle || isCodebuddyCreditExhausted
+      : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle
         ? (cooldownMs || 0)
         : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
     isExhausted = lockAll;
