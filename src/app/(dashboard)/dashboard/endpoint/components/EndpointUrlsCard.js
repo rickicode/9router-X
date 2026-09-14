@@ -33,7 +33,7 @@ export default function EndpointUrlsCard({
         ) : isReconnecting ? (
           <span className="size-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
         ) : (
-          <span className="size-1.5 rounded-full bg-red-500/60" aria-hidden="true" />
+          <span className="size-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" aria-hidden="true" />
         )}
         {isOnline ? "ONLINE" : isReconnecting ? "RECONNECTING" : "LOCAL ONLY"}
       </span>

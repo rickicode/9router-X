@@ -51,28 +51,7 @@ export default function EndpointPageClient({ machineId }) {
       const res = await fetch("/api/keys");
       if (!res.ok) return;
       const data = await res.json();
-      let existing = data.keys || [];
-
-      // Auto-provision a default key for first-time users so endpoint works out of the box
-      if (existing.length === 0) {
-        try {
-          const createRes = await fetch("/api/keys", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: "Default Key" }),
-          });
-          if (createRes.ok) {
-            const refreshRes = await fetch("/api/keys");
-            if (refreshRes.ok) {
-              const refreshData = await refreshRes.json();
-              existing = refreshData.keys || [];
-            }
-          }
-        } catch {
-          /* ignore auto-provision failure */
-        }
-      }
-      setKeys(existing);
+      setKeys(data.keys || []);
     } catch (error) {
       console.log("Error fetching data:", error);
     } finally {
@@ -135,6 +114,8 @@ export default function EndpointPageClient({ machineId }) {
   if (loading) {
     return (
       <div className="flex flex-col gap-5">
+        <CardSkeleton />
+        <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
       </div>
