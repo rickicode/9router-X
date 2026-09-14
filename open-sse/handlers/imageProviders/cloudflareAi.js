@@ -90,7 +90,7 @@ async function buildJsonBody(body) {
   return req;
 }
 
-function buildMultipartBody(body) {
+async function buildMultipartBody(body) {
   const form = new FormData();
   form.append("prompt", body.prompt);
 
@@ -102,6 +102,13 @@ function buildMultipartBody(body) {
   addOptionalFields(form, body, (target, key, value) => {
     target.append(key, String(value));
   });
+
+  // flux-2-dev/klein take the optional input image + mask as multipart parts so
+  // img2img/edit works. Text-to-image sends neither part and still succeeds.
+  const imageData = await resolveImageInput(body.image);
+  if (imageData?.bytes) form.append("image", Buffer.from(imageData.bytes));
+  const maskData = await resolveImageInput(body.mask_image || body.maskImage || body.mask);
+  if (maskData?.bytes) form.append("mask", Buffer.from(maskData.bytes));
 
   return form;
 }
@@ -157,7 +164,7 @@ export default {
 
   buildBody: async (model, body) => (
     MULTIPART_MODELS.has(model)
-      ? buildMultipartBody(body)
+      ? await buildMultipartBody(body)
       : await buildJsonBody(body)
   ),
 

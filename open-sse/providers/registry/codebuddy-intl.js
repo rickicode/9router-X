@@ -45,9 +45,9 @@ export default {
   },
   // Intl catalog mirrors full CLI list; additions verified against CLI (2026-09-13).
   models: [
-    { id: "hy4-preview", name: "Hy4 Preview" },
     { id: "hy3", name: "Hy3" },
     { id: "hy3-x", name: "Hy3 X" },
+    { id: "hy4-preview", name: "Hy4 Preview" },
     { id: "deepseek-v4.1-flash", name: "DeepSeek-V4.1-Flash" },
     { id: "glm-5.3", name: "GLM-5.3" },
     { id: "glm-5.3-flash", name: "GLM-5.3-Flash" },

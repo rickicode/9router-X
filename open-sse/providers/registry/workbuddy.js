@@ -58,9 +58,9 @@ export default {
   // still lets clients send any id the gateway actually answers, but this list is
   // the curated, known-good set surfaced in the UI / combo picker.
   models: [
-    { id: "hy4-preview", name: "Hy4 Preview" },
     { id: "hy3", name: "Hy3" },
     { id: "deepseek-v4.1-flash", name: "DeepSeek-V4.1-Flash" },
+    { id: "hy4-preview", name: "Hy4 Preview" },
     { id: "glm-5.3", name: "GLM-5.3" },
     { id: "glm-5.2", name: "GLM-5.2" },
     { id: "glm-5.1", name: "GLM-5.1" },
