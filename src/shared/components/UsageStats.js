@@ -12,13 +12,42 @@ function isLLMProvider(id) {
 }
 import Badge from "./Badge";
 import Card from "./Card";
+import SegmentedControl from "./SegmentedControl";
+import { OVERVIEW_SUBTABS, resolveActiveSubTab } from "@/lib/usageOverview";
+export { OVERVIEW_SUBTABS, resolveActiveSubTab };
 import OverviewCards from "@/app/(dashboard)/dashboard/usage/components/OverviewCards";
 import UsageTable, { fmt, fmtTime } from "@/app/(dashboard)/dashboard/usage/components/UsageTable";
 import dynamic from "next/dynamic";
-// Lazy-load: keeps @xyflow/react out of the shared bundle until topology renders
-const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false });
-import UsageChart from "@/app/(dashboard)/dashboard/usage/components/UsageChart";
 import RealtimeRequestsCard from "@/app/(dashboard)/dashboard/usage/components/RealtimeRequestsCard";
+
+// Lazy-load: keeps @xyflow/react and recharts out of the initial bundle to optimize LCP
+const ProviderTopology = dynamic(
+  () => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] w-full min-w-0 items-center justify-center rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+        <span className="material-symbols-outlined text-[32px] animate-spin text-text-muted">
+          progress_activity
+        </span>
+      </div>
+    ),
+  }
+);
+
+const UsageChart = dynamic(
+  () => import("@/app/(dashboard)/dashboard/usage/components/UsageChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <Card className="flex h-72 min-w-0 items-center justify-center p-4">
+        <span className="material-symbols-outlined text-[32px] animate-spin text-text-muted">
+          progress_activity
+        </span>
+      </Card>
+    ),
+  }
+);
 
 function timeAgo(timestamp) {
   const diff = Math.floor((Date.now() - new Date(timestamp)) / 1000);
@@ -237,12 +266,22 @@ const PERIODS = [
   { value: "60d", label: "60D" },
 ];
 
-export default function UsageStats({ period: periodProp, setPeriod: setPeriodProp, hidePeriodSelector = false } = {}) {
+export default function UsageStats({
+  period: periodProp,
+  setPeriod: setPeriodProp,
+  hidePeriodSelector = false,
+  subtab: subtabProp,
+  onSubtabChange,
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const sortBy = searchParams.get("sortBy") || "rawModel";
   const sortOrder = searchParams.get("sortOrder") || "asc";
+  const subTabFromUrl = searchParams.get("subtab");
+
+  const activeSubTab =
+    subtabProp ?? resolveActiveSubTab(subTabFromUrl, "breakdown");
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -253,12 +292,24 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const [periodLocal, setPeriodLocal] = useState("today");
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
+  const providersLoaded = useRef(false);
   const period = periodProp ?? periodLocal;
   const setPeriod = setPeriodProp ?? setPeriodLocal;
 
-  // Fetch connected providers once, deduplicate by provider type
+  const handleSubTabChange = (value) => {
+    if (value === activeSubTab) return;
+    if (onSubtabChange) onSubtabChange(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("subtab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  // Fetch connected providers lazily only when Topology sub-tab is activated
   // Always include noAuth free providers (e.g. opencode) regardless of connections
   useEffect(() => {
+    if (activeSubTab !== "topology" || providersLoaded.current) return;
+    providersLoaded.current = true;
+
     Promise.all([
       fetch("/api/providers?isActive=true&distinct=provider&fields=summary").then((r) => r.ok ? r.json() : null),
       fetch("/api/provider-nodes").then((r) => r.ok ? r.json() : null),
@@ -286,7 +337,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         setProviders([...unique, ...noAuthProviders]);
       })
       .catch(() => {});
-  }, []);
+  }, [activeSubTab]);
 
   // Fetch filtered stats via REST when period changes
   useEffect(() => {
@@ -505,75 +556,104 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       {/* Overview cards */}
       {loading ? spinner : <OverviewCards stats={stats} />}
 
-      {/* Provider topology + Recent Requests */}
-      {loading ? spinner : (
-        <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-          <ProviderTopology
-            providers={providers}
-            activeRequests={stats.activeRequests || []}
-            lastProvider={stats.recentRequests?.[0]?.provider || ""}
-            errorProvider={stats.errorProvider || ""}
+      {/* Overview sub-tabs */}
+      <div className="flex flex-col gap-4">
+        <div className="overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+          <SegmentedControl
+            options={OVERVIEW_SUBTABS}
+            value={activeSubTab}
+            onChange={handleSubTabChange}
+            className="w-full sm:w-auto min-w-max"
           />
-          <RecentRequests requests={stats.recentRequests || []} />
         </div>
-      )}
 
-      {/* Realtime Request Stream Monitor Card (full width above Request Stream) */}
-      {loading ? spinner : (
-        <RealtimeRequestsCard
-          activeRequests={stats?.activeRequests || []}
-          recentRequests={stats?.recentRequests || []}
-        />
-      )}
+        {/* Sub-tab content */}
+        {loading ? (
+          spinner
+        ) : (
+          <>
+            {activeSubTab === "breakdown" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <select
+                    value={tableView}
+                    onChange={(e) => setTableView(e.target.value)}
+                    aria-label="Usage table dimension"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
+                    style={{ colorScheme: "auto" }}
+                  >
+                    {TABLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex">
+                    <button
+                      onClick={() => setViewMode("costs")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        viewMode === "costs"
+                          ? "bg-primary text-white shadow-sm"
+                          : "text-text-muted hover:text-text hover:bg-bg-hover"
+                      }`}
+                    >
+                      Costs
+                    </button>
+                    <button
+                      onClick={() => setViewMode("tokens")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        viewMode === "tokens"
+                          ? "bg-primary text-white shadow-sm"
+                          : "text-text-muted hover:text-text hover:bg-bg-hover"
+                      }`}
+                    >
+                      Tokens
+                    </button>
+                  </div>
+                </div>
+                {activeTableConfig && (
+                  <UsageTable
+                    title=""
+                    columns={activeTableConfig.columns}
+                    groupedData={activeTableConfig.groupedData}
+                    tableType={tableView}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onToggleSort={toggleSort}
+                    viewMode={viewMode}
+                    storageKey={activeTableConfig.storageKey}
+                    renderSummaryCells={activeTableConfig.renderSummaryCells}
+                    renderDetailCells={activeTableConfig.renderDetailCells}
+                    emptyMessage={activeTableConfig.emptyMessage}
+                  />
+                )}
+              </div>
+            )}
 
-      {loading ? spinner : <RequestStream buckets={stats.last10Minutes || []} />}
+            {activeSubTab === "trends" && <UsageChart period={period} />}
 
-      {/* Token / Cost chart - sync period */}
-      {loading ? spinner : <UsageChart period={period} />}
+            {activeSubTab === "topology" && (
+              <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                <ProviderTopology
+                  providers={providers}
+                  activeRequests={stats?.activeRequests || []}
+                  lastProvider={stats?.recentRequests?.[0]?.provider || ""}
+                  errorProvider={stats?.errorProvider || ""}
+                />
+                <RecentRequests requests={stats?.recentRequests || []} />
+              </div>
+            )}
 
-      {/* Table with dropdown selector */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <select
-            value={tableView}
-            onChange={(e) => setTableView(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
-            style={{ colorScheme: 'auto' }}
-          >
-            {TABLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <div className="grid grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex">
-            <button
-              onClick={() => setViewMode("costs")}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "costs" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
-            >
-              Costs
-            </button>
-            <button
-              onClick={() => setViewMode("tokens")}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
-            >
-              Tokens
-            </button>
-          </div>
-        </div>
-        {loading ? spinner : activeTableConfig && (
-          <UsageTable
-            title=""
-            columns={activeTableConfig.columns}
-            groupedData={activeTableConfig.groupedData}
-            tableType={tableView}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onToggleSort={toggleSort}
-            viewMode={viewMode}
-            storageKey={activeTableConfig.storageKey}
-            renderSummaryCells={activeTableConfig.renderSummaryCells}
-            renderDetailCells={activeTableConfig.renderDetailCells}
-            emptyMessage={activeTableConfig.emptyMessage}
-          />
+            {activeSubTab === "activity" && (
+              <div className="flex flex-col gap-4">
+                <RealtimeRequestsCard
+                  activeRequests={stats?.activeRequests || []}
+                  recentRequests={stats?.recentRequests || []}
+                />
+                <RequestStream buckets={stats?.last10Minutes || []} />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -83,6 +83,7 @@ function UsageContent() {
             period={period}
             setPeriod={setPeriod}
             hidePeriodSelector
+            subtab={searchParams.get("subtab") || undefined}
           />
         </Suspense>
       )}
