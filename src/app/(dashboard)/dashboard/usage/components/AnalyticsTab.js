@@ -20,6 +20,8 @@ import {
   defaultTimeBucket,
   validateProviderFilter,
   validateModelFilter,
+  buildAnalyticsCsv,
+  downloadBlobCsv,
 } from "./analyticsData";
 
 const ERROR_METADATA = {
@@ -157,11 +159,23 @@ export default function AnalyticsTab({ period }) {
     setLoadingOptions(true);
     Promise.all([
       fetch("/api/usage/providers")
-        .then((r) => (r.ok ? r.json() : { providers: [] }))
-        .catch(() => ({ providers: [] })),
+        .then((r) => {
+          if (!r.ok) throw new Error(`Providers HTTP ${r.status}`);
+          return r.json();
+        })
+        .catch((err) => {
+          console.warn("Failed to load providers list:", err);
+          return { providers: [] };
+        }),
       fetch("/api/models")
-        .then((r) => (r.ok ? r.json() : { models: [] }))
-        .catch(() => ({ models: [] })),
+        .then((r) => {
+          if (!r.ok) throw new Error(`Models HTTP ${r.status}`);
+          return r.json();
+        })
+        .catch((err) => {
+          console.warn("Failed to load models list:", err);
+          return { models: [] };
+        }),
     ])
       .then(([provData, modelData]) => {
         if (cancelled) return;
@@ -364,46 +378,12 @@ export default function AnalyticsTab({ period }) {
     window.scrollTo({ top: 120, behavior: "smooth" });
   }, []);
 
-  // CSV Export
+  // CSV Export via Blob URL
   const handleExportCsv = () => {
     if (!data?.models?.length) return;
-    const headers = [
-      "Provider",
-      "Model",
-      "Requests",
-      "Success",
-      "Failed",
-      "SuccessRate",
-      "P50_ms",
-      "P95_ms",
-      "InputTokens",
-      "OutputTokens",
-    ];
-    const rows = data.models.map((m) => [
-      `"${m.provider}"`,
-      `"${m.model}"`,
-      m.requests,
-      m.successes,
-      m.failures,
-      m.successRate != null ? `"${(m.successRate * 100).toFixed(2)}%"` : '""',
-      m.latencyMs ?? "",
-      m.p95 ?? "",
-      m.inputTokens ?? "",
-      m.outputTokens ?? "",
-    ]);
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `9router-analytics-${period || "7d"}-${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = buildAnalyticsCsv(data.models);
+    const filename = `9router-analytics-${period || "7d"}-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadBlobCsv(csvContent, filename);
   };
 
   const hasActiveFilters = Boolean(provider || model || errorCategory);
@@ -423,7 +403,7 @@ export default function AnalyticsTab({ period }) {
           </div>
           {data?.summary && (
             <span className="text-xs text-text-muted font-mono">
-              Last updated: {new Date().toLocaleTimeString()}
+              Last updated: {new Date().toLocaleTimeString("en-US")}
             </span>
           )}
         </div>
@@ -638,11 +618,18 @@ export default function AnalyticsTab({ period }) {
       {error && (
         <Card
           padding="md"
-          className="border-red-500/30 bg-red-500/5 text-red-500"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-red-500/30 bg-red-500/5 text-red-500"
         >
           <p role="alert" className="font-medium text-sm">
             {error}
           </p>
+          <button
+            type="button"
+            onClick={() => setRefresh((x) => x + 1)}
+            className="px-3 py-1 text-xs font-semibold rounded border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
+          >
+            Retry
+          </button>
         </Card>
       )}
 
@@ -1113,7 +1100,7 @@ export default function AnalyticsTab({ period }) {
                 className="overflow-hidden"
               >
                 <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
-                  <table className="w-full min-w-[900px] text-left text-sm">
+                  <table className="w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
                     <thead className="bg-surface-2/60 text-text-muted text-xs uppercase font-semibold">
                       <tr>
                         {[
@@ -1127,7 +1114,7 @@ export default function AnalyticsTab({ period }) {
                           "Input Tokens",
                           "Output Tokens",
                         ].map((v) => (
-                          <th className="px-4 py-3" key={v}>
+                          <th scope="col" className="px-4 py-3" key={v}>
                             {v}
                           </th>
                         ))}
@@ -1140,10 +1127,19 @@ export default function AnalyticsTab({ period }) {
                           onClick={() =>
                             handleSelectModel(row.provider, row.model)
                           }
-                          className="hover:bg-surface-2/60 transition-colors cursor-pointer group"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSelectModel(row.provider, row.model);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Filter by ${row.model} on ${row.provider}`}
+                          className="hover:bg-surface-2/60 transition-colors cursor-pointer group focus:outline-none focus:bg-surface-2/80"
                           title="Click to zoom into this model"
                         >
-                          <td className="px-4 py-3">
+                          <th scope="row" className="px-4 py-3 font-normal text-left">
                             <div className="font-semibold text-text-main group-hover:text-brand-500 transition-colors">
                               {row.model}
                             </div>
@@ -1155,7 +1151,7 @@ export default function AnalyticsTab({ period }) {
                                 Insufficient samples
                               </span>
                             )}
-                          </td>
+                          </th>
                           <td className="px-4 py-3 font-mono">
                             {fmtNumber(row.requests)}
                           </td>

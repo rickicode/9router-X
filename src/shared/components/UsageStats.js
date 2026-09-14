@@ -52,13 +52,13 @@ function RecentRequests({ requests = [] }) {
         <div className="flex-1 flex items-center justify-center text-text-muted text-sm">No requests yet.</div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full min-w-[300px] border-collapse text-xs">
+          <table className="w-full min-w-[300px] border-collapse text-xs" aria-label="Recent requests">
             <thead className="sticky top-0 bg-bg z-10">
               <tr className="border-b border-border">
-                <th className="py-1.5 text-left font-semibold text-text-muted w-2"></th>
-                <th className="py-1.5 text-left font-semibold text-text-muted">Model</th>
-                <th className="py-1.5 text-right font-semibold text-text-muted whitespace-nowrap">In / Out</th>
-                <th className="py-1.5 text-right font-semibold text-text-muted">When</th>
+                <th scope="col" className="py-1.5 text-left font-semibold text-text-muted w-2"></th>
+                <th scope="col" className="py-1.5 text-left font-semibold text-text-muted">Model</th>
+                <th scope="col" className="py-1.5 text-right font-semibold text-text-muted whitespace-nowrap">In / Out</th>
+                <th scope="col" className="py-1.5 text-right font-semibold text-text-muted">When</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -96,8 +96,8 @@ function RequestStream({ buckets = [] }) {
     <Card className="min-w-0 overflow-hidden" padding="sm">
       <div className="flex items-center justify-between border-b border-border px-1 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Request Stream</span>
-        <span className="text-sm font-semibold text-primary" title={`Total last 10m: ${total.toLocaleString()} requests`}>
-          {current.toLocaleString()} requests / 1 min
+        <span className="text-sm font-semibold text-primary" title={`Total last 10m: ${total.toLocaleString("en-US")} requests`}>
+          {current.toLocaleString("en-US")} requests / 1 min
         </span>
       </div>
       {!buckets.length ? (
@@ -108,7 +108,7 @@ function RequestStream({ buckets = [] }) {
             const requests = Number(bucket.requests || 0);
             const height = requests > 0 ? Math.max(8, Math.round((requests / max) * 100)) : 2;
             const timeLabel = bucket.timestamp
-              ? new Date(bucket.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              ? new Date(bucket.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
               : "";
             return (
               <div key={`${bucket.timestamp || index}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={timeLabel ? `${timeLabel}: ${requests} requests` : `${requests} requests`}>
@@ -247,6 +247,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [statsError, setStatsError] = useState(null);
   const [tableView, setTableView] = useState("model");
   const [viewMode, setViewMode] = useState("costs");
   const [providers, setProviders] = useState([]);
@@ -289,7 +290,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   }, []);
 
   // Fetch filtered stats via REST when period changes
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     // First load: show full spinner; subsequent: show subtle fetching indicator
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
@@ -297,21 +298,35 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
     } else {
       setFetching(true);
     }
+    setStatsError(null);
 
     fetch(`/api/usage/stats?period=${period}`)
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error(`Failed to load usage statistics (${r.status})`);
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data) {
           hasLoadedStats.current = true;
           setStats((prev) => ({ ...prev, ...data }));
+          setStatsError(null);
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to fetch usage stats:", err);
+        setStatsError(err.message || "Failed to load usage statistics");
+      })
       .finally(() => {
         setLoading(false);
         setFetching(false);
       });
   }, [period]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
   useEffect(() => {
@@ -471,7 +486,20 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
     }
   }, [stats, tableView, sortBy, sortOrder]);
 
-  if (!stats && !loading) return <div className="text-text-muted">Failed to load usage statistics.</div>;
+  if (!stats && !loading) {
+    return (
+      <div role="alert" className="flex flex-col items-center justify-center p-8 gap-3 border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl text-sm">
+        <span>{statsError || "Failed to load usage statistics."}</span>
+        <button
+          type="button"
+          onClick={fetchStats}
+          className="px-4 py-1.5 rounded text-xs font-semibold border border-red-500/30 bg-red-500/15 hover:bg-red-500/25 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const spinner = (
     <div className="flex items-center justify-center py-12 text-text-muted">
@@ -481,6 +509,19 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {/* Period failure error banner */}
+      {statsError && (
+        <div role="alert" className="flex items-center justify-between p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 text-xs">
+          <span>{statsError}</span>
+          <button
+            type="button"
+            onClick={fetchStats}
+            className="px-2.5 py-1 rounded text-xs font-semibold border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {/* Period selector (hidden when controlled by parent) */}
       {!hidePeriodSelector && (
         <div className="flex w-full items-center gap-2 sm:w-auto sm:self-end">

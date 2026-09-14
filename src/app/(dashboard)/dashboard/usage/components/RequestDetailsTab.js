@@ -108,6 +108,7 @@ export default function RequestDetailsTab() {
     totalPages: 0
   });
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [providers, setProviders] = useState([]);
@@ -139,6 +140,7 @@ export default function RequestDetailsTab() {
   const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch("/api/usage/providers");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setProviders(data.providers || []);
 
@@ -151,6 +153,7 @@ export default function RequestDetailsTab() {
 
   const fetchDetails = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
@@ -162,12 +165,21 @@ export default function RequestDetailsTab() {
       if (filters.endDate) params.append("endDate", filters.endDate);
 
       const res = await fetch(`/api/usage/request-details?${params}`);
+      if (!res.ok) {
+        let errMsg = `Failed to fetch request details (${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData?.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
       const data = await res.json();
 
       setDetails(data.details || []);
       setPagination(prev => ({ ...prev, ...data.pagination }));
     } catch (error) {
       console.error("Failed to fetch request details:", error);
+      setFetchError(error.message || "Failed to fetch request details");
     } finally {
       setLoading(false);
     }
@@ -294,21 +306,40 @@ export default function RequestDetailsTab() {
 
       <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
+          <table className="w-full min-w-[980px]" aria-label="Request details table">
             <thead className="bg-black/[0.02] dark:bg-white/[0.02]">
               <tr className="border-b border-black/5 dark:border-white/5">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Time</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-28">Status</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Model</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Provider</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">In / Cached</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Out</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Latency</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-20">Detail</th>
+                <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Time</th>
+                <th scope="col" className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-28">Status</th>
+                <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Model</th>
+                <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Provider</th>
+                <th scope="col" className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">In / Cached</th>
+                <th scope="col" className="text-right px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Out</th>
+                <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Latency</th>
+                <th scope="col" className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-20">Detail</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {fetchError ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center">
+                    <div role="alert" className="flex flex-col items-center justify-center gap-2 text-danger text-sm">
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span className="material-symbols-outlined text-[18px]">error</span>
+                        {fetchError}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchDetails}
+                        className="mt-1 text-xs"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : loading ? (
                 <tr>
                   <td colSpan="8" className="p-8 text-center text-text-muted">
                     <div className="flex items-center justify-center gap-2">
@@ -332,10 +363,10 @@ export default function RequestDetailsTab() {
                     key={`${detail.id}-${index}`}
                     className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
                   >
-                    <td className="whitespace-nowrap px-3 py-3 text-xs text-text-main">
-                      <div className="font-medium">{new Date(detail.timestamp).toLocaleDateString()}</div>
-                      <div className="text-[11px] text-text-muted">{new Date(detail.timestamp).toLocaleTimeString()}</div>
-                    </td>
+                    <th scope="row" className="whitespace-nowrap px-3 py-3 text-xs text-text-main font-normal text-left">
+                      <div className="font-medium">{new Date(detail.timestamp).toLocaleDateString("en-US")}</div>
+                      <div className="text-[11px] text-text-muted">{new Date(detail.timestamp).toLocaleTimeString("en-US")}</div>
+                    </th>
                     <td className="px-3 py-3 text-center whitespace-nowrap">
                       <span
                         className={cn(
@@ -383,6 +414,7 @@ export default function RequestDetailsTab() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleViewDetail(detail)}
+                        aria-label={`View detail for ${detail.model} request at ${new Date(detail.timestamp).toLocaleTimeString("en-US")}`}
                         className="h-7 px-2 text-xs"
                       >
                         Detail
@@ -424,7 +456,7 @@ export default function RequestDetailsTab() {
               </div>
               <div>
                 <span className="text-text-muted">Timestamp:</span>{" "}
-                <span className="text-text-main">{new Date(selectedDetail.timestamp).toLocaleString()}</span>
+                <span className="text-text-main">{new Date(selectedDetail.timestamp).toLocaleString("en-US")}</span>
               </div>
               <div>
                  <span className="text-text-muted">Provider:</span>{" "}
