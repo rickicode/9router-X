@@ -57,7 +57,7 @@ export default function TailscaleCard({
     if (tailscale.loading || tailscale.connecting) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[12px] animate-spin">
+          <span className="material-symbols-outlined text-[12px] animate-spin" aria-hidden="true">
             progress_activity
           </span>
           CONNECTING
@@ -67,7 +67,7 @@ export default function TailscaleCard({
     if (tailscale.authUrl) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-amber-500" />
+          <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
           AUTH REQUIRED
         </span>
       );
@@ -75,7 +75,7 @@ export default function TailscaleCard({
     if (tailscale.status?.type === "error" && !tailscale.enabled) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-red-500" />
+          <span className="size-1.5 rounded-full bg-red-500" aria-hidden="true" />
           ERROR
         </span>
       );
@@ -83,7 +83,7 @@ export default function TailscaleCard({
     if (tailscale.enabled && tailscale.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-green-500" />
+          <span className="size-1.5 rounded-full bg-green-500" aria-hidden="true" />
           ONLINE
         </span>
       );
@@ -91,14 +91,14 @@ export default function TailscaleCard({
     if (tailscale.enabled && !tailscale.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
           CONNECTING
         </span>
       );
     }
     return (
       <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-text-muted/40" />
+        <span className="size-1.5 rounded-full bg-text-muted/40" aria-hidden="true" />
         DISABLED
       </span>
     );
@@ -113,6 +113,7 @@ export default function TailscaleCard({
           variant="secondary"
           onClick={() => setShowDisableModal(true)}
           disabled={tailscale.loading}
+          aria-label="Disable Tailscale Funnel"
         >
           Disable
         </Button>
@@ -121,6 +122,7 @@ export default function TailscaleCard({
           size="sm"
           variant="ghost"
           onClick={tailscale.stopLoading}
+          aria-label="Stop connecting Tailscale"
         >
           Stop
         </Button>
@@ -129,6 +131,7 @@ export default function TailscaleCard({
           size="sm"
           icon="vpn_lock"
           onClick={handleOpenTsModal}
+          aria-label="Enable Tailscale Funnel"
         >
           Enable
         </Button>
@@ -136,11 +139,11 @@ export default function TailscaleCard({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors"
+        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         aria-label={isExpanded ? "Collapse Tailscale Funnel details" : "Expand Tailscale Funnel details"}
         aria-expanded={isExpanded}
       >
-        <span className="material-symbols-outlined text-[20px] transition-transform duration-200">
+        <span className="material-symbols-outlined text-[20px] transition-transform duration-200" aria-hidden="true">
           {isExpanded ? "expand_less" : "expand_more"}
         </span>
       </button>
@@ -165,7 +168,7 @@ export default function TailscaleCard({
             {tailscale.authUrl && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                  <span className="material-symbols-outlined text-base">login</span>
+                  <span className="material-symbols-outlined text-base" aria-hidden="true">login</span>
                   <span>Authentication required to continue Tailscale connection</span>
                 </div>
                 <Button
@@ -178,6 +181,7 @@ export default function TailscaleCard({
                       "width=600,height=700,noopener,noreferrer"
                     )
                   }
+                  aria-label="Open Tailscale Login Window"
                 >
                   {tailscale.authLabel || "Open Login"}
                 </Button>
@@ -188,7 +192,7 @@ export default function TailscaleCard({
             {(tailscale.loading || tailscale.connecting) && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2/40 border border-border-subtle">
                 <div className="flex items-center gap-2 text-sm text-text-muted">
-                  <span className="material-symbols-outlined animate-spin text-sm">
+                  <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                     progress_activity
                   </span>
                   <span className="font-mono text-xs">
@@ -217,10 +221,10 @@ export default function TailscaleCard({
                   <button
                     type="button"
                     onClick={() => onCopy(`${tailscale.url}/v1`, "ts_card_url")}
-                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-colors shrink-0"
-                    aria-label="Copy Tailscale URL"
+                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    aria-label={copied === "ts_card_url" ? "Copied" : "Copy Tailscale URL"}
                   >
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                       {copied === "ts_card_url" ? "check" : "content_copy"}
                     </span>
                   </button>
@@ -238,56 +242,42 @@ export default function TailscaleCard({
 
             {/* Technical description */}
             <div className="p-3 rounded-lg bg-surface-2/30 border border-border-subtle text-xs text-text-muted space-y-1.5 font-mono">
-              <p className="font-semibold text-text-main">Infra Specs:</p>
-              <p>• Point-to-point WireGuard mesh network using Tailscale Funnel / Serve protocol.</p>
-              <p>• TLS termination handled automatically via Tailscale Let&apos;s Encrypt certificates.</p>
-              <p>• Zero port forwarding, works behind NAT, firewalls, and carrier-grade CGNAT.</p>
+              <p>• Point-to-point encrypted mesh network via WireGuard protocol.</p>
+              <p>• Automatically handles NAT traversal and firewall punch-through.</p>
+              <p>• Requires Tailscale daemon running on host machine with Funnel capability enabled.</p>
             </div>
           </div>
         )}
       </Card>
 
-      {/* Tailscale Install / Connect Modal */}
+      {/* Tailscale Setup Modal */}
       <Modal
         isOpen={showTsModal}
         title="Tailscale Funnel Setup"
         onClose={() => {
           if (!tailscale.installing) {
             setShowTsModal(false);
-            tailscale.setSudoPassword("");
             tailscale.setStatus(null);
           }
         }}
       >
         <div className="flex flex-col gap-4">
-          {/* Checking state */}
           {tailscale.installed === null && (
             <p className="text-sm text-text-muted flex items-center gap-2">
-              <span className="material-symbols-outlined animate-spin text-sm">
+              <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                 progress_activity
               </span>
-              Checking Tailscale daemon...
+              Checking Tailscale installation...
             </p>
           )}
 
-          {/* Not installed state */}
           {tailscale.installed === false && !tailscale.installing && (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-text-muted">
-                Tailscale binary was not found on this system. Install Tailscale to enable Funnel routing.
+                Tailscale is not installed on this system. Click below to install it via official script.
               </p>
-              <Input
-                type="password"
-                label="Sudo Password (Optional)"
-                placeholder="Enter password if required for sudo"
-                value={tailscale.sudoPassword}
-                onChange={(e) => tailscale.setSudoPassword(e.target.value)}
-              />
-              <div className="flex gap-2 mt-2">
-                <Button
-                  onClick={() => tailscale.install(() => setShowTsModal(false))}
-                  fullWidth
-                >
+              <div className="flex gap-2">
+                <Button onClick={() => tailscale.install()} fullWidth>
                   Install Tailscale
                 </Button>
                 <Button onClick={() => setShowTsModal(false)} variant="ghost" fullWidth>
@@ -297,14 +287,13 @@ export default function TailscaleCard({
             </div>
           )}
 
-          {/* Installing state with progress log */}
           {tailscale.installing && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 text-sm text-text-muted">
-                <span className="material-symbols-outlined animate-spin text-sm">
+                <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                   progress_activity
                 </span>
-                Installing Tailscale packages...
+                Installing Tailscale...
               </div>
               {tailscale.installLog?.length > 0 && (
                 <div
@@ -319,22 +308,17 @@ export default function TailscaleCard({
             </div>
           )}
 
-          {/* Installed state */}
           {tailscale.installed === true && !tailscale.installing && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                Tailscale is installed and ready.
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                  check_circle
+                </span>
+                Tailscale is installed and ready
               </div>
               <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    setShowTsModal(false);
-                    await tailscale.connect();
-                  }}
-                  fullWidth
-                >
-                  Connect Funnel
+                <Button onClick={() => { setShowTsModal(false); tailscale.connect(); }} fullWidth>
+                  Connect
                 </Button>
                 <Button onClick={() => setShowTsModal(false)} variant="ghost" fullWidth>
                   Cancel
@@ -385,8 +369,11 @@ TailscaleCard.propTypes = {
   tailscale: PropTypes.shape({
     enabled: PropTypes.bool,
     reachable: PropTypes.bool,
-    connecting: PropTypes.bool,
     loading: PropTypes.bool,
+    connecting: PropTypes.bool,
+    installed: PropTypes.bool,
+    installing: PropTypes.bool,
+    installLog: PropTypes.arrayOf(PropTypes.string),
     progress: PropTypes.string,
     status: PropTypes.shape({
       type: PropTypes.string,
@@ -395,17 +382,12 @@ TailscaleCard.propTypes = {
     url: PropTypes.string,
     authUrl: PropTypes.string,
     authLabel: PropTypes.string,
-    installed: PropTypes.bool,
-    installing: PropTypes.bool,
-    installLog: PropTypes.arrayOf(PropTypes.string),
-    sudoPassword: PropTypes.string,
-    setSudoPassword: PropTypes.func.isRequired,
-    setStatus: PropTypes.func.isRequired,
     checkInstalled: PropTypes.func.isRequired,
     install: PropTypes.func.isRequired,
     connect: PropTypes.func.isRequired,
     disable: PropTypes.func.isRequired,
     stopLoading: PropTypes.func.isRequired,
+    setStatus: PropTypes.func.isRequired,
   }).isRequired,
   requireLogin: PropTypes.bool.isRequired,
   hasPassword: PropTypes.bool.isRequired,

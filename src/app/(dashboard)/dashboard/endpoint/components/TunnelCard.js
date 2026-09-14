@@ -61,7 +61,7 @@ export default function TunnelCard({
     if (tunnel.loading) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[12px] animate-spin">
+          <span className="material-symbols-outlined text-[12px] animate-spin" aria-hidden="true">
             progress_activity
           </span>
           STARTING
@@ -71,7 +71,7 @@ export default function TunnelCard({
     if (tunnel.status?.type === "error" && !tunnel.enabled) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-red-500" />
+          <span className="size-1.5 rounded-full bg-red-500" aria-hidden="true" />
           ERROR
         </span>
       );
@@ -79,7 +79,7 @@ export default function TunnelCard({
     if (tunnel.enabled && tunnel.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-green-500" />
+          <span className="size-1.5 rounded-full bg-green-500" aria-hidden="true" />
           ONLINE
         </span>
       );
@@ -87,14 +87,14 @@ export default function TunnelCard({
     if (tunnel.enabled && !tunnel.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
           CONNECTING
         </span>
       );
     }
     return (
       <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-text-muted/40" />
+        <span className="size-1.5 rounded-full bg-text-muted/40" aria-hidden="true" />
         DISABLED
       </span>
     );
@@ -109,6 +109,7 @@ export default function TunnelCard({
           variant="secondary"
           onClick={() => setShowDisableModal(true)}
           disabled={tunnel.loading}
+          aria-label="Disable Cloudflare Tunnel"
         >
           Disable
         </Button>
@@ -117,6 +118,7 @@ export default function TunnelCard({
           size="sm"
           variant="ghost"
           onClick={tunnel.stopLoading}
+          aria-label="Stop starting tunnel"
         >
           Stop
         </Button>
@@ -125,6 +127,7 @@ export default function TunnelCard({
           size="sm"
           icon="cloud_upload"
           onClick={handleEnableClick}
+          aria-label="Enable Cloudflare Tunnel"
         >
           Enable
         </Button>
@@ -132,11 +135,11 @@ export default function TunnelCard({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors"
+        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         aria-label={isExpanded ? "Collapse Cloudflare Tunnel details" : "Expand Cloudflare Tunnel details"}
         aria-expanded={isExpanded}
       >
-        <span className="material-symbols-outlined text-[20px] transition-transform duration-200">
+        <span className="material-symbols-outlined text-[20px] transition-transform duration-200" aria-hidden="true">
           {isExpanded ? "expand_less" : "expand_more"}
         </span>
       </button>
@@ -173,10 +176,10 @@ export default function TunnelCard({
                   <button
                     type="button"
                     onClick={() => onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
-                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-colors shrink-0"
-                    aria-label="Copy Tunnel URL"
+                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    aria-label={copied === "tunnel_card_url" ? "Copied" : "Copy Tunnel URL"}
                   >
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                       {copied === "tunnel_card_url" ? "check" : "content_copy"}
                     </span>
                   </button>
@@ -234,7 +237,7 @@ export default function TunnelCard({
                   key={benefit.title}
                   className="flex flex-col items-center text-center p-3 rounded-lg bg-surface-2/40 border border-border-subtle"
                 >
-                  <span className="material-symbols-outlined text-xl text-primary mb-1">
+                  <span className="material-symbols-outlined text-xl text-brand-700 dark:text-brand-400 mb-1" aria-hidden="true">
                     {benefit.icon}
                   </span>
                   <p className="text-xs font-semibold">{benefit.title}</p>
@@ -259,7 +262,7 @@ export default function TunnelCard({
         <div className="flex flex-col gap-4">
           <div className="bg-surface-2 border border-border-subtle rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-primary">cloud_upload</span>
+              <span className="material-symbols-outlined text-brand-700 dark:text-brand-400" aria-hidden="true">cloud_upload</span>
               <div>
                 <p className="text-sm text-text-main font-medium mb-1">
                   Cloudflare Quick Tunnel
@@ -277,7 +280,7 @@ export default function TunnelCard({
                 key={benefit.title}
                 className="flex flex-col items-center text-center p-3 rounded-lg bg-surface-2/50 border border-border-subtle"
               >
-                <span className="material-symbols-outlined text-xl text-primary mb-1">
+                <span className="material-symbols-outlined text-xl text-brand-700 dark:text-brand-400 mb-1" aria-hidden="true">
                   {benefit.icon}
                 </span>
                 <p className="text-xs font-semibold">{benefit.title}</p>

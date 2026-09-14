@@ -57,10 +57,10 @@ export default function ApiKeysCard({
     }
   };
 
-  const handleDeleteKey = (id) => {
+  const handleDeleteKey = (id, name) => {
     setConfirmState({
       title: "Delete API Key",
-      message: "Are you sure you want to delete this API key? Any client using it will immediately lose access.",
+      message: `Are you sure you want to delete API key "${name || id}"? Any client using it will immediately lose access.`,
       onConfirm: async () => {
         setConfirmState(null);
         try {
@@ -104,17 +104,18 @@ export default function ApiKeysCard({
         size="sm"
         icon="add"
         onClick={() => setShowAddModal(true)}
+        aria-label="Create new API Key"
       >
         Create Key
       </Button>
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors"
+        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         aria-label={isExpanded ? "Collapse API Keys details" : "Expand API Keys details"}
         aria-expanded={isExpanded}
       >
-        <span className="material-symbols-outlined text-[20px] transition-transform duration-200">
+        <span className="material-symbols-outlined text-[20px] transition-transform duration-200" aria-hidden="true">
           {isExpanded ? "expand_less" : "expand_more"}
         </span>
       </button>
@@ -153,8 +154,8 @@ export default function ApiKeysCard({
             {/* Keys list */}
             {keys.length === 0 ? (
               <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
-                  <span className="material-symbols-outlined text-[24px]">vpn_key</span>
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-brand-700 dark:text-brand-400 mb-3">
+                  <span className="material-symbols-outlined text-[24px]" aria-hidden="true">vpn_key</span>
                 </div>
                 <p className="text-text-main font-medium text-sm mb-1">No API keys generated</p>
                 <p className="text-xs text-text-muted mb-3 font-mono">Create an API key to authenticate requests</p>
@@ -167,7 +168,7 @@ export default function ApiKeysCard({
                 {keys.map((key) => (
                   <div
                     key={key.id}
-                    className={`group flex items-center justify-between py-3 transition-opacity ${
+                    className={`flex items-center justify-between py-3 transition-opacity ${
                       key.isActive === false ? "opacity-60" : ""
                     }`}
                   >
@@ -187,20 +188,20 @@ export default function ApiKeysCard({
                         <button
                           type="button"
                           onClick={() => toggleKeyVisibility(key.id)}
-                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
-                          aria-label={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
+                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                          aria-label={visibleKeys.has(key.id) ? `Hide key for ${key.name}` : `Show key for ${key.name}`}
                         >
-                          <span className="material-symbols-outlined text-[14px]">
+                          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
                             {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
                           </span>
                         </button>
                         <button
                           type="button"
                           onClick={() => onCopy(key.key, key.id)}
-                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
-                          aria-label="Copy API key"
+                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                          aria-label={copied === key.id ? "Copied" : `Copy API key ${key.name}`}
                         >
-                          <span className="material-symbols-outlined text-[14px]">
+                          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
                             {copied === key.id ? "check" : "content_copy"}
                           </span>
                         </button>
@@ -229,13 +230,15 @@ export default function ApiKeysCard({
                           }
                         }}
                       />
+                      {/* Always-visible delete action with ConfirmModal */}
                       <button
                         type="button"
-                        onClick={() => handleDeleteKey(key.id)}
-                        className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        onClick={() => handleDeleteKey(key.id, key.name)}
+                        className="p-2 hover:bg-red-500/10 rounded text-red-500 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none shrink-0"
                         aria-label={`Delete API key ${key.name}`}
+                        title={`Delete API key ${key.name}`}
                       >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
                       </button>
                     </div>
                   </div>
@@ -260,15 +263,12 @@ export default function ApiKeysCard({
             label="Key Name"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Production Key"
+            placeholder="e.g. Production Client"
+            autoFocus
           />
           <div className="flex gap-2">
-            <Button
-              onClick={handleCreateKey}
-              fullWidth
-              disabled={!newKeyName.trim()}
-            >
-              Create
+            <Button onClick={handleCreateKey} fullWidth disabled={!newKeyName.trim()}>
+              Create Key
             </Button>
             <Button
               onClick={() => {
@@ -291,12 +291,12 @@ export default function ApiKeysCard({
         onClose={() => setCreatedKey(null)}
       >
         <div className="flex flex-col gap-4">
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-            <p className="text-sm text-amber-700 dark:text-amber-300 mb-1 font-semibold">
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <p className="text-sm text-amber-800 dark:text-amber-200 mb-1 font-medium">
               Save this key now!
             </p>
-            <p className="text-xs text-amber-600 dark:text-amber-400 font-mono">
-              This is the only time you will see this key. Store it securely in your secret manager.
+            <p className="text-xs text-amber-700 dark:text-amber-300 font-mono">
+              This is the only time the full key will be displayed. Store it securely.
             </p>
           </div>
           <div className="flex gap-2">
@@ -309,6 +309,7 @@ export default function ApiKeysCard({
               variant="secondary"
               icon={copied === "created_key" ? "check" : "content_copy"}
               onClick={() => onCopy(createdKey, "created_key")}
+              aria-label={copied === "created_key" ? "Copied" : "Copy new key"}
             >
               {copied === "created_key" ? "Copied!" : "Copy"}
             </Button>
@@ -335,11 +336,11 @@ export default function ApiKeysCard({
 ApiKeysCard.propTypes = {
   keys: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-      name: PropTypes.string,
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
       key: PropTypes.string.isRequired,
-      createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
       isActive: PropTypes.bool,
+      createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
     })
   ).isRequired,
   requireApiKey: PropTypes.bool.isRequired,
@@ -347,5 +348,5 @@ ApiKeysCard.propTypes = {
   onKeysChange: PropTypes.func.isRequired,
   copied: PropTypes.string,
   onCopy: PropTypes.func.isRequired,
-  isRemoteHost: PropTypes.bool.isRequired,
+  isRemoteHost: PropTypes.bool,
 };

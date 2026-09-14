@@ -26,6 +26,7 @@ export default function EndpointUrlsCard({
           className={`size-1.5 rounded-full ${
             isOnline ? "bg-green-500" : "bg-text-muted/40"
           }`}
+          aria-hidden="true"
         />
         {isOnline ? "ONLINE" : "LOCAL ONLY"}
       </span>
@@ -52,7 +53,7 @@ export default function EndpointUrlsCard({
         {/* Cloudflare Tunnel Row (when enabled) */}
         {tunnel?.enabled && (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded shrink-0 min-w-[88px] text-center bg-primary/10 text-primary">
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded shrink-0 min-w-[88px] text-center bg-primary/10 text-brand-700 dark:text-brand-400 font-medium">
               Tunnel
             </span>
             {tunnel.reachable ? (
@@ -65,17 +66,17 @@ export default function EndpointUrlsCard({
                 <button
                   type="button"
                   onClick={() => onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_url")}
-                  className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-colors shrink-0"
-                  aria-label="Copy tunnel URL"
+                  className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  aria-label={copied === "tunnel_url" ? "Copied" : "Copy tunnel URL"}
                 >
-                  <span className="material-symbols-outlined text-[18px]">
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                     {copied === "tunnel_url" ? "check" : "content_copy"}
                   </span>
                 </button>
               </>
             ) : tunnel.loading ? (
               <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-input text-sm text-text-muted">
-                <span className="material-symbols-outlined animate-spin text-sm">
+                <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                   progress_activity
                 </span>
                 <span className="font-mono text-xs">
@@ -84,7 +85,7 @@ export default function EndpointUrlsCard({
               </div>
             ) : (
               <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300 dark:border-amber-800 bg-amber-500/5 text-sm text-amber-600 dark:text-amber-400">
-                <span className="material-symbols-outlined animate-spin text-sm">
+                <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                   progress_activity
                 </span>
                 <span className="font-mono text-xs">
@@ -98,7 +99,7 @@ export default function EndpointUrlsCard({
         {/* Tailscale Row (when enabled) */}
         {tailscale?.enabled && (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded shrink-0 min-w-[88px] text-center bg-primary/10 text-primary">
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded shrink-0 min-w-[88px] text-center bg-primary/10 text-brand-700 dark:text-brand-400 font-medium">
               Tailscale
             </span>
             {tailscale.reachable ? (
@@ -111,17 +112,17 @@ export default function EndpointUrlsCard({
                 <button
                   type="button"
                   onClick={() => onCopy(`${tailscale.url}/v1`, "ts_url")}
-                  className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-colors shrink-0"
-                  aria-label="Copy Tailscale URL"
+                  className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  aria-label={copied === "ts_url" ? "Copied" : "Copy Tailscale URL"}
                 >
-                  <span className="material-symbols-outlined text-[18px]">
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                     {copied === "ts_url" ? "check" : "content_copy"}
                   </span>
                 </button>
               </>
             ) : (tailscale.loading || tailscale.connecting) ? (
               <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-input text-sm text-text-muted">
-                <span className="material-symbols-outlined animate-spin text-sm">
+                <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                   progress_activity
                 </span>
                 <span className="font-mono text-xs">
@@ -130,7 +131,7 @@ export default function EndpointUrlsCard({
               </div>
             ) : (
               <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300 dark:border-amber-800 bg-amber-500/5 text-sm text-amber-600 dark:text-amber-400">
-                <span className="material-symbols-outlined animate-spin text-sm">
+                <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">
                   progress_activity
                 </span>
                 <span className="font-mono text-xs">
@@ -144,7 +145,7 @@ export default function EndpointUrlsCard({
         {/* Inactive hint if neither tunnel is enabled */}
         {!tunnel?.enabled && !tailscale?.enabled && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2/40 border border-border-subtle text-xs text-text-muted font-mono mt-1">
-            <span className="material-symbols-outlined text-[15px] text-text-muted shrink-0">
+            <span className="material-symbols-outlined text-[15px] text-text-muted shrink-0" aria-hidden="true">
               info
             </span>
             <span>Remote access inactive. Enable Cloudflare Tunnel or Tailscale below to connect external tools.</span>

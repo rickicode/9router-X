@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -49,10 +49,22 @@ export default function Sidebar({ onClose }) {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
+  const [showShutdownConfirm, setShowShutdownConfirm] = useState(false);
+  const [shutdownCancelled, setShutdownCancelled] = useState(false);
   const [enableTranslator, setEnableTranslator] = useState(false);
+  const shutdownTimerRef = useRef(null);
   const { copied, copy } = useCopyToClipboard(2000);
 
   const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
+
+  // Cleanup shutdown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (shutdownTimerRef.current) {
+        clearInterval(shutdownTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -80,28 +92,53 @@ export default function Sidebar({ onClose }) {
   const handleUpdate = () => {
     setShowUpdateModal(false);
     setIsUpdating(true);
+    setShutdownCancelled(false);
   };
 
-  // Triggered by Copy button inside ManualUpdatePanel: copy + countdown + shutdown
-  const handleCopyAndShutdown = async () => {
+  // User clicked "Copy & Shutdown" inside panel -> prompt confirm modal first
+  const handleRequestShutdown = () => {
+    setShowShutdownConfirm(true);
+  };
+
+  // User confirmed shutdown: copy command, initiate countdown + undo window, then shutdown
+  const handleConfirmShutdown = async () => {
+    setShowShutdownConfirm(false);
+    setShutdownCancelled(false);
     try { await navigator.clipboard.writeText(INSTALL_CMD); } catch { /* clipboard blocked */ }
     copy(INSTALL_CMD);
-    let remaining = UPDATER_CONFIG.shutdownCountdownSec;
+    let remaining = UPDATER_CONFIG.shutdownCountdownSec || 10;
     setShutdownCountdown(remaining);
-    const timer = setInterval(() => {
+    if (shutdownTimerRef.current) clearInterval(shutdownTimerRef.current);
+    shutdownTimerRef.current = setInterval(() => {
       remaining -= 1;
       setShutdownCountdown(remaining);
       if (remaining <= 0) {
-        clearInterval(timer);
+        clearInterval(shutdownTimerRef.current);
+        shutdownTimerRef.current = null;
         fetch("/api/version/shutdown", { method: "POST" }).catch(() => {});
         setIsDisconnected(true);
       }
     }, 1000);
   };
 
+  // Undo window: user can abort the shutdown countdown at any time
+  const handleUndoShutdown = () => {
+    if (shutdownTimerRef.current) {
+      clearInterval(shutdownTimerRef.current);
+      shutdownTimerRef.current = null;
+    }
+    setShutdownCountdown(0);
+    setShutdownCancelled(true);
+  };
+
   const handleCancelUpdate = () => {
+    if (shutdownTimerRef.current) {
+      clearInterval(shutdownTimerRef.current);
+      shutdownTimerRef.current = null;
+    }
     setIsUpdating(false);
     setShutdownCountdown(0);
+    setShutdownCancelled(false);
   };
 
   // Note: legacy updater poll removed. New flow: copy install cmd + shutdown server,
@@ -111,11 +148,23 @@ export default function Sidebar({ onClose }) {
   return (
     <>
       <aside className="flex w-72 flex-col border-r border-border-subtle bg-vibrancy backdrop-blur-xl transition-colors duration-300 min-h-full">
-        {/* Traffic lights */}
-        <div className="flex items-center gap-2 px-6 pt-5 pb-2">
-          <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
-          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
-          <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
+        {/* Header / Traffic lights / Mobile close button */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
+            <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
+            <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-md text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              aria-label="Close navigation sidebar"
+            >
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+            </button>
+          )}
         </div>
 
         {/* Logo */}
@@ -375,6 +424,18 @@ export default function Sidebar({ onClose }) {
         variant="primary"
       />
 
+      {/* Shutdown Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showShutdownConfirm}
+        onClose={() => setShowShutdownConfirm(false)}
+        onConfirm={handleConfirmShutdown}
+        title="Confirm Server Shutdown"
+        message={`9Router will copy the update command to your clipboard and begin a ${UPDATER_CONFIG.shutdownCountdownSec || 10}-second countdown before shutting down. You will have an undo window to cancel if needed.\n\nProceed?`}
+        confirmText="Proceed with Shutdown"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
       {/* Disconnected / Updating Overlay */}
       {(isDisconnected || isUpdating) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6">
@@ -383,9 +444,11 @@ export default function Sidebar({ onClose }) {
               latestVersion={updateInfo?.latestVersion}
               installCmd={INSTALL_CMD}
               copied={copied}
-              onCopyAndShutdown={handleCopyAndShutdown}
+              onRequestShutdown={handleRequestShutdown}
+              onUndoShutdown={handleUndoShutdown}
               onCancel={handleCancelUpdate}
               countdown={shutdownCountdown}
+              shutdownCancelled={shutdownCancelled}
               isDisconnected={isDisconnected}
             />
           ) : (
@@ -410,13 +473,25 @@ Sidebar.propTypes = {
   onClose: PropTypes.func,
 };
 
-function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdown, onCancel, countdown, isDisconnected }) {
+function ManualUpdatePanel({
+  latestVersion,
+  installCmd,
+  copied,
+  onRequestShutdown,
+  onUndoShutdown,
+  onCancel,
+  countdown,
+  shutdownCancelled,
+  isDisconnected,
+}) {
   const isCountingDown = countdown > 0;
   return (
-    <div className="w-full max-w-lg rounded-xl bg-neutral-900/95 border border-white/10 p-6 text-white">
+    <div className="w-full max-w-lg rounded-xl bg-neutral-900/95 border border-white/10 p-6 text-white shadow-2xl">
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/20 text-amber-400">
-          <span className="material-symbols-outlined text-[24px]">content_copy</span>
+        <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/20 text-amber-400 shrink-0">
+          <span className="material-symbols-outlined text-[24px]" aria-hidden="true">
+            {isCountingDown ? "timer" : "content_copy"}
+          </span>
         </div>
         <div>
           <h2 className="text-lg font-semibold">Update 9Router{latestVersion ? ` to v${latestVersion}` : ""}</h2>
@@ -424,34 +499,59 @@ function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdow
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."
               : isCountingDown
-                ? `Command copied. Server will stop in ${countdown}s...`
-                : "Click the button below to copy the install command and shutdown."}
+                ? `Command copied! Server stopping in ${countdown}s. Click 'Undo' to abort.`
+                : shutdownCancelled
+                  ? "Shutdown aborted. Server remains active. Command copied."
+                  : "Review the command below, then click 'Copy & Shutdown'."}
           </p>
         </div>
       </div>
 
-      <p className="text-sm text-white/80 mb-2">Install command:</p>
-      <div className="w-full px-3 py-2 rounded bg-white/5 mb-4">
+      <p className="text-sm text-white/80 mb-2 font-medium">Install command:</p>
+      <div className="w-full px-3 py-2 rounded bg-white/5 border border-white/10 mb-4">
         <code className="text-xs font-mono text-amber-400 break-all">{installCmd}</code>
       </div>
 
       <ol className="text-xs text-white/70 space-y-1 list-decimal list-inside mb-4">
-        <li>Click <strong>Copy & Shutdown</strong> below.</li>
+        <li>Click <strong>Copy & Shutdown</strong> and confirm.</li>
         <li>Paste the command into your terminal and press Enter.</li>
-        <li>Run <code className="px-1 rounded bg-white/10 text-green-400">9router</code> again after install.</li>
+        <li>Run <code className="px-1 py-0.5 rounded bg-white/10 text-green-400 font-mono">9router</code> again after install.</li>
       </ol>
 
       {isDisconnected ? (
         <Button variant="secondary" fullWidth onClick={() => globalThis.location.reload()}>
           Reload Page
         </Button>
+      ) : isCountingDown ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between text-xs px-3 py-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300">
+            <span className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] animate-spin" aria-hidden="true">progress_activity</span>
+              Shutting down in {countdown}s...
+            </span>
+            <span className="font-mono text-xs">Undo window active</span>
+          </div>
+          <Button
+            variant="danger"
+            fullWidth
+            onClick={onUndoShutdown}
+            aria-label="Cancel server shutdown"
+          >
+            Undo Shutdown ({countdown}s)
+          </Button>
+        </div>
       ) : (
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={isCountingDown}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="primary" fullWidth onClick={onCopyAndShutdown} disabled={isCountingDown}>
-            {copied ? "✓ Copied — shutting down..." : isCountingDown ? `Shutting down in ${countdown}s` : "Copy & Shutdown"}
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={onRequestShutdown}
+            aria-label="Copy install command and initiate shutdown"
+          >
+            {copied ? "✓ Copied — Click to Shutdown" : "Copy & Shutdown"}
           </Button>
         </div>
       )}
@@ -463,8 +563,10 @@ ManualUpdatePanel.propTypes = {
   latestVersion: PropTypes.string,
   installCmd: PropTypes.string.isRequired,
   copied: PropTypes.bool,
-  onCopyAndShutdown: PropTypes.func.isRequired,
+  onRequestShutdown: PropTypes.func.isRequired,
+  onUndoShutdown: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
   countdown: PropTypes.number,
+  shutdownCancelled: PropTypes.bool,
   isDisconnected: PropTypes.bool,
 };

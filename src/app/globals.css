@@ -3,9 +3,19 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Hide icon ligature text until font is ready */
+/* Hide icon ligature text briefly until font is ready, but keep fallback text readable if font fails */
 .material-symbols-outlined { opacity: 0; }
-.fonts-loaded .material-symbols-outlined { opacity: 1; transition: opacity .12s ease-out; }
+.fonts-loaded .material-symbols-outlined,
+.fonts-failed .material-symbols-outlined { opacity: 1; transition: opacity .12s ease-out; }
+
+/* Accessible prefers-reduced-motion guard */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
+}
 
 /* ============================================================
    9Router palette — adopted from 9remote_private/web
@@ -23,6 +33,9 @@
   --color-brand-700: #a64027;
   --color-brand-800: #7a2f1d;
   --color-brand-900: #4d1e12;
+
+  /* Brand text accessible contrast */
+  --color-brand-text: var(--color-brand-700);
 
   /* Primary (legacy alias for backward compat with existing components) */
   --color-primary: var(--color-brand-500);
@@ -81,6 +94,9 @@
   --color-brand-700: #a64027;
   --color-brand-800: #7a2f1d;
   --color-brand-900: #4d1e12;
+
+  /* Brand text accessible contrast */
+  --color-brand-text: var(--color-brand-400);
 
   --color-primary: #E56A4A;
   --color-primary-hover: #cc5236;
@@ -146,6 +162,7 @@ select {
   --color-brand-700: var(--color-brand-700);
   --color-brand-800: var(--color-brand-800);
   --color-brand-900: var(--color-brand-900);
+  --color-brand-text: var(--color-brand-text);
 
   /* Primary aliases */
   --color-primary: var(--color-primary);
