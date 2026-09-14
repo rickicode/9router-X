@@ -27,12 +27,15 @@ export default function Button({
   loading = false,
   fullWidth = false,
   className,
+  type = "button",
   ...props
 }) {
   return (
     <button
+      type={type}
       className={cn(
         "inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 ease-out cursor-pointer",
+        "focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
         "active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
         variants[variant],
         sizes[size],
@@ -43,13 +46,13 @@ export default function Button({
       {...props}
     >
       {loading ? (
-        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-[18px]" aria-hidden="true">progress_activity</span>
       ) : icon ? (
-        <span className="material-symbols-outlined text-[18px]">{icon}</span>
+        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{icon}</span>
       ) : null}
       {children}
       {iconRight && !loading && (
-        <span className="material-symbols-outlined text-[18px]">{iconRight}</span>
+        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{iconRight}</span>
       )}
     </button>
   );

@@ -50,25 +50,30 @@ function UsageContent() {
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
       {/* Tabs + period selector on same row */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <SegmentedControl
-          options={[
-            { value: "overview", label: "Overview" },
-            { value: "details", label: "Details" },
-            { value: "analytics", label: "Analytics" },
-          ]}
-          value={activeTab}
-          onChange={handleTabChange}
-          className="w-full sm:w-auto"
-        />
-        {(activeTab === "overview" || activeTab === "analytics") && (
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
           <SegmentedControl
-            options={PERIODS}
-            value={period}
-            onChange={setPeriod}
-            size="sm"
-            className="w-full sm:w-auto"
+            options={[
+              { value: "overview", label: "Overview" },
+              { value: "logs", label: "Logs" },
+              { value: "details", label: "Details" },
+              { value: "analytics", label: "Analytics" },
+            ]}
+            value={activeTab}
+            onChange={handleTabChange}
+            className="w-full sm:w-auto min-w-max"
           />
+        </div>
+        {(activeTab === "overview" || activeTab === "analytics") && (
+          <div className="overflow-x-auto no-scrollbar pb-0.5 sm:pb-0 self-start sm:self-auto">
+            <SegmentedControl
+              options={PERIODS}
+              value={period}
+              onChange={setPeriod}
+              size="sm"
+              className="w-full sm:w-auto min-w-max"
+            />
+          </div>
         )}
       </div>
 
