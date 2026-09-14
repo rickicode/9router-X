@@ -30,6 +30,13 @@ export default function TailscaleCard({
     }
   }, [tailscale.installLog]);
 
+  // Keep card expanded when authentication is required
+  useEffect(() => {
+    if (tailscale.authUrl) {
+      setIsExpanded(true);
+    }
+  }, [tailscale.authUrl]);
+
   const handleOpenTsModal = async () => {
     if (isLoginUnsafe) {
       tailscale.setStatus({ type: "error", message: `Security required: ${unsafeReason}` });
@@ -101,7 +108,7 @@ export default function TailscaleCard({
     }
     return (
       <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-red-500/60" aria-hidden="true" />
+        <span className="size-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" aria-hidden="true" />
         DISABLED
       </span>
     );
@@ -109,15 +116,17 @@ export default function TailscaleCard({
 
   const openTailscaleAuth = (url) => {
     if (!url) return;
-    // Attempt popup for desktop first
-    const popup = window.open(
-      url,
-      "tailscale_auth",
-      "width=600,height=700,noopener,noreferrer"
-    );
-    // Fallback: If popup was blocked or mobile browser detected (iOS/Android/Safari), navigate current tab
-    if (!popup || popup.closed || typeof popup.closed === "undefined") {
-      window.location.href = url;
+    // Primary attempt: window.open popup/new tab
+    // Fallback: persistent auth link card ('Open auth in new tab' + copy link button)
+    // Note: Replaces disruptive window.location.href = url which yanked current tab away
+    try {
+      window.open(
+        url,
+        "tailscale_auth",
+        "width=600,height=700,noopener,noreferrer"
+      );
+    } catch {
+      /* popup blocked — handled by persistent auth link card in card body */
     }
   };
 
@@ -181,22 +190,49 @@ export default function TailscaleCard({
               <StatusAlert status={tailscale.status} />
             )}
 
-            {/* Auth URL prompt */}
+            {/* Persistent auth link card */}
             {tailscale.authUrl && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                  <span className="material-symbols-outlined text-base" aria-hidden="true">login</span>
-                  <span>Authentication required to continue Tailscale connection</span>
+              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300 font-medium">
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">login</span>
+                    <span>Authentication required to continue Tailscale connection</span>
+                  </div>
+                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold uppercase shrink-0">
+                    Auth Required
+                  </span>
                 </div>
-                <Button
-                  size="sm"
-                  icon="open_in_new"
-                  onClick={() => openTailscaleAuth(tailscale.authUrl)}
-                  aria-label="Open Tailscale Login Window"
-                  className="self-start sm:self-auto"
-                >
-                  {tailscale.authLabel || "Open Login"}
-                </Button>
+                <p className="text-xs text-text-muted font-mono">
+                  Log in to authorize this node. If the auth popup was blocked, open in a new tab or copy the link:
+                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-500/15">
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={tailscale.authUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      aria-label="Open auth in new tab"
+                    >
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span>
+                      <span>Open auth in new tab</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => onCopy(tailscale.authUrl, "ts_auth_url")}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-surface-2 hover:bg-surface-3 text-text-main border border-border-subtle transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      aria-label={copied === "ts_auth_url" ? "Copied" : "Copy link"}
+                    >
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                        {copied === "ts_auth_url" ? "check" : "content_copy"}
+                      </span>
+                      <span>{copied === "ts_auth_url" ? "Copied" : "Copy link"}</span>
+                    </button>
+                  </div>
+                  <code className="text-[11px] font-mono text-text-muted truncate max-w-[200px] sm:max-w-xs">
+                    {tailscale.authUrl}
+                  </code>
+                </div>
               </div>
             )}
 
@@ -226,15 +262,16 @@ export default function TailscaleCard({
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <Input
-                    value={`${tailscale.url}/v1`}
+                    value={(!tailscale.publicUrl && !tailscale.url) ? "— not provisioned —" : `${tailscale.publicUrl || tailscale.url}/v1`}
                     readOnly
                     className="flex-1 w-full font-mono text-sm"
                   />
                   <div className="flex items-center justify-end shrink-0 self-end sm:self-auto">
                     <button
                       type="button"
-                      onClick={() => onCopy(`${tailscale.url}/v1`, "ts_card_url")}
-                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      disabled={!tailscale.publicUrl && !tailscale.url}
+                      onClick={() => (tailscale.publicUrl || tailscale.url) && onCopy(`${tailscale.url}/v1`, "ts_card_url")}
+                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                       aria-label={copied === "ts_card_url" ? "Copied" : "Copy Tailscale URL"}
                     >
                       <span className="material-symbols-outlined text-[18px]" aria-hidden="true">

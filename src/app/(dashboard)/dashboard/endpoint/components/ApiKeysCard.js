@@ -153,14 +153,21 @@ export default function ApiKeysCard({
 
             {/* Keys list */}
             {keys.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8 px-4 border border-dashed border-border-subtle rounded-lg bg-surface-2/20">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-brand-700 dark:text-brand-400 mb-3">
                   <span className="material-symbols-outlined text-[24px]" aria-hidden="true">vpn_key</span>
                 </div>
-                <p className="text-text-main font-medium text-sm mb-1">No API keys generated</p>
-                <p className="text-xs text-text-muted mb-3 font-mono">Create an API key to authenticate requests</p>
-                <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>
-                  Create Key
+                <p className="text-text-main font-medium text-sm mb-1">No API keys yet</p>
+                <p className="text-xs text-text-muted max-w-sm mx-auto mb-4 font-mono">
+                  Create an API key to authenticate client requests to /v1/* endpoints when key requirement is enabled.
+                </p>
+                <Button
+                  size="sm"
+                  icon="add"
+                  onClick={() => setShowAddModal(true)}
+                  aria-label="Create your first API key"
+                >
+                  Create your first API key
                 </Button>
               </div>
             ) : (

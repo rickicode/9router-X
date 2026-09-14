@@ -143,4 +143,40 @@ describe("A11y & Action Hardening Verification", () => {
       assert.ok(content.includes("Undo window active"));
     });
   });
+
+  describe("7. Stale ONLINE hardening, Empty-URL guard, and Tooltip a11y", () => {
+    it("useTunnelStatus keeps client ping alive at 30s when healthy and wakes on focus/visibilitychange", () => {
+      const content = readSrc("src/app/(dashboard)/dashboard/endpoint/hooks/useTunnelStatus.js");
+      const consts = readSrc("src/app/(dashboard)/dashboard/endpoint/endpointConstants.js");
+      assert.ok(consts.includes("CLIENT_PING_HEALTHY_MS = 30000"), "Missing CLIENT_PING_HEALTHY_MS constant");
+      assert.ok(content.includes("CLIENT_PING_HEALTHY_MS"), "useTunnelStatus must import and use CLIENT_PING_HEALTHY_MS");
+      assert.ok(content.includes('window.addEventListener("focus",'), "Missing focus listener");
+      assert.ok(content.includes('document.addEventListener("visibilitychange",'), "Missing visibilitychange listener");
+      assert.ok(!content.includes("if (tunnelHealthy && tsHealthy) return;\n    const id = setInterval"), "Client ping must not early-return skip interval when healthy");
+    });
+
+    it("EndpointUrlsCard, TunnelCard, and TailscaleCard guard empty URLs with placeholder and disable Copy", () => {
+      const urlsContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointUrlsCard.js");
+      assert.ok(urlsContent.includes("— not provisioned —"), "EndpointUrlsCard missing empty URL placeholder");
+      assert.ok(urlsContent.includes("disabled={!tunnel.publicUrl && !tunnel.url}"), "EndpointUrlsCard missing disabled guard for tunnel copy");
+      assert.ok(urlsContent.includes("disabled={!tailscale.publicUrl && !tailscale.url}"), "EndpointUrlsCard missing disabled guard for tailscale copy");
+
+      const tunnelContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/TunnelCard.js");
+      assert.ok(tunnelContent.includes("— not provisioned —"), "TunnelCard missing empty URL placeholder");
+      assert.ok(tunnelContent.includes("disabled={!tunnel.publicUrl && !tunnel.url}"), "TunnelCard missing disabled guard for tunnel copy");
+
+      const tsContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/TailscaleCard.js");
+      assert.ok(tsContent.includes("— not provisioned —"), "TailscaleCard missing empty URL placeholder");
+      assert.ok(tsContent.includes("disabled={!tailscale.publicUrl && !tailscale.url}"), "TailscaleCard missing disabled guard for tailscale copy");
+    });
+
+    it("Tooltip has focus-within, role=tooltip, aria-describedby, mobile tap toggle, and Esc dismiss", () => {
+      const content = readSrc("src/shared/components/Tooltip.js");
+      assert.ok(content.includes("focus-within:opacity-100"), "Tooltip missing focus-within:opacity-100");
+      assert.ok(content.includes('role="tooltip"'), "Tooltip missing role=tooltip");
+      assert.ok(content.includes("aria-describedby="), "Tooltip missing aria-describedby linkage");
+      assert.ok(content.includes("onClick="), "Tooltip missing tap toggle");
+      assert.ok(content.includes('"Escape"'), "Tooltip missing Esc dismiss");
+    });
+  });
 });

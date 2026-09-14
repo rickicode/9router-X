@@ -3,7 +3,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, Button, Modal, Toggle, Input } from "@/shared/components";
-import { TUNNEL_BENEFITS } from "../endpointConstants";
+import TunnelBenefitsGrid from "./TunnelBenefitsGrid";
 import SecurityWarning from "./SecurityWarning";
 import StatusAlert from "./StatusAlert";
 import Tooltip from "./Tooltip";
@@ -97,7 +97,7 @@ export default function TunnelCard({
     }
     return (
       <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-red-500/60" aria-hidden="true" />
+        <span className="size-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" aria-hidden="true" />
         DISABLED
       </span>
     );
@@ -167,20 +167,26 @@ export default function TunnelCard({
             {tunnel.enabled && (
               <div className="flex flex-col gap-3 p-3 rounded-lg bg-surface-2/50 border border-border-subtle">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-text-muted uppercase">Tunnel Public URL</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-text-muted uppercase">Tunnel Public URL</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 text-text-muted border border-border-subtle">
+                      Aggregated above
+                    </span>
+                  </div>
                   <span className="font-mono text-xs text-text-muted">HTTPS TLS 1.3</span>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <Input
-                    value={`${tunnel.publicUrl || tunnel.url}/v1`}
+                    value={(tunnel.publicUrl || tunnel.url) ? `${tunnel.publicUrl || tunnel.url}/v1` : "— not provisioned —"}
                     readOnly
                     className="flex-1 w-full font-mono text-sm"
                   />
                   <div className="flex items-center justify-end shrink-0 self-end sm:self-auto">
                     <button
                       type="button"
-                      onClick={() => onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
-                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      disabled={!tunnel.publicUrl && !tunnel.url}
+                      onClick={() => (tunnel.publicUrl || tunnel.url) && onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
+                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                       aria-label={copied === "tunnel_card_url" ? "Copied" : "Copy Tunnel URL"}
                     >
                       <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
@@ -235,21 +241,10 @@ export default function TunnelCard({
               />
             )}
 
-            {/* Benefits overview */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {TUNNEL_BENEFITS.map((benefit) => (
-                <div
-                  key={benefit.title}
-                  className="flex flex-col items-center text-center p-3 rounded-lg bg-surface-2/40 border border-border-subtle"
-                >
-                  <span className="material-symbols-outlined text-xl text-brand-700 dark:text-brand-400 mb-1" aria-hidden="true">
-                    {benefit.icon}
-                  </span>
-                  <p className="text-xs font-semibold">{benefit.title}</p>
-                  <p className="text-xs text-text-muted mt-0.5">{benefit.desc}</p>
-                </div>
-              ))}
-            </div>
+            {/* Benefits overview (rendered 1x via extracted component) */}
+            {!tunnel.enabled && (
+              <TunnelBenefitsGrid className="pt-2" />
+            )}
 
             <p className="text-xs text-text-muted font-mono">
               Requires outbound port 7844 (TCP/UDP). Connection initialization may take 10-30s.
@@ -277,21 +272,6 @@ export default function TunnelCard({
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {TUNNEL_BENEFITS.map((benefit) => (
-              <div
-                key={benefit.title}
-                className="flex flex-col items-center text-center p-3 rounded-lg bg-surface-2/50 border border-border-subtle"
-              >
-                <span className="material-symbols-outlined text-xl text-brand-700 dark:text-brand-400 mb-1" aria-hidden="true">
-                  {benefit.icon}
-                </span>
-                <p className="text-xs font-semibold">{benefit.title}</p>
-                <p className="text-xs text-text-muted">{benefit.desc}</p>
-              </div>
-            ))}
           </div>
 
           <p className="text-xs text-text-muted font-mono">
