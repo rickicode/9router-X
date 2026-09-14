@@ -6,7 +6,7 @@ import { Card, Button, Modal, Toggle, Input } from "@/shared/components";
 import TunnelBenefitsGrid from "./TunnelBenefitsGrid";
 import SecurityWarning from "./SecurityWarning";
 import StatusAlert from "./StatusAlert";
-import Tooltip from "./Tooltip";
+import Tooltip from "@/shared/components/Tooltip";
 
 export default function TunnelCard({
   tunnel,
