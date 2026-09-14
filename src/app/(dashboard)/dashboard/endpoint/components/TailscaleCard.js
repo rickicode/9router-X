@@ -67,7 +67,7 @@ export default function TailscaleCard({
     if (tailscale.authUrl) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+          <span className="size-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
           AUTH REQUIRED
         </span>
       );
@@ -83,7 +83,10 @@ export default function TailscaleCard({
     if (tailscale.enabled && tailscale.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-green-500" aria-hidden="true" />
+          <span className="relative flex size-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-green-500" />
+          </span>
           ONLINE
         </span>
       );
@@ -91,17 +94,31 @@ export default function TailscaleCard({
     if (tailscale.enabled && !tailscale.reachable) {
       return (
         <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
-          CONNECTING
+          <span className="size-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+          {tailscale.everReachable ? "RECONNECTING" : "CHECKING"}
         </span>
       );
     }
     return (
       <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full bg-text-muted/40" aria-hidden="true" />
+        <span className="size-1.5 rounded-full bg-red-500/60" aria-hidden="true" />
         DISABLED
       </span>
     );
+  };
+
+  const openTailscaleAuth = (url) => {
+    if (!url) return;
+    // Attempt popup for desktop first
+    const popup = window.open(
+      url,
+      "tailscale_auth",
+      "width=600,height=700,noopener,noreferrer"
+    );
+    // Fallback: If popup was blocked or mobile browser detected (iOS/Android/Safari), navigate current tab
+    if (!popup || popup.closed || typeof popup.closed === "undefined") {
+      window.location.href = url;
+    }
   };
 
   const actionHeader = (
@@ -166,7 +183,7 @@ export default function TailscaleCard({
 
             {/* Auth URL prompt */}
             {tailscale.authUrl && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
                   <span className="material-symbols-outlined text-base" aria-hidden="true">login</span>
                   <span>Authentication required to continue Tailscale connection</span>
@@ -174,14 +191,9 @@ export default function TailscaleCard({
                 <Button
                   size="sm"
                   icon="open_in_new"
-                  onClick={() =>
-                    window.open(
-                      tailscale.authUrl,
-                      "tailscale_auth",
-                      "width=600,height=700,noopener,noreferrer"
-                    )
-                  }
+                  onClick={() => openTailscaleAuth(tailscale.authUrl)}
                   aria-label="Open Tailscale Login Window"
+                  className="self-start sm:self-auto"
                 >
                   {tailscale.authLabel || "Open Login"}
                 </Button>
@@ -212,22 +224,24 @@ export default function TailscaleCard({
                   <span className="text-xs font-mono text-text-muted uppercase">Tailscale Endpoint URL</span>
                   <span className="font-mono text-xs text-text-muted">MagicDNS *.ts.net</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <Input
                     value={`${tailscale.url}/v1`}
                     readOnly
-                    className="flex-1 font-mono text-sm"
+                    className="flex-1 w-full font-mono text-sm"
                   />
-                  <button
-                    type="button"
-                    onClick={() => onCopy(`${tailscale.url}/v1`, "ts_card_url")}
-                    className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
-                    aria-label={copied === "ts_card_url" ? "Copied" : "Copy Tailscale URL"}
-                  >
-                    <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-                      {copied === "ts_card_url" ? "check" : "content_copy"}
-                    </span>
-                  </button>
+                  <div className="flex items-center justify-end shrink-0 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => onCopy(`${tailscale.url}/v1`, "ts_card_url")}
+                      className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-brand-700 dark:hover:text-brand-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      aria-label={copied === "ts_card_url" ? "Copied" : "Copy Tailscale URL"}
+                    >
+                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                        {copied === "ts_card_url" ? "check" : "content_copy"}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -235,7 +249,11 @@ export default function TailscaleCard({
             {/* Pre-enable Security gate notice if unsafe */}
             {!tailscale.enabled && isLoginUnsafe && (
               <SecurityWarning
-                message={unsafeReason}
+                message={
+                  !requireLogin
+                    ? "Require login is disabled — enable dashboard login before activating Tailscale Funnel."
+                    : "Dashboard uses default password — change it in Profile settings before activating Tailscale Funnel."
+                }
                 action={{ label: "Open settings", href: "/dashboard/profile" }}
               />
             )}

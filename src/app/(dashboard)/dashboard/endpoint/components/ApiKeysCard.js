@@ -138,7 +138,7 @@ export default function ApiKeysCard({
               <div>
                 <p className="font-medium text-sm">Require API key</p>
                 <p className="text-xs text-text-muted font-mono mt-0.5">
-                  Requests without a valid Authorization Bearer header will be rejected
+                  Protects model endpoints (/v1/*). Clients must supply an Authorization: Bearer &lt;key&gt; header. Does not gate dashboard UI login.
                 </p>
               </div>
               <Toggle
@@ -148,7 +148,7 @@ export default function ApiKeysCard({
             </div>
 
             {isRemoteHost && !requireApiKey && (
-              <SecurityWarning message="Endpoint is exposed without an API key requirement." />
+              <SecurityWarning message="Model endpoint is exposed remotely without an API key requirement. Anyone with the URL can send requests." />
             )}
 
             {/* Keys list */}
