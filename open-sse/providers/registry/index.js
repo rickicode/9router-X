@@ -128,6 +128,7 @@ import p125 from "./orcarouter.js";
 import p126 from "./tokenharbor.js";
 import p127 from "./opencode-zen.js";
 import p128 from "./workbuddy.js";
+import p129 from "./bai.js";
 export default [
   p0,
   p1,
@@ -258,4 +259,5 @@ export default [
   p126,
   p127,
   p128,
+  p129,
 ];
