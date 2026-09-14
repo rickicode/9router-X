@@ -1,0 +1,351 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import PropTypes from "prop-types";
+import { Card, Button, Input, Modal, Toggle, ConfirmModal } from "@/shared/components";
+import SecurityWarning from "./SecurityWarning";
+
+export default function ApiKeysCard({
+  keys,
+  requireApiKey,
+  onToggleRequireApiKey,
+  onKeysChange,
+  copied,
+  onCopy,
+  isRemoteHost,
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [createdKey, setCreatedKey] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
+  const [visibleKeys, setVisibleKeys] = useState(new Set());
+
+  const maskKey = useCallback((fullKey) => {
+    if (!fullKey || fullKey.length <= 10) return fullKey || "";
+    return fullKey.slice(0, 6) + "•".repeat(fullKey.length - 10) + fullKey.slice(-4);
+  }, []);
+
+  const toggleKeyVisibility = (keyId) => {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(keyId)) next.delete(keyId);
+      else next.add(keyId);
+      return next;
+    });
+  };
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim()) return;
+
+    try {
+      const res = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setCreatedKey(data.key);
+        if (onKeysChange) await onKeysChange();
+        setNewKeyName("");
+        setShowAddModal(false);
+      }
+    } catch (error) {
+      console.log("Error creating key:", error);
+    }
+  };
+
+  const handleDeleteKey = (id) => {
+    setConfirmState({
+      title: "Delete API Key",
+      message: "Are you sure you want to delete this API key? Any client using it will immediately lose access.",
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            if (onKeysChange) await onKeysChange();
+            setVisibleKeys((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          }
+        } catch (error) {
+          console.log("Error deleting key:", error);
+        }
+      },
+    });
+  };
+
+  const handleToggleKey = async (id, isActive) => {
+    try {
+      const res = await fetch(`/api/keys/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      if (res.ok && onKeysChange) {
+        await onKeysChange();
+      }
+    } catch (error) {
+      console.log("Error toggling key:", error);
+    }
+  };
+
+  const actionHeader = (
+    <div className="flex items-center gap-2">
+      <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-medium bg-surface-2 text-text-muted border border-border-subtle">
+        {keys.length} {keys.length === 1 ? "KEY" : "KEYS"}
+      </span>
+      <Button
+        size="sm"
+        icon="add"
+        onClick={() => setShowAddModal(true)}
+      >
+        Create Key
+      </Button>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-text-main transition-colors"
+        aria-label={isExpanded ? "Collapse API Keys details" : "Expand API Keys details"}
+        aria-expanded={isExpanded}
+      >
+        <span className="material-symbols-outlined text-[20px] transition-transform duration-200">
+          {isExpanded ? "expand_less" : "expand_more"}
+        </span>
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      <Card
+        id="require-api-key"
+        title="API Keys"
+        subtitle="Manage authentication tokens for clients calling 9Router"
+        icon="vpn_key"
+        action={actionHeader}
+      >
+        {isExpanded && (
+          <div className="mt-4 pt-4 border-t border-border-subtle flex flex-col gap-4">
+            {/* Require API key toggle */}
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+              <div>
+                <p className="font-medium text-sm">Require API key</p>
+                <p className="text-xs text-text-muted font-mono mt-0.5">
+                  Requests without a valid Authorization Bearer header will be rejected
+                </p>
+              </div>
+              <Toggle
+                checked={requireApiKey}
+                onChange={() => onToggleRequireApiKey(!requireApiKey)}
+              />
+            </div>
+
+            {isRemoteHost && !requireApiKey && (
+              <SecurityWarning message="Endpoint is exposed without an API key requirement." />
+            )}
+
+            {/* Keys list */}
+            {keys.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                  <span className="material-symbols-outlined text-[24px]">vpn_key</span>
+                </div>
+                <p className="text-text-main font-medium text-sm mb-1">No API keys generated</p>
+                <p className="text-xs text-text-muted mb-3 font-mono">Create an API key to authenticate requests</p>
+                <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>
+                  Create Key
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-border-subtle">
+                {keys.map((key) => (
+                  <div
+                    key={key.id}
+                    className={`group flex items-center justify-between py-3 transition-opacity ${
+                      key.isActive === false ? "opacity-60" : ""
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{key.name}</p>
+                        {key.isActive === false && (
+                          <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase font-semibold">
+                            Paused
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="text-xs text-text-muted font-mono">
+                          {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => toggleKeyVisibility(key.id)}
+                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
+                          aria-label={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCopy(key.key, key.id)}
+                          className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
+                          aria-label="Copy API key"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            {copied === key.id ? "check" : "content_copy"}
+                          </span>
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-text-muted font-mono mt-1">
+                        Created {new Date(key.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Toggle
+                        size="sm"
+                        checked={key.isActive ?? true}
+                        onChange={(checked) => {
+                          if (key.isActive && !checked) {
+                            setConfirmState({
+                              title: "Pause API Key",
+                              message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                              onConfirm: async () => {
+                                setConfirmState(null);
+                                await handleToggleKey(key.id, checked);
+                              },
+                            });
+                          } else {
+                            handleToggleKey(key.id, checked);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteKey(key.id)}
+                        className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        aria-label={`Delete API key ${key.name}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Add Key Modal */}
+      <Modal
+        isOpen={showAddModal}
+        title="Create API Key"
+        onClose={() => {
+          setShowAddModal(false);
+          setNewKeyName("");
+        }}
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Key Name"
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="Production Key"
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleCreateKey}
+              fullWidth
+              disabled={!newKeyName.trim()}
+            >
+              Create
+            </Button>
+            <Button
+              onClick={() => {
+                setShowAddModal(false);
+                setNewKeyName("");
+              }}
+              variant="ghost"
+              fullWidth
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Created Key Modal */}
+      <Modal
+        isOpen={!!createdKey}
+        title="API Key Created"
+        onClose={() => setCreatedKey(null)}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+            <p className="text-sm text-amber-700 dark:text-amber-300 mb-1 font-semibold">
+              Save this key now!
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-mono">
+              This is the only time you will see this key. Store it securely in your secret manager.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={createdKey || ""}
+              readOnly
+              className="flex-1 font-mono text-sm"
+            />
+            <Button
+              variant="secondary"
+              icon={copied === "created_key" ? "check" : "content_copy"}
+              onClick={() => onCopy(createdKey, "created_key")}
+            >
+              {copied === "created_key" ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+          <Button onClick={() => setCreatedKey(null)} fullWidth>
+            Done
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        onClose={() => setConfirmState(null)}
+        onConfirm={confirmState?.onConfirm}
+        title={confirmState?.title || "Confirm"}
+        message={confirmState?.message}
+        variant="danger"
+      />
+    </>
+  );
+}
+
+ApiKeysCard.propTypes = {
+  keys: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string,
+      key: PropTypes.string.isRequired,
+      createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+      isActive: PropTypes.bool,
+    })
+  ).isRequired,
+  requireApiKey: PropTypes.bool.isRequired,
+  onToggleRequireApiKey: PropTypes.func.isRequired,
+  onKeysChange: PropTypes.func.isRequired,
+  copied: PropTypes.string,
+  onCopy: PropTypes.func.isRequired,
+  isRemoteHost: PropTypes.bool.isRequired,
+};
