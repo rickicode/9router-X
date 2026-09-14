@@ -55,14 +55,18 @@ export async function GET(request) {
     
     const result = await getRequestDetails(filter);
 
-    // Redact conversation payloads: the stored details include full request
-    // bodies (user prompts, tool calls) and provider responses. Returning them
-    // wholesale lets any dashboard-authenticated user (or, if requireLogin is
-    // disabled, anyone) read every user's conversation history. Keep the
-    // metadata (model, tokens, latency, status) but drop message content.
-    // For failed requests, preserve the error response payload and error fields
+    // Opt-in full payloads: set REQUEST_DETAILS_SHOW_RAW=true (and keep
+    // dashboard behind login) to return unredacted request/response bodies.
+    // Default stays redacted: stored details include full conversation
+    // payloads (user prompts, tool calls, provider responses), and returning
+    // them lets any dashboard-authenticated user (or, if requireLogin is
+    // disabled, anyone) read every user's conversation history.
+    // For failed requests the error response payload is always preserved
     // so operators can debug issues directly from the dashboard.
+    const showRaw = process.env.REQUEST_DETAILS_SHOW_RAW === "true";
+
     const redactedDetails = (result.details || []).map((d) => {
+      if (showRaw) return d;
       const redacted = { ...d };
       const isFailed = d.status !== "success" || Boolean(d.error || d.response?.error);
 

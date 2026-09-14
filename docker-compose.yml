@@ -28,7 +28,9 @@ services:
       TAILSCALE_AUTHKEY: ${TAILSCALE_AUTHKEY:-${TS_AUTHKEY:-}}
       TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-9router-x}
       TAILSCALE_SERVE: ${TAILSCALE_SERVE:-true}
-      NODE_OPTIONS: "--max-old-space-size=4096"
+      # Opt-in: return unredacted request-details payloads (default redacted).
+      # Only enable while dashboard login is enforced (requireLogin !== false).
+      REQUEST_DETAILS_SHOW_RAW: ${REQUEST_DETAILS_SHOW_RAW:-false}
     logging:
       driver: "json-file"
       options:
