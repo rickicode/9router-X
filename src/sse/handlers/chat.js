@@ -268,7 +268,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: preparedTop.models,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
+        (b, m, opts) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null),
         adapterAdded
       ),
       log,
@@ -294,7 +294,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: preparedSolo.models,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
+        (b, m, opts) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null),
         adapterAdded
       ),
       log,
@@ -359,10 +359,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       return handleComboChat({
         body,
         models: preparedNested.models,
-        handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget),
-          adapterAdded
-        ),
+      handleSingleModel: withCapacityAdapterStripping(
+        (b, m, opts) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null),
+        adapterAdded
+      ),
         log,
         comboName: modelStr,
         comboStrategy: preparedNested.strategy,

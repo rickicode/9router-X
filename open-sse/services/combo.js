@@ -335,6 +335,17 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   const runMemberWithTimeout = (modelStr) => new Promise((resolve) => {
     const controller = new AbortController();
     let settled = false;
+    // Forward client-gone signal: if the client disconnects, abort the
+    // in-flight upstream request too (otherwise the orphaned fetch continues
+    // streaming and billing input tokens even though no one is listening).
+    const onClientAbort = () => {
+      if (settled) return;
+      try { controller.abort(externalSignal.reason ?? new Error("client disconnected")); } catch {}
+    };
+    if (externalSignal) {
+      if (externalSignal.aborted) onClientAbort();
+      else externalSignal.addEventListener("abort", onClientAbort, { once: true });
+    }
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -347,9 +358,9 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       .then(
         (result) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ result, timedOut: false }); } },
         (error) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ result: null, thrown: error }); } },
-      );
+      )
+      .finally(() => { if (externalSignal) externalSignal.removeEventListener("abort", onClientAbort); });
   });
-
   for (let i = 0; i < rotatedModels.length; i++) {
     if (clientGone()) {
       log.warn("COMBO", `Client disconnected — stopping fallback after ${i} member(s)`);
