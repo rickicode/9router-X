@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useId, useRef } from "react";
 
-export default function Tooltip({ text, children, position = "top", color }) {
+export default function Tooltip({
+  text,
+  children,
+  position = "top",
+  color,
+  className = "",
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const id = useId();
@@ -16,7 +22,7 @@ export default function Tooltip({ text, children, position = "top", color }) {
   }[position] || "bottom-full left-1/2 -translate-x-1/2 mb-1.5";
 
   const bgStyle = color ? { backgroundColor: color } : {};
-  const bgClass = color ? "" : "bg-gray-900";
+  const bgClass = color ? "" : "bg-gray-900 dark:bg-gray-800";
 
   useEffect(() => {
     const handleOutside = (e) => {
@@ -60,11 +66,15 @@ export default function Tooltip({ text, children, position = "top", color }) {
     : "opacity-0 group-hover/tt:opacity-100 focus-within:opacity-100";
 
   return (
-    <div
+    <span
       ref={containerRef}
-      className="relative inline-flex group/tt"
+      className={`relative inline-flex ${
+        children ? "" : "items-center cursor-help"
+      } group/tt ${className}`.trim()}
       aria-describedby={id}
       tabIndex={children ? undefined : 0}
+      role={children ? undefined : "button"}
+      aria-label={children ? undefined : "More information"}
       onClick={() => {
         setDismissed(false);
         setIsOpen((prev) => !prev);
@@ -73,15 +83,22 @@ export default function Tooltip({ text, children, position = "top", color }) {
       onBlur={handleBlur}
       onPointerLeave={() => setDismissed(false)}
     >
-      {children}
-      <div
+      {children || (
+        <span
+          className="material-symbols-outlined text-[14px] text-text-muted"
+          aria-hidden="true"
+        >
+          help
+        </span>
+      )}
+      <span
         id={id}
         role="tooltip"
-        className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-56 rounded px-2 py-1 text-[11px] leading-snug ${bgClass} text-white transition-opacity duration-150 whitespace-normal ${visibleClass}`}
+        className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-64 rounded px-2.5 py-1.5 text-xs leading-snug ${bgClass} text-white shadow-lg transition-opacity duration-150 whitespace-normal ${visibleClass}`}
         style={bgStyle}
       >
         {text}
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }

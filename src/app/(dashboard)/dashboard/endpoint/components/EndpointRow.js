@@ -4,14 +4,24 @@ import PropTypes from "prop-types";
 import { Input } from "@/shared/components";
 
 /** Reusable endpoint row component */
-export default function EndpointRow({ label, url, copyId, copied, onCopy, badge, actions }) {
+export default function EndpointRow({
+  label,
+  url,
+  copyId,
+  copied,
+  onCopy,
+  badge = false,
+  actions,
+}) {
   const isCopied = copied === copyId;
+  const isHighlighted = Boolean(badge);
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
       <div className="flex items-center justify-between sm:justify-start">
         <span
           className={`text-xs font-mono px-1.5 py-0.5 rounded shrink-0 min-w-[88px] text-center ${
-            badge === "CF" || badge === "TS"
+            isHighlighted
               ? "bg-primary/10 text-brand-700 dark:text-brand-400 font-medium"
               : "bg-surface-2 text-text-muted"
           }`}
@@ -45,6 +55,6 @@ EndpointRow.propTypes = {
   copyId: PropTypes.string.isRequired,
   copied: PropTypes.string,
   onCopy: PropTypes.func.isRequired,
-  badge: PropTypes.string,
+  badge: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
   actions: PropTypes.node,
 };

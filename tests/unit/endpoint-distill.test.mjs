@@ -65,4 +65,40 @@ describe("Endpoint Distill & Polish Verification", () => {
       assert.equal(matches?.length, 4, "Must render exactly 4 CardSkeletons matching the 4-card layout");
     });
   });
+
+  describe("5. Tooltip SSOT distillation", () => {
+    it("shared/components/Tooltip supports children wrapper and inline icon when children omitted", () => {
+      const sharedTooltip = readSrc("src/shared/components/Tooltip.js");
+      assert.ok(sharedTooltip.includes("children ||"), "Must support inline icon fallback when children omitted");
+      assert.ok(sharedTooltip.includes("group-hover/tt:opacity-100"), "Must use scoped group/tt hover");
+      assert.ok(sharedTooltip.includes("focus-within:opacity-100"), "Must support focus-within");
+      assert.ok(sharedTooltip.includes('role="tooltip"'), "Must have role=tooltip");
+    });
+
+    it("endpoint/components/Tooltip re-exports from shared/components/Tooltip SSOT", () => {
+      const endpointTooltip = readSrc("src/app/(dashboard)/dashboard/endpoint/components/Tooltip.js");
+      assert.ok(endpointTooltip.includes('from "@/shared/components/Tooltip"'), "Must re-export from shared Tooltip");
+    });
+  });
+
+  describe("6. globals.css brand token deduplication", () => {
+    it(".dark does not duplicate identical brand tokens (--color-brand-50..900)", () => {
+      const css = readSrc("src/app/globals.css");
+      const darkBlockMatch = css.match(/\.dark\s*\{([^}]+)\}/);
+      assert.ok(darkBlockMatch, ".dark block must exist");
+      const darkBlock = darkBlockMatch[1];
+      assert.ok(!darkBlock.includes("--color-brand-50:"), ".dark must not duplicate --color-brand-50");
+      assert.ok(!darkBlock.includes("--color-brand-500:"), ".dark must not duplicate --color-brand-500");
+      assert.ok(!darkBlock.includes("--color-brand-900:"), ".dark must not duplicate --color-brand-900");
+      assert.ok(darkBlock.includes("--color-brand-text: var(--color-brand-400);"), ".dark must override brand-text");
+    });
+  });
+
+  describe("7. EndpointRow flexible badge prop", () => {
+    it("EndpointRow supports flexible boolean/string badge prop with brand text contrast", () => {
+      const rowContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointRow.js");
+      assert.ok(rowContent.includes("badge = false") || rowContent.includes("Boolean(badge)"), "Must support flexible badge prop");
+      assert.ok(rowContent.includes("text-brand-700 dark:text-brand-400"), "Must maintain brand text contrast");
+    });
+  });
 });
