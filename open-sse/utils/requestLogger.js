@@ -32,31 +32,111 @@ function formatTimestamp(date = new Date()) {
   const ms = String(date.getMilliseconds()).padStart(3, "0");
   return `${y}${m}${d}_${h}${min}${s}_${ms}`;
 }
+// --- Log retention -------------------------------------------------------
+// Keep the total size of LOGS_DIR under a cap (default 2 GiB, override with
+// REQUEST_LOG_MAX_GB). When over the cap the oldest session dirs are removed
+// first. Runs at most once per REQUEST_LOG_RETENTION_INTERVAL_MS per process
+// (default 60s), so the full dir walk stays cheap under load.
+let lastRetentionCheck = 0;
+let retentionRunning = false;
 
-// Create log session folder: {sourceFormat}_{targetFormat}_{model}_{timestamp}
+function getRetentionIntervalMs() {
+  const ms = Number(process.env.REQUEST_LOG_RETENTION_INTERVAL_MS);
+  return Number.isFinite(ms) && ms >= 0 ? ms : 60_000;
+}
+
+function getRequestLogMaxBytes() {
+  const gb = Number(process.env.REQUEST_LOG_MAX_GB);
+  if (Number.isFinite(gb) && gb > 0) return Math.floor(gb * 1024 * 1024 * 1024);
+  return 2 * 1024 * 1024 * 1024; // default 2 GiB
+}
+
+function dirSize(dir) {
+  let total = 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    try {
+      if (e.isDirectory()) total += dirSize(full);
+      else total += fs.statSync(full).size;
+    } catch {
+      /* ignore */
+    }
+  }
+  return total;
+}
+
+export async function enforceLogRetention() {
+  if (!fs || !LOGS_DIR) return;
+  const now = Date.now();
+  if (now - lastRetentionCheck < getRetentionIntervalMs()) return;
+  lastRetentionCheck = now;
+  if (retentionRunning) return;
+  retentionRunning = true;
+  try {
+    let total = 0;
+    const dirs = [];
+    for (const name of fs.readdirSync(LOGS_DIR)) {
+      const dir = path.join(LOGS_DIR, name);
+      let stat;
+      try { stat = fs.statSync(dir); } catch { continue; }
+      if (!stat.isDirectory()) continue;
+      const size = dirSize(dir);
+      total += size;
+      dirs.push({ dir, size, mtime: stat.mtimeMs });
+    }
+    const max = getRequestLogMaxBytes();
+    if (total <= max) return;
+    dirs.sort((a, b) => a.mtime - b.mtime); // oldest first
+    for (const d of dirs) {
+      if (total <= max) break;
+      try {
+        fs.rmSync(d.dir, { recursive: true, force: true });
+        total -= d.size;
+      } catch { /* ignore */ }
+    }
+  } catch {
+    /* ignore */
+  } finally {
+    retentionRunning = false;
+  }
+}
+
 async function createLogSession(sourceFormat, targetFormat, model) {
   await ensureNodeModules();
   if (!fs || !LOGS_DIR) return null;
-  
+
   try {
-    if (!fs.existsSync(LOGS_DIR)) {
+    try {
       fs.mkdirSync(LOGS_DIR, { recursive: true });
+    } catch (err) {
+      if (err?.code !== "EEXIST") throw err;
     }
-    
+
     const timestamp = formatTimestamp();
     const safeModel = (model || "unknown").replace(/[/:]/g, "-");
     const folderName = `${sourceFormat}_${targetFormat}_${safeModel}_${timestamp}`;
     const sessionPath = path.join(LOGS_DIR, folderName);
-    
-    fs.mkdirSync(sessionPath, { recursive: true });
-    
+
+    try {
+      fs.mkdirSync(sessionPath, { recursive: true });
+    } catch (err) {
+      if (err?.code !== "EEXIST") throw err;
+    }
+
+    enforceLogRetention().catch(() => {});
+
     return sessionPath;
   } catch (err) {
     console.log("[LOG] Failed to create log session:", err.message);
     return null;
   }
 }
-
 // Write JSON file
 function writeJsonFile(sessionPath, filename, data) {
   if (!fs || !sessionPath) return;
