@@ -98,11 +98,19 @@ export default function GlobalAnalyticsChart({
       }
     >
       {!hasData ? (
-        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border text-xs text-text-muted">
+        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border text-xs text-text-muted" role="status">
           No telemetry events recorded for this timeframe
         </div>
       ) : (
-        <div className="h-[300px] min-w-0 w-full sm:h-[420px]">
+        <div
+          role="region"
+          aria-label={`Global telemetry analytics chart showing ${viewMode}`}
+          tabIndex={0}
+          className="h-[300px] min-w-0 w-full sm:h-[420px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-lg"
+        >
+          <div className="sr-only">
+            {`Global analytics chart showing ${viewMode} over time with ${validPoints.length} data points.`}
+          </div>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {viewMode === "traffic" ? (
               <ComposedChart

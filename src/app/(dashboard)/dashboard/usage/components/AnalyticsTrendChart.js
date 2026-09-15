@@ -46,103 +46,113 @@ export default function AnalyticsTrendChart({
       </div>
 
       {!hasData ? (
-        <div className="flex h-52 items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted">
+        <div className="flex h-52 items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted" role="status">
           No data recorded for this metric
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={420}>
-          {chartType === "area" ? (
-            <AreaChart
-              data={data}
-              margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient
-                  id={`grad-${metricKey}`}
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor={color} stopOpacity={0.28} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="currentColor"
-                strokeOpacity={0.08}
-              />
-              <XAxis
-                dataKey="timestamp"
-                tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(val) =>
-                  unit === "successRate" ? `${(val * 100).toFixed(0)}%` : val
-                }
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                formatter={(val) => [formatMetric(val, unit), title]}
-                labelFormatter={(label) => `Time: ${label}`}
-              />
-              <Area
-                type="monotone"
-                dataKey={metricKey}
-                stroke={color}
-                strokeWidth={2}
-                fill={`url(#grad-${metricKey})`}
-                connectNulls={false}
-              />
-            </AreaChart>
-          ) : (
-            <LineChart
-              data={data}
-              margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="currentColor"
-                strokeOpacity={0.08}
-              />
-              <XAxis
-                dataKey="timestamp"
-                tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(val) => {
-                  if (unit === "successRate")
-                    return `${(val * 100).toFixed(0)}%`;
-                  if (unit === "latencyMs") return `${val}ms`;
-                  return val;
-                }}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                formatter={(val) => [formatMetric(val, unit), title]}
-                labelFormatter={(label) => `Time: ${label}`}
-              />
-              <Line
-                type="monotone"
-                dataKey={metricKey}
-                stroke={color}
-                strokeWidth={2}
-                dot={{ r: 2 }}
-                activeDot={{ r: 4 }}
-                connectNulls={false}
-              />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
+        <div
+          role="region"
+          aria-label={`${title} trend chart`}
+          tabIndex={0}
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-lg"
+        >
+          <div className="sr-only">
+            {`${title} trend chart displaying ${validPoints.length} data points.`}
+          </div>
+          <ResponsiveContainer width="100%" height={420}>
+            {chartType === "area" ? (
+              <AreaChart
+                data={data}
+                margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient
+                    id={`grad-${metricKey}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor={color} stopOpacity={0.28} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="currentColor"
+                  strokeOpacity={0.08}
+                />
+                <XAxis
+                  dataKey="timestamp"
+                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) =>
+                    unit === "successRate" ? `${(val * 100).toFixed(0)}%` : val
+                  }
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(val) => [formatMetric(val, unit), title]}
+                  labelFormatter={(label) => `Time: ${label}`}
+                />
+                <Area
+                  type="monotone"
+                  dataKey={metricKey}
+                  stroke={color}
+                  strokeWidth={2}
+                  fill={`url(#grad-${metricKey})`}
+                  connectNulls={false}
+                />
+              </AreaChart>
+            ) : (
+              <LineChart
+                data={data}
+                margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="currentColor"
+                  strokeOpacity={0.08}
+                />
+                <XAxis
+                  dataKey="timestamp"
+                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "currentColor", fillOpacity: 0.55 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => {
+                    if (unit === "successRate")
+                      return `${(val * 100).toFixed(0)}%`;
+                    if (unit === "latencyMs") return `${val}ms`;
+                    return val;
+                  }}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(val) => [formatMetric(val, unit), title]}
+                  labelFormatter={(label) => `Time: ${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey={metricKey}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                  activeDot={{ r: 4 }}
+                  connectNulls={false}
+                />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </div>
       )}
     </Card>
   );

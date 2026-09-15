@@ -180,23 +180,33 @@ export default function PxpipeClient() {
       <Card className="p-4">
         <h3 className="font-medium mb-3">Tokens saved — last 30 days</h3>
         {stats?.timeline?.some((d) => d.tokensSavedEst > 0) ? (
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={stats.timeline} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gradPxpipe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtTokens} width={48} />
-              <Tooltip formatter={(v) => [fmtTokens(v), "Tokens saved"]} labelFormatter={(d) => d} />
-              <Area type="monotone" dataKey="tokensSavedEst" stroke="#10b981" fill="url(#gradPxpipe)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div
+            role="region"
+            aria-label="Tokens saved timeline chart"
+            tabIndex={0}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-lg"
+          >
+            <div className="sr-only">
+              {`Tokens saved timeline chart showing ${stats.timeline?.length || 0} data points.`}
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={stats.timeline} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradPxpipe" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtTokens} width={48} />
+                <Tooltip formatter={(v) => [fmtTokens(v), "Tokens saved"]} labelFormatter={(d) => d} />
+                <Area type="monotone" dataKey="tokensSavedEst" stroke="#10b981" fill="url(#gradPxpipe)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
-          <div className="h-32 flex items-center justify-center text-text-muted text-sm">
+          <div className="h-32 flex items-center justify-center text-text-muted text-sm" role="status">
             No savings recorded yet — enable PXPIPE in the Token Saver and route a large Claude-format request.
           </div>
         )}

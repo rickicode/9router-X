@@ -50,7 +50,15 @@ export default function Tooltip({
       e.stopPropagation();
       setIsOpen(false);
       setDismissed(true);
+    } else if (!children && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      setDismissed(false);
+      setIsOpen((prev) => !prev);
     }
+  };
+
+  const handleFocus = () => {
+    setDismissed(false);
   };
 
   const handleBlur = (e) => {
@@ -69,17 +77,19 @@ export default function Tooltip({
     <span
       ref={containerRef}
       className={`relative inline-flex ${
-        children ? "" : "items-center cursor-help"
+        children ? "" : "items-center cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 rounded"
       } group/tt ${className}`.trim()}
-      aria-describedby={id}
+      aria-describedby={text ? id : undefined}
       tabIndex={children ? undefined : 0}
       role={children ? undefined : "button"}
       aria-label={children ? undefined : "More information"}
+      aria-expanded={children ? undefined : isOpen}
       onClick={() => {
         setDismissed(false);
         setIsOpen((prev) => !prev);
       }}
       onKeyDown={handleKeyDown}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       onPointerLeave={() => setDismissed(false)}
     >
@@ -94,6 +104,7 @@ export default function Tooltip({
       <span
         id={id}
         role="tooltip"
+        aria-hidden={dismissed ? true : undefined}
         className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-64 rounded px-2.5 py-1.5 text-xs leading-snug ${bgClass} text-white shadow-lg transition-opacity duration-150 whitespace-normal ${visibleClass}`}
         style={bgStyle}
       >

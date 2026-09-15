@@ -70,11 +70,25 @@ export default function HostSetupCommand({
         </div>
 
         {/* Tab switchers */}
-        <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-0.5 rounded-md border border-border">
+        <div
+          role="tablist"
+          aria-orientation="horizontal"
+          aria-label="Host command format"
+          className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-0.5 rounded-md border border-border"
+          onKeyDown={(e) => {
+            if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              e.preventDefault();
+              setActiveTab((prev) => (prev === "bash" ? "ps1" : "bash"));
+            }
+          }}
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "bash"}
+            tabIndex={activeTab === "bash" ? 0 : -1}
             onClick={() => setActiveTab("bash")}
-            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
               activeTab === "bash"
                 ? "bg-surface text-primary shadow-xs"
                 : "text-text-muted hover:text-text-primary"
@@ -84,8 +98,11 @@ export default function HostSetupCommand({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "ps1"}
+            tabIndex={activeTab === "ps1" ? 0 : -1}
             onClick={() => setActiveTab("ps1")}
-            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
               activeTab === "ps1"
                 ? "bg-surface text-primary shadow-xs"
                 : "text-text-muted hover:text-text-primary"

@@ -143,6 +143,17 @@ export default function Combobox({
     onKeyDown?.(e);
     if (e.defaultPrevented || disabled) return;
 
+    if (e.altKey && e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsOpen(true);
+      return;
+    }
+    if (e.altKey && e.key === "ArrowUp") {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!isOpen) {
@@ -197,6 +208,10 @@ export default function Combobox({
     }
   }, [activeIndex, isOpen]);
 
+  const errorId = error ? `${comboboxId}-error` : undefined;
+  const hintId = hint ? `${comboboxId}-hint` : undefined;
+  const describedBy = [props["aria-describedby"], errorId, hintId].filter(Boolean).join(" ") || undefined;
+
   return (
     <div ref={containerRef} className={cn("relative flex flex-col gap-1.5", className)}>
       {label && (
@@ -227,10 +242,13 @@ export default function Combobox({
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-autocomplete="list"
-          aria-controls={listboxId}
+          aria-controls={isOpen ? listboxId : undefined}
           aria-activedescendant={
-            activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
+            isOpen && activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
           }
+          aria-invalid={Boolean(error)}
+          aria-required={required || undefined}
+          aria-describedby={describedBy}
           placeholder={placeholder}
           value={query}
           disabled={disabled}
@@ -293,6 +311,8 @@ export default function Combobox({
               inputRef.current?.focus();
             }}
             aria-label="Toggle options"
+            aria-expanded={isOpen}
+            aria-controls={isOpen ? listboxId : undefined}
             tabIndex={-1}
             className="p-1 text-text-muted hover:text-text-main rounded-md hover:bg-surface-3 transition-colors cursor-pointer"
           >
@@ -314,6 +334,7 @@ export default function Combobox({
           ref={listboxRef}
           id={listboxId}
           role="listbox"
+          aria-label={label || ariaLabel || placeholder || "Options"}
           tabIndex={-1}
           className={cn(
             "absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto",
@@ -322,7 +343,7 @@ export default function Combobox({
           )}
         >
           {filteredOptions.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-text-muted text-center select-none">
+            <li role="status" aria-live="polite" className="px-3 py-2 text-xs text-text-muted text-center select-none">
               {emptyMessage}
             </li>
           ) : (
@@ -387,14 +408,14 @@ export default function Combobox({
       )}
 
       {error && (
-        <p className="text-xs text-danger flex items-center gap-1 mt-0.5">
+        <p id={errorId} role="alert" className="text-xs text-danger flex items-center gap-1 mt-0.5">
           <span className="material-symbols-outlined text-[14px]">error</span>
           <span>{error}</span>
         </p>
       )}
 
       {hint && !error && (
-        <p className="text-xs text-text-muted mt-0.5">{hint}</p>
+        <p id={hintId} className="text-xs text-text-muted mt-0.5">{hint}</p>
       )}
     </div>
   );

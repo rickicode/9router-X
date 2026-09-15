@@ -163,30 +163,50 @@ export default function UsageTable({
         <table className="w-full text-sm text-left" aria-label={title || "Usage breakdown table"}>
           <thead className="bg-bg-subtle/30 text-text-muted uppercase text-xs">
             <tr>
-              {columns.map((col) => (
-                <th
-                  scope="col"
-                  key={col.field}
-                  aria-sort={sortBy === col.field ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}
-                  className={`px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 ${col.align === "right" ? "text-right" : ""}`}
-                  onClick={() => onToggleSort(tableType, col.field)}
-                >
-                  {col.label}{" "}
-                  <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
-                </th>
-              ))}
-              {valueColumns.map((col) => (
-                <th
-                  scope="col"
-                  key={col.field}
-                  aria-sort={sortBy === col.field ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}
-                  className="px-6 py-3 text-right cursor-pointer hover:bg-bg-subtle/50"
-                  onClick={() => onToggleSort(tableType, col.field)}
-                >
-                  {col.label}{" "}
-                  <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
-                </th>
-              ))}
+              {columns.map((col) => {
+                const isSorted = sortBy === col.field;
+                const sortState = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
+                return (
+                  <th
+                    scope="col"
+                    key={col.field}
+                    aria-sort={sortState}
+                    className={`p-0 ${col.align === "right" ? "text-right" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onToggleSort(tableType, col.field)}
+                      aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
+                      className={`w-full px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${col.align === "right" ? "justify-end" : "justify-start"}`}
+                    >
+                      <span>{col.label}</span>{" "}
+                      <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
+                    </button>
+                  </th>
+                );
+              })}
+              {valueColumns.map((col) => {
+                const isSorted = sortBy === col.field;
+                const sortState = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
+                return (
+                  <th
+                    scope="col"
+                    key={col.field}
+                    aria-sort={sortState}
+                    className="p-0 text-right"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onToggleSort(tableType, col.field)}
+                      aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
+                      className="w-full px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center justify-end gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
+                    >
+                      <span>{col.label}</span>{" "}
+                      <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

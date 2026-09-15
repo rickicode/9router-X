@@ -1011,7 +1011,36 @@ export default function ProviderLimits() {
         {/* Top Bar: Status Tabs + Search */}
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
           {/* Status Filter Tabs */}
-          <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-black/10 bg-black/[0.02] p-1 dark:border-white/10 dark:bg-white/[0.03]">
+          <div
+            role="tablist"
+            aria-orientation="horizontal"
+            aria-label="Account status filters"
+            className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-black/10 bg-black/[0.02] p-1 dark:border-white/10 dark:bg-white/[0.03]"
+            onKeyDown={(e) => {
+              const statusKeys = ["all", "active", "exhausted", "unavailable", "disabled"];
+              const currentIndex = statusKeys.indexOf(accountFilter);
+              let nextIndex = -1;
+              if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                e.preventDefault();
+                nextIndex = (currentIndex + 1) % statusKeys.length;
+              } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                e.preventDefault();
+                nextIndex = (currentIndex - 1 + statusKeys.length) % statusKeys.length;
+              } else if (e.key === "Home") {
+                e.preventDefault();
+                nextIndex = 0;
+              } else if (e.key === "End") {
+                e.preventDefault();
+                nextIndex = statusKeys.length - 1;
+              }
+              if (nextIndex >= 0 && nextIndex !== currentIndex) {
+                setPage(1);
+                setAccountFilter(statusKeys[nextIndex]);
+                const nextBtn = e.currentTarget.querySelectorAll('[role="tab"]')[nextIndex];
+                nextBtn?.focus();
+              }
+            }}
+          >
             {[
               { key: "all", label: "All", count: statusCounts.total, dot: null },
               { key: "active", label: "Active", count: statusCounts.active, dot: "bg-emerald-500" },
@@ -1024,13 +1053,16 @@ export default function ProviderLimits() {
                 <button
                   key={tab.key}
                   type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
                   onClick={() => {
                     if (accountFilter !== tab.key) {
                       setPage(1);
                     }
                     setAccountFilter(tab.key);
                   }}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                     isSelected
                       ? "bg-primary text-white shadow-xs"
                       : "text-text-muted hover:bg-black/5 hover:text-text-main dark:hover:bg-white/5"

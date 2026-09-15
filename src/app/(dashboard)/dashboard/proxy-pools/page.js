@@ -1070,10 +1070,25 @@ export default function ProxyPoolsPage() {
       </div>
 
       {/* Tabs navigation */}
-      <div className="flex border-b border-border">
+      <div
+        role="tablist"
+        aria-orientation="horizontal"
+        aria-label="Proxy view tabs"
+        className="flex border-b border-border"
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveTab((prev) => (prev === "pools" ? "groups" : "pools"));
+          }
+        }}
+      >
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "pools"}
+          tabIndex={activeTab === "pools" ? 0 : -1}
           onClick={() => setActiveTab("pools")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
             activeTab === "pools"
               ? "border-primary text-primary font-semibold"
               : "border-transparent text-text-muted hover:text-text-main"
@@ -1086,8 +1101,12 @@ export default function ProxyPoolsPage() {
           </span>
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "groups"}
+          tabIndex={activeTab === "groups" ? 0 : -1}
           onClick={() => setActiveTab("groups")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
             activeTab === "groups"
               ? "border-primary text-primary font-semibold"
               : "border-transparent text-text-muted hover:text-text-main"
