@@ -72,25 +72,20 @@ export default function RequestLogger() {
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-text-muted flex items-center gap-2 cursor-pointer">
             <span>Auto Refresh (3s)</span>
-            <div
+            <button
+              type="button"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${autoRefresh ? "bg-primary" : "bg-bg-subtle border border-border"
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${autoRefresh ? "bg-primary" : "bg-bg-subtle border border-border"
                 }`}
               role="switch"
               aria-checked={autoRefresh}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setAutoRefresh(!autoRefresh);
-                }
-              }}
+              aria-label="Auto refresh logs"
             >
               <span
                 className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoRefresh ? "translate-x-5" : "translate-x-1"
                   }`}
               />
-            </div>
+            </button>
           </label>
           <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} aria-label="Refresh logs">
             <span className="material-symbols-outlined text-[16px]" aria-hidden="true">refresh</span>

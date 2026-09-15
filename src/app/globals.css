@@ -8,7 +8,10 @@
 .fonts-loaded .material-symbols-outlined,
 .fonts-failed .material-symbols-outlined { opacity: 1; transition: opacity .12s ease-out; }
 
-/* Accessible prefers-reduced-motion guard */
+/* Accessible prefers-reduced-motion guard.
+   NB: SVG SMIL <animate>/<animateMotion> inside .topology-edge-electric are NOT
+   CSS-controlled — they are gated in ProviderTopology.js via usePrefersReducedMotion().
+   Only CSS-driven animations are killed here. */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin,
   .animate-pulse,
@@ -560,6 +563,16 @@ button:disabled,
   color: var(--color-text-main);
   border: 0;
   border-bottom: 1px solid var(--color-border);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.react-flow-controls-custom button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .react-flow-controls-custom button:last-child {

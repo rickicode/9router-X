@@ -15,6 +15,21 @@ import "@xyflow/react/dist/style.css";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 
+// ── Reduced-motion hook (media-query based, SSR-safe) ──
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handler = (e) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return reduced;
+}
+
 // Force-stop FE animation if a provider stays active longer than this
 const PROVIDER_RETENTION_MS = 5 * 60 * 1000;
 const FE_ACTIVE_TICK_MS = 3000; // Throttled from 1000ms to reduce unneeded layout/render cycles
@@ -35,6 +50,7 @@ function getProviderImageUrl(providerId) {
 function ProviderNode({ data }) {
   const { label, color, imageUrl, textIcon, active } = data;
   const [imgError, setImgError] = useState(false);
+  const motionOK = usePrefersReducedMotion() === false;
   return (
     <div
       className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg"
@@ -82,8 +98,8 @@ function ProviderNode({ data }) {
         {label}
       </span>
 
-      {/* Active indicator */}
-      {active && (
+      {/* Active indicator (hidden under prefers-reduced-motion) */}
+      {active && motionOK && (
         <span className="relative flex h-2 w-2 shrink-0">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }} />
           <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
@@ -161,6 +177,7 @@ function TopologyEdge({
   const active = !!data?.active;
   const stroke = style.stroke || "var(--color-border)";
   const filterId = `topo-electric-${id}`;
+  const reducedMotion = usePrefersReducedMotion();
 
   if (!active) {
     return <BaseEdge id={id} path={edgePath} style={{ ...style, stroke }} />;
@@ -171,7 +188,9 @@ function TopologyEdge({
       <defs>
         <filter id={filterId} x="-40%" y="-40%" width="180%" height="180%">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="2" result="noise">
-            <animate attributeName="baseFrequency" values="0.8;1.4;0.8" dur="0.25s" repeatCount="indefinite" />
+            {!reducedMotion && (
+              <animate attributeName="baseFrequency" values="0.8;1.4;0.8" dur="0.25s" repeatCount="indefinite" />
+            )}
           </feTurbulence>
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
         </filter>
@@ -205,8 +224,8 @@ function TopologyEdge({
         style={{ stroke: "#f8fafc", strokeWidth: 2.2, opacity: 1 }}
         className="topology-edge-kame"
       />
-      {/* Energy orbs */}
-      {Array.from({ length: KAME_PARTICLE_COUNT }, (_, i) => (
+      {/* Energy orbs (motion-only; static orbs remain when reduced-motion) */}
+      {Array.from({ length: reducedMotion ? 0 : KAME_PARTICLE_COUNT }, (_, i) => (
         <circle
           key={`${id}-p-${i}`}
           r={i % 2 === 0 ? 4 : 2.5}
@@ -223,7 +242,7 @@ function TopologyEdge({
         </circle>
       ))}
       {/* Electric sparks (short-lived blink along path) */}
-      {Array.from({ length: SPARK_COUNT }, (_, i) => (
+      {Array.from({ length: reducedMotion ? 0 : SPARK_COUNT }, (_, i) => (
         <circle
           key={`${id}-s-${i}`}
           r={1.8}
@@ -401,6 +420,29 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   const activeSet = rawActiveSet;
   const totalActiveCount = activeRequests.length;
 
+  // ── Screen-reader fallback: text table of provider status ──
+  // Build a stable summary for the aria-label on the visual graph.
+  const statusSummary = useMemo(() => {
+    const activeNames = [];
+    const lastNames = [];
+    const errorNames = [];
+    const idleNames = [];
+    for (const p of visibleProviders) {
+      const key = String(p.provider || "").toLowerCase();
+      const name = getProviderConfig(p.provider).name || p.nodeName || p.name || p.provider;
+      if (activeSet.has(key)) activeNames.push(name);
+      else if (errorSet.has(key)) errorNames.push(name);
+      else if (lastSet.has(key)) lastNames.push(name);
+      else idleNames.push(name);
+    }
+    const parts = [];
+    if (activeNames.length) parts.push(`active: ${activeNames.join(", ")}`);
+    if (errorNames.length) parts.push(`error: ${errorNames.join(", ")}`);
+    if (lastNames.length) parts.push(`last used: ${lastNames.join(", ")}`);
+    if (idleNames.length) parts.push(`idle: ${idleNames.join(", ")}`);
+    return `Provider topology graph. ${totalActiveCount} active request${totalActiveCount === 1 ? "" : "s"}. ${parts.join(". ")}.`;
+  }, [visibleProviders, activeSet, lastSet, errorSet, totalActiveCount]);
+
   const { nodes, edges } = useMemo(
     () => buildLayout(visibleProviders, activeSet, lastSet, errorSet, totalActiveCount),
     [visibleProviders, activeSet, lastSet, errorSet, totalActiveCount]
@@ -440,7 +482,8 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length, fitOpts]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+    <>
+    <div ref={containerRef} role="img" aria-label={statusSummary} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
       {visibleProviders.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected
@@ -467,10 +510,36 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
           nodesConnectable={false}
           elementsSelectable={false}
         >
-          <Controls showInteractive={false} className="react-flow-controls-custom" />
+          <Controls showInteractive={false} position="bottom-right" className="react-flow-controls-custom" />
         </ReactFlow>
       )}
     </div>
+    {/* AT fallback: offscreen text table (outside role=img so screen readers reach it) */}
+    {visibleProviders.length > 0 && (
+      <table className="sr-only" aria-label="Provider connection status">
+        <caption>Provider connection status</caption>
+        <thead>
+          <tr>
+            <th scope="col">Provider</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleProviders.map((p) => {
+            const key = String(p.provider || "").toLowerCase();
+            const name = getProviderConfig(p.provider).name || p.nodeName || p.name || p.provider;
+            const status = activeSet.has(key) ? "active" : errorSet.has(key) ? "error" : lastSet.has(key) ? "last used" : "idle";
+            return (
+              <tr key={p.provider}>
+                <th scope="row">{name}</th>
+                <td>{status}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    )}
+    </>
   );
 }
 

@@ -17,13 +17,13 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
   const readSrc = (relPath) => fs.readFileSync(path.join(ROOT, relPath), "utf-8");
 
   describe("1. OVERVIEW_SUBTABS Specification & Resolver", () => {
-    it("exports OVERVIEW_SUBTABS array with 4 distilled views", () => {
+    it("exports OVERVIEW_SUBTABS array with 2 distilled views", () => {
       assert.ok(Array.isArray(OVERVIEW_SUBTABS));
-      assert.equal(OVERVIEW_SUBTABS.length, 4);
+      assert.equal(OVERVIEW_SUBTABS.length, 2);
 
       const tabValues = OVERVIEW_SUBTABS.map((t) => t.value);
-      assert.deepEqual(tabValues, ["breakdown", "trends", "topology", "activity"]);
-      assert.deepEqual(VALID_OVERVIEW_SUBTABS, ["breakdown", "trends", "topology", "activity"]);
+      assert.deepEqual(tabValues, ["overview", "breakdown"]);
+      assert.deepEqual(VALID_OVERVIEW_SUBTABS, ["overview", "breakdown"]);
     });
 
     it("each sub-tab has valid label and icon for technical infra tone", () => {
@@ -33,35 +33,26 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
         assert.ok(typeof tab.icon === "string" && tab.icon.length > 0);
       }
 
+      const overview = OVERVIEW_SUBTABS.find((t) => t.value === "overview");
+      assert.equal(overview.label, "Overview");
+      assert.equal(overview.icon, "dashboard");
+
       const breakdown = OVERVIEW_SUBTABS.find((t) => t.value === "breakdown");
       assert.equal(breakdown.label, "Breakdown");
       assert.equal(breakdown.icon, "table_chart");
-
-      const trends = OVERVIEW_SUBTABS.find((t) => t.value === "trends");
-      assert.equal(trends.label, "Trends");
-      assert.equal(trends.icon, "show_chart");
-
-      const topology = OVERVIEW_SUBTABS.find((t) => t.value === "topology");
-      assert.equal(topology.label, "Topology");
-      assert.equal(topology.icon, "hub");
-
-      const activity = OVERVIEW_SUBTABS.find((t) => t.value === "activity");
-      assert.equal(activity.label, "Live Activity");
-      assert.equal(activity.icon, "sensors");
     });
 
-    it("resolveActiveSubTab resolves valid sub-tabs and safely falls back to 'breakdown'", () => {
+    it("resolveActiveSubTab resolves valid sub-tabs and safely falls back to 'overview'", () => {
+      assert.equal(resolveActiveSubTab("overview"), "overview");
       assert.equal(resolveActiveSubTab("breakdown"), "breakdown");
-      assert.equal(resolveActiveSubTab("trends"), "trends");
-      assert.equal(resolveActiveSubTab("topology"), "topology");
-      assert.equal(resolveActiveSubTab("activity"), "activity");
 
-      assert.equal(resolveActiveSubTab(""), "breakdown");
-      assert.equal(resolveActiveSubTab(null), "breakdown");
-      assert.equal(resolveActiveSubTab(undefined), "breakdown");
-      assert.equal(resolveActiveSubTab("unknown_tab"), "breakdown");
-      assert.equal(resolveActiveSubTab(123), "breakdown");
-      assert.equal(resolveActiveSubTab("  trends  "), "trends");
+      assert.equal(resolveActiveSubTab(""), "overview");
+      assert.equal(resolveActiveSubTab(null), "overview");
+      assert.equal(resolveActiveSubTab(undefined), "overview");
+      assert.equal(resolveActiveSubTab("unknown_tab"), "overview");
+      assert.equal(resolveActiveSubTab(123), "overview");
+      assert.equal(resolveActiveSubTab("  overview  "), "overview");
+      assert.equal(resolveActiveSubTab("  breakdown  "), "breakdown");
     });
 
     it("src/shared/components/index.js re-exports OVERVIEW_SUBTABS", () => {
@@ -100,11 +91,11 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
       );
     });
 
-    it("Provider fetching is lazily gated by activeSubTab === 'topology'", () => {
+    it("Provider fetching is lazily gated by activeSubTab !== 'overview'", () => {
       const src = readSrc("src/shared/components/UsageStats.js");
 
-      // Verify lazy gate
-      assert.match(src, /activeSubTab\s*!==\s*"topology"/);
+      // Verify lazy gate — overview is the unified tab containing topology
+      assert.match(src, /activeSubTab\s*!==\s*"overview"/);
       assert.match(src, /providersLoaded\.current/);
       assert.match(src, /fetch\("\/api\/providers/);
       assert.match(src, /fetch\("\/api\/provider-nodes"\)/);
@@ -112,11 +103,11 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
   });
 
   describe("3. Overview Sub-tab Routing & Conditional Rendering", () => {
-    it("defaults activeSubTab to 'breakdown' via resolveActiveSubTab", () => {
+    it("defaults activeSubTab to 'overview' via resolveActiveSubTab", () => {
       const src = readSrc("src/shared/components/UsageStats.js");
 
       assert.match(src, /const subTabFromUrl = searchParams\.get\("subtab"\);/);
-      assert.match(src, /activeSubTab\s*=\s*subtabProp\s*\?\?\s*resolveActiveSubTab\(subTabFromUrl,\s*"breakdown"\);/);
+      assert.match(src, /activeSubTab\s*=\s*subtabProp\s*\?\?\s*resolveActiveSubTab\(subTabFromUrl,\s*"overview"\);/);
     });
 
     it("updates subtab in searchParams without scrolling when user switches subtab", () => {
@@ -133,17 +124,11 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
       assert.match(src, /activeSubTab\s*===\s*"breakdown"/);
       assert.match(src, /<UsageTable/);
 
-      // Trends tab renders UsageChart
-      assert.match(src, /activeSubTab\s*===\s*"trends"/);
-      assert.match(src, /<UsageChart\s+period=\{period\}\s*\/>/);
-
-      // Topology tab renders ProviderTopology and RecentRequests
-      assert.match(src, /activeSubTab\s*===\s*"topology"/);
+      // Overview tab (unified) renders all sections: Trends + Topology + Live Activity
+      assert.match(src, /activeSubTab\s*!==\s*"breakdown"/);
+      assert.match(src, /<UsageChart/);
       assert.match(src, /<ProviderTopology/);
       assert.match(src, /<RecentRequests/);
-
-      // Activity tab renders RealtimeRequestsCard and RequestStream
-      assert.match(src, /activeSubTab\s*===\s*"activity"/);
       assert.match(src, /<RealtimeRequestsCard/);
       assert.match(src, /<RequestStream/);
     });
