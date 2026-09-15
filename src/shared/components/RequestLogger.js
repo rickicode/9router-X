@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Card from "./Card";
 import Button from "./Button";
 import Modal from "./Modal";
+
+const LOGS_POLL_MS = 3000;
 
 export default function RequestLogger() {
   const [logs, setLogs] = useState([]);
@@ -12,38 +14,62 @@ export default function RequestLogger() {
   const [fetchError, setFetchError] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const abortRef = useRef(null);
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        fetchLogs(false);
-      }, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
-  const fetchLogs = async (showLoading = true) => {
+  const fetchLogs = useCallback(async (showLoading = true) => {
+    // Abort any in-flight poll so stale responses never overwrite newer data
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     if (showLoading) setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch("/api/usage/request-logs");
+      const res = await fetch("/api/usage/request-logs", { signal: ctrl.signal });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData?.error || `Failed to load logs (${res.status})`);
       }
       const data = await res.json();
+      if (ctrl.signal.aborted) return;
       setLogs(Array.isArray(data) ? data : []);
     } catch (error) {
+      if (error.name === "AbortError" || ctrl.signal.aborted) return;
       setFetchError(error.message || "Failed to fetch logs");
     } finally {
-      if (showLoading) setLoading(false);
+      if (showLoading && !ctrl.signal.aborted) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+    return () => abortRef.current?.abort();
+  }, [fetchLogs]);
+
+  // Auto-refresh: paused while the tab is hidden (background polls waste CPU +
+  // DB); resumes with an immediate catch-up fetch when the tab becomes visible.
+  useEffect(() => {
+    if (!autoRefresh) return;
+    let timer = null;
+    const start = () => {
+      if (!timer) timer = setInterval(() => {
+        if (!document.hidden) fetchLogs(false);
+      }, LOGS_POLL_MS);
+    };
+    const stop = () => {
+      clearInterval(timer);
+      timer = null;
+    };
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else { start(); fetchLogs(false); }
+    };
+    if (!document.hidden) start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [autoRefresh, fetchLogs]);
 
   const handleOpenDetail = (rawLog) => {
     const parts = rawLog.split(" | ");
@@ -67,9 +93,9 @@ export default function RequestLogger() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap gap-2 items-center justify-between">
         <h2 className="text-xl font-semibold">Request Logs</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm font-medium text-text-muted flex items-center gap-2 cursor-pointer">
             <span>Auto Refresh (3s)</span>
             <button
@@ -97,7 +123,7 @@ export default function RequestLogger() {
       {fetchError && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400"
+          className="flex items-center justify-between gap-3 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error"
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="material-symbols-outlined text-[18px] shrink-0" aria-hidden="true">error</span>
@@ -109,7 +135,7 @@ export default function RequestLogger() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-black/5 dark:bg-black/20">
+      <Card className="overflow-hidden bg-surface-2">
         <div className="p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
           {loading && logs.length === 0 ? (
             <div className="p-8 text-center text-text-muted">Loading logs...</div>
@@ -140,7 +166,7 @@ export default function RequestLogger() {
                   const isSuccess = status.includes("OK");
 
                   return (
-                    <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-red-500/[0.04]' : ''}`}>
+                    <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-error/[0.04]' : ''}`}>
                       <td className="px-3 py-1.5 border-r border-border text-text-muted">{parts[0]}</td>
                       <td className="px-3 py-1.5 border-r border-border font-medium">{parts[1]}</td>
                       <td className="px-3 py-1.5 border-r border-border">
@@ -163,7 +189,7 @@ export default function RequestLogger() {
                             type="button"
                             onClick={() => handleOpenDetail(log)}
                             aria-label={`View error detail for ${parts[1]} ${status}`}
-                            className="inline-flex items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 dark:text-red-400 transition-colors"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-error/30 bg-error/10 px-2 py-1 text-[11px] font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
                           >
                             <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">error</span>
                             Detail
@@ -173,7 +199,7 @@ export default function RequestLogger() {
                             type="button"
                             onClick={() => handleOpenDetail(log)}
                             aria-label={`View detail for ${parts[1]} ${status}`}
-                            className="inline-flex items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
                           >
                             View
                           </button>
@@ -200,9 +226,9 @@ export default function RequestLogger() {
         {selectedLog && (
           <div className="flex flex-col gap-4">
             <div className={`rounded-lg border px-4 py-3 text-sm font-medium flex items-center gap-2 ${selectedLog.status.includes("FAILED") || selectedLog.status.includes("ERROR")
-                ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
+                ? "border-error/30 bg-error/10 text-error"
                 : selectedLog.status.includes("OK")
-                  ? "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"
+                  ? "border-success/30 bg-success/10 text-success"
                   : "border-primary/30 bg-primary/10 text-primary"
               }`}>
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">

@@ -21,8 +21,18 @@ function timeAgo(timestamp) {
 function TimeAgo({ timestamp }) {
   const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 30000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return; // pause hidden
+      setTick((t) => t + 1);
+    }, 30000);
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden) setTick((t) => t + 1); // catch-up on return
+    };
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(timer);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
   return <>{timeAgo(timestamp)}</>;
 }

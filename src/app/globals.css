@@ -70,6 +70,7 @@
 
   /* Status */
   --color-danger: #cf222e;
+  --color-error: var(--color-danger); /* alias: error == danger */
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-info: #3B82F6;
@@ -112,6 +113,7 @@
   --color-text-subtle: #6b7280;
 
   --color-danger: #ef4444;
+  --color-error: var(--color-danger); /* alias: error == danger */
   --color-success: #22c55e;
   --color-warning: #fbbf24;
   --color-info: #60a5fa;
@@ -177,6 +179,7 @@ select {
   --color-text-subtle: var(--color-text-subtle);
   --color-accent: var(--color-brand-500);
   --color-danger: var(--color-danger);
+  --color-error: var(--color-error);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-info: var(--color-info);
@@ -296,6 +299,27 @@ input, textarea {
 }
 .dark *::-webkit-scrollbar-thumb:hover {
   background-color: rgba(180, 180, 180, 0.5);
+}
+
+/* Tab / segmented-control fade mask for scrollable tab strips on mobile.
+   Apply to the same container as overflow-x-auto so the last item isn't cut off
+   by a hard edge — the mask gives a soft visual hint to keep scrolling. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.tab-scroll-fade {
+  --tab-fade-width: 48px;
+  --tab-fade-color: var(--color-bg);
+  mask-image: linear-gradient(to right, black calc(100% - var(--tab-fade-width)), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--tab-fade-width)), transparent);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+.dark .tab-scroll-fade {
+  --tab-fade-color: var(--color-bg);
 }
 
 /* Reusable elevated card */
@@ -550,6 +574,7 @@ button:disabled,
 }
 
 /* React Flow controls: match app theme */
+.topology-defs { position: absolute; }
 .react-flow-controls-custom {
   background: var(--color-surface);
   border: 1px solid var(--color-border);

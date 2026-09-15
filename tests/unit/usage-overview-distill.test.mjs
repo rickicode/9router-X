@@ -97,8 +97,9 @@ describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (
       // Verify lazy gate — overview is the unified tab containing topology
       assert.match(src, /activeSubTab\s*!==\s*"overview"/);
       assert.match(src, /providersLoaded\.current/);
-      assert.match(src, /fetch\("\/api\/providers/);
-      assert.match(src, /fetch\("\/api\/provider-nodes"\)/);
+      // NB: fetches may carry an { signal } second arg (AbortController); regex allows either form
+      assert.match(src, /fetch\("\/api\/providers[^"]*"\s*(,\s*\{[^}]*signal[^}]*\})?\s*\)/);
+      assert.match(src, /fetch\("\/api\/provider-nodes"\s*(,\s*\{[^}]*signal[^}]*\})?\s*\)/);
     });
   });
 

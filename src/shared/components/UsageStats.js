@@ -58,20 +58,34 @@ function timeAgo(timestamp) {
 }
 
 // Auto-update time display every 30 seconds without re-rendering parent (throttled from 1s to reduce CPU/battery drain)
+// Tick pauses while the tab is hidden so background timers never churn.
 function TimeAgo({ timestamp }) {
   const [, setTick] = useState(0);
-  
+
   useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 30000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return; // pause hidden
+      setTick(t => t + 1);
+    }, 30000);
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden) setTick(t => t + 1); // catch-up on return
+    };
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(timer);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
-  
+
   return <>{timeAgo(timestamp)}</>;
 }
 
+// Inline styles hoisted as module consts → stable object identity across renders
+const RECENT_REQUESTS_CARD_STYLE = { height: 480 };
+
 function RecentRequests({ requests = [] }) {
   return (
-    <Card className="flex min-w-0 flex-col overflow-hidden" padding="sm" style={{ height: 480 }}>
+    <Card className="flex min-w-0 flex-col overflow-hidden" padding="sm" style={RECENT_REQUESTS_CARD_STYLE}>
       {/* Header */}
       <div className="px-1 py-2 border-b border-border shrink-0">
         <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Recent Requests</span>
@@ -294,6 +308,8 @@ export default function UsageStats({
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
   const providersLoaded = useRef(false);
+  const statsAbortRef = useRef(null);
+  const providersAbortRef = useRef(null);
   const period = periodProp ?? periodLocal;
   const setPeriod = setPeriodProp ?? setPeriodLocal;
 
@@ -311,9 +327,14 @@ export default function UsageStats({
     if (activeSubTab !== "overview" || providersLoaded.current) return;
     providersLoaded.current = true;
 
+    // Abort any in-flight provider fetch (switching sub-tabs rapidly)
+    providersAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    providersAbortRef.current = ctrl;
+
     Promise.all([
-      fetch("/api/providers?isActive=true&distinct=provider&fields=summary").then((r) => r.ok ? r.json() : null),
-      fetch("/api/provider-nodes").then((r) => r.ok ? r.json() : null),
+      fetch("/api/providers?isActive=true&distinct=provider&fields=summary", { signal: ctrl.signal }).then((r) => r.ok ? r.json() : null),
+      fetch("/api/provider-nodes", { signal: ctrl.signal }).then((r) => r.ok ? r.json() : null),
     ])
       .then(([d, nodesData]) => {
         // Build node name lookup for custom providers
@@ -337,11 +358,21 @@ export default function UsageStats({
           .map((p) => ({ provider: p.id, name: p.name }));
         setProviders([...unique, ...noAuthProviders]);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Swallow abort errors from rapid tab switches; log real failures only
+        if (err?.name !== "AbortError") console.warn("[UsageStats] provider fetch failed:", err);
+      });
+
+    return () => ctrl.abort();
   }, [activeSubTab]);
 
   // Fetch filtered stats via REST when period changes
   const fetchStats = useCallback(() => {
+    // Abort prior in-flight stats fetch so period switches never race
+    statsAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    statsAbortRef.current = ctrl;
+
     // First load: show full spinner; subsequent: show subtle fetching indicator
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
@@ -351,7 +382,7 @@ export default function UsageStats({
     }
     setStatsError(null);
 
-    fetch(`/api/usage/stats?period=${period}`)
+    fetch(`/api/usage/stats?period=${period}`, { signal: ctrl.signal })
       .then((r) => {
         if (!r.ok) {
           throw new Error(`Failed to load usage statistics (${r.status})`);
@@ -359,6 +390,7 @@ export default function UsageStats({
         return r.json();
       })
       .then((data) => {
+        if (ctrl.signal.aborted) return;
         if (data) {
           hasLoadedStats.current = true;
           setStats((prev) => ({ ...prev, ...data }));
@@ -366,17 +398,21 @@ export default function UsageStats({
         }
       })
       .catch((err) => {
+        if (err.name === "AbortError" || ctrl.signal.aborted) return;
         console.error("Failed to fetch usage stats:", err);
         setStatsError(err.message || "Failed to load usage statistics");
       })
       .finally(() => {
-        setLoading(false);
-        setFetching(false);
+        if (!ctrl.signal.aborted) {
+          setLoading(false);
+          setFetching(false);
+        }
       });
   }, [period]);
 
   useEffect(() => {
     fetchStats();
+    return () => statsAbortRef.current?.abort();
   }, [fetchStats]);
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
@@ -539,12 +575,12 @@ export default function UsageStats({
 
   if (!stats && !loading) {
     return (
-      <div role="alert" className="flex flex-col items-center justify-center p-8 gap-3 border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl text-sm">
+      <div role="alert" className="flex flex-col items-center justify-center p-8 gap-3 border border-error/30 bg-error/10 text-error rounded-xl text-sm">
         <span>{statsError || "Failed to load usage statistics."}</span>
         <button
           type="button"
           onClick={fetchStats}
-          className="px-4 py-1.5 rounded text-xs font-semibold border border-red-500/30 bg-red-500/15 hover:bg-red-500/25 transition-colors"
+          className="px-4 py-1.5 rounded text-xs font-semibold border border-error/30 bg-error/15 hover:bg-error/25 transition-colors"
         >
           Retry
         </button>
@@ -572,12 +608,12 @@ export default function UsageStats({
     <div className="flex min-w-0 flex-col gap-6">
       {/* Period failure error banner */}
       {statsError && (
-        <div role="alert" className="flex items-center justify-between p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 text-xs">
+        <div role="alert" className="flex items-center justify-between p-3 rounded-lg border border-error/30 bg-error/10 text-error text-xs">
           <span>{statsError}</span>
           <button
             type="button"
             onClick={fetchStats}
-            className="px-2.5 py-1 rounded text-xs font-semibold border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+            className="px-2.5 py-1 rounded text-xs font-semibold border border-error/30 bg-error/10 hover:bg-error/20 transition-colors"
           >
             Retry
           </button>
@@ -617,7 +653,7 @@ export default function UsageStats({
 
       {/* Overview sub-tabs */}
       <div className="flex flex-col gap-4">
-        <div className="overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+        <div className="overflow-x-auto no-scrollbar tab-scroll-fade pb-0.5 sm:pb-0">
           <SegmentedControl
             options={OVERVIEW_SUBTABS}
             value={activeSubTab}
@@ -633,14 +669,12 @@ export default function UsageStats({
           <>
             {activeSubTab === "breakdown" && (
               <div className="flex flex-col gap-3">
-                <UsageChart period={period} />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <select
                     value={tableView}
                     onChange={(e) => setTableView(e.target.value)}
                     aria-label="Usage table dimension"
                     className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
-                    style={{ colorScheme: "auto" }}
                   >
                     {TABLE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -695,11 +729,6 @@ export default function UsageStats({
             {activeSubTab !== "breakdown" && (
               <div className="flex flex-col gap-4">
                 <UsageChart period={period} />
-                <RequestStream buckets={stats?.last10Minutes || []} />
-                <RealtimeRequestsCard
-                  activeRequests={stats?.activeRequests || []}
-                  recentRequests={stats?.recentRequests || []}
-                />
                 <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                   <ProviderTopology
                     providers={providers}
@@ -709,6 +738,11 @@ export default function UsageStats({
                   />
                   <RecentRequests requests={stats?.recentRequests || []} />
                 </div>
+                <RealtimeRequestsCard
+                  activeRequests={stats?.activeRequests || []}
+                  recentRequests={stats?.recentRequests || []}
+                />
+                <RequestStream buckets={stats?.last10Minutes || []} />
               </div>
             )}
           </>
