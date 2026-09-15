@@ -387,10 +387,10 @@ export function formatMetric(value, kind) {
   if (value == null) return "No data";
   if (kind === "successRate") return `${(value * 100).toFixed(1)}%`;
   if (kind === "latencyMs") return `${Number(value).toFixed(0)} ms`;
-  return Number(value).toLocaleString();
+  return Number(value).toLocaleString("en-US");
 }
 
-export const fmtNumber = (n) => new Intl.NumberFormat().format(Number(n) || 0);
+export const fmtNumber = (n) => new Intl.NumberFormat("en-US").format(Number(n) || 0);
 
 export const fmtTokens = (n) => {
   const num = Number(n) || 0;
@@ -398,3 +398,52 @@ export const fmtTokens = (n) => {
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return String(num);
 };
+
+export function buildAnalyticsCsv(models = []) {
+  const list = Array.isArray(models) ? models : [];
+  const headers = [
+    "Provider",
+    "Model",
+    "Requests",
+    "Success",
+    "Failed",
+    "SuccessRate",
+    "P50_ms",
+    "P95_ms",
+    "InputTokens",
+    "OutputTokens",
+  ];
+  const escapeCell = (val) => {
+    if (val === null || val === undefined) return '""';
+    const str = String(val);
+    if (str.includes('"') || str.includes(",") || str.includes("\n") || str.includes("\r")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return `"${str}"`;
+  };
+  const rows = list.map((m) => [
+    escapeCell(m?.provider),
+    escapeCell(m?.model),
+    Number(m?.requests || 0),
+    Number(m?.successes || 0),
+    Number(m?.failures || 0),
+    m?.successRate != null ? `"${(m.successRate * 100).toFixed(2)}%"` : '""',
+    m?.latencyMs ?? "",
+    m?.p95 ?? "",
+    m?.inputTokens ?? "",
+    m?.outputTokens ?? "",
+  ]);
+  return "\uFEFF" + [headers.join(","), ...rows.map((e) => e.join(","))].join("\r\n");
+}
+
+export function downloadBlobCsv(csvText, filename) {
+  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
 
-const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
+const fmt = (n) => new Intl.NumberFormat("en-US").format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
 
 function fmtTime(iso) {
@@ -14,7 +14,7 @@ function fmtTime(iso) {
   if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString("en-US");
 }
 
 function SortIcon({ field, currentSort, currentOrder }) {
@@ -160,12 +160,14 @@ export default function UsageTable({
         <h3 className="font-semibold">{title}</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-sm text-left" aria-label={title || "Usage breakdown table"}>
           <thead className="bg-bg-subtle/30 text-text-muted uppercase text-xs">
             <tr>
               {columns.map((col) => (
                 <th
+                  scope="col"
                   key={col.field}
+                  aria-sort={sortBy === col.field ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}
                   className={`px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 ${col.align === "right" ? "text-right" : ""}`}
                   onClick={() => onToggleSort(tableType, col.field)}
                 >
@@ -175,7 +177,9 @@ export default function UsageTable({
               ))}
               {valueColumns.map((col) => (
                 <th
+                  scope="col"
                   key={col.field}
+                  aria-sort={sortBy === col.field ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}
                   className="px-6 py-3 text-right cursor-pointer hover:bg-bg-subtle/50"
                   onClick={() => onToggleSort(tableType, col.field)}
                 >
@@ -190,10 +194,20 @@ export default function UsageTable({
               <Fragment key={group.groupKey}>
                 {/* Group summary row */}
                 <tr
-                  className="group-summary cursor-pointer hover:bg-bg-subtle/50 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expanded.has(group.groupKey)}
+                  aria-label={`${group.groupKey} group details`}
+                  className="group-summary cursor-pointer hover:bg-bg-subtle/50 transition-colors focus:outline-none focus:bg-bg-subtle/60"
                   onClick={() => toggleGroup(group.groupKey)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleGroup(group.groupKey);
+                    }
+                  }}
                 >
-                  <td className="px-6 py-3">
+                  <th scope="row" className="px-6 py-3 font-normal text-left">
                     <div className="flex items-center gap-2">
                       <span className={`material-symbols-outlined text-[18px] text-text-muted transition-transform ${expanded.has(group.groupKey) ? "rotate-90" : ""}`}>
                         chevron_right
@@ -202,7 +216,7 @@ export default function UsageTable({
                         {group.groupKey}
                       </span>
                     </div>
-                  </td>
+                  </th>
                   {renderSummaryCells(group)}
                   <ValueCells item={group.summary} viewMode={viewMode} isSummary />
                 </tr>

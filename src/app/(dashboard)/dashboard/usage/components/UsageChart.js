@@ -26,18 +26,22 @@ const fmtCost = (n) => `$${(Number(n) || 0).toFixed(4)}`;
 export default function UsageChart({ period = "7d" }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState("tokens");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/usage/chart?period=${period}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch chart data (${res.status})`);
       }
+      const json = await res.json();
+      setData(json);
     } catch (e) {
       console.error("Failed to fetch chart data:", e);
+      setError(e.message || "Failed to fetch chart data");
     } finally {
       setLoading(false);
     }
@@ -66,7 +70,21 @@ export default function UsageChart({ period = "7d" }) {
         </button>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="h-48 flex flex-col items-center justify-center gap-2 text-danger text-sm" role="alert">
+          <div className="flex items-center gap-1.5 font-medium">
+            <span className="material-symbols-outlined text-[18px]">error</span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="px-3 py-1 rounded text-xs border border-danger/30 bg-danger/10 hover:bg-danger/20 text-text-main transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <div className="h-48 flex items-center justify-center text-text-muted text-sm">Loading...</div>
       ) : !hasData ? (
         <div className="h-48 flex items-center justify-center text-text-muted text-sm">No data for this period</div>

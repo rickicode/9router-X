@@ -156,18 +156,18 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
       }
     >
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+        <table className="w-full min-w-[760px] border-collapse text-left text-xs" aria-label="Top providers breakdown">
           <thead>
             <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
-              <th className="py-2.5 px-3 w-8 text-center">#</th>
-              <th className="py-2.5 px-3">Provider</th>
-              <th className="py-2.5 px-3 w-24 text-right">Requests</th>
-              <th className="py-2.5 px-3 w-40">Success Rate</th>
-              <th className="py-2.5 px-3 w-28 text-right">Success / Failed</th>
-              <th className="py-2.5 px-3 w-20 text-right">P50</th>
-              <th className="py-2.5 px-3 w-20 text-right">P95</th>
-              <th className="py-2.5 px-3 w-24 text-right">Tokens</th>
-              <th className="py-2.5 px-3">Error Breakdown</th>
+              <th scope="col" className="py-2.5 px-3 w-8 text-center">#</th>
+              <th scope="col" className="py-2.5 px-3">Provider</th>
+              <th scope="col" className="py-2.5 px-3 w-24 text-right">Requests</th>
+              <th scope="col" className="py-2.5 px-3 w-40">Success Rate</th>
+              <th scope="col" className="py-2.5 px-3 w-28 text-right">Success / Failed</th>
+              <th scope="col" className="py-2.5 px-3 w-20 text-right">P50</th>
+              <th scope="col" className="py-2.5 px-3 w-20 text-right">P95</th>
+              <th scope="col" className="py-2.5 px-3 w-24 text-right">Tokens</th>
+              <th scope="col" className="py-2.5 px-3">Error Breakdown</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
@@ -179,9 +179,9 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
                   className="hover:bg-surface-2/60 transition-colors group"
                 >
                   {/* Rank */}
-                  <td className="py-2.5 px-3 text-center text-text-muted font-mono text-[11px]">
+                  <th scope="row" className="py-2.5 px-3 text-center text-text-muted font-mono text-[11px] font-normal">
                     {i + 1}
-                  </td>
+                  </th>
 
                   {/* Provider name + volume bar */}
                   <td className="py-2.5 px-3">
@@ -190,6 +190,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
                       onClick={() => onProviderClick?.(row.provider)}
                       className="flex flex-col gap-1 min-w-0 w-full text-left cursor-pointer"
                       title={`Filter by ${row.provider}`}
+                      aria-label={`Filter by ${row.provider}`}
                     >
                       <span className="font-semibold text-text-main group-hover:text-primary transition-colors truncate">
                         {row.provider}

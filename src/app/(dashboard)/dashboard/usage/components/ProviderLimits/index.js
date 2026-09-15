@@ -1458,7 +1458,7 @@ export default function ProviderLimits() {
                           variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn))}
                           size="sm"
                           dot
-                          title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString()}` : ""}` : undefined}
+                          title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString("en-US")}` : ""}` : undefined}
                         >
                           {conn.isActive === false
                             ? (conn.previousStatus && conn.previousStatus !== "disabled" ? `disabled (was: ${conn.previousStatus})` : "disabled")
@@ -1467,7 +1467,7 @@ export default function ProviderLimits() {
                         {conn.isActive === false && (conn.disabledReason || conn.lastError) && (
                           <span
                             className="max-w-full truncate text-xs text-amber-600 dark:text-amber-400 sm:max-w-[260px]"
-                            title={`Reason: ${conn.disabledReason || conn.lastError}${conn.disabledAt ? ` (${new Date(conn.disabledAt).toLocaleString()})` : ""}`}
+                            title={`Reason: ${conn.disabledReason || conn.lastError}${conn.disabledAt ? ` (${new Date(conn.disabledAt).toLocaleString("en-US")})` : ""}`}
                           >
                             {conn.disabledReason || conn.lastError}
                           </span>
@@ -1924,13 +1924,13 @@ export default function ProviderLimits() {
                     <span>{resetCreditsState.data.availableCount ?? 0} available</span>
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
-                    <table className="w-full min-w-[560px] text-left text-sm">
+                    <table className="w-full min-w-[560px] text-left text-sm" aria-label="Codex reset credit expiry">
                       <thead className="bg-black/[0.03] text-xs uppercase tracking-wide text-text-muted dark:bg-white/[0.04]">
                         <tr>
-                          <th className="px-3 py-2 font-medium">Status</th>
-                          <th className="px-3 py-2 font-medium">Granted At</th>
-                          <th className="px-3 py-2 font-medium">Expires At</th>
-                          <th className="px-3 py-2 font-medium">Remaining</th>
+                          <th scope="col" className="px-3 py-2 font-medium">Status</th>
+                          <th scope="col" className="px-3 py-2 font-medium">Granted At</th>
+                          <th scope="col" className="px-3 py-2 font-medium">Expires At</th>
+                          <th scope="col" className="px-3 py-2 font-medium">Remaining</th>
                         </tr>
                       </thead>
                       <tbody>

@@ -64,7 +64,10 @@ export default function RealtimeRequestsCard({
     const modelParam = encodeURIComponent(selectedError.model || "");
     const providerParam = encodeURIComponent(selectedError.provider || "");
     fetch(`/api/usage/request-details?model=${modelParam}&provider=${providerParam}&pageSize=5`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         if (!active) return;
         const match = (data.details || []).find(
@@ -78,9 +81,16 @@ export default function RealtimeRequestsCard({
               account: prev.account && prev.account !== "Direct" ? prev.account : (match.account || match.connectionId)
             } : prev));
           }
+        } else if (!selectedError.error) {
+          setFetchedError({ message: "No error details available for this request" });
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (active) {
+          console.error("Failed to fetch request error details:", err);
+          setFetchedError({ message: err.message || "Failed to load error details" });
+        }
+      })
       .finally(() => {
         if (active) setErrorDetailsLoading(false);
       });
@@ -120,7 +130,7 @@ export default function RealtimeRequestsCard({
   return (
     <Card
       title="Realtime Request Stream & Live Activity"
-      subtitle="Live request stream dengan info status (sedang stream / selesai), format (Stream / JSON), model, provider, dan API key yang dipakai"
+      subtitle="Live request stream with status (streaming / completed), format (Stream / JSON), model, provider, and API key"
       icon="stream"
       padding="md"
       className={cn("flex min-w-0 flex-col gap-4 overflow-hidden", className)}
@@ -146,7 +156,7 @@ export default function RealtimeRequestsCard({
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-500"></span>
             </span>
             <span className="text-xs font-bold uppercase tracking-wide text-brand-500">
-              Sedang Stream ({activeRequests.length} active)
+              Streaming ({activeRequests.length} active)
             </span>
           </div>
           <Button
@@ -158,11 +168,11 @@ export default function RealtimeRequestsCard({
             <span className="material-symbols-outlined !text-[13px] leading-none">
               visibility
             </span>
-            Lihat Detail
+            View Details
           </Button>
         </div>
         <span className="text-[11px] text-text-muted">
-          Klik Lihat Detail untuk memantau request yang sedang berjalan. Menutup modal menghentikan polling detail.
+          Click View Details to inspect active in-flight requests. Closing the modal stops live polling.
         </span>
       </div>
       )}
@@ -185,7 +195,7 @@ export default function RealtimeRequestsCard({
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-500"></span>
               </span>
               <h3 className="text-base font-bold text-text-main">
-                Sedang Stream
+                Active In-Flight Requests
               </h3>
               <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-300 text-xs font-bold tabular-nums">
                 {activeRequests.length}
@@ -201,20 +211,20 @@ export default function RealtimeRequestsCard({
           {activeRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-10 rounded-xl border border-dashed border-border gap-2">
               <span className="material-symbols-outlined text-[32px] text-text-muted/50">cloud_done</span>
-              <span className="text-sm text-text-muted">Tidak ada request yang sedang berjalan</span>
+              <span className="text-sm text-text-muted">No active in-flight requests</span>
             </div>
           ) : (
             /* Table layout */
             <div className="rounded-xl border border-border overflow-hidden">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs" aria-label="Active in-flight requests">
                 <thead>
                   <tr className="bg-surface-2/60 text-text-muted font-semibold text-[11px] uppercase tracking-wide">
-                    <th className="text-left px-3 py-2.5">Status</th>
-                    <th className="text-left px-3 py-2.5">Model</th>
-                    <th className="text-left px-3 py-2.5">Provider</th>
-                    <th className="text-left px-3 py-2.5">Account</th>
-                    <th className="text-left px-3 py-2.5">API Key</th>
-                    <th className="text-right px-3 py-2.5">Elapsed</th>
+                    <th scope="col" className="text-left px-3 py-2.5">Status</th>
+                    <th scope="col" className="text-left px-3 py-2.5">Model</th>
+                    <th scope="col" className="text-left px-3 py-2.5">Provider</th>
+                    <th scope="col" className="text-left px-3 py-2.5">Account</th>
+                    <th scope="col" className="text-left px-3 py-2.5">API Key</th>
+                    <th scope="col" className="text-right px-3 py-2.5">Elapsed</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -262,7 +272,7 @@ export default function RealtimeRequestsCard({
           {/* Footer hint */}
           <div className="flex items-center gap-2 text-[11px] text-text-muted pt-1 border-t border-border/40">
             <span className="material-symbols-outlined !text-[14px]">info</span>
-            <span>Modal ini real-time. Tutup modal untuk berhenti memantau.</span>
+            <span>Live updates active. Close modal to pause polling.</span>
           </div>
         </div>
       </Modal>
@@ -328,23 +338,23 @@ export default function RealtimeRequestsCard({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-surface-1/50">
-          <table className="w-full min-w-[860px] border-collapse text-left text-xs">
+          <table className="w-full min-w-[860px] border-collapse text-left text-xs" aria-label="Recent requests stream">
             <thead>
               <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
-                <th className="py-2.5 px-3 w-8 text-center">Status</th>
-                <th className="py-2.5 px-3 w-24">Type</th>
-                <th className="py-2.5 px-3 w-28">Stream State</th>
-                <th className="py-2.5 px-3">Model</th>
-                <th className="py-2.5 px-3 w-28">Provider</th>
-                <th className="py-2.5 px-3 w-44">Upstream Account</th>
-                <th className="py-2.5 px-3 w-36">Client API Key</th>
-                <th className="py-2.5 px-3 text-right w-28 whitespace-nowrap">
+                <th scope="col" className="py-2.5 px-3 w-8 text-center">Status</th>
+                <th scope="col" className="py-2.5 px-3 w-24">Type</th>
+                <th scope="col" className="py-2.5 px-3 w-28">Stream State</th>
+                <th scope="col" className="py-2.5 px-3">Model</th>
+                <th scope="col" className="py-2.5 px-3 w-28">Provider</th>
+                <th scope="col" className="py-2.5 px-3 w-44">Upstream Account</th>
+                <th scope="col" className="py-2.5 px-3 w-36">Client API Key</th>
+                <th scope="col" className="py-2.5 px-3 text-right w-28 whitespace-nowrap">
                   Tokens In/Out
                 </th>
-                <th className="py-2.5 px-3 text-right w-24 whitespace-nowrap">
+                <th scope="col" className="py-2.5 px-3 text-right w-24 whitespace-nowrap">
                   When
                 </th>
-                <th className="py-2.5 px-3 text-center w-28 whitespace-nowrap">
+                <th scope="col" className="py-2.5 px-3 text-center w-28 whitespace-nowrap">
                   Action
                 </th>
               </tr>
@@ -367,6 +377,7 @@ export default function RealtimeRequestsCard({
                           onClick={() => handleOpenErrorModal(r)}
                           className="inline-flex items-center justify-center size-5 rounded-full bg-rose-500/10 text-danger hover:bg-rose-500/20 cursor-pointer transition-colors"
                           title={`Failed (${r.status || "error"}) - Click to view error`}
+                          aria-label={`Failed (${r.status || "error"}) - Click to view error`}
                         >
                           <span className="material-symbols-outlined !text-[13px] leading-none">
                             close
@@ -403,11 +414,11 @@ export default function RealtimeRequestsCard({
                       )}
                     </td>
 
-                    {/* Stream State (Sedang Stream vs Selesai) */}
+                    {/* Stream State (Streaming vs Completed) */}
                     <td className="py-2 px-3">
                       <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
                         <span className="size-1.5 rounded-full bg-text-muted/60" />
-                        Selesai
+                        Completed
                       </span>
                     </td>
 
@@ -504,7 +515,7 @@ export default function RealtimeRequestsCard({
               <div>
                 <span className="text-text-muted">Timestamp:</span>{" "}
                 <span className="text-text-main">
-                  {selectedError.timestamp ? new Date(selectedError.timestamp).toLocaleString() : "Unknown"}
+                  {selectedError.timestamp ? new Date(selectedError.timestamp).toLocaleString("en-US") : "Unknown"}
                 </span>
               </div>
               <div>
