@@ -12,7 +12,13 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-spin,
   .animate-pulse,
-  .animate-ping {
+  .animate-ping,
+  .topology-router-core,
+  .topology-router-icon,
+  .topology-router-label,
+  .topology-edge-kame,
+  .topology-edge-halo,
+  .topology-edge-plasma {
     animation: none !important;
   }
 }

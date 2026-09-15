@@ -17,7 +17,7 @@ import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/prov
 
 // Force-stop FE animation if a provider stays active longer than this
 const PROVIDER_RETENTION_MS = 5 * 60 * 1000;
-const FE_ACTIVE_TICK_MS = 1000;
+const FE_ACTIVE_TICK_MS = 3000; // Throttled from 1000ms to reduce unneeded layout/render cycles
 
 // Kame + electric particles along active edges
 const KAME_PARTICLE_COUNT = 6;
@@ -392,7 +392,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [rawActiveSet]);
 
   useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), 1000);
+    const id = setInterval(() => setClock(Date.now()), FE_ACTIVE_TICK_MS);
     return () => clearInterval(id);
   }, []);
 

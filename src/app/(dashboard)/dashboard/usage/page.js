@@ -2,14 +2,44 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
-  UsageStats,
-  RequestLogger,
   CardSkeleton,
   SegmentedControl,
 } from "@/shared/components";
-import RequestDetailsTab from "./components/RequestDetailsTab";
-import AnalyticsTab from "./components/AnalyticsTab";
+
+// Dynamic imports for heavy tabs to optimize LCP and initial bundle size
+const UsageStats = dynamic(
+  () => import("@/shared/components/UsageStats"),
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  }
+);
+
+const RequestLogger = dynamic(
+  () => import("@/shared/components/RequestLogger"),
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  }
+);
+
+const RequestDetailsTab = dynamic(
+  () => import("./components/RequestDetailsTab"),
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  }
+);
+
+const AnalyticsTab = dynamic(
+  () => import("./components/AnalyticsTab"),
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  }
+);
 
 const PERIODS = [
   { value: "today", label: "Today" },
