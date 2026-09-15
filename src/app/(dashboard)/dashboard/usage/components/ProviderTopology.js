@@ -381,10 +381,12 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     }
     return used;
   }, [providers, rawActiveSet, clock]);
-  const visibleProviders = useMemo(
-    () => providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase())),
-    [providers, usedProviderSet],
-  );
+  const visibleProviders = useMemo(() => {
+    const active = providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase()));
+    // Fallback: when no provider is currently active, show all as idle so topology
+    // stays consistent with Streaming (9 active) header instead of "No providers connected".
+    return active.length > 0 ? active : providers;
+  }, [providers, usedProviderSet]);
 
   useEffect(() => {
     const now = Date.now();
