@@ -305,10 +305,10 @@ export default function UsageStats({
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  // Fetch connected providers lazily only when Topology sub-tab is activated
+  // Fetch connected providers lazily only when Overview sub-tab is active (topology inside)
   // Always include noAuth free providers (e.g. opencode) regardless of connections
   useEffect(() => {
-    if (activeSubTab !== "topology" || providersLoaded.current) return;
+    if (activeSubTab !== "overview" || providersLoaded.current) return;
     providersLoaded.current = true;
 
     Promise.all([
