@@ -423,16 +423,31 @@ export default function ModelSelectModal({
 
     return groups;
   }, [filteredActiveProviders, modelAliases, allProviders, providerNodes, customModels, disabledModels, kindFilter, activeProviders, cursorModels, clineModels, clinepassModels]);
-
-  // Filter combos by search query (and hide combos when kindFilter is set — combos are LLM-only by design)
+  // Filter combos by search query. Hide combos when kindFilter is set (combos are LLM-only by design),
+  // EXCEPT when capFilter=vision — combos that have at least one vision-capable member belong in the vision pool.
   const filteredCombos = useMemo(() => {
-    if (kindFilter || capFilter) return [];
-    if (!searchQuery.trim()) return combos;
+    // Any typed kind (image, tts, embedding, ...) has no LLM combos.
+    if (kindFilter) return [];
+    // Generic capFilter (e.g. audio): combos without typed kind don't belong there either.
+    if (capFilter && capFilter !== "vision") return [];
+    let list = combos;
+    if (capFilter === "vision") {
+      list = combos.filter((c) => {
+        const models = Array.isArray(c.models) ? c.models : [];
+        if (models.length === 0) return false;
+        // Vision-capable if any member has vision=true (via live caps or provider caps fallback).
+        return models.some((m) => {
+          const key = typeof m === "string" ? m : (m?.model || m?.id || "");
+          if (!key) return false;
+          const caps = getCaps?.(key);
+          return caps?.vision === true;
+        });
+      });
+    }
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
-    return combos.filter(c => c.name.toLowerCase().includes(query));
-  }, [combos, searchQuery, kindFilter]);
-
-  // Sort models alphabetically, with added models floated to top, then free models.
+    return list.filter(c => c.name.toLowerCase().includes(query));
+  }, [combos, searchQuery, kindFilter, capFilter, getCaps]);
   const sortModels = (models) => sortModelsByFree(models, addedModelValues);
 
   // Available provider options for filter

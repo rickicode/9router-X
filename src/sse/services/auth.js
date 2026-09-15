@@ -1211,6 +1211,22 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   }
 
 
+  // WorkBuddy/CodeBuddy 403 insufficient_quota (code 11140) = credit/quota
+  // exhaustion. Same treatment as 429 credit exhaustion: lock account-wide
+  // for 7 days, never disable. Without this the 403 falls through to generic
+  // retry — the account keeps being selected, retried, and burns rotation
+  // budget on a permanently failed account.
+  const isWbInsufficientQuota = status === 403
+    && (providerId === "workbuddy" || providerId === "codebuddy-cn" || providerId === "codebuddy-intl")
+    && /insufficient_quota|code.*11140/i.test(lowerErr);
+  if (isWbInsufficientQuota) {
+    lockAll = true;
+    disableAccount = false;
+    isExhausted = true;
+    shouldFallback = true;
+    cooldownMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+  }
+
   // Fatal auth/account failure: permanently disable connection from routing
   if ((disableAccount || isFatalAuthError(status, errorText)) && !opencodeZenModelOnlyError) {
     const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
