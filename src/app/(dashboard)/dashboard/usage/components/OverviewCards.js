@@ -1,12 +1,27 @@
 "use client";
 
 import PropTypes from "prop-types";
+import Link from "next/link";
 import Card from "@/shared/components/Card";
+import Tooltip from "@/shared/components/Tooltip";
 
 const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function OverviewCards({ stats }) {
+  const totalPrompt = Number(stats.totalPromptTokens) || 0;
+  const totalCached = Number(stats.totalCachedTokens) || 0;
+  const totalCompletion = Number(stats.totalCompletionTokens) || 0;
+  const totalCost = Number(stats.totalCost) || 0;
+  const totalTokens = totalPrompt + totalCompletion;
+  const nonCachedInput = Math.max(0, totalPrompt - totalCached);
+  const inputCost = totalTokens > 0 ? (nonCachedInput * totalCost) / totalTokens : 0;
+  const cachedCost = totalTokens > 0 ? (totalCached * totalCost) / totalTokens : 0;
+  const outputCost = totalTokens > 0 ? (totalCompletion * totalCost) / totalTokens : 0;
+
+  // Info tooltip: Input/Cached/Output cost split + exact-rate note + billing link hint
+  const costBreakdownTip = `Input ${fmtCost(inputCost)} · Cached ${fmtCost(cachedCost)} · Output ${fmtCost(outputCost)} — token-share split of exact total. Exact rate from Settings > Pricing. See billing docs for rate details.`;
+
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 sm:gap-4">
       <Card className="flex min-w-0 flex-col gap-1 px-4 py-3">
@@ -33,9 +48,21 @@ export default function OverviewCards({ stats }) {
         <span className="truncate text-2xl font-bold text-success">{fmt(stats.totalCompletionTokens)}</span>
       </Card>
       <Card className="flex min-w-0 flex-col gap-1 px-4 py-3">
-        <span className="text-text-muted text-sm uppercase font-semibold">Est. Cost</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-text-muted text-sm uppercase font-semibold">Est. Cost</span>
+          <Tooltip text={costBreakdownTip} position="top" />
+        </div>
         <span className="truncate text-2xl font-bold text-warning">~{fmtCost(stats.totalCost)}</span>
-        <span className="text-[10px] text-text-muted">Estimated, not actual billing</span>
+        <span className="text-[10px] leading-snug text-text-muted">
+          Estimated, not actual billing —{" "}
+          <Link href="/dashboard/settings/pricing" className="underline decoration-dotted underline-offset-2 hover:text-primary">
+            billing docs
+          </Link>
+          {" · "}exact-rate note: rates from Settings &gt; Pricing
+        </span>
+        <span className="text-[10px] leading-snug text-text-muted">
+          Input {fmtCost(inputCost)} · Cached {fmtCost(cachedCost)} · Output {fmtCost(outputCost)}
+        </span>
       </Card>
     </div>
   );

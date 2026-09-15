@@ -71,8 +71,11 @@ const ProviderNode = memo(function ProviderNode({ data }) {
   const pingStyle = useMemo(() => ({ backgroundColor: color }), [color]);
   return (
     <div
-      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg"
+      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
       style={rootStyle}
+      tabIndex={0}
+      role="group"
+      aria-label={`${label}${active ? " — active" : ""}`}
     >
       <Handle type="target" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
       <Handle type="target" position={Position.Bottom} id="bottom" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -156,7 +159,11 @@ const RouterNode = memo(function RouterNode({ data }) {
         9router-x
       </span>
       {data.activeCount > 0 && (
-        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-warning text-bg text-xs font-bold topology-router-badge">
+        <span
+          className="ml-2 px-1.5 py-0.5 rounded-full bg-warning text-bg text-xs font-bold topology-router-badge"
+          aria-label={`${data.activeCount} active requests`}
+          role="status"
+        >
           {data.activeCount}
         </span>
       )}
@@ -552,6 +559,30 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
           <Controls showInteractive={false} position="bottom-right" className="react-flow-controls-custom" />
         </ReactFlow>
       )}
+    </div>
+    {/* Edge status legend: active/last/error/idle edge colors */}
+    <div
+      className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted"
+      aria-label="Edge status legend"
+      data-testid="topology-legend"
+      role="list"
+    >
+      <span role="listitem" className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="inline-block h-1 w-6 rounded-full bg-info" />
+        Active
+      </span>
+      <span role="listitem" className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="inline-block h-1 w-6 rounded-full bg-warning" />
+        Last used
+      </span>
+      <span role="listitem" className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="inline-block h-1 w-6 rounded-full bg-danger" />
+        Error
+      </span>
+      <span role="listitem" className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="inline-block h-1 w-6 rounded-full bg-border" />
+        Idle
+      </span>
     </div>
     {/* AT fallback: offscreen text table (outside role=img so screen readers reach it) */}
     {visibleProviders.length > 0 && (
