@@ -57,12 +57,12 @@ function timeAgo(timestamp) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// Auto-update time display every second without re-rendering parent
+// Auto-update time display every 30 seconds without re-rendering parent (throttled from 1s to reduce CPU/battery drain)
 function TimeAgo({ timestamp }) {
   const [, setTick] = useState(0);
   
   useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
+    const timer = setInterval(() => setTick(t => t + 1), 30000);
     return () => clearInterval(timer);
   }, []);
   
@@ -671,22 +671,18 @@ export default function UsageStats({
               </div>
             )}
 
-            {activeSubTab === "trends" && <UsageChart period={period} />}
-
-            {activeSubTab === "topology" && (
-              <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-                <ProviderTopology
-                  providers={providers}
-                  activeRequests={stats?.activeRequests || []}
-                  lastProvider={stats?.recentRequests?.[0]?.provider || ""}
-                  errorProvider={stats?.errorProvider || ""}
-                />
-                <RecentRequests requests={stats?.recentRequests || []} />
-              </div>
-            )}
-
-            {activeSubTab === "activity" && (
+            {activeSubTab !== "breakdown" && (
               <div className="flex flex-col gap-4">
+                <UsageChart period={period} />
+                <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                  <ProviderTopology
+                    providers={providers}
+                    activeRequests={stats?.activeRequests || []}
+                    lastProvider={stats?.recentRequests?.[0]?.provider || ""}
+                    errorProvider={stats?.errorProvider || ""}
+                  />
+                  <RecentRequests requests={stats?.recentRequests || []} />
+                </div>
                 <RealtimeRequestsCard
                   activeRequests={stats?.activeRequests || []}
                   recentRequests={stats?.recentRequests || []}
