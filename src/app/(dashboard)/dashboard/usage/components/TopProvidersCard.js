@@ -131,7 +131,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
   return (
     <Card
       title="Top Providers"
-      subtitle="Request volume, success rate, latency, dan error breakdown per provider"
+      subtitle="Request volume, success rate, latency, and error breakdown per provider"
       icon="hub"
       padding="md"
       className={cn("flex min-w-0 flex-col gap-4 overflow-hidden", className)}

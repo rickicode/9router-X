@@ -29,7 +29,7 @@ export function normalizeAnalytics(payload) {
     p95: metric(row.p95_latency_ms),
     inputTokens: metric(row.total_input_tokens),
     outputTokens: metric(row.total_output_tokens),
-    timestamp: row.bucket ? new Date(row.bucket).toLocaleString() : undefined,
+    timestamp: row.bucket ? new Date(row.bucket).toLocaleString("en-US") : undefined,
     bucketMs: row.bucket ? new Date(row.bucket).getTime() : null,
   });
   return {

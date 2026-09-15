@@ -23,6 +23,7 @@ export default function SegmentedControl({
 
   return (
     <div
+      role="tablist"
       className={cn(
         "inline-flex items-center p-1 rounded-[10px] overflow-x-auto max-w-full",
         "bg-surface-2 border border-border-subtle",
@@ -33,6 +34,8 @@ export default function SegmentedControl({
         <button
           key={option.value}
           type="button"
+          role="tab"
+          aria-selected={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
             "inline-flex items-center justify-center shrink-0 rounded-[8px] font-medium transition-all gap-1.5 cursor-pointer select-none",

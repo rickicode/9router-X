@@ -395,13 +395,13 @@ export default function RequestDetailsTab() {
                        </span>
                      </td>
                     <td className="px-3 py-3 text-xs text-text-main text-right font-mono">
-                      <div>{getInputTokens(detail.tokens).toLocaleString()}</div>
+                      <div>{getInputTokens(detail.tokens).toLocaleString("en-US")}</div>
                       {getCachedTokens(detail.tokens) > 0 && (
-                        <div className="text-[10px] text-emerald-600">↻ {getCachedTokens(detail.tokens).toLocaleString()} cached</div>
+                        <div className="text-[10px] text-emerald-600">↻ {getCachedTokens(detail.tokens).toLocaleString("en-US")} cached</div>
                       )}
                     </td>
                     <td className="px-3 py-3 text-xs text-text-main text-right font-mono">
-                      {(detail.tokens?.completion_tokens || 0).toLocaleString()}
+                      {(detail.tokens?.completion_tokens || 0).toLocaleString("en-US")}
                     </td>
                     <td className="px-3 py-3 text-[11px] text-text-muted">
                       <div className="flex flex-col gap-0.5">
@@ -484,14 +484,14 @@ export default function RequestDetailsTab() {
               <div>
                 <span className="text-text-muted">Input Tokens:</span>{" "}
                 <span className="text-text-main font-mono">
-                  {getInputTokens(selectedDetail.tokens).toLocaleString()}
+                  {getInputTokens(selectedDetail.tokens).toLocaleString("en-US")}
                 </span>
               </div>
               {getCachedTokens(selectedDetail.tokens) > 0 && (
                 <div>
                   <span className="text-text-muted">Cached Tokens:</span>{" "}
                   <span className="text-text-main font-mono">
-                    {getCachedTokens(selectedDetail.tokens).toLocaleString()}
+                    {getCachedTokens(selectedDetail.tokens).toLocaleString("en-US")}
                   </span>
                 </div>
               )}
@@ -499,14 +499,14 @@ export default function RequestDetailsTab() {
                 <div>
                   <span className="text-text-muted">Cache Creation:</span>{" "}
                   <span className="text-text-main font-mono">
-                    {getCacheCreationTokens(selectedDetail.tokens).toLocaleString()}
+                    {getCacheCreationTokens(selectedDetail.tokens).toLocaleString("en-US")}
                   </span>
                 </div>
               )}
               <div>
                 <span className="text-text-muted">Output Tokens:</span>{" "}
                 <span className="text-text-main font-mono">
-                  {selectedDetail.tokens?.completion_tokens?.toLocaleString() || 0}
+                  {selectedDetail.tokens?.completion_tokens?.toLocaleString("en-US") || 0}
                 </span>
               </div>
             </div>
@@ -551,11 +551,11 @@ export default function RequestDetailsTab() {
                   <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                     <div>
                       <span className="text-text-muted block text-xs">Original (est.)</span>
-                      <span className="font-mono">{(selectedDetail.pxpipe.tokensBeforeEst || 0).toLocaleString()} tokens</span>
+                      <span className="font-mono">{(selectedDetail.pxpipe.tokensBeforeEst || 0).toLocaleString("en-US")} tokens</span>
                     </div>
                     <div>
                       <span className="text-text-muted block text-xs">Compressed (est.)</span>
-                      <span className="font-mono">{(selectedDetail.pxpipe.tokensAfterEst || 0).toLocaleString()} tokens</span>
+                      <span className="font-mono">{(selectedDetail.pxpipe.tokensAfterEst || 0).toLocaleString("en-US")} tokens</span>
                     </div>
                     <div>
                       <span className="text-text-muted block text-xs">Saved</span>

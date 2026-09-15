@@ -208,13 +208,13 @@ export default function QuotaTable({
                     className="text-text-muted truncate"
                     title={
                       isUnlimited
-                        ? `${quota.used.toLocaleString()} used · Unlimited`
-                        : `${quota.used.toLocaleString()} / ${quota.total > 0 ? quota.total.toLocaleString() : "∞"}`
+                        ? `${quota.used.toLocaleString("en-US")} used · Unlimited`
+                        : `${quota.used.toLocaleString("en-US")} / ${quota.total > 0 ? quota.total.toLocaleString("en-US") : "∞"}`
                     }
                   >
                     {isUnlimited
-                      ? `${quota.used.toLocaleString()} used · Unlimited`
-                      : `${quota.used.toLocaleString()} / ${quota.total > 0 ? quota.total.toLocaleString() : "∞"}`}
+                      ? `${quota.used.toLocaleString("en-US")} used · Unlimited`
+                      : `${quota.used.toLocaleString("en-US")} / ${quota.total > 0 ? quota.total.toLocaleString("en-US") : "∞"}`}
                   </span>
                   <span className={`font-medium ${isUnlimited ? "text-green-600 dark:text-green-400" : colors.text} shrink-0`}>
                     {isUnlimited ? "Unlimited" : `${quota.remaining}%`}

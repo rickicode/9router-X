@@ -21,7 +21,7 @@ function timeAgo(timestamp) {
 function TimeAgo({ timestamp }) {
   const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 1000);
+    const timer = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(timer);
   }, []);
   return <>{timeAgo(timestamp)}</>;
