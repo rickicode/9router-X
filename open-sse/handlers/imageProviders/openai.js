@@ -15,11 +15,16 @@ export default function createOpenAIAdapter(providerId) {
       return headers;
     },
     buildBody: (model, body) => {
-      const { prompt, n = 1, size = "1024x1024", quality, style, response_format, aspect_ratio } = body;
+      const isUnikey = providerId === "unikey";
+      const isUnikeyGemini = isUnikey && /^google\/gemini-/i.test(model);
+      const isAuto = (v) => typeof v === "string" && v.toLowerCase() === "auto";
+      const { prompt, n = 1, size: rawSize = "1024x1024", quality, style, response_format, aspect_ratio } = body;
+      const size = isUnikey && isAuto(rawSize) ? "1024x1024" : rawSize;
       const full = { model, prompt, n, size };
-      if (aspect_ratio && !(providerId === "unikey" && /^google\/gemini-/i.test(model))) full.aspect_ratio = aspect_ratio;
-      if (quality) full.quality = quality;
-      if (style) full.style = style;
+      if (aspect_ratio && !isAuto(aspect_ratio) && !isUnikeyGemini) full.aspect_ratio = aspect_ratio;
+      if (quality && !(isUnikey && isAuto(quality))) full.quality = quality;
+      if (style && !(isUnikey && isAuto(style))) full.style = style;
+      if (body.background && !(isUnikey && isAuto(body.background))) full.background = body.background;
       if (response_format) full.response_format = response_format;
       // bodyFields whitelist (e.g. xAI accepts only model/prompt/n/response_format)
       if (Array.isArray(cfg.bodyFields)) {

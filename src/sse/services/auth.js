@@ -996,6 +996,22 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
+    // UniKey 预扣费额度失败: saldo di pesan. <100 → lock 30d, >=100 → cooldown 1d (bisa top-up / pakai model murah)
+    if (providerId === "unikey" && /预扣费额度失败|insufficient_user_quota/i.test(String(errorText || ""))) {
+      const m = String(errorText).match(/剩余额度:\s*Credits\s*([\d.]+)/i);
+      const balance = m ? parseFloat(m[1]) : NaN;
+      if (!Number.isNaN(balance)) {
+        if (balance < 100) {
+          // saldo tipis → lock monthly (akun hampir kosong)
+          cooldownMs = 30 * 24 * 60 * 60 * 1000;
+          lockAll = true; isExhausted = true; shouldFallback = true;
+        } else {
+          // saldo masih ada → cuma cooldown 1 hari, tetap fallback cari akun lain
+          cooldownMs = 24 * 60 * 60 * 1000;
+          lockAll = true; isExhausted = false; shouldFallback = true;
+        }
+      }
+    }
   }
 
   // A model-scoped 429 is a model exhaustion, not an account exhaustion. Keep
