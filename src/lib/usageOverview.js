@@ -4,21 +4,21 @@
  */
 
 export const OVERVIEW_SUBTABS = [
-  { value: "breakdown", label: "Breakdown", icon: "table_chart" },
   { value: "overview", label: "Overview", icon: "dashboard" },
+  { value: "breakdown", label: "Breakdown", icon: "table_chart" },
 ];
 
 export const VALID_OVERVIEW_SUBTABS = OVERVIEW_SUBTABS.map((t) => t.value);
 
 /**
  * Validates and resolves the active sub-tab for Usage Overview.
- * Falls back to 'breakdown' if invalid or undefined.
+ * Falls back to 'overview' (utama) if invalid or undefined.
  *
  * @param {string|null|undefined} subtab
- * @param {string} [fallback="breakdown"]
+ * @param {string} [fallback="overview"]
  * @returns {string}
  */
-export function resolveActiveSubTab(subtab, fallback = "breakdown") {
+export function resolveActiveSubTab(subtab, fallback = "overview") {
   if (typeof subtab === "string" && VALID_OVERVIEW_SUBTABS.includes(subtab.trim())) {
     return subtab.trim();
   }

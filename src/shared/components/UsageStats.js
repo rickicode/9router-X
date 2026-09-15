@@ -281,7 +281,7 @@ export default function UsageStats({
   const subTabFromUrl = searchParams.get("subtab");
 
   const activeSubTab =
-    subtabProp ?? resolveActiveSubTab(subTabFromUrl, "breakdown");
+    subtabProp ?? resolveActiveSubTab(subTabFromUrl, "overview");
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
