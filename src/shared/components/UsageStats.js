@@ -416,33 +416,67 @@ export default function UsageStats({
   }, [fetchStats]);
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
+  // Exponential backoff reconnect: 1s → 2s → 4s → ... → 30s cap
+  // Pauses when document is hidden to avoid wasted reconnect cycles
   useEffect(() => {
-    const es = new EventSource("/api/usage/stream");
+    const MAX_BACKOFF_MS = 30000;
+    let es = null;
+    let attempt = 0;
+    let retryTimer = null;
 
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        // Always merge only real-time fields, never overwrite full stats from REST
-        setStats((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            activeRequests: data.activeRequests,
-            recentRequests: data.recentRequests,
-            errorProvider: data.errorProvider,
-            pending: data.pending,
-            last10Minutes: data.last10Minutes,
-          };
-        });
-        if (hasLoadedStats.current) setLoading(false);
-      } catch (err) {
-        console.error("[SSE CLIENT] parse error:", err);
+    function connect() {
+      es = new EventSource("/api/usage/stream");
+
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          // Always merge only real-time fields, never overwrite full stats from REST
+          setStats((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              activeRequests: data.activeRequests,
+              recentRequests: data.recentRequests,
+              errorProvider: data.errorProvider,
+              pending: data.pending,
+              last10Minutes: data.last10Minutes,
+            };
+          });
+          if (hasLoadedStats.current) setLoading(false);
+        } catch (err) {
+          console.error("[SSE CLIENT] parse error:", err);
+        }
+      };
+
+      es.onerror = () => {
+        if (document.hidden) return; // pause while hidden
+        setLoading(false);
+        es.close();
+        const delay = Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
+        attempt += 1;
+        retryTimer = setTimeout(connect, delay);
+      };
+
+      es.onopen = () => {
+        attempt = 0; // reset backoff on successful open
+      };
+    }
+
+    connect();
+
+    const onVisibility = () => {
+      if (!document.hidden && es?.readyState === EventSource.CLOSED) {
+        attempt = 0;
+        connect();
       }
     };
+    document.addEventListener("visibilitychange", onVisibility);
 
-    es.onerror = () => setLoading(false);
-
-    return () => es.close();
+    return () => {
+      clearTimeout(retryTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      es?.close();
+    };
   }, []);
 
   const toggleSort = useCallback((tableType, field) => {
@@ -622,7 +656,7 @@ export default function UsageStats({
       {/* Period selector (hidden when controlled by parent) */}
       {!hidePeriodSelector && (
         <div className="flex w-full items-center gap-2 sm:w-auto sm:self-end">
-          <div className="grid flex-1 grid-cols-5 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex sm:flex-none">
+          <div className="flex flex-1 flex-wrap items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex sm:flex-none">
             {PERIODS.map((p) => (
               <button
                 key={p.value}

@@ -8,6 +8,10 @@ export async function GET() {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Tell EventSource the base reconnect delay (client backoff overrides on repeated failures)
+      try {
+        controller.enqueue(encoder.encode("retry: 3000\n\n"));
+      } catch { /* client already gone */ }
       // Full stats refresh (heavy) + immediate lightweight push
       state.send = async () => {
         if (state.closed) return;

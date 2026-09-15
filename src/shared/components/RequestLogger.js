@@ -7,6 +7,30 @@ import Modal from "./Modal";
 
 const LOGS_POLL_MS = 3000;
 
+/**
+ * Normalize a log entry into a structured object.
+ * Handles both JSON objects (new format from API) and pipe-delimited
+ * strings (legacy format from older API responses).
+ */
+function parseLogEntry(entry) {
+  if (entry && typeof entry === "object") return entry;
+  if (typeof entry === "string") {
+    const parts = entry.split(" | ");
+    if (parts.length >= 7) {
+      return {
+        datetime: parts[0] || "-",
+        model: parts[1] || "-",
+        provider: parts[2] || "-",
+        account: parts[3] || "-",
+        sent: parts[4] || "-",
+        received: parts[5] || "-",
+        status: parts[6] || "-",
+      };
+    }
+  }
+  return null;
+}
+
 export default function RequestLogger() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +55,11 @@ export default function RequestLogger() {
       }
       const data = await res.json();
       if (ctrl.signal.aborted) return;
-      setLogs(Array.isArray(data) ? data : []);
+      // Normalize: accept array of objects or legacy pipe-delimited strings
+      const normalized = Array.isArray(data)
+        ? data.map(parseLogEntry).filter(Boolean)
+        : [];
+      setLogs(normalized);
     } catch (error) {
       if (error.name === "AbortError" || ctrl.signal.aborted) return;
       setFetchError(error.message || "Failed to fetch logs");
@@ -71,17 +99,17 @@ export default function RequestLogger() {
     };
   }, [autoRefresh, fetchLogs]);
 
-  const handleOpenDetail = (rawLog) => {
-    const parts = rawLog.split(" | ");
+  const handleOpenDetail = (log) => {
+    // `log` is already a structured object from parseLogEntry
     setSelectedLog({
-      raw: rawLog,
-      datetime: parts[0] || "-",
-      model: parts[1] || "-",
-      provider: parts[2] || "-",
-      account: parts[3] || "-",
-      sent: parts[4] || "-",
-      received: parts[5] || "-",
-      status: parts[6] || "-",
+      raw: log.raw || `${log.datetime} | ${log.model} | ${log.provider} | ${log.account} | ${log.sent} | ${log.received} | ${log.status}`,
+      datetime: log.datetime || "-",
+      model: log.model || "-",
+      provider: log.provider || "-",
+      account: log.account || "-",
+      sent: log.sent || "-",
+      received: log.received || "-",
+      status: log.status || "-",
     });
     setIsModalOpen(true);
   };
@@ -157,26 +185,23 @@ export default function RequestLogger() {
               </thead>
               <tbody className="divide-y divide-border/50">
                 {logs.map((log, i) => {
-                  const parts = log.split(" | ");
-                  if (parts.length < 7) return null;
-
-                  const status = parts[6];
+                  const status = log.status;
                   const isPending = status.includes("PENDING");
                   const isFailed = status.includes("FAILED") || status.includes("ERROR");
                   const isSuccess = status.includes("OK");
 
                   return (
                     <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-error/[0.04]' : ''}`}>
-                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{parts[0]}</td>
-                      <td className="px-3 py-1.5 border-r border-border font-medium">{parts[1]}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{log.datetime}</td>
+                      <td className="px-3 py-1.5 border-r border-border font-medium">{log.model}</td>
                       <td className="px-3 py-1.5 border-r border-border">
                         <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
-                          {parts[2]}
+                          {log.provider}
                         </span>
                       </td>
-                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={parts[3]}>{parts[3]}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{parts[4]}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{parts[5]}</td>
+                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={log.account}>{log.account}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{log.sent}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{log.received}</td>
                       <td className={`px-3 py-1.5 border-r border-border font-bold ${isSuccess ? 'text-success' :
                           isFailed ? 'text-error' :
                             'text-primary animate-pulse'
@@ -188,7 +213,7 @@ export default function RequestLogger() {
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(log)}
-                            aria-label={`View error detail for ${parts[1]} ${status}`}
+                            aria-label={`View error detail for ${log.model} ${status}`}
                             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-error/30 bg-error/10 px-2 py-1 text-[11px] font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
                           >
                             <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">error</span>
@@ -198,7 +223,7 @@ export default function RequestLogger() {
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(log)}
-                            aria-label={`View detail for ${parts[1]} ${status}`}
+                            aria-label={`View detail for ${log.model} ${status}`}
                             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
                           >
                             View

@@ -1150,7 +1150,8 @@ export async function getRecentLogs(limit = 200) {
       const tk = row.tokens ?? {};
       const sent = row.prompt_tokens ?? tk.prompt_tokens ?? "-";
       const received = row.completion_tokens ?? tk.completion_tokens ?? "-";
-      return `${ts} | ${m} | ${p} | ${account} | ${sent} | ${received} | ${row.status || "-"}`;
+      const raw = `${ts} | ${m} | ${p} | ${account} | ${sent} | ${received} | ${row.status || "-"}`;
+      return { datetime: ts, model: m, provider: p, account, sent: String(sent), received: String(received), status: row.status || "-", raw };
     });
   } catch (error) {
     console.error("[usageRepo] getRecentLogs failed:", error.message);
