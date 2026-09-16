@@ -414,12 +414,10 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     }
     return used;
   }, [providers, rawActiveSet, clock]);
-  const visibleProviders = useMemo(() => {
-    const active = providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase()));
-    // Fallback: when no provider is currently active, show all as idle so topology
-    // stays consistent with Streaming (9 active) header instead of "No providers connected".
-    return active.length > 0 ? active : providers;
-  }, [providers, usedProviderSet]);
+  const visibleProviders = useMemo(
+    () => providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase())),
+    [providers, usedProviderSet],
+  );
 
   useEffect(() => {
     const now = Date.now();
@@ -427,7 +425,24 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [rawActiveSet]);
 
   useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), FE_ACTIVE_TICK_MS);
+    const id = setInterval(() => {
+      const now = Date.now();
+      const keys = Object.keys(lastUsedRef.current);
+      if (keys.length === 0) return; // idle: skip setState, zero render
+      let alive = false;
+      for (const k of keys) {
+        if (now - lastUsedRef.current[k] < PROVIDER_RETENTION_MS) {
+          alive = true;
+        } else {
+          delete lastUsedRef.current[k]; // prune expired, cegah ref bengkak
+        }
+      }
+      if (!alive && Object.keys(lastUsedRef.current).length === 0) {
+        setClock(now); // satu update final buat lepas node expired
+        return;
+      }
+      if (alive) setClock(now);
+    }, FE_ACTIVE_TICK_MS);
     return () => clearInterval(id);
   }, []);
 
