@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useNotificationStore } from "@/store/notificationStore";
 import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
@@ -151,6 +152,7 @@ function Section({ title, icon, kind, providers, providerStats, combos, onCreate
 export default function WebProvidersPage() {
   const router = useRouter();
   const [providerStats, setProviderStats] = useState({});
+  const notify = useNotificationStore();
   const [combos, setCombos] = useState([]);
 
   const fetchAll = async () => {
@@ -189,7 +191,7 @@ export default function WebProvidersPage() {
       router.push(`/dashboard/media-providers/combo/${created.id}`);
     } else {
       const err = await res.json();
-      alert(err.error || "Failed to create combo");
+      notify.error(err.error || "Failed to create combo");
     }
   };
 

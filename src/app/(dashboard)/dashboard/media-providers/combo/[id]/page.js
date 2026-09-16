@@ -4,6 +4,8 @@ import { useParams, notFound, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
+import { ConfirmModal } from "@/shared/components/Modal";
+import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 
@@ -61,6 +63,8 @@ export default function ComboDetailPage() {
   const [apiKey, setApiKey] = useState("");
   const [connections, setConnections] = useState([]);
   const [modelAliases, setModelAliases] = useState({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const notify = useNotificationStore();
 
   const fetchAll = async () => {
     try {
@@ -107,7 +111,7 @@ export default function ComboDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    if (!res.ok) { const err = await res.json(); alert(err.error || "Failed to save"); return false; }
+    if (!res.ok) { const err = await res.json(); notify.error(err.error || "Failed to save"); return false; }
     return true;
   };
 
@@ -163,10 +167,14 @@ export default function ComboDetailPage() {
     });
   };
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete combo "${combo.name}"?`)) return;
+  const handleDelete = () => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
     const res = await fetch(`/api/combos/${id}`, { method: "DELETE" });
     if (res.ok) router.push(getListingHref(combo.kind));
+    setDeleteConfirmId(null);
   };
 
   const handleTest = async () => {
@@ -392,6 +400,8 @@ export default function ComboDetailPage() {
           </pre>
         )}
       </Card>
+
+      <ConfirmModal isOpen={Boolean(deleteConfirmId)} onClose={() => setDeleteConfirmId(null)} onConfirm={confirmDelete} title="Delete Combo" message={`Delete combo "${combo.name}"?`} variant="danger" />
 
       {showPicker && (
         <ModelSelectModal

@@ -43,6 +43,7 @@ import {
 } from "./utils";
 import Card from "@/shared/components/Card";
 import { ConfirmModal, EditConnectionModal, Badge, CardSkeleton } from "@/shared/components";
+import { useNotificationStore } from "@/store/notificationStore";
 import { getStatusVariant } from "@/shared/utils/connectionStatus";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -176,6 +177,7 @@ export default function ProviderLimits() {
   const registerSearch = useHeaderSearchStore((s) => s.register);
   const unregisterSearch = useHeaderSearchStore((s) => s.unregister);
   const setHeaderSearchQuery = useHeaderSearchStore((s) => s.setQuery);
+  const notify = useNotificationStore();
 
   useEffect(() => {
     registerSearch("Search accounts...");
@@ -290,9 +292,6 @@ export default function ProviderLimits() {
     setErrors((prev) => ({ ...prev, [connectionId]: null }));
 
     try {
-      console.log(
-        `[ProviderLimits] Fetching quota for ${provider} (${connectionId})`,
-      );
       const url = `/api/usage/${connectionId}${force ? "?force=1" : ""}`;
       const response = await fetch(url);
 
@@ -303,18 +302,11 @@ export default function ProviderLimits() {
         // Handle different error types gracefully
         if (response.status === 404) {
           // Connection not found - skip silently
-          console.warn(
-            `[ProviderLimits] Connection not found for ${provider}, skipping`,
-          );
           return;
         }
 
         if (response.status === 401) {
           // Auth error - show message instead of throwing
-          console.warn(
-            `[ProviderLimits] Auth error for ${provider}:`,
-            errorMsg,
-          );
           const quotaEntry = {
             quotas: [],
             message: errorMsg,
@@ -331,7 +323,6 @@ export default function ProviderLimits() {
       }
 
       const data = await response.json();
-      console.log(`[ProviderLimits] Got quota for ${provider}:`, data);
 
       // Parse quota data using provider-specific parser
       const parsedQuotas = parseQuotaData(provider, data);
@@ -468,7 +459,7 @@ export default function ProviderLimits() {
     } finally {
       setResettingStatusId(null);
     }
-  }, [fetchQuota, fetchConnections, pagination.page]);
+  }, [notify, fetchQuota, fetchConnections, pagination.page]);
 
   const handleResetCodexLimit = useCallback(
     async (connectionId, provider) => {
@@ -516,10 +507,18 @@ export default function ProviderLimits() {
     }
   }, []);
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const handleDeleteConnection = useCallback(
     async (id) => {
-      if (!confirm("Delete this connection?")) return;
-      setDeletingId(id);
+      setDeleteConfirmId(id);
+    }, []);
+
+  const confirmDeleteConnection = useCallback(async () => {
+    const id = deleteConfirmId;
+    if (!id) return;
+    setDeleteConfirmId(null);
+    setDeletingId(id);
       try {
         const res = await fetch(`/api/providers/${id}`, { method: "DELETE" });
         if (res.ok) {
@@ -550,19 +549,19 @@ export default function ProviderLimits() {
                 );
               }
             } catch (e) {
-              console.error("Error deleting cache entry:", e);
+              /* noop */
             }
           }
 
           await reconcileConnectionsPage(fetchConnections, page);
         }
       } catch (error) {
-        console.error("Error deleting connection:", error);
+        notify.error("Failed to delete connection");
       } finally {
         setDeletingId(null);
       }
     },
-    [fetchConnections, page],
+    [notify, deleteConfirmId, fetchConnections, page],
   );
 
   const handleToggleConnectionActive = useCallback(
@@ -1991,6 +1990,8 @@ export default function ProviderLimits() {
           </div>
         </div>
       )}
+
+      <ConfirmModal isOpen={Boolean(deleteConfirmId)} onClose={() => setDeleteConfirmId(null)} onConfirm={confirmDeleteConnection} title="Delete Connection" message="Delete this connection?" variant="danger" />
 
       <EditConnectionModal
         isOpen={showEditModal}

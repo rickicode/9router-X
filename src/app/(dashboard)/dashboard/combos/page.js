@@ -6,6 +6,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, CapacityBadges, Select, Toggle } from "@/shared/components";
+import { useNotificationStore } from "@/store/notificationStore";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
@@ -55,6 +56,7 @@ export default function CombosPage() {
   const { getCaps } = useModelCaps();
   const [confirmState, setConfirmState] = useState(null);
   const { copied, copy } = useCopyToClipboard();
+  const notify = useNotificationStore();
 
   useEffect(() => {
     fetchData();
@@ -84,7 +86,7 @@ export default function CombosPage() {
       }
       setCapacityAdapter(normalized);
     } catch (error) {
-      console.log("Error fetching data:", error);
+
     } finally {
       setLoading(false);
     }
@@ -99,7 +101,7 @@ export default function CombosPage() {
         body: JSON.stringify({ capacityAdapter: next }),
       });
     } catch (error) {
-      console.log("Error updating capacity adapter:", error);
+
     }
   };
 
@@ -115,10 +117,10 @@ export default function CombosPage() {
         setShowCreateModal(false);
       } else {
         const err = await res.json();
-        alert(err.error || "Failed to create combo");
+        notify.error(err.error || "Failed to create combo");
       }
     } catch (error) {
-      console.log("Error creating combo:", error);
+
     }
   };
 
@@ -134,10 +136,10 @@ export default function CombosPage() {
         setEditingCombo(null);
       } else {
         const err = await res.json();
-        alert(err.error || "Failed to update combo");
+        notify.error(err.error || "Failed to update combo");
       }
     } catch (error) {
-      console.log("Error updating combo:", error);
+
     }
   };
 
@@ -153,7 +155,7 @@ export default function CombosPage() {
             setCombos(combos.filter(c => c.id !== id));
           }
         } catch (error) {
-          console.log("Error deleting combo:", error);
+
         }
       }
     });
@@ -180,7 +182,7 @@ export default function CombosPage() {
 
       setComboStrategies(updated);
     } catch (error) {
-      console.log("Error updating combo strategy:", error);
+
     }
   };
 

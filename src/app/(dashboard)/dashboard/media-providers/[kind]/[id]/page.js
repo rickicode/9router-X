@@ -4,6 +4,8 @@ import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, Badge, Button, AddCustomEmbeddingModal, NoAuthProxyCard, ProviderInfoCard } from "@/shared/components";
+import { ConfirmModal } from "@/shared/components/Modal";
+import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, isCustomEmbeddingProvider } from "@/shared/constants/providers";
 import ConnectionsCard from "@/app/(dashboard)/dashboard/providers/components/ConnectionsCard";
@@ -21,13 +23,17 @@ export default function MediaProviderDetailPage() {
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
   const isCustom = isCustomEmbeddingProvider(id) && kind === "embedding";
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const notify = useNotificationStore();
+
   const handleDeleteCustom = async () => {
-    if (!confirm("Delete this Custom Embedding node?")) return;
     try {
       const res = await fetch(`/api/provider-nodes/${id}`, { method: "DELETE" });
-      if (res.ok) router.push(`/dashboard/media-providers/${kind}`);
-    } catch (error) {
-      console.log("Error deleting custom embedding node:", error);
+      if (isCustom) {
+        router.push(`/dashboard/media-providers/${kind}`);
+      }
+    } catch {
+      notify.error("Failed to delete custom embedding node");
     }
   };
 
@@ -121,7 +127,7 @@ export default function MediaProviderDetailPage() {
               <Button size="sm" variant="secondary" icon="edit" onClick={() => setShowEditModal(true)}>
                 Edit
               </Button>
-              <Button size="sm" variant="secondary" icon="delete" onClick={handleDeleteCustom}>
+              <Button size="sm" variant="secondary" icon="delete" onClick={() => setDeleteConfirmOpen(true)}>
                 Delete
               </Button>
             </div>
@@ -194,7 +200,9 @@ export default function MediaProviderDetailPage() {
       {kind === "stt" && !isCustom && <SttExampleCard providerId={id} />}
       {!isCustom && KIND_EXAMPLE_CONFIG[kind] && <GenericExampleCard providerId={id} kind={kind} />}
 
-      {isCustom && (
+      {isCustom && (<>
+        <ConfirmModal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} onConfirm={handleDeleteCustom} title="Delete Custom Embedding" message="Delete this Custom Embedding node?" variant="danger" />
+
         <AddCustomEmbeddingModal
           isOpen={showEditModal}
           node={customNode}
@@ -204,7 +212,7 @@ export default function MediaProviderDetailPage() {
             setShowEditModal(false);
           }}
         />
-      )}
+      </>)}
     </div>
   );
 }
