@@ -55,6 +55,9 @@ async function normalizeProxyPoolId(proxyPoolId) {
 // GET /api/providers - List all connections
 export async function GET(request) {
   try {
+    // Self-heal legacy CodeBuddy Intl OAuth rows that predate identity capture
+    // (they show as "Account N" with no email). Runs once per process.
+    await backfillCodeBuddyIntlIdentity();
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
     const providersParam = searchParams.get("providers");
@@ -103,9 +106,6 @@ export async function GET(request) {
     } else {
       connections = await getProviderConnections(filter);
     }
-    // Self-heal legacy CodeBuddy Intl OAuth rows that predate identity capture
-    // (they show as "Account N" with no email). Runs once per process.
-    await backfillCodeBuddyIntlIdentity();
 
     // Build nodeNameMap for compatible providers (id → name)
     let nodeNameMap = {};
