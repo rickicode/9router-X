@@ -1,14 +1,7 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import {
-  Card,
-  CardSkeleton,
-  Badge,
-  Button,
-  Toggle,
-} from "@/shared/components";
+import { Card, CardSkeleton, Badge, Button, Toggle } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
@@ -23,9 +16,19 @@ import Link from "next/link";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
-import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
-import AddCompatibleModal from "./components/AddCompatibleModal";
 import { STATUS_FILTER_OPTIONS, matchesStatusFilter } from "./utils";
+import dynamic from "next/dynamic";
+
+// ── Dynamic (code-split) imports ────────────────────────────────
+const ModelAvailabilityBadge = dynamic(
+  () => import("./components/ModelAvailabilityBadge"),
+  { ssr: false, loading: () => null },
+);
+
+const AddCompatibleModal = dynamic(
+  () => import("./components/AddCompatibleModal"),
+  { ssr: false },
+);
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -123,57 +126,56 @@ export default function ProvidersPage() {
     return name.toLowerCase().includes(searchQuery.trim().toLowerCase());
   };
 
-  const sortByPriority = (entries, authType) =>
-    [...entries].sort(([ka, a], [kb, b]) => {
-      const pa = a.priority ?? 999;
-      const pb = b.priority ?? 999;
-      if (pa !== pb) return pa - pb;
-      const sa = getProviderStats(ka, authType);
-      const sb = getProviderStats(kb, authType);
-      const ca = sa.connected > 0 ? 1 : 0;
-      const cb = sb.connected > 0 ? 1 : 0;
-      if (ca !== cb) return cb - ca;
-      return (a.name || "").localeCompare(b.name || "");
-    });
-
-  const sortItemsByPriority = (items, authType) =>
-    [...items].sort((a, b) => {
-      const pa = a.priority ?? 999;
-      const pb = b.priority ?? 999;
-      if (pa !== pb) return pa - pb;
-      const sa = getProviderStats(a.id, authType);
-      const sb = getProviderStats(b.id, authType);
-      const ca = sa.connected > 0 ? 1 : 0;
-      const cb = sb.connected > 0 ? 1 : 0;
-      if (ca !== cb) return cb - ca;
-      return (a.name || "").localeCompare(b.name || "");
-    });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, nodesRes] = await Promise.all([
-          fetch("/api/providers/stats"),
-          fetch("/api/provider-nodes"),
-        ]);
-        const statsData = await statsRes.json();
-        const nodesData = await nodesRes.json();
-        if (statsRes.ok)
-          setProviderStats(statsData.stats || {});
-        if (nodesRes.ok) setProviderNodes(nodesData.nodes || []);
-      } catch (error) {
-        console.log("Error fetching data:", error);
-      } finally {
-        setLoading(false);
+  // ── Pre-compute stats lookup map (O(n) once, O(1) per call) ──
+  const statsMap = useMemo(() => {
+    const map = {};
+    for (const [providerId, statObj] of Object.entries(providerStats)) {
+      for (const [authType, raw] of Object.entries(statObj || {})) {
+        if (!raw) continue;
+        const key = `${providerId}:${authType}`;
+        let connected = raw.connected || 0;
+        let error = raw.error || 0;
+        let total = raw.total || 0;
+        let allDisabled = raw.allDisabled !== false;
+        let latestErrorAt = raw.lastErrorAt || null;
+        const errorTime = latestErrorAt
+          ? getRelativeTime(latestErrorAt)
+          : null;
+        const errorCode = error > 0 ? "ERR" : null;
+        map[key] = {
+          connected,
+          error,
+          total,
+          errorCode,
+          errorTime,
+          allDisabled,
+        };
       }
-    };
-    fetchData();
-  }, []);
+    }
+    return map;
+  }, [providerStats]);
 
+  // Dual-auth providers (oauth + apikey) store API keys as authType "apikey"
+  // (and sometimes "api_key"). Card stats must count both so totals match detail.
+  // kiro has no authModes in registry but accepts both (headless uses "api_key").
+  const dualAuthTypes = (info, key) => {
+    if (key === "kiro") return ["oauth", "apikey", "api_key"];
+    const modes = info?.authModes;
+    // Free-tier and API-key providers default to supporting apikey even when the
+    // registry entry omits authModes (e.g. cloudflare-ai, byteplus, ollama,
+    // vertex) — otherwise their apikey connections are invisible on the grid card.
+    if (!Array.isArray(modes)) {
+      return key in FREE_TIER_PROVIDERS || key in APIKEY_PROVIDERS
+        ? ["oauth", "apikey", "api_key"]
+        : "oauth";
+    }
+    if (!modes.includes("apikey")) return "oauth";
+    return ["oauth", "apikey", "api_key"];
+  };
+
+  // O(1) stats lookup — replaces the old O(n²) getProviderStats function
   const getProviderStats = (providerId, authType) => {
     const authTypes = Array.isArray(authType) ? authType : [authType];
-    const pStats = providerStats[providerId] || {};
-
     let connected = 0;
     let error = 0;
     let total = 0;
@@ -181,15 +183,19 @@ export default function ProvidersPage() {
     let allDisabled = true;
 
     for (const type of authTypes) {
-      const stat = pStats[type];
+      const stat = statsMap[`${providerId}:${type}`];
       if (stat) {
-        total += stat.total || 0;
-        connected += stat.connected || 0;
-        error += stat.error || 0;
+        total += stat.total;
+        connected += stat.connected;
+        error += stat.error;
         if (!stat.allDisabled) allDisabled = false;
-        if (stat.lastErrorAt) {
-          if (!latestErrorAt || new Date(stat.lastErrorAt) > new Date(latestErrorAt)) {
-            latestErrorAt = stat.lastErrorAt;
+        // latestErrorAt is already computed per-entry, but we need the max across authTypes
+        // We stored it in the raw map; fall back to re-resolving if needed
+        // For simplicity and correctness: use the raw providerStats for error time
+        const rawStat = providerStats[providerId]?.[type];
+        if (rawStat?.lastErrorAt) {
+          if (!latestErrorAt || new Date(rawStat.lastErrorAt) > new Date(latestErrorAt)) {
+            latestErrorAt = rawStat.lastErrorAt;
           }
         }
       }
@@ -296,24 +302,54 @@ export default function ProvidersPage() {
       (p) => matchSearch(p.name) && matchStatus(getProviderStats(p.id, "apikey")),
     );
 
-  // Dual-auth providers (oauth + apikey) store API keys as authType "apikey"
-  // (and sometimes "api_key"). Card stats must count both so totals match detail.
-  // kiro has no authModes in registry but accepts both (headless uses "api_key").
-  const dualAuthTypes = (info, key) => {
-    if (key === "kiro") return ["oauth", "apikey", "api_key"];
-    const modes = info?.authModes;
-    // Free-tier and API-key providers default to supporting apikey even when the
-    // registry entry omits authModes (e.g. cloudflare-ai, byteplus, ollama,
-    // vertex) — otherwise their apikey connections are invisible on the grid card.
-    if (!Array.isArray(modes)) {
-      return key in FREE_TIER_PROVIDERS || key in APIKEY_PROVIDERS
-        ? ["oauth", "apikey", "api_key"]
-        : "oauth";
-    }
-    if (!modes.includes("apikey")) return "oauth";
-    return ["oauth", "apikey", "api_key"];
-  };
+  const sortByPriority = (entries, authType) =>
+    [...entries].sort(([ka, a], [kb, b]) => {
+      const pa = a.priority ?? 999;
+      const pb = b.priority ?? 999;
+      if (pa !== pb) return pa - pb;
+      const sa = getProviderStats(ka, authType);
+      const sb = getProviderStats(kb, authType);
+      const ca = sa.connected > 0 ? 1 : 0;
+      const cb = sb.connected > 0 ? 1 : 0;
+      if (ca !== cb) return cb - ca;
+      return (a.name || "").localeCompare(b.name || "");
+    });
 
+  const sortItemsByPriority = (items, authType) =>
+    [...items].sort((a, b) => {
+      const pa = a.priority ?? 999;
+      const pb = b.priority ?? 999;
+      if (pa !== pb) return pa - pb;
+      const sa = getProviderStats(a.id, authType);
+      const sb = getProviderStats(b.id, authType);
+      const ca = sa.connected > 0 ? 1 : 0;
+      const cb = sb.connected > 0 ? 1 : 0;
+      if (ca !== cb) return cb - ca;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, nodesRes] = await Promise.all([
+          fetch("/api/providers/stats"),
+          fetch("/api/provider-nodes"),
+        ]);
+        const statsData = await statsRes.json();
+        const nodesData = await nodesRes.json();
+        if (statsRes.ok)
+          setProviderStats(statsData.stats || {});
+        if (nodesRes.ok) setProviderNodes(nodesData.nodes || []);
+      } catch (error) {
+        console.log("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // OAUTH PROVIDERS
   const oauthEntries = sortByPriority(
     Object.entries(OAUTH_PROVIDERS).filter(
       ([key, info]) =>

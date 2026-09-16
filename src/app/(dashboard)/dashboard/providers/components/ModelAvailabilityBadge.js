@@ -5,6 +5,10 @@
  *
  * Shows green when all models are operational, or amber/red when there are
  * issues, with a hover popover for details and cooldown clearing.
+ *
+ * Fetch is lazy: only fires when the popover is opened (or refreshed by
+ * the user).  Previously this polled every 30 s unconditionally, which was
+ * dead weight because the trigger button was commented-out.
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,7 +24,6 @@ const STATUS_CONFIG = {
 
 export default function ModelAvailabilityBadge() {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [clearing, setClearing] = useState(null);
   const ref = useRef(null);
@@ -34,17 +37,14 @@ export default function ModelAvailabilityBadge() {
         setData(json);
       }
     } catch {
-      // silent fail — will retry
-    } finally {
-      setLoading(false);
+      // silent fail — user can retry via refresh button
     }
   }, []);
 
+  // Lazy fetch: only when popover opens (or refresh button clicked)
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    if (expanded) fetchStatus();
+  }, [expanded, fetchStatus]);
 
   // Close popover on outside click
   useEffect(() => {
@@ -76,10 +76,10 @@ export default function ModelAvailabilityBadge() {
     }
   };
 
-  if (loading) return null;
-
   const models = data?.models || [];
-  const unavailableCount = data?.unavailableCount || models.filter((m) => m.status !== "available").length;
+  const unavailableCount =
+    data?.unavailableCount ||
+    models.filter((m) => m.status !== "available").length;
   const isHealthy = unavailableCount === 0;
 
   // Group unhealthy models by provider
@@ -93,7 +93,8 @@ export default function ModelAvailabilityBadge() {
 
   return (
     <div className="relative" ref={ref}>
-      {/* <button
+      {/* Button was commented-out — restore on-demand toggle */}
+      <button
         onClick={() => setExpanded(!expanded)}
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
           isHealthy
@@ -107,7 +108,7 @@ export default function ModelAvailabilityBadge() {
         {isHealthy
           ? "All models operational"
           : `${unavailableCount} model${unavailableCount !== 1 ? "s" : ""} with issues`}
-      </button> */}
+      </button>
 
       {expanded && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
@@ -119,19 +120,27 @@ export default function ModelAvailabilityBadge() {
               >
                 {isHealthy ? "verified" : "warning"}
               </span>
-              <span className="text-sm font-semibold text-text-main">Model Status</span>
+              <span className="text-sm font-semibold text-text-main">
+                Model Status
+              </span>
             </div>
             <button
               onClick={fetchStatus}
               className="p-1 rounded-lg hover:bg-surface text-text-muted hover:text-text-main transition-colors"
               title="Refresh"
             >
-              <span className="material-symbols-outlined text-[14px]">refresh</span>
+              <span className="material-symbols-outlined text-[14px]">
+                refresh
+              </span>
             </button>
           </div>
 
           <div className="px-4 py-3 max-h-60 overflow-y-auto">
-            {isHealthy ? (
+            {!data ? (
+              <p className="text-sm text-text-muted text-center py-2">
+                Loading...
+              </p>
+            ) : isHealthy ? (
               <p className="text-sm text-text-muted text-center py-2">
                 All models are responding normally.
               </p>
@@ -139,11 +148,15 @@ export default function ModelAvailabilityBadge() {
               <div className="flex flex-col gap-2.5">
                 {Object.entries(byProvider).map(([provider, provModels]) => (
                   <div key={provider}>
-                    <p className="text-xs font-semibold text-text-main mb-1.5 capitalize">{provider}</p>
+                    <p className="text-xs font-semibold text-text-main mb-1.5 capitalize">
+                      {provider}
+                    </p>
                     <div className="flex flex-col gap-1">
                       {provModels.map((m) => {
-                        const status = STATUS_CONFIG[m.status] || STATUS_CONFIG.unknown;
-                        const isClearing = clearing === `${m.provider}:${m.model}`;
+                        const status =
+                          STATUS_CONFIG[m.status] || STATUS_CONFIG.unknown;
+                        const isClearing =
+                          clearing === `${m.provider}:${m.model}`;
                         return (
                           <div
                             key={`${m.provider}-${m.model}`}
@@ -157,10 +170,13 @@ export default function ModelAvailabilityBadge() {
                                 {status.icon}
                               </span>
                               <div className="flex flex-col min-w-0">
-                                <span className="font-mono text-xs text-text-main truncate">{m.model}</span>
+                                <span className="font-mono text-xs text-text-main truncate">
+                                  {m.model}
+                                </span>
                                 {m.status === "cooldown" && m.until && (
                                   <span className="text-[10px] text-text-muted truncate">
-                                    until {new Date(m.until).toLocaleString()}
+                                    until{" "}
+                                    {new Date(m.until).toLocaleString()}
                                   </span>
                                 )}
                               </div>
@@ -169,7 +185,9 @@ export default function ModelAvailabilityBadge() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleClearCooldown(m.provider, m.model)}
+                                onClick={() =>
+                                  handleClearCooldown(m.provider, m.model)
+                                }
                                 disabled={isClearing}
                                 className="text-[10px] px-1.5! py-0.5! ml-2"
                               >
