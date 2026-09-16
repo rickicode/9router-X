@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Card, CardSkeleton, Badge, Button, Toggle } from "@/shared/components";
+import { Card, CardSkeleton, Badge, Button, Toggle, ConfirmModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
@@ -16,7 +16,7 @@ import Link from "next/link";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
-import { STATUS_FILTER_OPTIONS, matchesStatusFilter } from "./utils";
+import { STATUS_FILTER_OPTIONS, matchesStatusFilter, SEARCH_DEBOUNCE_MS, matchesSearchQuery, truncateErrorText } from "./utils";
 import dynamic from "next/dynamic";
 
 // ── Dynamic (code-split) imports ────────────────────────────────
@@ -43,9 +43,12 @@ function getStatusDisplay(connected, error, errorCode) {
     const errText = errorCode
       ? `${error} Error (${errorCode})`
       : `${error} Error`;
+    const errLabel = truncateErrorText(errText);
     parts.push(
       <Badge key="error" variant="error" size="sm" dot>
-        {errText}
+        <span title={errLabel === errText ? undefined : errText}>
+          {errLabel}
+        </span>
       </Badge>,
     );
   }
@@ -110,8 +113,11 @@ export default function ProvidersPage() {
   const [testingMode, setTestingMode] = useState(null);
   const [testResults, setTestResults] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [togglePendingId, setTogglePendingId] = useState(null);
+  const [confirmToggle, setConfirmToggle] = useState(null);
   const notify = useNotificationStore();
-  const searchQuery = useHeaderSearchStore((s) => s.query);
+  const rawSearchQuery = useHeaderSearchStore((s) => s.query);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const registerSearch = useHeaderSearchStore((s) => s.register);
   const unregisterSearch = useHeaderSearchStore((s) => s.unregister);
 
@@ -120,11 +126,19 @@ export default function ProvidersPage() {
     return () => unregisterSearch();
   }, [registerSearch, unregisterSearch]);
 
-  const matchSearch = (name) => {
-    if (!searchQuery.trim()) return true;
-    if (!name) return false;
-    return name.toLowerCase().includes(searchQuery.trim().toLowerCase());
-  };
+  // Header search store updates per keystroke; debounce so section
+  // filters/sorts re-run once the user pauses (SEARCH_DEBOUNCE_MS).
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearchQuery(rawSearchQuery),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [rawSearchQuery]);
+
+  const searchQuery = debouncedSearchQuery;
+
+  const matchSearch = (name) => matchesSearchQuery(name, searchQuery);
 
   // ── Pre-compute stats lookup map (O(n) once, O(1) per call) ──
   const statsMap = useMemo(() => {
@@ -216,8 +230,13 @@ export default function ProvidersPage() {
 
   // Toggle all connections for a provider on/off. authType may be a single
   // string or an array (kiro counts oauth + api_key/apikey together).
-  const handleToggleProvider = async (providerId, authType, newActive) => {
+  // Disable goes through ConfirmModal; enable applies immediately.
+  // togglePendingId guards double-clicks while PATCH is in flight.
+  const executeToggleProvider = async (providerId, authType, newActive) => {
+    if (togglePendingId) return;
     const authTypes = Array.isArray(authType) ? authType : [authType];
+    const pendingKey = providerId;
+    setTogglePendingId(pendingKey);
 
     // Optimistic update on stats
     setProviderStats((prev) => {
@@ -238,7 +257,7 @@ export default function ProvidersPage() {
     });
 
     try {
-      await fetch("/api/providers", {
+      const res = await fetch("/api/providers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,10 +266,45 @@ export default function ProvidersPage() {
           isActive: newActive,
         }),
       });
+      if (!res.ok) throw new Error(`PATCH failed: ${res.status}`);
+      notify.success(newActive ? "Provider enabled" : "Provider disabled");
     } catch (error) {
+      // Roll back optimistic update
+      setProviderStats((prev) => {
+        const next = { ...prev };
+        const currentP = { ...(next[providerId] || {}) };
+        for (const type of authTypes) {
+          const s = currentP[type];
+          if (s) {
+            currentP[type] = {
+              ...s,
+              allDisabled: newActive,
+              connected: newActive ? 0 : (s.total - s.error),
+            };
+          }
+        }
+        next[providerId] = currentP;
+        return next;
+      });
       console.error("Error updating provider status:", error);
+      notify.error("Failed to update provider status");
+    } finally {
+      setTogglePendingId(null);
     }
   };
+
+  const requestToggleProvider = (providerId, authType, newActive, providerName) => {
+    if (togglePendingId) return;
+    if (!newActive) {
+      // Confirm before disable — bulk-disables every connection for provider
+      setConfirmToggle({ providerId, authType, providerName });
+      return;
+    }
+    executeToggleProvider(providerId, authType, newActive);
+  };
+
+  const handleToggleProvider = (providerId, authType, newActive, providerName) =>
+    requestToggleProvider(providerId, authType, newActive, providerName);
 
   const handleBatchTest = async (mode, providerId = null) => {
     if (testingMode) return;
@@ -544,8 +598,9 @@ export default function ProvidersPage() {
                   provider={info}
                   stats={getProviderStats(info.id, "apikey")}
                   authType="compatible"
+                  toggleDisabled={togglePendingId === info.id}
                   onToggle={(active) =>
-                    handleToggleProvider(info.id, "apikey", active)
+                    handleToggleProvider(info.id, "apikey", active, info.name)
                   }
                 />
               ),
@@ -593,7 +648,8 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, authTypes)}
                 authType="oauth"
-                onToggle={(active) => handleToggleProvider(key, authTypes, active)}
+                toggleDisabled={togglePendingId === key}
+                onToggle={(active) => handleToggleProvider(key, authTypes, active, info.name)}
               />
             );
           })}
@@ -639,8 +695,9 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, freeAuthTypes)}
                 authType="free"
+                toggleDisabled={togglePendingId === key}
                 onToggle={(active) =>
-                  handleToggleProvider(key, freeAuthTypes, active)
+                  handleToggleProvider(key, freeAuthTypes, active, info.name)
                 }
               />
             );
@@ -654,7 +711,8 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, freeAuthTypes)}
                 authType={Array.isArray(freeAuthTypes) ? (freeAuthTypes[0] ?? "apikey") : freeAuthTypes}
-                onToggle={(active) => handleToggleProvider(key, freeAuthTypes, active)}
+                toggleDisabled={togglePendingId === key}
+                onToggle={(active) => handleToggleProvider(key, freeAuthTypes, active, info.name)}
               />
             );
           })}
@@ -696,7 +754,8 @@ export default function ProvidersPage() {
               provider={info}
               stats={getProviderStats(key, "apikey")}
               authType="apikey"
-              onToggle={(active) => handleToggleProvider(key, "apikey", active)}
+              toggleDisabled={togglePendingId === key}
+              onToggle={(active) => handleToggleProvider(key, "apikey", active, info.name)}
             />
           ))}
         </div>
@@ -752,6 +811,22 @@ export default function ProvidersPage() {
         }}
       />
 
+      <ConfirmModal
+        isOpen={!!confirmToggle}
+        onClose={() => setConfirmToggle(null)}
+        onConfirm={() => {
+          const target = confirmToggle;
+          setConfirmToggle(null);
+          if (target) executeToggleProvider(target.providerId, target.authType, false);
+        }}
+        title={`Disable ${confirmToggle?.providerName || "provider"}?`}
+        message={`This turns off all connections for ${confirmToggle?.providerName || "this provider"}. New routing skips it until you re-enable it.`}
+        confirmText="Disable"
+        cancelText="Cancel"
+        variant="danger"
+        loading={!!togglePendingId}
+      />
+
       {/* Test Results Modal */}
       {testResults && (
         <div
@@ -783,25 +858,40 @@ export default function ProvidersPage() {
   );
 }
 
-function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
-  const { connected, error, errorCode, errorTime, allDisabled } = stats;
-  const isNoAuth = !!provider.noAuth;
+function providerTint(color) {
+  if (!color) return undefined;
+  if (color.length > 7) return color;
+  return `color-mix(in srgb, ${color} 12%, transparent)`;
+}
 
-  const dotColors = {
-    free: "bg-green-500",
-    oauth: "bg-blue-500",
-    apikey: "bg-amber-500",
-    compatible: "bg-orange-500",
-  };
-  const dotLabels = {
-    free: "Free",
-    oauth: "OAuth",
-    apikey: "API Key",
-    compatible: "Compatible",
-  };
+const cardStatsPropTypes = {
+  connected: PropTypes.number,
+  error: PropTypes.number,
+  total: PropTypes.number,
+  errorCode: PropTypes.string,
+  errorTime: PropTypes.string,
+  allDisabled: PropTypes.bool,
+};
+
+function BaseProviderCard({
+  providerId,
+  provider,
+  stats,
+  iconSrc,
+  isNoAuth,
+  statusExtra,
+  onToggle,
+  toggleDisabled = false,
+}) {
+  const { connected, error, errorCode, errorTime, allDisabled } = stats;
+  const toggleLabel = `${allDisabled ? "Enable" : "Disable"} ${provider.name}`;
 
   return (
-    <Link href={`/dashboard/providers/${providerId}`} className="group min-w-0">
+    <Link
+      href={`/dashboard/providers/${providerId}`}
+      className="group min-w-0 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      aria-label={`Open ${provider.name} provider details`}
+    >
       <Card
         padding="xs"
         className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}
@@ -811,14 +901,14 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
             <div
               className="size-8 shrink-0 rounded-lg flex items-center justify-center"
               style={{
-                backgroundColor: `${provider.color?.length > 7 ? provider.color : provider.color + "15"}`,
+                backgroundColor: providerTint(provider.color),
               }}
             >
               <ProviderIcon
-                src={`/providers/${provider.id}.png`}
+                src={iconSrc}
                 alt={provider.name}
                 size={30}
-                className="object-contain rounded-lg max-w-[32px] max-h-[32px]"
+                className="object-contain rounded-lg max-w-[30px] max-h-[30px]"
                 fallbackText={
                   provider.textIcon || provider.id.slice(0, 2).toUpperCase()
                 }
@@ -842,6 +932,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
                 ) : (
                   <>
                     {getStatusDisplay(connected, error, errorCode)}
+                    {statusExtra}
                     {errorTime && (
                       <span className="text-text-muted">{errorTime}</span>
                     )}
@@ -853,18 +944,24 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
           <div className="flex shrink-0 items-center gap-2">
             {stats.total > 0 && (
               <div
-                className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                className="rounded-full opacity-100 transition-opacity focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (toggleDisabled) return;
                   onToggle(!allDisabled ? false : true);
                 }}
               >
                 <Toggle
                   size="sm"
                   checked={!allDisabled}
-                  onChange={() => {}}
-                  title={allDisabled ? "Enable provider" : "Disable provider"}
+                  disabled={toggleDisabled}
+                  onChange={() => {
+                    if (toggleDisabled) return;
+                    onToggle(!allDisabled ? false : true);
+                  }}
+                  title={toggleLabel}
+                  aria-label={toggleLabel}
                 />
               </div>
             )}
@@ -875,7 +972,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
   );
 }
 
-ProviderCard.propTypes = {
+BaseProviderCard.propTypes = {
   providerId: PropTypes.string.isRequired,
   provider: PropTypes.shape({
     id: PropTypes.string.isRequired,
@@ -883,133 +980,81 @@ ProviderCard.propTypes = {
     color: PropTypes.string,
     textIcon: PropTypes.string,
   }).isRequired,
-  stats: PropTypes.shape({
-    connected: PropTypes.number,
-    error: PropTypes.number,
-    errorCode: PropTypes.string,
-    errorTime: PropTypes.string,
-  }).isRequired,
-  authType: PropTypes.string,
+  stats: PropTypes.shape(cardStatsPropTypes).isRequired,
+  iconSrc: PropTypes.string,
+  isNoAuth: PropTypes.bool,
+  statusExtra: PropTypes.node,
   onToggle: PropTypes.func,
+  toggleDisabled: PropTypes.bool,
 };
 
-function ApiKeyProviderCard({
-  providerId,
-  provider,
-  stats,
-  authType,
-  onToggle,
-}) {
-  const { connected, error, errorCode, errorTime, allDisabled } = stats;
+function ProviderCard({ providerId, provider, stats, authType, onToggle, toggleDisabled = false }) {
+  return (
+    <BaseProviderCard
+      providerId={providerId}
+      provider={provider}
+      stats={stats}
+      iconSrc={`/providers/${provider.id}.png`}
+      isNoAuth={!!provider.noAuth}
+      onToggle={onToggle}
+      toggleDisabled={toggleDisabled}
+    />
+  );
+}
+
+ProviderCard.propTypes = {
+  providerId: PropTypes.string.isRequired,
+  provider: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    color: PropTypes.string,
+    textIcon: PropTypes.string,
+    noAuth: PropTypes.bool,
+  }).isRequired,
+  stats: PropTypes.shape(cardStatsPropTypes).isRequired,
+  authType: PropTypes.string,
+  onToggle: PropTypes.func,
+  toggleDisabled: PropTypes.bool,
+};
+
+function ApiKeyProviderCard({ providerId, provider, stats, authType, onToggle, toggleDisabled = false }) {
   const isCompatible = providerId.startsWith(OPENAI_COMPATIBLE_PREFIX);
   const isAnthropicCompatible = providerId.startsWith(
     ANTHROPIC_COMPATIBLE_PREFIX,
   );
 
-  const dotColors = {
-    free: "bg-green-500",
-    oauth: "bg-blue-500",
-    apikey: "bg-amber-500",
-    compatible: "bg-orange-500",
-  };
-  const dotLabels = {
-    free: "Free",
-    oauth: "OAuth",
-    apikey: "API Key",
-    compatible: "Compatible",
-  };
-
-  const getIconPath = () => {
+  const iconSrc = (() => {
     if (isCompatible && provider.apiType)
       return provider.apiType === "responses"
         ? "/providers/oai-r.png"
         : "/providers/oai-cc.png";
     if (isAnthropicCompatible) return "/providers/anthropic-m.png";
     return getProviderIconSrc(provider.id);
-  };
+  })();
+
+  const statusExtra = (
+    <>
+      {isCompatible && (
+        <Badge variant="default" size="sm">
+          {provider.apiType === "responses" ? "Responses" : "Chat"}
+        </Badge>
+      )}
+      {isAnthropicCompatible && (
+        <Badge variant="default" size="sm">Messages</Badge>
+      )}
+    </>
+  );
 
   return (
-    <Link href={`/dashboard/providers/${providerId}`} className="group min-w-0">
-      <Card
-        padding="xs"
-        className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}
-      >
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="size-8 shrink-0 rounded-lg flex items-center justify-center"
-              style={{
-                backgroundColor: `${provider.color?.length > 7 ? provider.color : provider.color + "15"}`,
-              }}
-            >
-              <ProviderIcon
-                src={getIconPath()}
-                alt={provider.name}
-                size={30}
-                className="object-contain rounded-lg max-w-[30px] max-h-[30px]"
-                fallbackText={
-                  provider.textIcon || provider.id.slice(0, 2).toUpperCase()
-                }
-                fallbackColor={provider.color}
-              />
-            </div>
-            <div className="min-w-0">
-              <h3 className="truncate font-semibold">{provider.name}</h3>
-              <div className="flex min-w-0 items-center gap-1.5 text-xs flex-wrap">
-                {allDisabled ? (
-                  <Badge variant="default" size="sm">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">
-                        pause_circle
-                      </span>
-                      Disabled
-                    </span>
-                  </Badge>
-                ) : (
-                  <>
-                    {getStatusDisplay(connected, error, errorCode)}
-                    {isCompatible && (
-                      <Badge variant="default" size="sm">
-                        {provider.apiType === "responses"
-                          ? "Responses"
-                          : "Chat"}
-                      </Badge>
-                    )}
-                    {isAnthropicCompatible && (
-                      <Badge variant="default" size="sm">
-                        Messages
-                      </Badge>
-                    )}
-                    {errorTime && (
-                      <span className="text-text-muted">{errorTime}</span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {stats.total > 0 && (
-              <div
-                className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onToggle(!allDisabled ? false : true);
-                }}
-              >
-                <Toggle
-                  size="sm"
-                  checked={!allDisabled}
-                  onChange={() => {}}
-                  title={allDisabled ? "Enable provider" : "Disable provider"}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-    </Link>
+    <BaseProviderCard
+      providerId={providerId}
+      provider={provider}
+      stats={stats}
+      iconSrc={iconSrc}
+      statusExtra={statusExtra}
+      onToggle={onToggle}
+      toggleDisabled={toggleDisabled}
+    />
   );
 }
 
@@ -1022,14 +1067,10 @@ ApiKeyProviderCard.propTypes = {
     textIcon: PropTypes.string,
     apiType: PropTypes.string,
   }).isRequired,
-  stats: PropTypes.shape({
-    connected: PropTypes.number,
-    error: PropTypes.number,
-    errorCode: PropTypes.string,
-    errorTime: PropTypes.string,
-  }).isRequired,
+  stats: PropTypes.shape(cardStatsPropTypes).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
+  toggleDisabled: PropTypes.bool,
 };
 
 function ProviderTestResultsView({ results }) {

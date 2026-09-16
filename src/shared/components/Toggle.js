@@ -1,5 +1,6 @@
 "use client";
 
+import PropTypes from "prop-types";
 import { cn } from "@/shared/utils/cn";
 
 export default function Toggle({
@@ -10,6 +11,9 @@ export default function Toggle({
   disabled = false,
   size = "md",
   className,
+  title,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledby,
 }) {
   const sizes = {
     sm: { track: "w-8 h-4", thumb: "size-3", translate: "translate-x-4" },
@@ -33,15 +37,18 @@ export default function Toggle({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={ariaLabel || (title && !label ? title : undefined)}
+        aria-labelledby={ariaLabelledby}
         disabled={disabled}
+        title={title}
         onClick={handleClick}
         className={cn(
           "relative inline-flex shrink-0 cursor-pointer rounded-full",
           "transition-colors duration-200 ease-in-out",
-          "focus:outline-none focus:ring-2 focus:ring-brand-500/30",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
           checked ? "bg-brand-500" : "bg-surface-3",
           sizes[size].track,
-          disabled && "cursor-not-allowed"
+          disabled && "opacity-50 cursor-not-allowed"
         )}
       >
         <span
@@ -67,3 +74,16 @@ export default function Toggle({
     </div>
   );
 }
+
+Toggle.propTypes = {
+  checked: PropTypes.bool,
+  onChange: PropTypes.func,
+  label: PropTypes.string,
+  description: PropTypes.string,
+  disabled: PropTypes.bool,
+  size: PropTypes.oneOf(["sm", "md", "lg"]),
+  className: PropTypes.string,
+  title: PropTypes.string,
+  "aria-label": PropTypes.string,
+  "aria-labelledby": PropTypes.string,
+};
