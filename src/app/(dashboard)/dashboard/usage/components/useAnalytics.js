@@ -23,20 +23,18 @@ export function useAnalytics(period) {
 
   const [knownProviders, setKnownProviders] = useState([]);
   const [knownModels, setKnownModels] = useState([]);
-  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(true);
 
   // Load known providers & models for combobox suggestions
   useEffect(() => {
     let cancelled = false;
-    setLoadingOptions(true);
     Promise.all([
       fetch("/api/usage/providers")
         .then((r) => {
           if (!r.ok) throw new Error(`Providers HTTP ${r.status}`);
           return r.json();
         })
-        .catch((err) => {
-          console.warn("Failed to load providers list:", err);
+        .catch(() => {
           return { providers: [] };
         }),
       fetch("/api/models")
@@ -44,8 +42,7 @@ export function useAnalytics(period) {
           if (!r.ok) throw new Error(`Models HTTP ${r.status}`);
           return r.json();
         })
-        .catch((err) => {
-          console.warn("Failed to load models list:", err);
+        .catch(() => {
           return { models: [] };
         }),
     ])
@@ -115,7 +112,7 @@ export function useAnalytics(period) {
       }
       return a.value.localeCompare(b.value);
     });
-  }, [knownProviders, data?.byProvider]);
+  }, [knownProviders, data]);
 
   // Model Combobox options
   const modelOptions = useMemo(() => {
@@ -159,7 +156,7 @@ export function useAnalytics(period) {
       }
       return a.value.localeCompare(b.value);
     });
-  }, [knownModels, data?.models, provider]);
+  }, [knownModels, data, provider]);
 
   // Filter handlers with smart sync
   const handleProviderChange = useCallback(
@@ -196,6 +193,33 @@ export function useAnalytics(period) {
     [provider, knownModels, data?.models],
   );
 
+  // Query signature: any change starts a new fetch cycle.
+  // Reset happens as a render-phase update (prev-render pattern), so the
+  // fetch effect below never calls setState synchronously.
+  const querySignature = JSON.stringify([
+    period,
+    provider,
+    model,
+    errorCategory,
+    timeBucket,
+    refresh,
+    hasFilterError,
+    providerValidation.error,
+    modelValidation.error,
+  ]);
+  const [lastSignature, setLastSignature] = useState(querySignature);
+  if (lastSignature !== querySignature) {
+    setLastSignature(querySignature);
+    setData(null);
+    setError("");
+    setLoading(!hasFilterError);
+  }
+
+  // Validation error derived during render — no effect setState needed.
+  const filterError = hasFilterError
+    ? providerValidation.error || modelValidation.error || "Invalid filter"
+    : "";
+
   // Periodic auto-refresh
   useEffect(() => {
     if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
@@ -205,30 +229,26 @@ export function useAnalytics(period) {
     return () => clearInterval(timer);
   }, [autoRefreshInterval]);
 
-  // Main data fetching
+  // Main data fetching (setState only in async callbacks)
   useEffect(() => {
-    if (hasFilterError) {
-      setError(providerValidation.error || modelValidation.error || "Invalid filter");
-      setLoading(false);
-      return;
-    }
+    if (hasFilterError) return;
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setError("");
-    setData(null);
     fetchAnalyticsWithComparison(
       { period, provider, model, errorCategory, timeBucket },
       controller.signal,
     )
       .then((value) => {
-        if (!controller.signal.aborted) setData(value);
+        if (!controller.signal.aborted) {
+          setData(value);
+          setError("");
+          setLoading(false);
+        }
       })
       .catch((err) => {
-        if (!controller.signal.aborted) setError(err.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setError(err.message);
+          setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [
@@ -266,7 +286,7 @@ export function useAnalytics(period) {
     errorCategory, setErrorCategory,
     autoRefreshInterval, setAutoRefreshInterval,
     timeBucket, setTimeBucket,
-    data, error, loading, loadingOptions,
+    data, error: filterError || error, loading: hasFilterError ? false : loading, loadingOptions,
     providerValidation, modelValidation,
     providerOptions, modelOptions,
     hasActiveFilters,
