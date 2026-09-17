@@ -181,7 +181,7 @@ export default function ConnectionsSection(d) {
     oneByOneRunning, oneByOneStopping, oneByOneSummary, oneByOneCurrentConnectionId, oneByOneResults,
     handleBulkResetStatus, handleRunOneByOneTest, handleStopOneByOneTest,
     handleRoundRobinToggle, handleStickyLimitChange, providerStickyLimit,
-    handleBulkToggleActive, handleBulkDelete, handleDelete, handleSwapPriority,
+    handleBulkToggleActive, handleBulkDelete, handleDelete, handleResetConnectionStatus, handleSwapPriority,
     handleUpdateConnectionStatus, handleAutoPingConnection, autoPing,
     handleUnlockModel, setSelectedConnection, setShowEditModal,
     handleApplyOneToOne, handleApplyRotationStrategy, handleApplySinglePool,
