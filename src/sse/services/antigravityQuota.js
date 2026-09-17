@@ -7,8 +7,19 @@
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { getAntigravityUsage } from "open-sse/services/usage/google.js";
 import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
-import { publishEvent, setModelCooldown, clearModelCooldown } from "@/lib/cache/client.js";
+import { publishEvent, setModelCooldown, clearModelCooldown, setAccountCooldown } from "@/lib/cache/client.js";
+import { isRefreshBlockedMarker } from "open-sse/services/accountFallback.js";
+import * as localDb from "@/lib/localDb";
 import * as log from "../utils/logger.js";
+
+function getLocalDbFn(name) {
+  try {
+    const fn = localDb[name];
+    return typeof fn === "function" ? fn : null;
+  } catch {
+    return null;
+  }
+}
 
 // In-memory cache: connectionId → { [modelId]: { remainingPercentage, resetAt } }
 const quotaCache = new Map();
@@ -187,6 +198,61 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       provider: "antigravity",
       quotas: finalQuotas,
     }).catch(() => {});
+
+    // Self-healing: if upstream reports quota is available (>0%), unmark exhausted
+    // and clear expired/restored locks in PostgreSQL and speed-layer cache.
+    if (!isAntigravityQuotaMapExhausted(finalQuotas)) {
+      try {
+        const getConn = getLocalDbFn("getProviderConnectionById");
+        const updateConn = getLocalDbFn("updateProviderConnection");
+        if (getConn && updateConn) {
+          const conn = await getConn(connectionId).catch(() => null);
+          const refreshBlocked = isRefreshBlockedMarker(conn?.providerSpecificData?.refreshBlocked);
+          const isFatal = typeof conn?.lastError === "string"
+            && /\b(account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)\b/i.test(conn.lastError);
+          if (conn && conn.isActive !== false && conn.testStatus !== "disabled" && !refreshBlocked && !isFatal) {
+            const hasExhaustedLock = conn.testStatus === "exhausted"
+              || (conn.lockedAllUntil && new Date(conn.lockedAllUntil).getTime() > now);
+            const modelUpdates = {};
+            const jsonLocks = { ...(conn.modelLocks || {}) };
+            let modelLocksChanged = false;
+
+            for (const [m, q] of Object.entries(finalQuotas)) {
+              if (q && q.remainingPercentage > 0) {
+                if (conn[`modelLock_${m}`]) {
+                  modelUpdates[`modelLock_${m}`] = null;
+                }
+                if (jsonLocks[m]) {
+                  delete jsonLocks[m];
+                  modelLocksChanged = true;
+                }
+                clearModelCooldown(connectionId, m).catch(() => {});
+              }
+            }
+
+            if (hasExhaustedLock || modelLocksChanged || Object.keys(modelUpdates).length > 0) {
+              const updates = {
+                ...modelUpdates,
+                ...(hasExhaustedLock ? {
+                  testStatus: "active",
+                  lockedAllUntil: null,
+                  modelLock___all: null,
+                  rateLimitedUntil: null,
+                  lastError: null,
+                  errorCode: null,
+                } : {}),
+                ...(modelLocksChanged ? { modelLocks: jsonLocks } : {}),
+              };
+              await updateConn(connectionId, updates);
+              if (hasExhaustedLock) setAccountCooldown(connectionId, 0).catch(() => {});
+              log.info("AG_QUOTA", `${connectionId.slice(0, 8)} | quota restored upstream — auto-cleared locks & activated connection`);
+            }
+          }
+        }
+      } catch (err) {
+        log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | auto-heal on quota restore failed: ${err.message}`);
+      }
+    }
 
     return finalQuotas;
   } catch (e) {
