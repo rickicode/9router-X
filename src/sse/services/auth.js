@@ -4,7 +4,7 @@ import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/con
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, isRefreshBlockedMarker, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS, DEAD_CIRCUIT_THRESHOLD, DEAD_CIRCUIT_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
-import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted } from "./antigravityQuota.js";
+import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted, refreshAntigravityQuota } from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
@@ -128,6 +128,12 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
   const blocked = breakdown.accountExhausted + breakdown.modelExhausted
     + breakdown.unavailable + breakdown.disabled + breakdown.coolingDown;
   if (blocked === 0) return null;
+
+  // Fleet-health signal: half or more of the fleet blocked → loud WARN so
+  // monitoring catches fleet-wide exhaustion/disables without dashboard patrol.
+  if (connections.length >= 3 && blocked / connections.length >= 0.5) {
+    log.warn("FLEET", `${provider} | ${blocked}/${connections.length} accounts blocked for ${model || "any"} (accountExhausted=${breakdown.accountExhausted}, modelExhausted=${breakdown.modelExhausted}, unavailable=${breakdown.unavailable}, disabled=${breakdown.disabled})`);
+  }
 
   const allAccountExhausted = breakdown.accountExhausted === connections.length;
   const onlyModelExhausted = breakdown.modelExhausted > 0
@@ -532,6 +538,28 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     });
 
     if (availableConnections.length === 0) {
+      // Deadlock breaker: snapshot-exhausted accounts are never selected, so
+      // they never live-refresh (refresh otherwise happens only on the
+      // 409/429 error path) and top-ups stay invisible until a lock lapses or
+      // an admin resets. On a fully-blocked Antigravity selection, kick a
+      // bounded background refresh for snapshot-exhausted candidates so the
+      // NEXT request (seconds later) sees fresh quota. refreshAntigravityQuota
+      // already throttles (30s/conn) and dedups inflight refreshes; this call
+      // never awaits — fail-open, zero added latency on this failed selection.
+      if (isAntigravity && model) {
+        try {
+          const quotaCache = getAntigravityQuotaCache();
+          const reviveRows = connections
+            .filter((c) => c?.id && isAntigravityQuotaMapExhausted(quotaCache.get(c.id)))
+            .slice(0, 5);
+          for (const row of reviveRows) {
+            refreshAntigravityQuota(row.id, row.accessToken, row.providerSpecificData).catch(() => {});
+          }
+          if (reviveRows.length > 0) {
+            log.debug("AG_QUOTA", `${providerId} | fully blocked for ${model} — background revive refresh for ${reviveRows.length} snapshot-exhausted account(s)`);
+          }
+        } catch {}
+      }
       // A cached connection list may be stale. Re-read all rows before
       // classifying the failure so cache cannot hide exhausted/disabled state.
       const stateConnections = await getProviderConnections({ provider: providerId, limit: 500 });
@@ -1109,7 +1137,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle || isClineFreeThrottle
         ? (cooldownMs || 0)
         : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
-    isExhausted = lockAll;
+    // Exhausted means credits/quota are actually gone — never a bare
+    // throttle. A 429 without quota/credit words (pure rate limit, daily cap
+    // without credit wording) rides a timed lock as "unavailable" instead, so
+    // it recovers and never pollutes the exhausted fleet signal.
+    const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
+    isExhausted = lockAll && (isCreditQuota429 || isCodebuddyCreditExhausted);
   }
 
   // Antigravity quota snapshots cover the whole account. Once every tracked
@@ -1253,11 +1286,18 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // A quota snapshot can prove account-wide exhaustion even when the current
   // error names only one model. Re-read the hydrated snapshot after handling
   // the upstream signal so the durable connection status reflects reality.
+  // But the snapshot alone never convicts: the CURRENT error must be
+  // quota-family (429/409/402 or quota/credit wording). A transient 5xx or a
+  // request-level 4xx on an account with a stale snapshot is a short model
+  // lock, never account exhaustion — exhausted means credits/quota are
+  // actually gone.
   const readSnapshot = getLocalDbFn("getUsageSnapshotByConnectionId");
   const durableSnapshot = providerId === "antigravity" && readSnapshot
     ? await readSnapshot(connectionId).catch(() => null)
     : null;
-  if (providerId === "antigravity" && (isAntigravityAccountQuotaExhausted(connectionId) || isAntigravityQuotaMapExhausted(durableSnapshot?.quotas))) {
+  const isQuotaFamilyError = status === 429 || status === 409 || status === 402
+    || /quota|exhaust|deplet|insufficient|credit|balance|billing|payment|capacity|rate.?limit|too many requests|try again/i.test(lowerErr);
+  if (providerId === "antigravity" && isQuotaFamilyError && (isAntigravityAccountQuotaExhausted(connectionId) || isAntigravityQuotaMapExhausted(durableSnapshot?.quotas))) {
     lockAll = true;
     isExhausted = true;
     shouldFallback = true;

@@ -142,11 +142,15 @@ describe("GitHub monthly usage exhaustion", () => {
         "gpt-5.6",
       );
 
+      // "Usage limit reached" names no credit/quota depletion — the account
+      // still locks account-wide with a timed cooldown, but the durable
+      // verdict is "unavailable" (recoverable), never "exhausted".
+      // Exhausted is reserved for credits/quota actually gone.
       expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
         "codex-1",
         expect.objectContaining({
           modelLock___all: expect.any(String),
-          testStatus: "exhausted",
+          testStatus: "unavailable",
         }),
       );
       expect(dbMocks.updateProviderConnection.mock.calls[0][1])
