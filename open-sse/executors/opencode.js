@@ -208,6 +208,17 @@ export class OpenCodeExecutor extends BaseExecutor {
         poolScoped: { reason: "free-tier-gate" },
       };
     }
+    // Bare 429 ("Rate limit exceeded. Please try again later."): this provider
+    // is keyless, so quota is per-egress, not per-account. A 429 only condemns
+    // the egress that served it — rotate to another pool (fresh IP/quota)
+    // instead of failing fast or locking anything.
+    if (status === 429) {
+      return {
+        status,
+        message: text.slice(0, 300) || `OpenCode free quota spent on this egress (${status})`,
+        poolScoped: { reason: "egress-rate-limit" },
+      };
+    }
     return null; // fall through to default parsing
   }
 }

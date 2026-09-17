@@ -4,6 +4,22 @@
 import { describe, it, expect } from "vitest";
 import { OpenCodeExecutor, OPENCODE_SESSION_RE, OPENCODE_REQUEST_RE } from "../../open-sse/executors/opencode.js";
 
+describe("opencode parseError pool scoping (keyless => quota is per-egress)", () => {
+  const ex = new OpenCodeExecutor();
+  it("bare 429 is pool-scoped (rotate egress, never lock)", () => {
+    const p = ex.parseError({ status: 429 }, "Rate limit exceeded. Please try again later.");
+    expect(p?.poolScoped?.reason).toBe("egress-rate-limit");
+  });
+  it("explicit egress markers keep their specific reasons", () => {
+    expect(ex.parseError({ status: 429 }, "too many requests from this ip")?.poolScoped?.reason).toBe("ip-limit");
+    expect(ex.parseError({ status: 403 }, "free tier can only be used from within OpenCode")?.poolScoped?.reason).toBe("free-tier-gate");
+  });
+  it("non-429 passes through to default parsing", () => {
+    expect(ex.parseError({ status: 200 }, "ok")).toBeNull();
+    expect(ex.parseError({ status: 500 }, "boom")).toBeNull();
+  });
+});
+
 const creds = (rawHeaders = {}) => ({ connectionId: "noauth", rawHeaders });
 
 describe("opencode client identity masquerade", () => {
