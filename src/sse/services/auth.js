@@ -299,6 +299,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
           },
           `noauth-${providerId}`
         );
+        if (resolvedProxy?.proxyPoolIds) {
+          poolIds = resolvedProxy.proxyPoolIds;
+        }
       } else if (strategy !== "none") {
         const allPools = await getProxyPools({ isActive: true });
         poolIds = allPools.filter(p => p.proxyUrl).map(p => p.id);
@@ -337,7 +340,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
           // Let chatCore's pool-scoped retry rotate across the same candidate
           // pool set (excluding the failed pool) instead of reusing it — this
           // is what makes per-IP limit retries work for no-auth providers.
-          proxyPoolIds: poolIds.length > 0 ? poolIds : undefined,
+          proxyPoolIds: poolIds.length > 0 ? poolIds : (resolvedProxy.proxyPoolIds?.length > 0 ? resolvedProxy.proxyPoolIds : undefined),
           proxyRotationStrategy: strategy,
         },
       };
