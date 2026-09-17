@@ -105,6 +105,7 @@ export default function ProxyPoolsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [groupFilter, setGroupFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [healthChecking, setHealthChecking] = useState(false);
@@ -378,8 +379,21 @@ export default function ProxyPoolsPage() {
     }
   };
 
+  const poolCustomGroupsMap = useMemo(() => {
+    const map = new Map();
+    for (const grp of proxyGroups.customGroups || []) {
+      for (const poolId of grp.poolIds || []) {
+        const list = map.get(poolId) || [];
+        list.push(grp);
+        map.set(poolId, list);
+      }
+    }
+    return map;
+  }, [proxyGroups.customGroups]);
+
   const filteredProxyPools = useMemo(() => {
     return proxyPools.filter((pool) => {
+      // Type filter
       if (typeFilter === "http") {
         if (pool.type && pool.type !== "http") return false;
       } else if (typeFilter === "cloudflare") {
@@ -388,22 +402,44 @@ export default function ProxyPoolsPage() {
         if (pool.type !== "cloudflare" && pool.type !== "vercel" && pool.type !== "deno") return false;
       }
 
+      // Proxy Group filter
+      if (groupFilter !== "all") {
+        if (groupFilter === "ungrouped") {
+          const inAnyCustom = poolCustomGroupsMap.has(pool.id);
+          const hasGroupStr = Boolean(pool.group && pool.group.trim());
+          if (inAnyCustom || hasGroupStr) return false;
+        } else if (groupFilter.startsWith("custom:")) {
+          const groupId = groupFilter.slice(7);
+          const grp = (proxyGroups.customGroups || []).find((g) => g.id === groupId);
+          const inPoolIds = Array.isArray(grp?.poolIds) && grp.poolIds.includes(pool.id);
+          const matchName = grp && pool.group && pool.group.toLowerCase() === grp.name.toLowerCase();
+          if (!inPoolIds && !matchName) return false;
+        } else if (groupFilter.startsWith("default:")) {
+          const defType = groupFilter.slice(8);
+          if (pool.type !== defType) return false;
+        }
+      }
+
+      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = (pool.name || "").toLowerCase().includes(q);
         const matchUrl = (pool.proxyUrl || "").toLowerCase().includes(q);
         const matchNoProxy = (pool.noProxy || "").toLowerCase().includes(q);
         const matchGroup = (pool.group || "").toLowerCase().includes(q);
-        return matchName || matchUrl || matchNoProxy || matchGroup;
+        const matchCustomGroup = (poolCustomGroupsMap.get(pool.id) || []).some((g) =>
+          g.name.toLowerCase().includes(q)
+        );
+        return matchName || matchUrl || matchNoProxy || matchGroup || matchCustomGroup;
       }
 
       return true;
     });
-  }, [proxyPools, typeFilter, searchQuery]);
+  }, [proxyPools, typeFilter, groupFilter, searchQuery, poolCustomGroupsMap, proxyGroups.customGroups]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, pageSize]);
+  }, [searchQuery, typeFilter, groupFilter, pageSize]);
 
   const totalPages = Math.max(
     1,
@@ -1266,7 +1302,7 @@ export default function ProxyPoolsPage() {
 
           {/* Search & Type Filter */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[200px] flex-1 sm:w-64 sm:flex-none">
+            <div className="relative min-w-[180px] flex-1 sm:w-56 sm:flex-none">
               <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
                 search
               </span>
@@ -1283,6 +1319,47 @@ export default function ProxyPoolsPage() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
                 >
                   <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Proxy Group Filter */}
+            <div className="flex items-center gap-1">
+              <select
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className="rounded-md border border-border bg-background py-1.5 px-2.5 text-xs text-text-main focus:border-primary focus:outline-none font-medium"
+                title="Filter by Proxy Group"
+              >
+                <option value="all">All Groups</option>
+                <option value="ungrouped">Ungrouped (No Group)</option>
+                {(proxyGroups.customGroups || []).length > 0 && (
+                  <optgroup label="Custom Groups">
+                    {(proxyGroups.customGroups || []).map((g) => (
+                      <option key={g.id} value={`custom:${g.id}`}>
+                        {g.name} ({g.poolCount || g.poolIds?.length || 0})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {(proxyGroups.defaultGroups || []).length > 0 && (
+                  <optgroup label="Default Groups">
+                    {(proxyGroups.defaultGroups || []).map((g) => (
+                      <option key={g.id} value={`default:${g.type}`}>
+                        {g.name} ({g.poolCount || 0})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              {groupFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setGroupFilter("all")}
+                  className="p-1 rounded text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5"
+                  title="Clear group filter"
+                >
+                  <span className="material-symbols-outlined text-[16px]">cancel</span>
                 </button>
               )}
             </div>
@@ -1357,9 +1434,9 @@ export default function ProxyPoolsPage() {
           <div className="text-center py-10">
             <p className="text-text-main font-medium mb-1">No proxies match filter</p>
             <p className="text-sm text-text-muted mb-4">
-              Try adjusting your search query or type filter.
+              Try adjusting your search query, group, or type filter.
             </p>
-            <Button variant="secondary" size="sm" onClick={() => { setSearchQuery(""); setTypeFilter("all"); }}>
+            <Button variant="secondary" size="sm" onClick={() => { setSearchQuery(""); setTypeFilter("all"); setGroupFilter("all"); }}>
               Reset Filter
             </Button>
           </div>
@@ -1390,11 +1467,38 @@ export default function ProxyPoolsPage() {
                       {pool.type === "cloudflare" && (
                         <Badge variant="default" size="sm">cloudflare relay</Badge>
                       )}
-                      {pool.group && (
-                        <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
-                          grp: {pool.group}
-                        </span>
-                      )}
+                      {(() => {
+                        const customList = poolCustomGroupsMap.get(pool.id) || [];
+                        const seenNames = new Set();
+                        const groupsToShow = [];
+                        for (const g of customList) {
+                          if (!seenNames.has(g.name)) {
+                            seenNames.add(g.name);
+                            groupsToShow.push({ name: g.name, filterId: `custom:${g.id}` });
+                          }
+                        }
+                        if (pool.group && !seenNames.has(pool.group)) {
+                          groupsToShow.push({ name: pool.group, filterId: null });
+                        }
+                        if (groupsToShow.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {groupsToShow.map((g, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => g.filterId && setGroupFilter(g.filterId)}
+                                className={`inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400 ${
+                                  g.filterId ? "hover:bg-purple-500/20 cursor-pointer" : ""
+                                }`}
+                                title={g.filterId ? `Filter by group: ${g.name}` : undefined}
+                              >
+                                grp: {g.name}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
                       <Badge variant="default" size="sm">
                         {pool.boundConnectionCount || 0} bound
                       </Badge>
@@ -1581,14 +1685,28 @@ export default function ProxyPoolsPage() {
                           {grp.activeCount} / {grp.poolCount}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => openEditGroupModal(grp)}
-                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">tune</span>
-                        <span>Configure</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGroupFilter(`default:${grp.type}`);
+                            setActiveTab("pools");
+                          }}
+                          className="text-xs text-text-muted hover:text-text-main flex items-center gap-1 font-medium"
+                          title="View all pools in this group"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">visibility</span>
+                          <span>View ({grp.poolCount})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditGroupModal(grp)}
+                          className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">tune</span>
+                          <span>Configure</span>
+                        </button>
+                      </div>
                     </div>
                   </Card>
                 );
@@ -1654,15 +1772,34 @@ export default function ProxyPoolsPage() {
                               </span>
                             ))}
                             {poolNames.length > 8 && (
-                              <span className="inline-flex items-center rounded-md bg-black/5 dark:bg-white/5 px-2 py-0.5 text-[11px] text-text-muted">
-                                +{poolNames.length - 8} more
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGroupFilter(`custom:${grp.id}`);
+                                  setActiveTab("pools");
+                                }}
+                                className="inline-flex items-center rounded-md bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[11px] text-primary font-medium cursor-pointer"
+                              >
+                                +{poolNames.length - 8} more (view all)
+                              </button>
                             )}
                           </div>
                         )}
                       </div>
 
                       <div className="flex items-center gap-1 self-end sm:self-center">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          icon="visibility"
+                          onClick={() => {
+                            setGroupFilter(`custom:${grp.id}`);
+                            setActiveTab("pools");
+                          }}
+                          title={`View proxies in ${grp.name}`}
+                        >
+                          View Proxies ({grp.poolCount})
+                        </Button>
                         <Button size="sm" variant="ghost" icon="edit" onClick={() => openEditGroupModal(grp)}>
                           Edit
                         </Button>
