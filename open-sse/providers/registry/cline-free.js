@@ -68,13 +68,7 @@ const clineFree = {
     { id: "inclusionai/ling-3.0-flash-fin:free", name: "Ling 3.0 Flash Fin (Free)" },
     { id: "inclusionai/ling-3.0-flash-sante:free", name: "Ling 3.0 Flash Santé (Free)" },
 
-    // Muse & Free Aggregator
-    { id: "meta/muse-spark-1.3-contributor", name: "Muse Spark 1.3 Contributor" },
-    { id: "meta/muse-spark-1.3", name: "Muse Spark 1.3" },
-    { id: "meta/muse-spark-1.2-contributor", name: "Muse Spark 1.2 Contributor" },
-    { id: "meta/muse-spark-1.2", name: "Muse Spark 1.2" },
-    { id: "meta/muse-spark-1.1", name: "Muse Spark 1.1" },
-    { id: "meta/muse-glimmer-30b", name: "Muse Glimmer 30B" },
+    // Free Aggregator
     { id: "openrouter/free", name: "OpenRouter Free" },
   ],
   passthroughModels: true,
