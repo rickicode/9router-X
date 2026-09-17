@@ -70,6 +70,11 @@ describe("OpenCode Free endpoint routing", () => {
     expect(executor.buildUrl("hy3-free")).toBe("https://opencode.ai/zen/v1/chat/completions");
   });
 
+  it("routes union-alpha to /messages (Claude transport, like the genuine CLI)", () => {
+    const executor = new OpenCodeExecutor();
+    expect(executor.buildUrl("union-alpha")).toBe("https://opencode.ai/zen/v1/messages");
+  });
+
   it("normalizes Chat token/thinking fields only for the Responses model", () => {
     const executor = new OpenCodeExecutor();
     const muse = { max_tokens: 4096, reasoning_effort: "high" };

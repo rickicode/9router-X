@@ -24,6 +24,12 @@ const RESPONSES_MODELS = new Set([
   "muse-spark-1.2-contributor-free",
   "muse-spark-1.3-contributor-free",
 ]);
+// Models served by /zen/v1/messages (Claude transport). union-alpha 500s on
+// /chat/completions AND /responses — the genuine CLI uses /messages for it
+// (packet capture, 2026-09-17). Mirrors the registry targetFormat:"claude".
+const CLAUDE_MODELS = new Set([
+  "union-alpha",
+]);
 
 const OPENCODE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 // Real client Identifier shape: 12 lowercase-hex (time-ordered) + 14 mixed-case
@@ -59,6 +65,10 @@ function baseModelId(model) {
 function isResponsesModel(model) {
   const base = baseModelId(model);
   return RESPONSES_MODELS.has(base) || isMuseSparkModel(base);
+}
+
+function isClaudeModel(model) {
+  return CLAUDE_MODELS.has(baseModelId(model));
 }
 
 function resolveOpencodeSession(body, credentials) {
@@ -148,9 +158,9 @@ export class OpenCodeExecutor extends BaseExecutor {
 
   buildUrl(model) {
     const base = this.config.baseUrl;
-    return isResponsesModel(model)
-      ? `${base}/zen/v1/responses`
-      : `${base}/zen/v1/chat/completions`;
+    if (isResponsesModel(model)) return `${base}/zen/v1/responses`;
+    if (isClaudeModel(model)) return `${base}/zen/v1/messages`;
+    return `${base}/zen/v1/chat/completions`;
   }
 
   buildHeaders(credentials, stream = true) {
