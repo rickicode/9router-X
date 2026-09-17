@@ -24,24 +24,26 @@ export default function RealtimeRequestsCard({
   const handleOpenErrorModal = (req) => {
     setSelectedError(req);
     setFetchedError(req?.error || null);
+    setErrorDetailsLoading(!req?.error);
   };
 
   const handleCloseErrorModal = () => {
     setSelectedError(null);
     setFetchedError(null);
+    setErrorDetailsLoading(false);
   };
 
-  // Render-phase update: set loading synchronously before effect runs fetch
-  const errorFetchKey = selectedError ? `${selectedError.model}-${selectedError.provider}-${selectedError.error}` : "";
-  const [lastErrorFetchKey, setLastErrorFetchKey] = useState(errorFetchKey);
-  if (lastErrorFetchKey !== errorFetchKey && errorFetchKey) {
-    setLastErrorFetchKey(errorFetchKey);
-    setErrorDetailsLoading(true);
-  }
-
   useEffect(() => {
-    if (!selectedError || selectedError.error) return;
+    if (!selectedError) {
+      setErrorDetailsLoading(false);
+      return;
+    }
+    if (selectedError.error) {
+      setErrorDetailsLoading(false);
+      return;
+    }
     let active = true;
+    setErrorDetailsLoading(true);
     const modelParam = encodeURIComponent(selectedError.model || "");
     const providerParam = encodeURIComponent(selectedError.provider || "");
     fetch(`/api/usage/request-details?model=${modelParam}&provider=${providerParam}&pageSize=5`)
@@ -62,7 +64,7 @@ export default function RealtimeRequestsCard({
               account: prev.account && prev.account !== "Direct" ? prev.account : (match.account || match.connectionId)
             } : prev));
           }
-        } else if (!selectedError.error) {
+        } else {
           setFetchedError({ message: "No error details available for this request" });
         }
       })

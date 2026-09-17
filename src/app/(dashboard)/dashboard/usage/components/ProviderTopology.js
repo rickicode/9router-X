@@ -529,7 +529,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length, fitOpts]);
 
   return (
-    <>
+    <div className="flex min-w-0 flex-col">
     <div ref={containerRef} role="img" aria-label={statusSummary} data-testid="topology-container" className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px] overflow-hidden">
       {visibleProviders.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
@@ -624,7 +624,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
         </tbody>
       </table>
     )}
-    </>
+    </div>
   );
 }
 
