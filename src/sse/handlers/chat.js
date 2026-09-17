@@ -834,6 +834,27 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     if (shouldFallback || quotaFailure) {
       excludeConnectionIds.add(credentials.connectionId);
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
+      // noAuth provider: only one synthesized "Public" account exists — if it
+      // just failed there is nothing left to rotate to. Return immediately with
+      // the upstream status code instead of burning the rotation budget on
+      // retries that will always hit the same egress.
+      if (credentials.connectionId === "noauth") {
+        const noAuthMsg = result.error || "No-auth provider unavailable from this egress";
+        log.warn("FALLBACK", `noAuth provider ${provider} — no more accounts, failing fast`);
+        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: "noauth", account: "Public", apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: effectiveStatus || HTTP_STATUS.FORBIDDEN, isStream: body?.stream, error: noAuthMsg }).catch(() => {});
+        if (!isTestRequest) saveRequestDetail({
+          provider, model, connectionId: "noauth",
+          account: "Public",
+          latency: { ttft: 0, total: 0 },
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          request: body,
+          response: { error: noAuthMsg, status: effectiveStatus || HTTP_STATUS.FORBIDDEN, thinking: null },
+          status: "error",
+          error: noAuthMsg,
+          errorCode: effectiveStatus || HTTP_STATUS.FORBIDDEN,
+        }).catch(() => {});
+        return errorResponse(effectiveStatus || HTTP_STATUS.FORBIDDEN, `[${provider}/${model}] ${noAuthMsg}`);
+      }
       // Consecutive-failure tracking for combo failover: after
       // MODEL_FAILOVER_THRESHOLD straight failures this member is deprioritized
       // on subsequent requests. Only fallback-class errors count — a 400-class

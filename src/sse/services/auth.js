@@ -269,6 +269,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
     // Inject a virtual connection for no-auth free providers (with optional proxy pool or proxy group from settings)
     if (FREE_PROVIDERS[providerId]?.noAuth) {
+      // If the synthesized noAuth account was already excluded (failed attempt),
+      // there is nothing else to try — signal all-rate-limited so chat.js
+      // returns the error immediately instead of looping 5x on the same egress.
+      if (excludeSet.has("noauth")) {
+        return { allRateLimited: true, lastError: "No-auth provider already attempted from this egress" };
+      }
       const settings = await getSettings();
       const override = (settings.providerStrategies || {})[providerId] || {};
       const strategy = override.rotateStrategy || "none";
@@ -304,6 +310,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
       return {
         id: "noauth",
+        connectionId: "noauth",
         connectionName: "Public",
         isActive: true,
         accessToken: "public",
