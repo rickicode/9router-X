@@ -995,7 +995,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     if (isPooledQuotaProvider && !isFrequencyLimitReset) lockAll = true;
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted } = checkFallbackError(status, errorText, backoffLevel));
-    if (isPooledQuotaProvider && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
+    if (isPooledQuotaProvider && providerId !== "cline-free" && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
     // UniKey 预扣费额度失败: saldo di pesan. <100 → lock 30d, >=100 → cooldown 1d (bisa top-up / pakai model murah)
     if (providerId === "unikey" && /预扣费额度失败|insufficient_user_quota/i.test(String(errorText || ""))) {
       const m = String(errorText).match(/剩余额度:\s*Credits\s*([\d.]+)/i);
@@ -1055,6 +1055,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       shouldFallback = true;
       cooldownMs = 2 * 60 * 1000;
     }
+    // Cline / Cline-Free transient throttle: 429 "too many requests" / "rate limit exceeded"
+    // on a free model is a transient per-model cap (upstream pool, e.g. Laguna / Gemma / GLM).
+    // 2-minute model cooldown only — never account-wide, never exhausted, so other free
+    // models keep serving. Only explicit "daily free limit" locks the account.
+    const isClineFreeThrottle = (providerId === "cline-free" || providerId === "cline")
+      && /too many requests|rate.?limit exceeded|rate limited|usage exceeds frequency limit/i.test(lowerErrorText)
+      && !/daily free limit|daily.*limit|free.*limit reached/i.test(lowerErrorText);
+    if (isClineFreeThrottle) {
+      lockAll = false;
+      disableAccount = false;
+      isExhausted = false;
+      shouldFallback = true;
+      cooldownMs = 2 * 60 * 1000;
+    }
     // CodeBuddy/Workbuddy 14018 "Credits exhausted" = spending pool empty for
     // ALL models on this account. Account exhausted, retry in 7 days.
     // (Lock stays account-wide so other models don't burn rotation budget.)
@@ -1068,7 +1082,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
     }
@@ -1085,7 +1099,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // isDailyCap429 keeps max() semantics (larger of rule/default).
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
       ? Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS)
-      : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle
+      : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle || isClineFreeThrottle
         ? (cooldownMs || 0)
         : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
     isExhausted = lockAll;
@@ -1151,6 +1165,21 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
       ? resetsAtMs - Date.now()
       : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  }
+
+  // Cline Free: "credits exhausted" / "insufficient credits" / "out of credits" means the
+  // requested model requires paid credits (the account has no paid balance).
+  // Free models on cline-free (glm-5.3-flash, gemma, nemotron, etc.) do NOT consume credits
+  // and must stay active. Lock ONLY this model for 30 days, never the whole account!
+  // Account-wide exhaustion on cline-free is triggered strictly by "daily free limit".
+  const isClineFreePaidModel = providerId === "cline-free"
+    && (status === 402 || /credits exhausted|insufficient credits|out of credits|insufficient balance/i.test(lowerErr));
+  if (isClineFreePaidModel) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    cooldownMs = 30 * 24 * 60 * 60 * 1000;
   }
 
   const isQuotaExhausted = /resource_exhausted|quota_exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);

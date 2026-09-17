@@ -295,3 +295,37 @@ describe("cline /api/v1/models aggregation (resolveClineModels vs resolveClinepa
     expect(typeof result.models[0].name).toBe("string");
   });
 });
+
+describe("cline & cline-free registry models ordering and cleanup", () => {
+  it("cline-free contains only working free models and excludes dead mini model", async () => {
+    const clineFree = (await import("../../open-sse/providers/registry/cline-free.js")).default;
+    const modelIds = clineFree.models.map((m) => m.id);
+
+    // Dead / timeout model removed
+    expect(modelIds).not.toContain("nex-agi/nex-n2.5-mini:free");
+
+    // New working free model added
+    expect(modelIds).toContain("z-ai/glm-5.2:free");
+
+    // Top free models placed first
+    expect(modelIds[0]).toBe("z-ai/glm-5.2:free");
+    expect(modelIds[1]).toBe("z-ai/glm-5.3-flash");
+    expect(modelIds).toContain("deepseek/deepseek-v4.1-flash");
+    expect(modelIds).toContain("google/gemma-4-26b-a4b-it:free");
+  });
+
+  it("cline provider lists free models first before paid flagship models", async () => {
+    const cline = (await import("../../open-sse/providers/registry/cline.js")).default;
+    const modelIds = cline.models.map((m) => m.id);
+
+    // Free models at the top
+    expect(modelIds[0]).toBe("z-ai/glm-5.2:free");
+    expect(modelIds[1]).toBe("z-ai/glm-5.3-flash");
+
+    // Flagship paid models are positioned after free models
+    const freeIndex = modelIds.indexOf("z-ai/glm-5.2:free");
+    const claudeIndex = modelIds.indexOf("anthropic/claude-opus-4.7");
+    expect(claudeIndex).toBeGreaterThan(freeIndex);
+    expect(cline.passthroughModels).toBe(true);
+  });
+});
