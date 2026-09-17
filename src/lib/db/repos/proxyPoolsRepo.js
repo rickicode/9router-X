@@ -272,3 +272,35 @@ export async function deleteProxyPool(id) {
   invalidateProxyPoolCache(id);
   return rowToPool(row);
 }
+
+export async function deleteDisabledProxyPools() {
+  const db = await getAdapter();
+  const rows = await db.transaction(async (tx) => {
+    const candidates = await tx.all(
+      `SELECT p.id, p.name FROM proxy_pools p
+       WHERE p.is_active = false
+         AND NOT EXISTS (
+           SELECT 1 FROM provider_connections c
+           WHERE c.data->'providerSpecificData'->>'proxyPoolId' = p.id
+         )`
+    );
+    if (!candidates || candidates.length === 0) return [];
+    const ids = candidates.map((c) => c.id);
+    await tx.run(`DELETE FROM proxy_pools WHERE id = ANY($1::text[])`, [ids]);
+    try {
+      await tx.run(
+        `UPDATE proxy_groups 
+         SET pool_ids = COALESCE((
+           SELECT jsonb_agg(elem.id)
+           FROM jsonb_array_elements_text(proxy_groups.pool_ids) elem(id)
+           WHERE elem.id != ALL($1::text[])
+         ), '[]'::jsonb)
+         WHERE pool_ids::text LIKE ANY(SELECT '%' || unnest || '%' FROM unnest($1::text[]))`,
+        [ids]
+      );
+    } catch {}
+    return candidates;
+  });
+  invalidateProxyPoolCache();
+  return rows || [];
+}

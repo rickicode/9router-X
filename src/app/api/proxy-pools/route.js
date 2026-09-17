@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProxyPool, getProxyPoolBoundCounts, getProxyPools } from "@/models";
+import { createProxyPool, getProxyPoolBoundCounts, getProxyPools, deleteDisabledProxyPools } from "@/models";
 import { getPoolGeo } from "open-sse/services/poolGeo.js";
 
 function toBoolean(value) {
@@ -79,5 +79,21 @@ export async function POST(request) {
   } catch (error) {
     console.log("Error creating proxy pool:", error);
     return NextResponse.json({ error: "Failed to create proxy pool" }, { status: 500 });
+  }
+}
+
+// DELETE /api/proxy-pools - Bulk delete operations (e.g. ?scope=disabled)
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
+    if (scope === "disabled") {
+      const deleted = await deleteDisabledProxyPools();
+      return NextResponse.json({ success: true, count: deleted.length, deleted });
+    }
+    return NextResponse.json({ error: "Invalid or missing scope parameter" }, { status: 400 });
+  } catch (error) {
+    console.log("Error deleting proxy pools:", error);
+    return NextResponse.json({ error: "Failed to delete proxy pools" }, { status: 500 });
   }
 }

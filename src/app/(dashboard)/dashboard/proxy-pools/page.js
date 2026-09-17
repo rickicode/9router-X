@@ -28,6 +28,44 @@ function normalizeFormData(data = {}) {
   };
 }
 
+function getPaginationItems(currentPage, totalPages) {
+  if (totalPages <= 1) return [];
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const items = [];
+  items.push(1);
+
+  if (currentPage > 3) {
+    items.push("ellipsis-1");
+  }
+
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  let windowStart = start;
+  let windowEnd = end;
+  if (currentPage <= 3) {
+    windowStart = 2;
+    windowEnd = 4;
+  } else if (currentPage >= totalPages - 2) {
+    windowStart = totalPages - 3;
+    windowEnd = totalPages - 1;
+  }
+
+  for (let p = windowStart; p <= windowEnd; p++) {
+    items.push(p);
+  }
+
+  if (currentPage < totalPages - 2) {
+    items.push("ellipsis-2");
+  }
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function ProxyPoolsPage() {
   const [proxyPools, setProxyPools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +105,8 @@ export default function ProxyPoolsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [healthChecking, setHealthChecking] = useState(false);
   const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -361,17 +401,74 @@ export default function ProxyPoolsPage() {
     });
   }, [proxyPools, typeFilter, searchQuery]);
 
-  const allSelected = filteredProxyPools.length > 0 && filteredProxyPools.every((p) => selectedIds.includes(p.id));
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, pageSize]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProxyPools.length / (pageSize === "all" ? filteredProxyPools.length || 1 : pageSize))
+  );
+
+  const paginatedProxyPools = useMemo(() => {
+    if (pageSize === "all") return filteredProxyPools;
+    const start = (currentPage - 1) * pageSize;
+    return filteredProxyPools.slice(start, start + pageSize);
+  }, [filteredProxyPools, currentPage, pageSize]);
+
+  const disabledCount = useMemo(
+    () => proxyPools.filter((pool) => pool.isActive === false).length,
+    [proxyPools]
+  );
+
+  const pageIds = useMemo(() => paginatedProxyPools.map((p) => p.id), [paginatedProxyPools]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+  const allFilteredSelected = filteredProxyPools.length > 0 && filteredProxyPools.every((p) => selectedIds.includes(p.id));
+
   const toggleSelect = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      const filteredSet = new Set(filteredProxyPools.map((p) => p.id));
-      setSelectedIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+
+  const toggleSelectPage = () => {
+    if (allPageSelected) {
+      const pageSet = new Set(pageIds);
+      setSelectedIds((prev) => prev.filter((id) => !pageSet.has(id)));
     } else {
-      setSelectedIds((prev) => [...new Set([...prev, ...filteredProxyPools.map((p) => p.id)])]);
+      setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
     }
   };
+
+  const selectAllFiltered = () => {
+    setSelectedIds((prev) => [...new Set([...prev, ...filteredProxyPools.map((p) => p.id)])]);
+  };
+
   const clearSelection = () => setSelectedIds([]);
+
+  const handleDeleteAllDisabled = () => {
+    if (disabledCount === 0) return;
+    setConfirmState({
+      title: "Delete All Disabled Proxies",
+      message: `Delete all ${disabledCount} disabled proxy pool(s)? Proxies bound to active connections will be preserved.`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        setBulkBusy(true);
+        try {
+          const res = await fetch("/api/proxy-pools?scope=disabled", { method: "DELETE" });
+          const data = await res.json();
+          if (res.ok) {
+            notify.success(`Deleted ${data.count} disabled proxy pool(s)`);
+            await fetchProxyPools();
+            clearSelection();
+          } else {
+            notify.error(data.error || "Failed to delete disabled proxy pools");
+          }
+        } catch (err) {
+          console.error("Error deleting disabled proxy pools:", err);
+          notify.error("Failed to delete disabled proxy pools");
+        } finally {
+          setBulkBusy(false);
+        }
+      },
+    });
+  };
 
   const bulkSetActive = async (isActive) => {
     const targets = selectedIds.length > 0 ? selectedIds : proxyPools.map((p) => p.id);
@@ -1125,22 +1222,46 @@ export default function ProxyPoolsPage() {
       <Card>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            {filteredProxyPools.length > 0 && (
+            {paginatedProxyPools.length > 0 && (
               <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
+                  checked={allPageSelected}
+                  onChange={toggleSelectPage}
                   className="size-4 rounded border-black/20 dark:border-white/20"
                 />
-                {allSelected ? "Unselect all" : "Select all"}
+                {allPageSelected ? "Unselect page" : "Select page"}
               </label>
+            )}
+            {selectedIds.length > 0 && !allFilteredSelected && filteredProxyPools.length > paginatedProxyPools.length && (
+              <button
+                type="button"
+                onClick={selectAllFiltered}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Select all {filteredProxyPools.length}
+              </button>
             )}
             <Badge variant="default">Total: {proxyPools.length}</Badge>
             {filteredProxyPools.length !== proxyPools.length && (
               <Badge variant="default">Filtered: {filteredProxyPools.length}</Badge>
             )}
             <Badge variant="success">Active: {activeCount}</Badge>
+            {disabledCount > 0 && (
+              <Badge variant="error">Disabled: {disabledCount}</Badge>
+            )}
+            {disabledCount > 0 && (
+              <Button
+                size="sm"
+                variant="danger"
+                icon="delete_sweep"
+                onClick={handleDeleteAllDisabled}
+                disabled={bulkBusy || healthChecking}
+                title="Delete all disabled proxy pools not in use"
+              >
+                Delete Disabled ({disabledCount})
+              </Button>
+            )}
           </div>
 
           {/* Search & Type Filter */}
@@ -1243,89 +1364,180 @@ export default function ProxyPoolsPage() {
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
-            {filteredProxyPools.map((pool) => (
-              <div key={pool.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(pool.id)}
-                    onChange={() => toggleSelect(pool.id)}
-                    className="mt-1 size-4 shrink-0 rounded border-black/20 dark:border-white/20"
-                  />
-                  <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="min-w-0 max-w-full truncate text-sm font-medium sm:max-w-[18rem]">{pool.name}</p>
-                    <Badge variant={getStatusVariant(pool.testStatus)} size="sm" dot>
-                      {pool.testStatus || "unknown"}
-                    </Badge>
-                    <Badge variant={pool.isActive ? "success" : "default"} size="sm">
-                      {pool.isActive ? "active" : "inactive"}
-                    </Badge>
-                    {pool.type === "vercel" && (
-                      <Badge variant="default" size="sm">vercel relay</Badge>
-                    )}
-                    {pool.type === "cloudflare" && (
-                      <Badge variant="default" size="sm">cloudflare relay</Badge>
-                    )}
-                    {pool.group && (
-                      <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
-                        grp: {pool.group}
-                      </span>
-                    )}
-                    <Badge variant="default" size="sm">
-                      {pool.boundConnectionCount || 0} bound
-                    </Badge>
+          <>
+            <div className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
+              {paginatedProxyPools.map((pool) => (
+                <div key={pool.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(pool.id)}
+                      onChange={() => toggleSelect(pool.id)}
+                      className="mt-1 size-4 shrink-0 rounded border-black/20 dark:border-white/20"
+                    />
+                    <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="min-w-0 max-w-full truncate text-sm font-medium sm:max-w-[18rem]">{pool.name}</p>
+                      <Badge variant={getStatusVariant(pool.testStatus)} size="sm" dot>
+                        {pool.testStatus || "unknown"}
+                      </Badge>
+                      <Badge variant={pool.isActive ? "success" : "default"} size="sm">
+                        {pool.isActive ? "active" : "inactive"}
+                      </Badge>
+                      {pool.type === "vercel" && (
+                        <Badge variant="default" size="sm">vercel relay</Badge>
+                      )}
+                      {pool.type === "cloudflare" && (
+                        <Badge variant="default" size="sm">cloudflare relay</Badge>
+                      )}
+                      {pool.group && (
+                        <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+                          grp: {pool.group}
+                        </span>
+                      )}
+                      <Badge variant="default" size="sm">
+                        {pool.boundConnectionCount || 0} bound
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-text-muted truncate mt-1">{pool.proxyUrl}</p>
+                    {pool.noProxy ? (
+                      <p className="text-xs text-text-muted truncate">No proxy: {pool.noProxy}</p>
+                    ) : null}
+                    <p className="text-[11px] text-text-muted mt-1">
+                      Last tested: {formatDateTime(pool.lastTestedAt)}
+                      {pool.lastError ? ` · ${pool.lastError}` : ""}
+                    </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-text-muted truncate mt-1">{pool.proxyUrl}</p>
-                  {pool.noProxy ? (
-                    <p className="text-xs text-text-muted truncate">No proxy: {pool.noProxy}</p>
-                  ) : null}
-                  <p className="text-[11px] text-text-muted mt-1">
-                    Last tested: {formatDateTime(pool.lastTestedAt)}
-                    {pool.lastError ? ` · ${pool.lastError}` : ""}
-                  </p>
+
+                  <div className="flex items-center justify-end gap-1">
+                    <Toggle
+                      size="sm"
+                      checked={pool.isActive === true}
+                      onChange={() => handleToggleActive(pool)}
+                      title={pool.isActive ? "Disable" : "Enable"}
+                    />
+                    <button
+                      onClick={() => handleTest(pool.id)}
+                      className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary"
+                      title="Test proxy"
+                      disabled={testingId === pool.id}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined}
+                      >
+                        {testingId === pool.id ? "progress_activity" : "science"}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => openEditModal(pool)}
+                      className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-main"
+                      title="Edit"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(pool)}
+                      className="p-2 rounded hover:bg-red-500/10 text-red-500"
+                      title="Delete"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredProxyPools.length > 0 && (
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-black/[0.05] pt-3 text-xs text-text-muted dark:border-white/[0.05]">
+                <div className="flex items-center gap-3">
+                  <span>
+                    Showing{" "}
+                    <span className="font-semibold text-text-main">
+                      {pageSize === "all" ? 1 : (currentPage - 1) * pageSize + 1}
+                    </span>
+                    -
+                    <span className="font-semibold text-text-main">
+                      {pageSize === "all"
+                        ? filteredProxyPools.length
+                        : Math.min(currentPage * pageSize, filteredProxyPools.length)}
+                    </span>{" "}
+                    of <span className="font-semibold text-text-main">{filteredProxyPools.length}</span> proxies
+                    {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-text-muted">Per page:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        const val = e.target.value === "all" ? "all" : Number(e.target.value);
+                        setPageSize(val);
+                      }}
+                      className="rounded border border-border bg-background px-1.5 py-0.5 text-xs text-text-main focus:border-primary focus:outline-none"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={200}>200</option>
+                      <option value="all">All</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-1">
-                  <Toggle
-                    size="sm"
-                    checked={pool.isActive === true}
-                    onChange={() => handleToggleActive(pool)}
-                    title={pool.isActive ? "Disable" : "Enable"}
-                  />
-                  <button
-                    onClick={() => handleTest(pool.id)}
-                    className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary"
-                    title="Test proxy"
-                    disabled={testingId === pool.id}
-                  >
-                    <span
-                      className="material-symbols-outlined text-[18px]"
-                      style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined}
+                {totalPages > 1 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                      title="Previous Page"
                     >
-                      {testingId === pool.id ? "progress_activity" : "science"}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => openEditModal(pool)}
-                    className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary"
-                    title="Edit"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(pool)}
-                    className="p-2 rounded hover:bg-red-500/10 text-red-500"
-                    title="Delete"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </div>
+                      <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                      <span>Prev</span>
+                    </button>
+
+                    {getPaginationItems(currentPage, totalPages).map((item, idx) => {
+                      if (typeof item === "string") {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-1 text-text-muted select-none">
+                            …
+                          </span>
+                        );
+                      }
+                      const isCurrent = item === currentPage;
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCurrentPage(item)}
+                          className={`min-w-[28px] h-7 rounded-lg text-xs font-medium transition-colors px-1.5 flex items-center justify-center ${
+                            isCurrent
+                              ? "bg-primary text-white shadow-sm"
+                              : "border border-border bg-background text-text-main hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-main transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.04]"
+                      title="Next Page"
+                    >
+                      <span>Next</span>
+                      <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </Card>
       ) : (

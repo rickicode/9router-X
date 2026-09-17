@@ -41,6 +41,7 @@ export {
   createProxyPool,
   updateProxyPool,
   deleteProxyPool,
+  deleteDisabledProxyPools,
   invalidateProxyPoolCache,
   getProxyGroups,
   getProxyGroupById,
