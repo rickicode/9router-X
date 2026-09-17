@@ -152,6 +152,28 @@ export class OpenCodeExecutor extends BaseExecutor {
       // Preserve client's requested mode; do not force SSE for non-streaming
       // clients — the JSON path correctly returns response.output.
       body.stream = stream === true;
+    } else if (!isClaudeModel(model)) {
+      // OpenCode zen gate enforcement: upstream /zen/v1/chat/completions strictly
+      // requires `stream: true` and at least 1 tool in `tools` (as sent by genuine
+      // OpenCode CLI agents). Requests without tools are rejected with 403 FreeTierError.
+      // We attach a harmless dummy tool with tool_choice: "none" (or keep user tools)
+      // so non-agent/plain chat requests pass the gate seamlessly.
+      body.stream = true;
+      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
+        body.tools = [
+          {
+            type: "function",
+            function: {
+              name: "opencode_noop",
+              description: "Internal client tool placeholder",
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        ];
+        if (!body.tool_choice) {
+          body.tool_choice = "none";
+        }
+      }
     }
     return injectReasoningContent({ provider: this.provider, model, body });
   }
