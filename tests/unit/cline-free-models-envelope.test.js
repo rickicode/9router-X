@@ -310,7 +310,7 @@ describe("cline & cline-free registry models ordering and cleanup", () => {
     // Top free models placed first
     expect(modelIds[0]).toBe("z-ai/glm-5.2:free");
     expect(modelIds[1]).toBe("z-ai/glm-5.3-flash");
-    expect(modelIds).toContain("deepseek/deepseek-v4.1-flash");
+    expect(modelIds).not.toContain("deepseek/deepseek-v4.1-flash");
     expect(modelIds).toContain("google/gemma-4-26b-a4b-it:free");
   });
 

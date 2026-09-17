@@ -173,6 +173,10 @@ export async function refreshClineToken(refreshToken, log, proxyOptions = null) 
           status: response.status,
           error: errorText,
         });
+        const failure = classifyOAuthRefreshError(errorText, response.status);
+        if (failure.permanent || /invalid_grant/i.test(errorText)) {
+          return { error: "unrecoverable_refresh_error", code: failure.code || "invalid_grant" };
+        }
         return null;
       }
 

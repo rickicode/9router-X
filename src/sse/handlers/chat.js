@@ -831,11 +831,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         result.extra?.freebuffKind,
        )).shouldFallback;
 
-    if (quotaFailure) {
-      excludeConnectionIds.add(credentials.connectionId);
-    }
-
     if (shouldFallback || quotaFailure) {
+      excludeConnectionIds.add(credentials.connectionId);
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
       // Consecutive-failure tracking for combo failover: after
       // MODEL_FAILOVER_THRESHOLD straight failures this member is deprioritized
