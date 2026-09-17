@@ -1,4 +1,4 @@
-export default {
+const clineFree = {
   id: "cline-free",
   priority: 79,
   alias: "cline-free",
@@ -86,3 +86,5 @@ export default {
     refreshUrl: "https://api.cline.bot/api/v1/auth/refresh",
   },
 };
+
+export default clineFree;
