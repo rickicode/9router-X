@@ -58,16 +58,19 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   const excludeSet = new Set(excludeIds || []);
   let eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
   // Region/provider-aware filtering:
-  // Always filter out unfit pools for Freebuff or when strategy is "smart".
-  // A pool flagged as anonymous_network or limited must NOT be reused.
+  // Always filter out unfit pools for Freebuff, OpenCode free (egress rate-limit /
+  // gate), or when strategy is "smart".
+  // A pool flagged as anonymous_network, limited, or rate-limited must NOT be reused.
   const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
-  if ((strategy === "smart" || isFreebuff) && scope) {
+  const isOpenCode = providerId === "opencode" || scope?.startsWith("opencode::");
+  if ((strategy === "smart" || isFreebuff || isOpenCode) && scope) {
     eligible = fitPoolIds(eligible, scope);
   }
 
   if (eligible.length === 0) {
-    // If every pool is marked unfit, Freebuff fails fast so caller can rotate or direct-fallback
-    if (isFreebuff) return null;
+    // If every pool is marked unfit, Freebuff & OpenCode fail fast so caller
+    // can rotate or direct-fallback cleanly rather than hammering bad pools.
+    if (isFreebuff || isOpenCode) return null;
     eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
     if (eligible.length === 0) return null;
   }
