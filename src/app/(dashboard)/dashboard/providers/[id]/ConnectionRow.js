@@ -331,7 +331,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     ? Math.max(1, Math.ceil((new Date(connection.lockedToModelUntil).getTime() - now) / 60000))
     : null;
 
-  const isExhausted = connection.testStatus === "exhausted" || hasModelLock;
+  const isExhausted = connection.testStatus === "exhausted" || hasAccountLock;
 
   const effectiveStatus = connection.isActive === false
     ? "disabled"
@@ -341,7 +341,9 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
         ? "exhausted"
         : hasAccountLock
           ? "unavailable"
-          : (connection.testStatus || "active");
+          : hasModelLock
+            ? "active"
+            : (connection.testStatus || "active");
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
