@@ -19,6 +19,7 @@ import { resolveUnikeyModels } from "open-sse/services/unikeyModels.js";
 import { updateProviderCredentials } from "@/sse/services/tokenRefresh";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { capabilitiesFromServiceKind, getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
+import { FILTERS } from "@/app/api/providers/suggested-models/filters.js";
 
 // Per-provider live model resolvers. Each receives a connection record and
 // returns { models: [{ id, name? }, ...] } | null on failure.
@@ -158,6 +159,34 @@ const parseOpenAIStyleModels = (data) => {
 // Header sent by fetchCompatibleModelIds to detect cross-instance /models fetches
 // and break recursive loops between 9router instances connected to each other.
 const INTERNAL_MODELS_FETCH_HEADER = "x-9r-internal-models-fetch";
+
+// Live OpenCode free catalog. The opencode provider is noAuth so it has no DB
+// connection rows and the loop below never emits it. Fetch upstream directly
+// (cached, fail-open) so new *-free models appear without code changes.
+const OPENCODE_MODELS_URL = "https://opencode.ai/zen/v1/models";
+const OPENCODE_LIVE_TTL_MS = 10 * 60 * 1000;
+let opencodeLiveCache = { data: [], expiresAt: 0 };
+
+async function resolveOpenCodeLiveModels() {
+  if (Date.now() < opencodeLiveCache.expiresAt && opencodeLiveCache.data.length) {
+    return opencodeLiveCache.data;
+  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(OPENCODE_MODELS_URL, { cache: "no-store", signal: controller.signal });
+    if (!res.ok) return opencodeLiveCache.data;
+    const json = await res.json();
+    const raw = Array.isArray(json?.data) ? json.data : [];
+    const data = FILTERS["opencode-free"](raw);
+    opencodeLiveCache = { data, expiresAt: Date.now() + OPENCODE_LIVE_TTL_MS };
+    return data;
+  } catch {
+    return opencodeLiveCache.data;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // LLM kind sentinel — combos/models with no explicit kind default to LLM
 const LLM_KIND = "llm";
@@ -552,6 +581,24 @@ export async function buildModelsList(kindFilter, options = {}) {
           owned_by: outputAlias,
         });
       }
+    }
+  }
+
+  // No-auth free providers (opencode) have no connection rows, so the loop
+  // above never lists them. Merge the live upstream free catalog here —
+  // this is what makes new models auto-appear in /v1/models.
+  if (kindFilter.includes(LLM_KIND)) {
+    const liveOpenCode = await resolveOpenCodeLiveModels().catch(() => []);
+    for (const m of liveOpenCode) {
+      const modelId = m?.id;
+      if (!modelId || typeof modelId !== "string") continue;
+      if (isDisabled("oc", modelId) || isDisabled("opencode", modelId)) continue;
+      const entry = { id: `oc/${modelId}`, object: "model", owned_by: "oc" };
+      const caps = getCapabilitiesForModel("opencode", modelId);
+      if (caps) entry.capabilities = caps;
+      if (Number.isFinite(caps?.contextWindow)) entry.context_length = caps.contextWindow;
+      if (Number.isFinite(caps?.maxOutput)) entry.max_completion_tokens = caps.maxOutput;
+      models.push(entry);
     }
   }
 
