@@ -408,6 +408,10 @@ const tryNextPool = async (poolScoped, reasonMsg) => {
   if (failed.poolId) failedPoolIds.add(failed.poolId);
   markPoolUnfit(failed.poolId, failed.scope, undefined, failed.reason);
   log?.warn?.("PROXY", `${provider.toUpperCase()} | pool ${failed.poolId || "?"} unfit for ${failed.scope} (${failed.reason}) — retry with another pool. ${reasonMsg || ""}`);
+  // Rotate executor session ID so the next attempt gets a fresh fingerprint.
+  // Critical for OpenCode free-tier (IP+session gate) — reusing the same
+  // session on a new egress would trigger the same 403.
+  if (typeof executor?._currentSessionId !== "undefined") executor._currentSessionId = null;
   try {
     const resolved = await resolveProxyConfig(credentials, [...failedPoolIds]);
     if (resolved?.proxyPoolId) {

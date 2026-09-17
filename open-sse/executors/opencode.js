@@ -79,6 +79,11 @@ const MUSE_SPARK_MAX_OUTPUT_TOKENS = 200000;
 
 const IP_LIMIT_BODY = /(?:egress|proxy|ip[_ -]?limit|client[_ -]?ip|source[_ -]?ip|remote[_ -]?address|network[_ -]?limit|too many requests from (?:this|your) (?:ip|network))/i;
 
+// Free-tier gate: the upstream rejects non-OpenCode clients (403) or
+// anonymous/datacenter proxies (429/403). This is per-egress, not per-account,
+// so the model must NOT be locked — it should fall through to the next model.
+const FREE_TIER_GATE = /(?:free tier can only be used from within [Oo]pen[Cc]ode|free_mode_unavailable|anonymous[_ -]?network|proxy[_ -]?traffic)/i;
+
 export class OpenCodeExecutor extends BaseExecutor {
   constructor() {
     super("opencode", PROVIDERS.opencode);
@@ -142,6 +147,16 @@ export class OpenCodeExecutor extends BaseExecutor {
         status,
         message: text.slice(0, 300) || `OpenCode free limit (${status})`,
         poolScoped: { reason: "ip-limit" },
+      };
+    }
+    // Free-tier gate (e.g. "can only be used from within OpenCode"): per-egress,
+    // not per-account. Mark poolScoped so chatCore retries via another pool or
+    // direct egress instead of burning rotation budget on the same blocked path.
+    if ((status === 429 || status === 403) && FREE_TIER_GATE.test(text)) {
+      return {
+        status,
+        message: text.slice(0, 300) || `OpenCode free-tier gate (${status})`,
+        poolScoped: { reason: "free-tier-gate" },
       };
     }
     return null; // fall through to default parsing

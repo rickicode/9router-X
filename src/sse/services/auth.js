@@ -1153,6 +1153,19 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     cooldownMs = Math.max(cooldownMs || 0, Math.min(DEFAULT_RATE_LIMIT_COOLDOWN_MS, 60 * 1000));
   }
 
+  // OpenCode free-tier gate: per-egress/session rejection (not per-account).
+  // The next request from a different IP or fresh session will succeed.
+  // Never lock account, never lock model — just let the request fall through.
+  const isOpenCodeFreeGate = providerId === "opencode"
+    && /free tier can only be used from within|free_mode_unavailable|anonymous[_ -]?network|proxy[_ -]?traffic/i.test(lowerErr);
+  if (isOpenCodeFreeGate) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    cooldownMs = 0;
+  }
+
   // OpenCode Zen must keep the API-key connection routable for free models.
   // Its paid-model billing/entitlement failures are model-scoped, even when
   // the upstream uses HTTP 401. Only an explicitly invalid/revoked key may

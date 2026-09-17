@@ -503,6 +503,15 @@ export const ERROR_RULES = [
   { text: "no credentials", cooldownMs: COOLDOWN.long },
   { text: "request not allowed", cooldownMs: COOLDOWN.short },
   { text: "improperly formed request", cooldownMs: COOLDOWN.long },
+  // OpenCode free-tier gate (all free models): per-egress/session rejection,
+  // NOT per-account. The next request from a different IP/session will succeed.
+  // Must stay ABOVE the status-403 rule to prevent permanent auth lock.
+  {
+    text: "free tier can only be used from within",
+    cooldownMs: 0,
+    lockAll: false,
+    shouldFallback: true,
+  },
   // Freebuff limited tier rate limit on proxy IP: transient cooldown (30s), do NOT lock account
   {
     text: '"accesstier":"limited"',
