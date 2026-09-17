@@ -6,19 +6,49 @@ import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 
-const OPENCODE_UA = "opencode";
+const OPENCODE_CLIENT_VERSION = "1.18.31";
+// Reverse-engineered from the genuine OpenCode CLI 1.18.31 (local packet
+// capture, 2026-09-17): the keyless free-tier gate validates BOTH the
+// User-Agent shape ("opencode/<version>" — bare "opencode" is rejected) AND
+// the session/request id shape (ses_/msg_ + 12 lowercase-hex + 14 mixed-case
+// alphanumerics, the client's time-ordered Identifier format). Either signal
+// mismatched yields 403 FreeTierError on a healthy egress. Env override kept
+// for future client versions.
+const OPENCODE_UA = process.env.OPENCODE_USER_AGENT?.trim() || `opencode/${OPENCODE_CLIENT_VERSION}`;
+// Genuine CLI UA looks like "opencode/1.18.31 ai-sdk/... runtime/bun/..." —
+// forward those untouched; synthesize for everything else (bare "opencode",
+// curl, SDKs) since the gate rejects them.
+const GENUINE_CLI_UA_RE = /^opencode\/\d+\.\d+/i;
 // Models served by /zen/v1/responses; every other model stays on /chat/completions.
 const RESPONSES_MODELS = new Set([
   "muse-spark-1.2-contributor-free",
   "muse-spark-1.3-contributor-free",
 ]);
 
+const OPENCODE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+// Real client Identifier shape: 12 lowercase-hex (time-ordered) + 14 mixed-case
+// alphanumerics. Verified against the client's own SQLite store + live capture.
+function randomIdSuffix() {
+  const hex = crypto.randomBytes(6).toString("hex");
+  let tail = "";
+  for (let i = 0; i < 14; i++) tail += OPENCODE_ID_ALPHABET[crypto.randomInt(OPENCODE_ID_ALPHABET.length)];
+  return hex + tail;
+}
+
+export const OPENCODE_SESSION_RE = /^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/;
+export const OPENCODE_REQUEST_RE = /^msg_[0-9a-f]{12}[A-Za-z0-9]{14}$/;
+
+function asConformingId(value, re) {
+  const v = typeof value === "string" ? value.trim() : "";
+  return re.test(v) ? v : null;
+}
+
 function generateRequestId() {
-  return `msg_${crypto.randomUUID().replace(/-/g, "")}`;
+  return `msg_${randomIdSuffix()}`;
 }
 
 function generateSessionId() {
-  return `ses_${crypto.randomUUID().replace(/-/g, "")}`;
+  return `ses_${randomIdSuffix()}`;
 }
 
 // Strip the thinking suffix "model(level)" so registry lookups hit the base id.
@@ -33,13 +63,17 @@ function isResponsesModel(model) {
 
 function resolveOpencodeSession(body, credentials) {
   const headers = credentials?.rawHeaders || {};
-  return resolveSessionId({
+  const resolved = resolveSessionId({
     headers,
     body,
     connectionId: credentials?.connectionId,
     scope: "opencode",
     generate: generateSessionId,
   });
+  // sessionManager returns UUID-mash / claude: / antigravity: ids that fail
+  // the gate's shape check — only reuse it when it already looks genuine,
+  // otherwise mint a fresh conforming id (proven 200 upstream).
+  return asConformingId(resolved, OPENCODE_SESSION_RE) || generateSessionId();
 }
 
 function normalizeOpencodeReasoning(model, body) {
@@ -125,15 +159,20 @@ export class OpenCodeExecutor extends BaseExecutor {
     for (const [k, v] of Object.entries(raw)) lower[k.toLowerCase()] = v;
 
     const downstreamUa = lower["user-agent"] || "";
-    const isOpencodeDownstream = downstreamUa.toLowerCase().includes("opencode");
+    // Forward only genuine CLI UAs; a bare "opencode"/curl/SDK UA fails the
+    // gate, so synthesize the versioned identity for those.
+    const forwardUa = GENUINE_CLI_UA_RE.test(downstreamUa.trim()) ? downstreamUa : OPENCODE_UA;
 
     return {
       "Content-Type": "application/json",
       "Authorization": "Bearer public",
-      "User-Agent": isOpencodeDownstream ? downstreamUa : OPENCODE_UA,
+      "User-Agent": forwardUa,
       "x-opencode-client": lower["x-opencode-client"] || "desktop",
-      "x-opencode-session": lower["x-opencode-session"] || this._currentSessionId || generateSessionId(),
-      "x-opencode-request": lower["x-opencode-request"] || generateRequestId(),
+      "x-opencode-session": asConformingId(lower["x-opencode-session"], OPENCODE_SESSION_RE)
+        || asConformingId(this._currentSessionId, OPENCODE_SESSION_RE)
+        || generateSessionId(),
+      "x-opencode-request": asConformingId(lower["x-opencode-request"], OPENCODE_REQUEST_RE)
+        || generateRequestId(),
       "x-opencode-project": lower["x-opencode-project"] || "global",
       "Accept": stream ? "text/event-stream" : "*/*",
     };
