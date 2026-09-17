@@ -328,6 +328,11 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
           vercelRelayUrl: resolvedProxy.vercelRelayUrl || "",
           proxyPoolId: resolvedProxy.proxyPoolId || null,
           strictProxy: resolvedProxy.strictProxy === true,
+          // Keyless providers bill quota per egress IP: a dead proxy must
+          // rotate to the next pool, never silently fall back to direct
+          // (that burns the shared server IP into an upstream 429).
+          // Direct stays the last resort after pools are exhausted.
+          failClosedProxy: true,
           proxyGroup: proxyGroup || undefined,
           // Let chatCore's pool-scoped retry rotate across the same candidate
           // pool set (excluding the failed pool) instead of reusing it — this

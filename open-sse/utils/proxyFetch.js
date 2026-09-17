@@ -319,6 +319,20 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
     throw new Error("[ProxyFetch] Proxy required but no proxy URL configured or available (strictProxy=true)");
   }
 
+  // Fail-closed proxy: for keyless/noAuth providers the egress IP *is* the
+  // identity (per-IP quota). A silent fallback to direct would burn the shared
+  // server IP, so throw instead and let chatCore rotate to the next pool.
+  const failClosed = proxyOptions?.failClosedProxy === true;
+  const proxyFailed = (proxyError, bypassLabel) => {
+    if (proxyOptions?.strictProxy === true) {
+      throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
+    }
+    if (failClosed) {
+      throw new Error(`[ProxyFetch] Proxy failed, no direct fallback (failClosedProxy=true): ${proxyError.message}`);
+    }
+    console.warn(`[ProxyFetch] Proxy failed, falling back to direct${bypassLabel || ""}: ${proxyError.message}`);
+  };
+
   // MITM DNS bypass: for known MITM-intercepted hosts, resolve real IP to avoid DNS spoof
   if (shouldBypassMitmDns(targetUrl)) {
     if (proxyUrl) {
@@ -327,10 +341,7 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
         const dispatcher = await getDispatcher(proxyUrl);
         return await originalFetch(url, { ...options, dispatcher });
       } catch (proxyError) {
-        if (proxyOptions?.strictProxy === true) {
-          throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
-        }
-        console.warn(`[ProxyFetch] Proxy failed, falling back to direct bypass: ${proxyError.message}`);
+        proxyFailed(proxyError, " bypass");
       }
     }
     // No proxy — manually resolve real IP to bypass DNS spoof
@@ -348,11 +359,10 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
       const dispatcher = await getDispatcher(proxyUrl);
       return await originalFetch(url, { ...options, dispatcher });
     } catch (proxyError) {
-      // If strictProxy is enabled, fail hard instead of falling back to direct
-      if (proxyOptions?.strictProxy === true) {
-        throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
-      }
-      console.warn(`[ProxyFetch] Proxy failed, falling back to direct: ${proxyError.message}`);
+      // Fail-closed (keyless providers): proxyFailed throws above so chatCore
+      // rotates pools instead of silently burning the shared direct egress.
+      // Otherwise preserve the legacy direct fallback.
+      proxyFailed(proxyError, "");
       return originalFetch(url, options);
     }
   }

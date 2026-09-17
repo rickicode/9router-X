@@ -352,12 +352,15 @@ if (externalSignal) {
 
 // Build proxy options from the resolved provider-specific data. A configured
 // proxy is used when available, while direct egress remains a valid fallback.
+// failClosedProxy (keyless/noAuth providers): never silently fall back to
+// direct on proxy failure — throw so the request rotates to the next pool.
 const buildProxyOptions = (psd = {}) => ({
   connectionProxyEnabled: psd?.connectionProxyEnabled === true,
   connectionProxyUrl: psd?.connectionProxyUrl || "",
   connectionNoProxy: psd?.connectionNoProxy || "",
   vercelRelayUrl: psd?.vercelRelayUrl || "",
   strictProxy: psd?.strictProxy === true,
+  failClosedProxy: psd?.failClosedProxy === true,
   proxyPoolId: psd?.proxyPoolId || psd?.connectionProxyPoolId || null,
   noFitPool: psd?.noFitPool === true,
 });
