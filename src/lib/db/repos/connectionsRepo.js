@@ -197,6 +197,9 @@ function normalizePatch(data = {}) {
     if (patch[camel] === undefined && patch[snake] !== undefined) patch[camel] = patch[snake];
     delete patch[snake];
   }
+  if (patch.tokenExpiresAt === undefined && patch.expiresAt !== undefined) {
+    patch.tokenExpiresAt = patch.expiresAt;
+  }
   return patch;
 }
 
@@ -231,6 +234,8 @@ function connectionValues(connection, { createdAt } = {}) {
   // never miss a disabled row. Enable paths clear both (see
   // resetHealthStateOnActivation and the SQL enable branches).
   const isDisabled = data.disabledAt != null || connection.testStatus === "disabled";
+  const rawExpires = connection.tokenExpiresAt ?? connection.expiresAt ?? data.expiresAt ?? null;
+  const tokenExpiresAt = rawExpires ? new Date(rawExpires).toISOString() : null;
   return {
     id: connection.id,
     provider: connection.provider,
@@ -244,7 +249,7 @@ function connectionValues(connection, { createdAt } = {}) {
     rateLimitedUntil: connection.rateLimitedUntil ?? null,
     lockedToModel: connection.lockedToModel ?? null,
     lockedToModelUntil: connection.lockedToModelUntil ?? null,
-    tokenExpiresAt: connection.tokenExpiresAt ?? null,
+    tokenExpiresAt,
     lastUsedAt: connection.lastUsedAt ?? null,
     modelLocks: modelLocksFromConnection(connection),
     lastError: connection.lastError ?? null,
@@ -425,7 +430,11 @@ function buildConnectionFilterConditions(filter, params) {
   }
   if (filter.tokenExpiresBefore) {
     params.push(filter.tokenExpiresBefore);
-    where.push(`token_expires_at IS NOT NULL AND token_expires_at <= $${params.length}`);
+    where.push(`(
+      (token_expires_at IS NOT NULL AND token_expires_at <= $${params.length})
+      OR
+      (token_expires_at IS NULL AND data->>'expiresAt' IS NOT NULL AND ${safeTimestampSql("data->>'expiresAt'")} <= $${params.length})
+    )`);
   }
   if (filter.isActive !== undefined) {
     params.push(filter.isActive);
@@ -489,7 +498,7 @@ export async function getProviderConnections(filter = {}) {
   const orderClause = filter.distinctByProvider
     ? "ORDER BY provider, is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
     : (filter.tokenExpiresBefore
-      ? "ORDER BY token_expires_at ASC NULLS FIRST, id ASC"
+      ? `ORDER BY COALESCE(token_expires_at, ${safeTimestampSql("data->>'expiresAt'")}) ASC NULLS FIRST, id ASC`
       : (filter.routingModel
         ? "ORDER BY priority ASC NULLS LAST, last_used_at ASC NULLS FIRST, id ASC"
         : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"));
