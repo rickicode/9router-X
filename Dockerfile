@@ -28,12 +28,6 @@ RUN apt-get -o Acquire::Retries=3 update && \
   apt-get -o Acquire::Retries=3 install -y --no-install-recommends gosu curl tar ca-certificates iptables && \
   rm -rf /var/lib/apt/lists/*
 
-RUN curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
-  curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list && \
-  apt-get -o Acquire::Retries=3 update && \
-  apt-get -o Acquire::Retries=3 install -y --no-install-recommends tailscale && \
-  rm -rf /var/lib/apt/lists/*
-
 # Download separately: shell pipelines can hide manifest/download failures.
 # Preserve the existing x86_64 Devin artifact selection.
 RUN curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://static.devin.ai/cli/current/manifest.json -o /tmp/devin-manifest.json && \

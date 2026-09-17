@@ -11,11 +11,10 @@ const runner = dockerfile.split('FROM runtime-deps AS runner')[1];
 test('runtime installers stay independent of app source and build output', () => {
   assert.ok(runtime, 'runtime-deps stage exists');
   assert.doesNotMatch(runtime, /^COPY|--from=builder/m);
-  assert.equal((runtime.match(/^RUN /gm) || []).length, 3, 'separate utility, Tailscale, and Devin cache layers');
+  assert.equal((runtime.match(/^RUN /gm) || []).length, 2, 'separate utility and Devin cache layers');
   assert.match(runtime, /gosu curl tar ca-certificates iptables/);
-  assert.match(runtime, /install -y --no-install-recommends tailscale/);
   assert.match(runtime, /\/usr\/local\/bin\/devin/);
-  assert.doesNotMatch(runner, /apt-get|https:\/\/static\.devin\.ai|https:\/\/pkgs\.tailscale\.com/);
+  assert.doesNotMatch(runner, /apt-get|https:\/\/static\.devin\.ai/);
 });
 
 test('Devin manifest parsing fails closed instead of hiding pipeline errors', () => {
@@ -33,6 +32,6 @@ test('runtime entrypoint, health check, traced dependencies and npm cache remain
   assert.match(runner, /ENTRYPOINT \["\/entrypoint\.sh"\]/);
   assert.match(runner, /EXPOSE 10128/);
   assert.match(runner, /127\.0\.0\.1:10128\/api\/health/);
-  assert.match(runner, /CMD \["node", "--max-old-space-size=1536", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "custom-server\.js"\]/);
+  assert.match(runner, /CMD \["node", "--max-old-space-size=4096", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "custom-server\.js"\]/);
   assert.match(dockerfile, /--mount=type=cache,target=\/root\/\.npm/);
 });

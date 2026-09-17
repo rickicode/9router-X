@@ -13,7 +13,6 @@ services:
       - "10128:10128"
     volumes:
       - 9router-data:/app/data
-      - 9router-tailscale:/var/lib/tailscale
     env_file:
       - .env
     environment:
@@ -25,9 +24,6 @@ services:
       DATABASE_URL: postgres://9router:${POSTGRES_PASSWORD:-password123}@postgres:5432/9router
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       HEADROOM_URL: http://headroom:8787
-      TAILSCALE_AUTHKEY: ${TAILSCALE_AUTHKEY:-${TS_AUTHKEY:-}}
-      TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-9router-x}
-      TAILSCALE_SERVE: ${TAILSCALE_SERVE:-true}
       # Opt-in: return unredacted request-details payloads (default redacted).
       # Only enable while dashboard login is enforced (requireLogin !== false).
       REQUEST_DETAILS_SHOW_RAW: ${REQUEST_DETAILS_SHOW_RAW:-false}
@@ -98,7 +94,5 @@ volumes:
   9router-data:
     name: 9router-data
     external: true
-  9router-tailscale:
-    name: 9router-tailscale
   9router-pgdata:
     name: 9router-pgdata
