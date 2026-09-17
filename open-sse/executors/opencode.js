@@ -136,6 +136,13 @@ export class OpenCodeExecutor extends BaseExecutor {
 
   transformRequest(model, body, stream, credentials) {
     this._currentSessionId = resolveOpencodeSession(body, credentials);
+    // OpenCode upstream gate enforcement across all models:
+    // Upstream /zen/v1/chat/completions, /zen/v1/responses, and /zen/v1/messages
+    // strictly require `stream: true` and at least 1 tool in `tools` (how official
+    // OpenCode CLI agents operate). Requests without tools or in non-streaming mode
+    // are rejected with 403 FreeTierError.
+    body.stream = true;
+
     if (isResponsesModel(model)) {
       // Responses API names the output cap max_output_tokens and takes thinking
       // as reasoning:{effort,summary} — normalize the Chat fields at this boundary.
@@ -149,16 +156,31 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_tokens;
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
-      // Preserve client's requested mode; do not force SSE for non-streaming
-      // clients — the JSON path correctly returns response.output.
-      body.stream = stream === true;
-    } else if (!isClaudeModel(model)) {
-      // OpenCode zen gate enforcement: upstream /zen/v1/chat/completions strictly
-      // requires `stream: true` and at least 1 tool in `tools` (as sent by genuine
-      // OpenCode CLI agents). Requests without tools are rejected with 403 FreeTierError.
-      // We attach a harmless dummy tool with tool_choice: "none" (or keep user tools)
-      // so non-agent/plain chat requests pass the gate seamlessly.
-      body.stream = true;
+
+      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
+        body.tools = [
+          {
+            type: "function",
+            name: "opencode_noop",
+            description: "Internal client tool placeholder",
+            parameters: { type: "object", properties: {} },
+          },
+        ];
+        if (!body.tool_choice) {
+          body.tool_choice = "auto";
+        }
+      }
+    } else if (isClaudeModel(model)) {
+      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
+        body.tools = [
+          {
+            name: "opencode_noop",
+            description: "Internal client tool placeholder",
+            input_schema: { type: "object", properties: {} },
+          },
+        ];
+      }
+    } else {
       if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
         body.tools = [
           {

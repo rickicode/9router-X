@@ -18,7 +18,9 @@ export default {
       "x-opencode-client": "desktop",
     },
     noAuth: true,
+    forceStream: true,
   },
+  forceStream: true,
   models: [
     // Muse Spark models are served by /zen/v1/responses, union-alpha by
     // /zen/v1/messages (Claude transport — reverse-engineered from the

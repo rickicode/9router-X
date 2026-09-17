@@ -134,10 +134,62 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
   const toolCallMap = new Map(); // index -> { id, type, function: { name, arguments } }
   let finishReason = "stop";
   let usage = null;
+  let responseId = null;
+  let responseModel = null;
+  let created = null;
 
   for (const chunk of chunks) {
+    // Anthropic Claude SSE format support
+    if (chunk.type === "message_start" && chunk.message) {
+      if (chunk.message.id) responseId = chunk.message.id;
+      if (chunk.message.model) responseModel = chunk.message.model;
+      if (chunk.message.usage) usage = chunk.message.usage;
+      continue;
+    }
+    if (chunk.type === "content_block_delta" && chunk.delta) {
+      const d = chunk.delta;
+      if (d.type === "text_delta" && typeof d.text === "string") contentParts.push(d.text);
+      if (d.type === "thinking_delta" && typeof d.thinking === "string") reasoningParts.push(d.thinking);
+      if (d.type === "input_json_delta" && typeof d.partial_json === "string") {
+        const idx = chunk.index ?? 0;
+        if (toolCallMap.has(idx)) {
+          toolCallMap.get(idx).function.arguments += d.partial_json;
+        }
+      }
+      continue;
+    }
+    if (chunk.type === "content_block_start" && chunk.content_block?.type === "tool_use") {
+      const idx = chunk.index ?? 0;
+      toolCallMap.set(idx, {
+        id: chunk.content_block.id || "",
+        type: "function",
+        function: { name: chunk.content_block.name || "", arguments: "" }
+      });
+      continue;
+    }
+    if (chunk.type === "message_delta") {
+      if (chunk.delta?.stop_reason) {
+        const sr = chunk.delta.stop_reason;
+        finishReason = sr === "end_turn" ? "stop" : sr === "tool_use" ? "tool_calls" : sr;
+      }
+      if (chunk.usage) {
+        const inTok = (usage?.input_tokens || 0) + (chunk.usage.input_tokens || 0);
+        const outTok = (usage?.output_tokens || 0) + (chunk.usage.output_tokens || 0);
+        usage = {
+          prompt_tokens: inTok,
+          completion_tokens: outTok,
+          total_tokens: inTok + outTok,
+        };
+      }
+      continue;
+    }
+
+    // Standard OpenAI SSE format
     const choice = chunk?.choices?.[0];
     const delta = choice?.delta || {};
+    if (chunk.id && !responseId) responseId = chunk.id;
+    if (chunk.model && !responseModel) responseModel = chunk.model;
+    if (chunk.created && !created) created = chunk.created;
     if (typeof delta.content === "string" && delta.content.length > 0) contentParts.push(delta.content);
     if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length > 0) reasoningParts.push(delta.reasoning_content);
     if (choice?.finish_reason) finishReason = choice.finish_reason;
@@ -165,10 +217,10 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
   }
 
   const result = {
-    id: first.id || `chatcmpl-${Date.now()}`,
+    id: responseId || first.id || `chatcmpl-${Date.now()}`,
     object: "chat.completion",
-    created: first.created || Math.floor(Date.now() / 1000),
-    model: first.model || fallbackModel || "unknown",
+    created: created || first.created || Math.floor(Date.now() / 1000),
+    model: responseModel || first.model || fallbackModel || "unknown",
     choices: [{ index: 0, message, finish_reason: finishReason }]
   };
   if (usage) result.usage = usage;
