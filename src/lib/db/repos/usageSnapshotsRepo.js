@@ -165,3 +165,27 @@ export async function getBatchProviderQuotas(provider) {
   await writeSnapshotCache(provider, mapped);
   return mapped;
 }
+
+/**
+ * Delete persisted quota snapshots for the given connections.
+ * Used by status-reset paths: without this, the next routing selection
+ * re-hydrates the stale exhausted snapshot into RAM and the account is
+ * immediately blocked again (top-ups / manual resets never stick).
+ * Also invalidates the short-TTL provider snapshot cache so the routing
+ * hot path cannot re-serve the just-deleted rows.
+ * Fail-open callers only — throws on DB errors.
+ * @returns number of deleted rows
+ */
+export async function deleteUsageSnapshotsByConnectionIds(connectionIds) {
+  const ids = [...new Set((connectionIds || []).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const db = await getAdapter();
+  const rows = await db.all(
+    `DELETE FROM usage_snapshots WHERE connection_id = ANY($1::text[]) RETURNING provider`,
+    [ids],
+  );
+  for (const provider of new Set(rows.map((r) => r?.provider).filter(Boolean))) {
+    await invalidateSnapshotCache(provider);
+  }
+  return rows.length;
+}

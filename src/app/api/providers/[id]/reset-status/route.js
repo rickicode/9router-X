@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProviderConnectionById, updateProviderConnection } from "@/models";
 import { clearAntigravityConnectionCache } from "@/sse/services/antigravityQuota";
+import { deleteUsageSnapshotsByConnectionIds } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import { setAccountCooldown, clearProviderDead } from "@/lib/cache/client.js";
 
 export async function POST(request, { params }) {
@@ -66,6 +67,16 @@ export async function POST(request, { params }) {
     // Clear Antigravity in-memory cache if applicable
     if (typeof clearAntigravityConnectionCache === "function") {
       clearAntigravityConnectionCache(id);
+    }
+
+    // Drop the persisted quota snapshot too: otherwise the next routing
+    // selection re-hydrates the stale exhausted snapshot into RAM and the
+    // account is blocked again (top-ups / manual resets never stick).
+    // Fail-open — a snapshot failure must not break the status reset.
+    try {
+      await deleteUsageSnapshotsByConnectionIds([id]);
+    } catch (e) {
+      console.error("Error deleting usage snapshot on reset-status:", e?.message || e);
     }
 
     return NextResponse.json({ ok: true, connection: updated });
