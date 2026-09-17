@@ -702,67 +702,69 @@ export default function UsageStats({
         ) : (
           <>
             {activeSubTab === "breakdown" && (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <select
-                    value={tableView}
-                    onChange={(e) => setTableView(e.target.value)}
-                    aria-label="Usage table dimension"
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
-                  >
-                    {TABLE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="grid grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex">
-                    <button
-                      onClick={() => setViewMode("costs")}
-                      aria-pressed={viewMode === "costs"}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        viewMode === "costs"
-                          ? "bg-primary text-white shadow-sm"
-                          : "text-text-muted hover:text-text hover:bg-bg-hover"
-                      }`}
+              <div className="flex flex-col gap-4">
+                <UsageChart period={period} />
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <select
+                      value={tableView}
+                      onChange={(e) => setTableView(e.target.value)}
+                      aria-label="Usage table dimension"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
                     >
-                      Costs
-                    </button>
-                    <button
-                      onClick={() => setViewMode("tokens")}
-                      aria-pressed={viewMode === "tokens"}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        viewMode === "tokens"
-                          ? "bg-primary text-white shadow-sm"
-                          : "text-text-muted hover:text-text hover:bg-bg-hover"
-                      }`}
-                    >
-                      Tokens
-                    </button>
+                      {TABLE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex">
+                      <button
+                        onClick={() => setViewMode("costs")}
+                        aria-pressed={viewMode === "costs"}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          viewMode === "costs"
+                            ? "bg-primary text-white shadow-sm"
+                            : "text-text-muted hover:text-text hover:bg-bg-hover"
+                        }`}
+                      >
+                        Costs
+                      </button>
+                      <button
+                        onClick={() => setViewMode("tokens")}
+                        aria-pressed={viewMode === "tokens"}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          viewMode === "tokens"
+                            ? "bg-primary text-white shadow-sm"
+                            : "text-text-muted hover:text-text hover:bg-bg-hover"
+                        }`}
+                      >
+                        Tokens
+                      </button>
+                    </div>
                   </div>
+                  {activeTableConfig && (
+                    <UsageTable
+                      title=""
+                      columns={activeTableConfig.columns}
+                      groupedData={activeTableConfig.groupedData}
+                      tableType={tableView}
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onToggleSort={toggleSort}
+                      viewMode={viewMode}
+                      storageKey={activeTableConfig.storageKey}
+                      renderSummaryCells={activeTableConfig.renderSummaryCells}
+                      renderDetailCells={activeTableConfig.renderDetailCells}
+                      emptyMessage={activeTableConfig.emptyMessage}
+                    />
+                  )}
                 </div>
-                {activeTableConfig && (
-                  <UsageTable
-                    title=""
-                    columns={activeTableConfig.columns}
-                    groupedData={activeTableConfig.groupedData}
-                    tableType={tableView}
-                    sortBy={sortBy}
-                    sortOrder={sortOrder}
-                    onToggleSort={toggleSort}
-                    viewMode={viewMode}
-                    storageKey={activeTableConfig.storageKey}
-                    renderSummaryCells={activeTableConfig.renderSummaryCells}
-                    renderDetailCells={activeTableConfig.renderDetailCells}
-                    emptyMessage={activeTableConfig.emptyMessage}
-                  />
-                )}
               </div>
             )}
 
             {activeSubTab !== "breakdown" && (
               <div className="flex flex-col gap-4">
-                <UsageChart period={period} />
                 <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                   <ProviderTopology
                     providers={providers}
