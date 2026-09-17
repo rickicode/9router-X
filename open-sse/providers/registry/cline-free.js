@@ -35,12 +35,10 @@ const clineFree = {
     },
   },
   models: [
-    // Top Free Models (GLM & DeepSeek Free Tier)
-    { id: "z-ai/glm-5.2:free", name: "GLM 5.2 (Free)" },
+    // Top Free Models (GLM Free Tier)
     { id: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash (Free Daily Limit)" },
+    { id: "z-ai/glm-5.2:free", name: "GLM 5.2 (Free)" },
     { id: "~z-ai/glm-flash-latest", name: "GLM Flash Latest" },
-    { id: "deepseek/deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash" },
-    { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash" },
     { id: "z-ai/glm-4.7-flash", name: "GLM 4.7 Flash" },
     { id: "z-ai/glm-4.5", name: "GLM 4.5" },
 
