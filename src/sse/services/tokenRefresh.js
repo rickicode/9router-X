@@ -1,6 +1,6 @@
 // Re-export from open-sse with local logger
 import * as log from "../utils/logger.js";
-import { updateProviderConnection } from "../../lib/localDb.js";
+import { updateProviderConnection, getProviderConnectionById } from "../../lib/localDb.js";
 import {
   getProjectIdForConnection,
   invalidateProjectId,
@@ -102,6 +102,45 @@ function normalizeExpiresAt(expiresAt) {
   const date = new Date(expiresAt);
   if (!Number.isFinite(date.getTime())) return null;
   return date.toISOString();
+}
+
+/**
+ * Rotation-race self-heal (Codex, xAI, …): refresh tokens rotate on every
+ * refresh, and reusing a superseded token yields invalid_grant /
+ * refresh_token_invalidated — which upstream may treat as reuse-theft and
+ * burn the whole chain. The in-memory credential copy is often stale
+ * (request loaded it before a background tick or another request rotated).
+ * Re-read the DB row: when it carries a DIFFERENT refresh token, adopt it
+ * instead of firing a known-stale token upstream.
+ *
+ * @param {object} creds  credential copy (must have connectionId)
+ * @returns {Promise<{ adopted: boolean, creds: object }>}
+ */
+async function adoptFreshRowTokens(creds) {
+  const connectionId = creds?.connectionId || creds?.id;
+  const usedToken = creds?.refreshToken;
+  if (!connectionId || !usedToken) return { adopted: false, creds };
+  let row = null;
+  try {
+    row = await getProviderConnectionById(connectionId);
+  } catch {
+    return { adopted: false, creds };
+  }
+  const freshToken = row?.refreshToken;
+  if (!freshToken || freshToken === usedToken) return { adopted: false, creds };
+  log.info("TOKEN_REFRESH", "Adopting fresher DB refresh token (in-memory copy was stale)", {
+    connectionId,
+    provider: creds.provider || row?.provider || null,
+  });
+  return {
+    adopted: true,
+    creds: {
+      ...creds,
+      refreshToken: freshToken,
+      ...(row.accessToken ? { accessToken: row.accessToken } : {}),
+      ...(row.tokenExpiresAt ? { expiresAt: row.tokenExpiresAt } : {}),
+    },
+  };
 }
 
 /**
@@ -243,7 +282,38 @@ export async function checkAndRefreshToken(provider, credentials, options = {}) 
       lastRefreshAt: creds.lastRefreshAt || null,
     });
 
-    const newCreds = await _refreshProviderCredentials(provider, creds, log, options?.proxyOptions);
+    // Never fire a known-stale rotating token: another worker may have
+    // rotated between our credential load and now.
+    try {
+      const fresh = await adoptFreshRowTokens(creds);
+      if (fresh.adopted) creds = fresh.creds;
+    } catch { /* fail-open: proceed with the loaded copy */ }
+
+    const attemptRefresh = () => _refreshProviderCredentials(provider, creds, log, options?.proxyOptions);
+    let newCreds = await attemptRefresh();
+    if (isUnrecoverableRefreshError(newCreds)) {
+      // Lost a rotation race? The winner persists the new token right after
+      // its upstream call — grace period, then re-read. Retry ONLY with a
+      // different token; re-firing the same one would look like reuse-theft.
+      let retried = null;
+      try {
+        await new Promise((r) => setTimeout(r, 1500));
+        const fresh = await adoptFreshRowTokens(creds);
+        if (fresh.adopted) {
+          log.warn("TOKEN_REFRESH", `Stale-token race detected for ${provider} — retrying once with the fresh DB token instead of disabling`, {
+            error: newCreds.error,
+          });
+          creds = fresh.creds;
+          const retry = await attemptRefresh();
+          if (!isUnrecoverableRefreshError(retry) && (retry?.accessToken || retry?.apiKey || retry?.copilotToken)) {
+            retried = retry;
+          } else if (isUnrecoverableRefreshError(retry)) {
+            newCreds = retry;
+          }
+        }
+      } catch { /* fail-open: fall through to blocked marking */ }
+      if (retried) newCreds = retried;
+    }
     if (isUnrecoverableRefreshError(newCreds)) {
       // Refresh token is dead (revoked/reused/expired) — retrying forever just
       // spams xAI's endpoint every tick. Tag the result so the background
@@ -258,8 +328,8 @@ export async function checkAndRefreshToken(provider, credentials, options = {}) 
       // Only the marker — full disable stays the background path's job.
       if (creds?.connectionId) {
         updateProviderCredentials(creds.connectionId, {
-          existingProviderSpecificData: {
-            ...(creds.providerSpecificData || {}),
+          existingProviderSpecificData: creds.providerSpecificData || {},
+          providerSpecificData: {
             refreshBlocked: newCreds.error || "unrecoverable",
             refreshBlockedAt: refreshErrorAt,
           },
