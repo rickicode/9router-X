@@ -78,6 +78,9 @@ describe("OpenCode Zen executor", () => {
     const headers = executor.buildHeaders({ apiKey: "test-key" }, true, "https://opencode.ai/zen/v1/chat/completions", "deepseek-v4-flash");
     expect(headers["x-opencode-client"]).toBe("cli");
     expect(headers["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/);
+    expect(headers["User-Agent"]).toMatch(/^opencode\/\d+\.\d+/i);
+    // Streaming keeps the executor's SSE accept; non-streaming falls back to */*.
+    expect(headers["Accept"]).toBe("text/event-stream");
     expect(headers["Authorization"]).toBe("Bearer test-key");
   });
 
@@ -193,8 +196,18 @@ describe("OpenCode Zen executor", () => {
     expect(body.tool_choice).toBe("auto");
   });
 
-  it("emits deterministic conforming translated sessions", () => {
+  it("forwards genuine downstream CLI UAs, synthesizes otherwise", () => {
     const executor = getExecutor("opencode-zen");
+    const genuine = "opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14";
+    const fwd = executor.buildHeaders({ connectionId: "c", rawHeaders: { "user-agent": genuine } }, true, undefined, "mimo-v2.5-free");
+    expect(fwd["User-Agent"]).toBe(genuine);
+    const synth = executor.buildHeaders({ connectionId: "c", rawHeaders: { "user-agent": "mocin/1.0" } }, true, undefined, "mimo-v2.5-free");
+    expect(synth["User-Agent"]).toMatch(/^opencode\/\d+\.\d+/i);
+    const missing = executor.buildHeaders({ connectionId: "c", rawHeaders: {} }, true, undefined, "mimo-v2.5-free");
+    expect(missing["User-Agent"]).toMatch(/^opencode\/\d+\.\d+/i);
+  });
+
+  it("emits deterministic conforming translated sessions", () => {    const executor = getExecutor("opencode-zen");
     const h1 = executor.buildHeaders({ connectionId: "c1", rawHeaders: {} }, true, undefined, "mimo-v2.5-free");
     const h2 = executor.buildHeaders({ connectionId: "c1", rawHeaders: {} }, true, undefined, "mimo-v2.5-free");
     expect(h1["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/);

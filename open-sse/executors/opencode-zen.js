@@ -2,8 +2,7 @@ import crypto from "node:crypto";
 import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
-import { OPENCODE_AGENT_TOOLS } from "../config/opencodeAgentTools.js";
-import { appendMissingGateTools } from "./opencode.js";
+import { appendMissingGateTools, OPENCODE_UA, GENUINE_CLI_UA_RE } from "./opencode.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -148,6 +147,16 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
   buildHeaders(credentials, stream = true, url, model) {
     const headers = super.buildHeaders(credentials || {}, stream, url, model);
     if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "cli";
+    // The free-tier gate rejects missing/non-CLI User-Agents: DefaultExecutor
+    // sends none (registry declares no UA). Forward genuine CLI UAs,
+    // synthesize the versioned identity otherwise — same rule as opencode.js.
+    const raw = credentials?.rawHeaders || {};
+    let downstreamUa = "";
+    for (const [k, v] of Object.entries(raw)) {
+      if (k.toLowerCase() === "user-agent" && typeof v === "string") { downstreamUa = v; break; }
+    }
+    headers["User-Agent"] = GENUINE_CLI_UA_RE.test(downstreamUa.trim()) ? downstreamUa : OPENCODE_UA;
+    if (!headers["Accept"]) headers["Accept"] = "*/*";
     const prepared = credentials?.[SESSION_FIELD];
     if (prepared) {
       headers[SESSION_HEADER] = prepared;

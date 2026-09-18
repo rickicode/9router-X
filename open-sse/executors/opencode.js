@@ -15,11 +15,11 @@ const OPENCODE_CLIENT_VERSION = "1.18.31";
 // alphanumerics, the client's time-ordered Identifier format). Either signal
 // mismatched yields 403 FreeTierError on a healthy egress. Env override kept
 // for future client versions.
-const OPENCODE_UA = process.env.OPENCODE_USER_AGENT?.trim() || `opencode/${OPENCODE_CLIENT_VERSION}`;
+export const OPENCODE_UA = process.env.OPENCODE_USER_AGENT?.trim() || `opencode/${OPENCODE_CLIENT_VERSION}`;
 // Genuine CLI UA looks like "opencode/1.18.31 ai-sdk/... runtime/bun/..." —
 // forward those untouched; synthesize for everything else (bare "opencode",
 // curl, SDKs) since the gate rejects them.
-const GENUINE_CLI_UA_RE = /^opencode\/\d+\.\d+/i;
+export const GENUINE_CLI_UA_RE = /^opencode\/\d+\.\d+/i;
 // Models served by /zen/v1/responses; every other model stays on /chat/completions.
 const RESPONSES_MODELS = new Set([
   "muse-spark-1.2-contributor-free",
