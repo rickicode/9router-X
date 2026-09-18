@@ -73,10 +73,10 @@ describe("OpenCode Zen executor", () => {
     expect(getExecutor("ocz")).toBeInstanceOf(OpenCodeZenExecutor);
   });
 
-  it("injects desktop client and session headers", () => {
+  it("injects cli client and session headers (genuine CLI 1.18.31 fingerprint)", () => {
     const executor = getExecutor("opencode-zen");
     const headers = executor.buildHeaders({ apiKey: "test-key" }, true, "https://opencode.ai/zen/v1/chat/completions", "deepseek-v4-flash");
-    expect(headers["x-opencode-client"]).toBe("desktop");
+    expect(headers["x-opencode-client"]).toBe("cli");
     expect(headers["x-opencode-session"]).toMatch(/^ses_[a-f0-9]{32}$/);
     expect(headers["Authorization"]).toBe("Bearer test-key");
   });

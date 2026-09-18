@@ -5,6 +5,7 @@ import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
+import { OPENCODE_AGENT_TOOLS } from "../config/opencodeAgentTools.js";
 
 const OPENCODE_CLIENT_VERSION = "1.18.31";
 // Reverse-engineered from the genuine OpenCode CLI 1.18.31 (local packet
@@ -30,18 +31,8 @@ const RESPONSES_MODELS = new Set([
 const CLAUDE_MODELS = new Set([
   "union-alpha",
 ]);
-// The upstream free-tier gate validates tool CONTENT, not just presence: a
-// placeholder like "opencode_noop" fails, while the genuine CLI's agent tool
-// set (Bash/Read/Write/Edit/Glob/Grep — verified against 200 OK packets) passes.
-// Mirror those names/descriptions so non-agent chat requests pass the gate.
-const OPENCODE_AGENT_TOOLS = [
-  { name: "Bash", description: "Run a bash command in the workspace and return stdout/stderr." },
-  { name: "Read", description: "Read the contents of a file at a path, optionally by line range." },
-  { name: "Write", description: "Create or overwrite a file with the given content." },
-  { name: "Edit", description: "Apply an exact string replacement inside an existing file." },
-  { name: "Glob", description: "Find files matching a glob pattern under the project root." },
-  { name: "Grep", description: "Search file contents with a regular expression." },
-];
+// Gate-passing agent tools live in config/opencodeAgentTools.js (genuine CLI
+// definitions — the upstream free-tier gate validates tool content).
 
 const OPENCODE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 // Real client Identifier shape: 12 lowercase-hex (time-ordered) + 14 mixed-case
@@ -174,7 +165,7 @@ export class OpenCodeExecutor extends BaseExecutor {
           type: "function",
           name: t.name,
           description: t.description,
-          parameters: { type: "object", properties: {} },
+          parameters: t.parameters,
         }));
         if (!body.tool_choice) {
           body.tool_choice = "auto";
@@ -185,7 +176,7 @@ export class OpenCodeExecutor extends BaseExecutor {
         body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
           name: t.name,
           description: t.description,
-          input_schema: { type: "object", properties: {} },
+          input_schema: t.parameters,
         }));
       }
     } else {
@@ -195,7 +186,7 @@ export class OpenCodeExecutor extends BaseExecutor {
           function: {
             name: t.name,
             description: t.description,
-            parameters: { type: "object", properties: {} },
+            parameters: t.parameters,
           },
         }));
         if (!body.tool_choice) {
