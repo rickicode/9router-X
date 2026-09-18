@@ -30,6 +30,18 @@ const RESPONSES_MODELS = new Set([
 const CLAUDE_MODELS = new Set([
   "union-alpha",
 ]);
+// The upstream free-tier gate validates tool CONTENT, not just presence: a
+// placeholder like "opencode_noop" fails, while the genuine CLI's agent tool
+// set (Bash/Read/Write/Edit/Glob/Grep — verified against 200 OK packets) passes.
+// Mirror those names/descriptions so non-agent chat requests pass the gate.
+const OPENCODE_AGENT_TOOLS = [
+  { name: "Bash", description: "Run a bash command in the workspace and return stdout/stderr." },
+  { name: "Read", description: "Read the contents of a file at a path, optionally by line range." },
+  { name: "Write", description: "Create or overwrite a file with the given content." },
+  { name: "Edit", description: "Apply an exact string replacement inside an existing file." },
+  { name: "Glob", description: "Find files matching a glob pattern under the project root." },
+  { name: "Grep", description: "Search file contents with a regular expression." },
+];
 
 const OPENCODE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 // Real client Identifier shape: 12 lowercase-hex (time-ordered) + 14 mixed-case
@@ -158,40 +170,34 @@ export class OpenCodeExecutor extends BaseExecutor {
       normalizeOpencodeReasoning(model, body);
 
       if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = [
-          {
-            type: "function",
-            name: "opencode_noop",
-            description: "Internal client tool placeholder",
-            parameters: { type: "object", properties: {} },
-          },
-        ];
+        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
+          type: "function",
+          name: t.name,
+          description: t.description,
+          parameters: { type: "object", properties: {} },
+        }));
         if (!body.tool_choice) {
           body.tool_choice = "auto";
         }
       }
     } else if (isClaudeModel(model)) {
       if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = [
-          {
-            name: "opencode_noop",
-            description: "Internal client tool placeholder",
-            input_schema: { type: "object", properties: {} },
-          },
-        ];
+        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
+          name: t.name,
+          description: t.description,
+          input_schema: { type: "object", properties: {} },
+        }));
       }
     } else {
       if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = [
-          {
-            type: "function",
-            function: {
-              name: "opencode_noop",
-              description: "Internal client tool placeholder",
-              parameters: { type: "object", properties: {} },
-            },
+        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
+          type: "function",
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: { type: "object", properties: {} },
           },
-        ];
+        }));
         if (!body.tool_choice) {
           body.tool_choice = "none";
         }
