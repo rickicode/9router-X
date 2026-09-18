@@ -163,10 +163,12 @@ export default function CombosPage() {
 
   // Merge a per-combo strategy patch into settings.comboStrategies. Passing an empty
   // patch (strategy back to default "fallback") drops the entry entirely.
+  // stickyLimit: null clears the per-combo window (back to global).
   const handleSetComboStrategy = async (comboName, patch) => {
     try {
       const updated = { ...comboStrategies };
       const next = { ...(updated[comboName] || {}), ...patch };
+      if (patch.stickyLimit === null) delete next.stickyLimit;
       // Prune to keep settings clean: default fallback with no extras = no entry.
       if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
         delete updated[comboName];
@@ -300,9 +302,12 @@ const STRATEGY_OPTIONS = [
 
 function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdit, onDelete, strategy = {}, onSetStrategy }) {
   const [showJudgeSelect, setShowJudgeSelect] = useState(false);
+  const [stickyDraft, setStickyDraft] = useState(null);
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
   const isFusion = current === "fusion";
+  const isRR = current === "round-robin" || current === "round-robin-sticky";
+  const stickyValue = stickyDraft ?? strategy.stickyLimit ?? "";
 
   return (
     <Card padding="sm" className="group">
@@ -325,6 +330,30 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
                 ))
               )}
             </div>
+            {/* Round-robin sticky window (per combo; overrides global) */}
+            {isRR && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-medium text-text-muted" title="Requests per model before rotating to the next (blank = use the global setting)">
+                  Sticky calls/model
+                </span>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="global"
+                  value={stickyValue}
+                  onChange={(e) => setStickyDraft(e.target.value)}
+                  onBlur={() => {
+                    if (stickyDraft === null) return;
+                    const num = parseInt(stickyDraft, 10);
+                    onSetStrategy({ stickyLimit: Number.isFinite(num) && num > 0 ? num : null });
+                    setStickyDraft(null);
+                  }}
+                  disabled={loading}                  className="w-20 py-1 text-center text-xs"
+                />
+              </div>
+            )}
+
             {/* Fusion: judge picker (Auto = first model) */}
             {isFusion && (
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">

@@ -73,12 +73,13 @@ function withDeadline(promise, ms = 500) {
 }
 
 /**
- * Prepare combo member order + effective strategy. Composition order is
- * deliberate: ROTATE first (strict round-robin over the configured
- * order), then stable-partition healthy members front (health reorder never
- * drops anyone, so the rotated relative order survives and a healthy head is
- * guaranteed whenever one exists). The inner combo loop then runs strategy
- * "fallback" over the prepared list so the order is not rotated twice.
+ * Prepare combo member order + effective strategy.
+ * - fallback: health-reorder moves failing members to the back (order is the
+ *   contract, rotation never applies).
+ * - round-robin / round-robin-sticky / random: pure rotation/shuffle — health
+ *   reorder is SKIPPED so every member keeps its turn; dead members are
+ *   handled by the combo loop's fast-skip instead of being demoted (demoting
+ *   after rotation would defeat the rotation and starve back-of-list members).
  * Returns { models, strategy }.
  */
 async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
@@ -93,7 +94,10 @@ async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
       effectiveStrategy = "fallback";
     }
   }
-  return { models: await reorderComboByHealth(ordered), strategy: effectiveStrategy };
+  const healthReordered = effectiveStrategy === "fallback"
+    ? await reorderComboByHealth(ordered)
+    : ordered;
+  return { models: healthReordered, strategy: effectiveStrategy };
 }
 
 /**
@@ -226,9 +230,11 @@ export async function handleChat(request, clientRawRequest = null) {
   const comboModels = await getComboModels(modelStr);
   if (comboModels) {
     // Check for combo-specific strategy first, fallback to global
-    const comboStrategies = settings.comboStrategies || {};
-    const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
-    const comboStrategy = comboSpecificStrategy || settings.comboStrategy || "fallback";
+  const comboStrategies = settings.comboStrategies || {};
+  const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
+  const comboStrategy = comboSpecificStrategy || settings.comboStrategy || "fallback";
+  // Per-combo sticky window wins over the global comboStickyRoundRobinLimit.
+  const comboStickyLimit = comboStrategies[modelStr]?.stickyLimit ?? settings.comboStickyRoundRobinLimit ?? 1;
     // A combo is an explicit routing contract. Never inject a model from a
     // different provider into it; its members and configured strategy define
     // the complete fallback set.
@@ -259,7 +265,6 @@ export async function handleChat(request, clientRawRequest = null) {
       });
     }
 
-    const comboStickyLimit = settings.comboStickyRoundRobinLimit;
     // Per-combo autoSwitch opt-out: cost-ordered combos can keep their explicit
     // member order even when the request carries media/search. Default true.
     const comboAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
@@ -336,6 +341,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       const comboStrategies = chatSettings.comboStrategies || {};
       const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
       const comboStrategy = comboSpecificStrategy || chatSettings.comboStrategy || "fallback";
+      const comboStickyLimit = comboStrategies[modelStr]?.stickyLimit ?? chatSettings.comboStickyRoundRobinLimit ?? 1;
       const requiredCapabilities = detectRequiredCapabilities(body);
        const augmentedModels = comboModels;
       const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
@@ -363,7 +369,6 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         });
       }
 
-      const comboStickyLimit = chatSettings.comboStickyRoundRobinLimit;
       const nestedAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
       log.info("CHAT", `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
       const preparedNested = await prepareComboOrder(
