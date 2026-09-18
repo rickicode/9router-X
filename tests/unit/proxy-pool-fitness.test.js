@@ -60,7 +60,7 @@ describe("proxy pool fitness registry", () => {
     )).toBeNull();
   });
 
-  it("preserves fail-open smart fallback for non-Freebuff providers", () => {
+  it("returns null (fail fast) for non-Freebuff providers when all pools unfit — resolver falls back to direct egress", () => {
     markPoolUnfit("p1", "opencode::sonnet-4.6", Date.now() + 60_000, "ip-limit");
     markPoolUnfit("p2", "opencode::sonnet-4.6", Date.now() + 60_000, "ip-limit");
 
@@ -69,7 +69,7 @@ describe("proxy pool fitness registry", () => {
       "smart",
       "opencode",
       { scope: "opencode::sonnet-4.6" },
-    )).toBe("p1");
+    )).toBeNull();
   });
 
   it("clear per scope, clear-all per provider, clear-all global, pruneExpired", () => {
