@@ -53,6 +53,14 @@ function normalizeCapEntry(entry) {
 }
 
 export default function CombosPage() {
+  return (
+    <Suspense fallback={<CardSkeleton />}>
+      <CombosPageContent />
+    </Suspense>
+  );
+}
+
+function CombosPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabFromUrl = searchParams.get("tab");
@@ -81,9 +89,7 @@ export default function CombosPage() {
       {activeTab === "analytics" ? (
         <ComboAnalyticsTab />
       ) : (
-        <Suspense fallback={<CardSkeleton />}>
-          <CombosContent />
-        </Suspense>
+        <CombosContent />
       )}
     </div>
   );
