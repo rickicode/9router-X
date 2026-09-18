@@ -451,7 +451,7 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
       db.all(comboSql, params).catch(() => []),
       db.all(memberSql, params).catch(() => []),
       db.all(difficultySql, params).catch(() => []),
-    ));
+    ]);
 
     return {
       combos: (comboRows || []).map((row) => ({
