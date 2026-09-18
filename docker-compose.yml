@@ -25,6 +25,12 @@ services:
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Jakarta
       NODE_ENV: production
+      # RAM hygiene (4GB box, native-heavy SSE workload):
+      # - glibc arena cap + eager trim: RSS would otherwise pin freed chunks.
+      # - dispatcher cache 128 (from 512 default): fewer idle SOCKS/TLS tunnels held.
+      MALLOC_ARENA_MAX: "2"
+      MALLOC_TRIM_THRESHOLD_: "131072"
+      PROXY_DISPATCHERS_MAX_SIZE: "128"
       DATABASE_URL: postgres://9router:${POSTGRES_PASSWORD:-password123}@postgres:5432/9router
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       HEADROOM_URL: http://headroom:8787
