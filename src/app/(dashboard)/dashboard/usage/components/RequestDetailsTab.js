@@ -305,7 +305,123 @@ export default function RequestDetailsTab() {
       </Card>
 
       <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile Card List (< sm) */}
+        <div className="sm:hidden divide-y divide-black/5 dark:divide-white/5">
+          {fetchError ? (
+            <div className="p-6 text-center">
+              <div role="alert" className="flex flex-col items-center justify-center gap-2 text-danger text-sm">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  {fetchError}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchDetails}
+                  className="mt-1 text-xs"
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="p-8 text-center text-text-muted text-xs">
+              <div className="flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                Loading...
+              </div>
+            </div>
+          ) : details.length === 0 ? (
+            <div className="p-8 text-center text-text-muted text-xs">
+              No request details found
+            </div>
+          ) : (
+            details.map((detail, index) => {
+              const badge = getStatusBadge(detail);
+              const isSuccess = detail.status === "success";
+              return (
+                <div
+                  key={`mob-detail-${detail.id}-${index}`}
+                  className="p-3.5 space-y-2.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                >
+                  {/* Row 1: Status badge, Provider, Time */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border",
+                          badge.color === "emerald"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                            : badge.color === "amber"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                              : badge.color === "orange"
+                                ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                                : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                        )}
+                      >
+                        <span className="material-symbols-outlined !text-[12px] leading-none">
+                          {isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
+                        </span>
+                        {badge.label}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-surface-2 border border-border-subtle text-[11px] font-medium text-text-muted">
+                        {getProviderName(detail.provider, providerNameCache)}
+                      </span>
+                    </div>
+                    <div className="text-right text-[11px] text-text-muted font-mono whitespace-nowrap">
+                      <div>{new Date(detail.timestamp).toLocaleDateString("en-US")}</div>
+                      <div className="text-[10px] text-text-muted/70">{new Date(detail.timestamp).toLocaleTimeString("en-US")}</div>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Model (break-all font-mono) */}
+                  <div className="font-mono text-xs font-medium text-text-main break-all" title={detail.model}>
+                    {detail.model}
+                  </div>
+
+                  {/* Row 3: Stats Grid (In/Cached, Out, Latency) */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-black/5 dark:border-white/5 text-[11px]">
+                    <div>
+                      <span className="text-[10px] text-text-muted block">In / Cached</span>
+                      <div className="font-mono text-text-main">{getInputTokens(detail.tokens).toLocaleString("en-US")}</div>
+                      {getCachedTokens(detail.tokens) > 0 && (
+                        <div className="text-[10px] text-emerald-600 truncate">↻ {getCachedTokens(detail.tokens).toLocaleString("en-US")}</div>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-text-muted block">Out</span>
+                      <div className="font-mono text-text-main">{(detail.tokens?.completion_tokens || 0).toLocaleString("en-US")}</div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-text-muted block">Latency</span>
+                      <div className="font-mono text-text-muted text-[10px] leading-tight">
+                        <div>{detail.latency?.ttft || 0}ms <span className="opacity-70">TTFT</span></div>
+                        <div>{detail.latency?.total || 0}ms <span className="opacity-70">tot</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Detail button min 44px touch */}
+                  <div className="pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDetail(detail)}
+                      aria-label={`View detail for ${detail.model} request at ${new Date(detail.timestamp).toLocaleTimeString("en-US")}`}
+                      className="w-full min-h-[44px] text-xs font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">visibility</span>
+                      Detail
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Table (sm+) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[980px]" aria-label="Request details table">
             <thead className="bg-black/[0.02] dark:bg-white/[0.02]">
               <tr className="border-b border-black/5 dark:border-white/5">

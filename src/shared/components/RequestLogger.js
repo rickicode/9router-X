@@ -164,79 +164,169 @@ export default function RequestLogger() {
       )}
 
       <Card className="overflow-hidden bg-surface-2">
-        <div className="p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
-          {loading && logs.length === 0 ? (
-            <div className="p-8 text-center text-text-muted">Loading logs...</div>
-          ) : logs.length === 0 ? (
-            <div className="p-8 text-center text-text-muted">No logs recorded yet.</div>
-          ) : (
-            <table className="w-full text-left border-collapse whitespace-nowrap" aria-label="Request logs">
-              <thead className="sticky top-0 bg-bg-subtle border-b border-border z-10">
-                <tr>
-                  <th scope="col" className="px-3 py-2 border-r border-border">DateTime</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">Model</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">Provider</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">Account</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">In</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">Out</th>
-                  <th scope="col" className="px-3 py-2 border-r border-border">Status</th>
-                  <th scope="col" className="px-3 py-2 text-center">Detail</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {logs.map((log, i) => {
-                  const status = log.status;
-                  const isPending = status.includes("PENDING");
-                  const isFailed = status.includes("FAILED") || status.includes("ERROR");
-                  const isSuccess = status.includes("OK");
+        {loading && logs.length === 0 ? (
+          <div className="p-8 text-center text-text-muted text-xs">Loading logs...</div>
+        ) : logs.length === 0 ? (
+          <div className="p-8 text-center text-text-muted text-xs">No logs recorded yet.</div>
+        ) : (
+          <>
+            {/* Mobile Card List (< sm) */}
+            <div className="sm:hidden divide-y divide-border/60">
+              {logs.map((log, i) => {
+                const status = log.status;
+                const isPending = status.includes("PENDING");
+                const isFailed = status.includes("FAILED") || status.includes("ERROR");
+                const isSuccess = status.includes("OK");
 
-                  return (
-                    <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-error/[0.04]' : ''}`}>
-                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{log.datetime}</td>
-                      <td className="px-3 py-1.5 border-r border-border font-medium">{log.model}</td>
-                      <td className="px-3 py-1.5 border-r border-border">
-                        <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
+                return (
+                  <div
+                    key={`mob-${i}`}
+                    className={`p-3.5 space-y-2.5 transition-colors ${
+                      isPending ? "bg-primary/5" : isFailed ? "bg-error/[0.04]" : ""
+                    }`}
+                  >
+                    {/* Status badge, Provider badge, DateTime */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                            isSuccess
+                              ? "bg-success/10 text-success border-success/30"
+                              : isFailed
+                              ? "bg-error/10 text-error border-error/30"
+                              : "bg-primary/10 text-primary border-primary/30 animate-pulse"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[12px] leading-none">
+                            {isSuccess ? "check_circle" : isFailed ? "error" : "hourglass_empty"}
+                          </span>
+                          {status}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold text-text-muted">
                           {log.provider}
                         </span>
-                      </td>
-                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={log.account}>{log.account}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{log.sent}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{log.received}</td>
-                      <td className={`px-3 py-1.5 border-r border-border font-bold ${isSuccess ? 'text-success' :
-                          isFailed ? 'text-error' :
-                            'text-primary animate-pulse'
-                        }`}>
-                        {status}
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        {isFailed ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDetail(log)}
-                            aria-label={`View error detail for ${log.model} ${status}`}
-                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-error/30 bg-error/10 px-2 py-1 text-[11px] font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">error</span>
-                            Detail
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDetail(log)}
-                            aria-label={`View detail for ${log.model} ${status}`}
-                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
-                          >
-                            View
-                          </button>
+                      </div>
+                      <span className="text-[11px] text-text-muted font-mono whitespace-nowrap">
+                        {log.datetime}
+                      </span>
+                    </div>
+
+                    {/* Model */}
+                    <div className="font-mono text-xs font-medium text-text-main break-all">
+                      {log.model}
+                    </div>
+
+                    {/* Footer: Account, In/Out tokens, View/Detail button */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                      <div className="flex flex-col text-[11px]">
+                        {log.account && log.account !== "-" && (
+                          <span className="text-text-muted truncate max-w-[150px]" title={log.account}>
+                            {log.account}
+                          </span>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                          <span className="text-primary">In: {log.sent}</span>
+                          <span className="text-text-muted">/</span>
+                          <span className="text-success">Out: {log.received}</span>
+                        </div>
+                      </div>
+
+                      {isFailed ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(log)}
+                          aria-label={`View error detail for ${log.model} ${status}`}
+                          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[15px] mr-1" aria-hidden="true">error</span>
+                          Detail
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(log)}
+                          aria-label={`View detail for ${log.model} ${status}`}
+                          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (sm+) */}
+            <div className="hidden sm:block p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
+              <table className="w-full text-left border-collapse" aria-label="Request logs">
+                <thead className="sticky top-0 bg-bg-subtle border-b border-border z-10">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">DateTime</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border">Model</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">Provider</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border">Account</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border text-right whitespace-nowrap">In</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border text-right whitespace-nowrap">Out</th>
+                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">Status</th>
+                    <th scope="col" className="px-3 py-2 text-center whitespace-nowrap">Detail</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {logs.map((log, i) => {
+                    const status = log.status;
+                    const isPending = status.includes("PENDING");
+                    const isFailed = status.includes("FAILED") || status.includes("ERROR");
+                    const isSuccess = status.includes("OK");
+
+                    return (
+                      <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-error/[0.04]' : ''}`}>
+                        <td className="px-3 py-1.5 border-r border-border text-text-muted whitespace-nowrap">{log.datetime}</td>
+                        <td className="px-3 py-1.5 border-r border-border font-medium break-all max-w-[220px]">{log.model}</td>
+                        <td className="px-3 py-1.5 border-r border-border whitespace-nowrap">
+                          <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
+                            {log.provider}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={log.account}>{log.account}</td>
+                        <td className="px-3 py-1.5 border-r border-border text-right text-primary whitespace-nowrap">{log.sent}</td>
+                        <td className="px-3 py-1.5 border-r border-border text-right text-success whitespace-nowrap">{log.received}</td>
+                        <td className={`px-3 py-1.5 border-r border-border font-bold whitespace-nowrap ${isSuccess ? 'text-success' :
+                            isFailed ? 'text-error' :
+                              'text-primary animate-pulse'
+                          }`}>
+                          {status}
+                        </td>
+                        <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                          {isFailed ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDetail(log)}
+                              aria-label={`View error detail for ${log.model} ${status}`}
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-error/30 bg-error/10 px-2 py-1 text-[11px] font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">error</span>
+                              Detail
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDetail(log)}
+                              aria-label={`View detail for ${log.model} ${status}`}
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </Card>
       <div className="text-[10px] text-text-muted italic">
         Logs are loaded from the request history database.

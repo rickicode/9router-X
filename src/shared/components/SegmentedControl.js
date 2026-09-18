@@ -65,7 +65,7 @@ export default function SegmentedControl({
       aria-label={ariaLabelProp || ariaLabel || "Options"}
       onKeyDown={handleKeyDown}
       className={cn(
-        "inline-flex items-center p-1 rounded-[10px] overflow-x-auto max-w-full",
+        "inline-flex items-center p-1 rounded-[10px] overflow-x-auto max-w-full no-scrollbar",
         "bg-surface-2 border border-border-subtle",
         className
       )}

@@ -35,16 +35,16 @@ function ValueCells({ item, viewMode, isSummary = false }) {
   if (viewMode === "tokens") {
     return (
       <>
-        <td className="px-6 py-3 text-right text-text-muted">
+        <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
           {isSummary && item.promptTokens === undefined ? "—" : fmt(item.promptTokens)}
         </td>
-        <td className="px-6 py-3 text-right text-text-muted">
+        <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
           {item.cachedTokens ? fmt(item.cachedTokens) : "—"}
         </td>
-        <td className="px-6 py-3 text-right text-text-muted">
+        <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
           {isSummary && item.completionTokens === undefined ? "—" : fmt(item.completionTokens)}
         </td>
-        <td className="px-6 py-3 text-right font-medium">
+        <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right font-medium">
           {fmt(item.totalTokens)}
         </td>
       </>
@@ -52,16 +52,16 @@ function ValueCells({ item, viewMode, isSummary = false }) {
   }
   return (
     <>
-      <td className="px-6 py-3 text-right text-text-muted">
+      <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
         {isSummary && item.inputCost === undefined ? "—" : fmtCost(item.inputCost)}
       </td>
-      <td className="px-6 py-3 text-right text-text-muted">
+      <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
         {item.cachedCost ? fmtCost(item.cachedCost) : "—"}
       </td>
-      <td className="px-6 py-3 text-right text-text-muted">
+      <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-text-muted">
         {isSummary && item.outputCost === undefined ? "—" : fmtCost(item.outputCost)}
       </td>
-      <td className="px-6 py-3 text-right font-medium text-warning">
+      <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-right font-medium text-warning">
         {fmtCost(item.totalCost || item.cost)}
       </td>
     </>
@@ -156,10 +156,94 @@ export default function UsageTable({
 
   return (
     <Card className="overflow-hidden">
-      <div className="p-4 border-b border-border bg-bg-subtle/50">
-        <h3 className="font-semibold">{title}</h3>
+      {title && (
+        <div className="p-3 sm:p-4 border-b border-border bg-bg-subtle/50">
+          <h3 className="font-semibold text-sm sm:text-base">{title}</h3>
+        </div>
+      )}
+
+      {/* Mobile Card List (< sm) */}
+      <div className="sm:hidden divide-y divide-border">
+        {groupedData.length === 0 ? (
+          <div className="px-3 py-6 text-center text-xs text-text-muted">
+            {emptyMessage}
+          </div>
+        ) : (
+          groupedData.map((group) => {
+            const isExpanded = expanded.has(group.groupKey);
+            return (
+              <div key={group.groupKey} className="p-3 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.groupKey)}
+                  className="w-full flex items-center justify-between text-left gap-2 py-1 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`material-symbols-outlined text-[18px] text-text-muted transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`}>
+                      chevron_right
+                    </span>
+                    <span className={`font-semibold text-xs truncate ${group.summary.pending > 0 ? "text-primary" : "text-text-main"}`}>
+                      {group.groupKey}
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono font-medium text-warning shrink-0">
+                    {viewMode === "tokens" ? `${fmt(group.summary.totalTokens)} tok` : fmtCost(group.summary.totalCost || group.summary.cost)}
+                  </span>
+                </button>
+
+                {/* Summary quick stats */}
+                <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-border/40 text-[11px]">
+                  <div>
+                    <span className="text-text-muted block text-[10px]">Requests</span>
+                    <span className="font-medium">{fmt(group.summary.requests)}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted block text-[10px]">{viewMode === "tokens" ? "Input" : "Input Cost"}</span>
+                    <span className="font-mono text-text-muted">
+                      {viewMode === "tokens" ? fmt(group.summary.promptTokens) : fmtCost(group.summary.inputCost)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted block text-[10px]">{viewMode === "tokens" ? "Output" : "Output Cost"}</span>
+                    <span className="font-mono text-text-muted">
+                      {viewMode === "tokens" ? fmt(group.summary.completionTokens) : fmtCost(group.summary.outputCost)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expanded items */}
+                {isExpanded && (
+                  <div className="mt-2 space-y-2 pl-3 border-l-2 border-primary/30">
+                    {group.items.map((item) => (
+                      <div key={`mobile-item-${item.key}`} className="p-2 rounded-lg bg-surface-2/60 border border-border-subtle text-xs space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-text-main truncate">
+                            {item.rawModel || item.accountName || item.keyName || item.endpoint || item.key}
+                          </span>
+                          {item.provider && (
+                            <Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">
+                              {item.provider}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-text-muted">
+                          <span>{fmt(item.requests)} reqs</span>
+                          <span className="font-mono font-medium text-text-main">
+                            {viewMode === "tokens" ? `${fmt(item.totalTokens)} tok` : fmtCost(item.totalCost || item.cost)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Desktop Table (sm+) */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm text-left" aria-label={title || "Usage breakdown table"}>
           <thead className="bg-bg-subtle/30 text-text-muted uppercase text-xs">
             <tr>
@@ -177,7 +261,7 @@ export default function UsageTable({
                       type="button"
                       onClick={() => onToggleSort(tableType, col.field)}
                       aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
-                      className={`w-full px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${col.align === "right" ? "justify-end" : "justify-start"}`}
+                      className={`w-full px-3 sm:px-6 py-2.5 sm:py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${col.align === "right" ? "justify-end" : "justify-start"}`}
                     >
                       <span>{col.label}</span>{" "}
                       <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
@@ -199,7 +283,7 @@ export default function UsageTable({
                       type="button"
                       onClick={() => onToggleSort(tableType, col.field)}
                       aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
-                      className="w-full px-6 py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center justify-end gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
+                      className="w-full px-3 sm:px-6 py-2.5 sm:py-3 cursor-pointer hover:bg-bg-subtle/50 text-inherit font-inherit uppercase text-xs inline-flex items-center justify-end gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
                     >
                       <span>{col.label}</span>{" "}
                       <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
@@ -227,7 +311,7 @@ export default function UsageTable({
                     }
                   }}
                 >
-                  <th scope="row" className="px-6 py-3 font-normal text-left">
+                  <th scope="row" className="px-3 sm:px-6 py-2.5 sm:py-3 font-normal text-left">
                     <div className="flex items-center gap-2">
                       <span className={`material-symbols-outlined text-[18px] text-text-muted transition-transform ${expanded.has(group.groupKey) ? "rotate-90" : ""}`}>
                         chevron_right
@@ -254,7 +338,7 @@ export default function UsageTable({
             ))}
             {groupedData.length === 0 && (
               <tr>
-                <td colSpan={totalColSpan} className="px-6 py-8 text-center text-text-muted">
+                <td colSpan={totalColSpan} className="px-3 sm:px-6 py-6 sm:py-8 text-center text-text-muted">
                   {emptyMessage}
                 </td>
               </tr>

@@ -5,7 +5,7 @@ import Card from "@/shared/components/Card";
 import Button from "@/shared/components/Button";
 import Input from "@/shared/components/Input";
 import { cn } from "@/shared/utils/cn";
-import RealtimeRequestRow from "./realtime/RealtimeRequestRow";
+import RealtimeRequestRow, { RealtimeRequestCardMobile } from "./realtime/RealtimeRequestRow";
 import ActiveRequestsModal from "./realtime/ActiveRequestsModal";
 import RequestErrorModal from "./realtime/RequestErrorModal";
 
@@ -176,29 +176,31 @@ export default function RealtimeRequestsCard({
       />
 
       {/* Control Bar: Filter Pills & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {filterPills.map((pill) => (
-            <button
-              key={pill.id}
-              type="button"
-              onClick={() => setFilterType(pill.id)}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer select-none",
-                filterType === pill.id
-                  ? "bg-surface-3 border border-border text-text-main font-semibold shadow-xs"
-                  : "bg-surface-1 border border-border-subtle text-text-muted hover:text-text-main hover:bg-surface-2",
-              )}
-            >
-              <span>{pill.label}</span>
-              <span className="text-[10px] opacity-70 font-mono">
-                ({pill.count})
-              </span>
-            </button>
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 min-w-0 max-w-full">
+        <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {filterPills.map((pill) => (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => setFilterType(pill.id)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer select-none shrink-0",
+                  filterType === pill.id
+                    ? "bg-surface-3 border border-border text-text-main font-semibold shadow-xs"
+                    : "bg-surface-1 border border-border-subtle text-text-muted hover:text-text-main hover:bg-surface-2",
+                )}
+              >
+                <span>{pill.label}</span>
+                <span className="text-[10px] opacity-70 font-mono">
+                  ({pill.count})
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:w-64 min-w-0">
           <Input
             aria-label="Filter realtime requests"
             placeholder="Search model, provider, apikey..."
@@ -217,34 +219,44 @@ export default function RealtimeRequestsCard({
             : "No requests match the selected filter."}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-surface-1/50">
-          <table className="w-full min-w-[860px] border-collapse text-left text-xs" aria-label="Recent requests stream">
-            <thead>
-              <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
-                <th scope="col" className="py-2.5 px-3 w-8 text-center">Status</th>
-                <th scope="col" className="py-2.5 px-3 w-24">Type</th>
-                <th scope="col" className="py-2.5 px-3 w-28">Stream State</th>
-                <th scope="col" className="py-2.5 px-3">Model</th>
-                <th scope="col" className="py-2.5 px-3 w-28">Provider</th>
-                <th scope="col" className="py-2.5 px-3 w-44">Upstream Account</th>
-                <th scope="col" className="py-2.5 px-3 w-36">Client API Key</th>
-                <th scope="col" className="py-2.5 px-3 text-right w-28 whitespace-nowrap">
-                  Tokens In/Out
-                </th>
-                <th scope="col" className="py-2.5 px-3 text-right w-24 whitespace-nowrap">
-                  When
-                </th>
-                <th scope="col" className="py-2.5 px-3 text-center w-28 whitespace-nowrap">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredRecents.map((r, i) => (
-                <RealtimeRequestRow key={i} req={r} onOpenError={handleOpenErrorModal} />
-              ))}
-            </tbody>
-          </table>
+        <div className="rounded-xl border border-border bg-surface-1/50 overflow-hidden">
+          {/* Mobile Card List (< sm) */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {filteredRecents.map((r, i) => (
+              <RealtimeRequestCardMobile key={`mob-${i}`} req={r} onOpenError={handleOpenErrorModal} />
+            ))}
+          </div>
+
+          {/* Desktop Table (sm+) */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left text-xs" aria-label="Recent requests stream">
+              <thead>
+                <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
+                  <th scope="col" className="py-2.5 px-3 w-8 text-center">Status</th>
+                  <th scope="col" className="py-2.5 px-3 w-24">Type</th>
+                  <th scope="col" className="py-2.5 px-3 w-28">Stream State</th>
+                  <th scope="col" className="py-2.5 px-3">Model</th>
+                  <th scope="col" className="py-2.5 px-3 w-28">Provider</th>
+                  <th scope="col" className="py-2.5 px-3 w-44">Upstream Account</th>
+                  <th scope="col" className="py-2.5 px-3 w-36">Client API Key</th>
+                  <th scope="col" className="py-2.5 px-3 text-right w-28 whitespace-nowrap">
+                    Tokens In/Out
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 text-right w-24 whitespace-nowrap">
+                    When
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 text-center w-28 whitespace-nowrap">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredRecents.map((r, i) => (
+                  <RealtimeRequestRow key={i} req={r} onOpenError={handleOpenErrorModal} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
