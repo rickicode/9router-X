@@ -36,14 +36,14 @@ const CLAUDE_MODELS = new Set([
 // tools 403, +read 200, core6 alone 200). Client tools are preserved;
 // missing markers are appended so thin clients (e.g. 7 dashboard stubs)
 // pass without altering rich agent payloads.
-function toolNameOf(t) {
+export function toolNameOf(t) {
   if (!t || typeof t !== "object") return "";
   if (typeof t.name === "string") return t.name;
   if (t.function && typeof t.function.name === "string") return t.function.name;
   return "";
 }
 
-function appendMissingGateTools(existing, toWire) {
+export function appendMissingGateTools(existing, toWire) {
   const list = Array.isArray(existing) ? existing : [];
   const have = new Set(list.map((t) => toolNameOf(t).toLowerCase()).filter(Boolean));
   const missing = OPENCODE_AGENT_TOOLS.filter((t) => !have.has(t.name.toLowerCase()));

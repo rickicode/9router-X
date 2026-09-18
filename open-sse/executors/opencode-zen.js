@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
+import { OPENCODE_AGENT_TOOLS } from "../config/opencodeAgentTools.js";
+import { appendMissingGateTools } from "./opencode.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -33,12 +35,18 @@ function nativeSession(headers) {
 }
 
 function translatedSession(sessionId, clientTool) {
+  // Deterministic per (clientTool, sessionId), but conforming to the genuine
+  // CLI Identifier shape the free-tier gate validates (ses_ + 12
+  // lowercase-hex + 14 mixed-case alphanumerics). A raw 32-hex digest fails it.
   const digest = crypto
     .createHash("sha256")
     .update(`opencode-zen\0${clientTool || "generic"}\0${sessionId}`)
-    .digest("hex")
-    .slice(0, 32);
-  return `ses_${digest}`;
+    .digest();
+  const hex = digest.toString("hex");
+  const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let tail = "";
+  for (let i = 0; i < 14; i++) tail += ALPHA[digest[12 + i] % ALPHA.length];
+  return `ses_${hex.slice(0, 12)}${tail}`;
 }
 
 // Strip the thinking suffix "model(level)" so checks hit the base id.
@@ -154,7 +162,24 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
   transformRequest(model, body, stream, credentials) {
     const out = super.transformRequest(model, body);
     const isResponses = isResponsesModel(model || body?.model) || Array.isArray(out.input);
-    if (!isResponses) return out;
+    if (!isResponses) {
+      // Chat Completions path (e.g. mimo free models): same free-tier gate as
+      // the opencode executor — merge missing genuine core markers, never
+      // strip client tools.
+      out.stream = true;
+      out.tools = appendMissingGateTools(out.tools, (t) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      }));
+      if (!out.tool_choice || out.tool_choice === "none") {
+        out.tool_choice = "auto";
+      }
+      return out;
+    }
     const normalized = normalizeResponsesInput(out.input);
     if (normalized) out.input = normalized;
     if (!Array.isArray(out.input) || out.input.length === 0) {
@@ -191,6 +216,17 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     out.stream = stream === true;
     out.store = false;
     normalizeResponsesTools(out);
+    // Responses path is gated on tool content too — merge missing markers in
+    // the flat Responses wire shape after normalization.
+    out.tools = appendMissingGateTools(out.tools, (t) => ({
+      type: "function",
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    }));
+    if (!out.tool_choice) {
+      out.tool_choice = "auto";
+    }
     sanitizeResponsesItems(out);
     return out;
   }

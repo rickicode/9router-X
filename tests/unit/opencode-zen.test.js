@@ -77,7 +77,7 @@ describe("OpenCode Zen executor", () => {
     const executor = getExecutor("opencode-zen");
     const headers = executor.buildHeaders({ apiKey: "test-key" }, true, "https://opencode.ai/zen/v1/chat/completions", "deepseek-v4-flash");
     expect(headers["x-opencode-client"]).toBe("cli");
-    expect(headers["x-opencode-session"]).toMatch(/^ses_[a-f0-9]{32}$/);
+    expect(headers["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/);
     expect(headers["Authorization"]).toBe("Bearer test-key");
   });
 
@@ -147,8 +147,7 @@ describe("OpenCode Zen executor", () => {
     expect(body.reasoning).toMatchObject({ effort: "high", summary: "auto" });
   });
 
-  it("converts a non-streaming Responses body into Chat Completions text", () => {
-    const response = responsesCompletionToOpenAI({
+  it("converts a non-streaming Responses body into Chat Completions text", () => {    const response = responsesCompletionToOpenAI({
       id: "resp_test",
       object: "response",
       status: "completed",
@@ -163,6 +162,43 @@ describe("OpenCode Zen executor", () => {
     expect(response.choices[0].message.content).toBe("OK");
     expect(response.choices[0].finish_reason).toBe("stop");
     expect(response.usage.total_tokens).toBe(94);
+  });
+
+  it("merges genuine core markers into thin chat payloads (free-tier gate)", () => {
+    const executor = getExecutor("opencode-zen");
+    const body = {
+      model: "mimo-v2.5-free",
+      messages: [{ role: "user", content: "PONG" }],
+      tool_choice: "none",
+      tools: ["A", "B"].map((n) => ({
+        type: "function", function: { name: n, description: n, parameters: { type: "object", properties: {} } },
+      })),
+    };
+    executor.transformRequest("mimo-v2.5-free", body, true, { connectionId: "t", rawHeaders: {} });
+    const names = body.tools.map((t) => t?.function?.name || t?.name);
+    expect(body.stream).toBe(true);
+    expect(body.tool_choice).toBe("auto");
+    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
+    expect(names).toContain("A");
+    const read = body.tools.find((t) => (t?.function?.name || t?.name) === "read");
+    expect(Object.keys(read.function.parameters.properties)).toContain("filePath");
+  });
+
+  it("merges markers into responses payloads in flat wire shape", () => {
+    const executor = getExecutor("opencode-zen");
+    const body = { model: "muse-spark-1.3-contributor-free", input: "hi", tools: [] };
+    executor.transformRequest("muse-spark-1.3-contributor-free", body, true, { connectionId: "t", rawHeaders: {} });
+    const names = body.tools.map((t) => t?.name);
+    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
+    expect(body.tool_choice).toBe("auto");
+  });
+
+  it("emits deterministic conforming translated sessions", () => {
+    const executor = getExecutor("opencode-zen");
+    const h1 = executor.buildHeaders({ connectionId: "c1", rawHeaders: {} }, true, undefined, "mimo-v2.5-free");
+    const h2 = executor.buildHeaders({ connectionId: "c1", rawHeaders: {} }, true, undefined, "mimo-v2.5-free");
+    expect(h1["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/);
+    expect(h1["x-opencode-session"]).toBe(h2["x-opencode-session"]);
   });
 
 });
