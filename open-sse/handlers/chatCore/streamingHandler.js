@@ -117,7 +117,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     bumpRoutingMetric("stillbornStreams");
     streamController?.handleError?.(peeked.error || new Error(errMsg));
     // Mirrors the non-SSE early-return path above (same unconditional saves).
-    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: 502, isStream: true, error: errMsg }).catch(() => { });
+    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: 502, isStream: true, error: errMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
       comboName,

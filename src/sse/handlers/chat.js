@@ -448,7 +448,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
   const rotationBudgetExceededResponse = () => {
     const budgetMsg = `Max rotation attempts (${MAX_TOTAL_ROTATION_ATTEMPTS}) reached${lastError ? `: ${lastError}` : ""}`;
     log.warn("FALLBACK", budgetMsg, { provider, model });
-    if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: budgetMsg }).catch(() => {});
+    if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: budgetMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => {});
     return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, `[${provider}/${model}] ${budgetMsg}`);
   };
 

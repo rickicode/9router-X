@@ -304,7 +304,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
     if (!parsed) {
       appendLog({ status: `FAILED ${HTTP_STATUS.BAD_GATEWAY}` });
       const errMsg = "Invalid SSE response for non-streaming request";
-      if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
+      if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
         comboName,
@@ -325,7 +325,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
     } catch (err) {
       appendLog({ status: `FAILED ${HTTP_STATUS.BAD_GATEWAY}` });
       const errMsg = `Invalid JSON response from ${provider}: ${err.message}`;
-      if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
+      if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
         comboName,

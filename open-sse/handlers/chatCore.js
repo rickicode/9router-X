@@ -561,9 +561,10 @@ try {
   const errStatus = error.name === "AbortError" ? 499 : HTTP_STATUS.BAD_GATEWAY;
   const errorMsg = error.message || String(error);
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${errStatus}` }).catch(() => { });
-  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: errStatus, isStream: stream, error: errorMsg }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: errStatus, isStream: stream, error: errorMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
+    comboName: comboName || clientRawRequest?.comboName || null,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),
@@ -658,9 +659,10 @@ if (!providerResponse.ok) {
   const parsedErr = parsedNonOk || await parseUpstreamError(providerResponse, executor);
   const { statusCode, message, resetsAtMs, upstreamStatus, upstreamCode } = parsedErr;
   appendRequestLog({ model, provider, connectionId, status: `FAILED ${statusCode}` }).catch(() => { });
-  saveFailedRequest({ provider, model, connectionId, account: credentials?.connectionName || credentials?.name || credentials?.email || null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: upstreamStatus || statusCode, isStream: stream, error: message }).catch(() => { });
+  saveFailedRequest({ provider, model, connectionId, account: credentials?.connectionName || credentials?.name || credentials?.email || null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: upstreamStatus || statusCode, isStream: stream, error: message, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
+    comboName: comboName || clientRawRequest?.comboName || null,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),
