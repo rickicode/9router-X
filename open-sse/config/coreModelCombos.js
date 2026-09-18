@@ -17,16 +17,11 @@
 // ships a newer generation — never point a -latest entry at a dead binding.
 
 export const CORE_MODEL_COMBOS = {
-  // ── GLM family ────────────────────────────────────────────────────────
+  // ── GLM family (only the newest generation is seeded; older GLM versions
+  //    like 4.5 / 4.7 are not worth seed space) ──────────────────────────
   "glm-5.3-flash": [
     "cline-free/z-ai/glm-5.3-flash",
     "ocz/glm-5.3-flash",
-  ],
-  "glm-4.7-flash": [
-    "cline-free/z-ai/glm-4.7-flash",
-  ],
-  "glm-4.5": [
-    "cline-free/z-ai/glm-4.5",
   ],
 
   // ── DeepSeek family ───────────────────────────────────────────────────
