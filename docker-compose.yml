@@ -9,6 +9,11 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     restart: always
+    # Box only has 6GB RAM and next-server leaks under load (~240MB/min during
+    # 403 retry storms). Cap so the kernel OOM-kills + compose restarts just
+    # this container instead of the whole box thrashing into swap.
+    mem_limit: 4g
+    memswap_limit: 4g
     ports:
       - "10128:10128"
     volumes:
@@ -33,8 +38,6 @@ services:
         max-size: "50m"
         max-file: "3"
     depends_on:
-      headroom:
-        condition: service_started
       postgres:
         condition: service_healthy
 
@@ -42,6 +45,8 @@ services:
     image: postgres:17-alpine
     container_name: 9router-postgres
     restart: always
+    mem_limit: 2g
+    memswap_limit: 2g
     ports:
       - "5432:5432"
     command:
@@ -78,10 +83,16 @@ services:
       timeout: 5s
       retries: 5
 
+  # Opt-in only: start with `docker compose --profile headroom up -d`.
+  # Disabled by default (owner does not use headroom compression).
   headroom:
     image: ghcr.io/chopratejas/headroom:latest
     container_name: headroom
-    restart: always
+    profiles:
+      - headroom
+    restart: "no"
+    mem_limit: 1g
+    memswap_limit: 1g
     ports:
       - "8787:8787"
     logging:
