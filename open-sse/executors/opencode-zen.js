@@ -139,7 +139,7 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
 
   buildHeaders(credentials, stream = true, url, model) {
     const headers = super.buildHeaders(credentials || {}, stream, url, model);
-    headers["x-opencode-client"] = "desktop";
+    if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "cli";
     const prepared = credentials?.[SESSION_FIELD];
     if (prepared) {
       headers[SESSION_HEADER] = prepared;

@@ -227,7 +227,7 @@ export class OpenCodeExecutor extends BaseExecutor {
       "Content-Type": "application/json",
       "Authorization": "Bearer public",
       "User-Agent": forwardUa,
-      "x-opencode-client": lower["x-opencode-client"] || "desktop",
+      "x-opencode-client": lower["x-opencode-client"] || "cli",
       "x-opencode-session": asConformingId(lower["x-opencode-session"], OPENCODE_SESSION_RE)
         || asConformingId(this._currentSessionId, OPENCODE_SESSION_RE)
         || generateSessionId(),
