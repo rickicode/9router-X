@@ -1,18 +1,23 @@
 // Core model families — the "default combo without alias" map.
 //
 // Canonical model name (bare, no provider prefix) → member bindings across
-// providers. Requesting "glm-5.3-flash" routes through handleComboChat over
-// these members (fallback + health-reorder + dead-member fast-skip already
-// built). Seeded from the audit of healthy provider bindings (2026-09-19):
-// per-provider members verified live or via recent traffic; dead members
+// built-in providers ONLY (user-defined provider nodes are never referenced).
+// Requesting "glm-5.3-flash", "deepseek-flash-latest", "gemini-pro-latest",
+// "gpt-latest", … routes through handleComboChat over the member list
+// (fallback + health-reorder + dead-member fast-skip already built).
+//
+// Seeded from the audit of healthy provider bindings (2026-09-19): every
+// member below was verified live or via recent traffic. Dead members
 // (freebuff 0/33, workbuddy credits exhausted, orca 429-locked, tokenrouter
 // "no channel") are excluded.
 //
-// Dedupe rule matches canonicalModels.js: vendor prefixes (z-ai/, google/,
-// deepseek/, …) and :free/:batch suffixes are stripped, so "glm-5.3-flash"
-// collapses cline-free/z-ai/glm-5.3-flash + ocz/glm-5.3-flash, etc.
+// General "-latest" combos track each family's newest healthy model and stay
+// alias-free so a client can ask for "claude-latest" / "gemini-pro-latest"
+// without knowing/versioning a specific id. Bump the version when a provider
+// ships a newer generation — never point a -latest entry at a dead binding.
 
 export const CORE_MODEL_COMBOS = {
+  // ── GLM family ────────────────────────────────────────────────────────
   "glm-5.3-flash": [
     "cline-free/z-ai/glm-5.3-flash",
     "ocz/glm-5.3-flash",
@@ -23,6 +28,8 @@ export const CORE_MODEL_COMBOS = {
   "glm-4.5": [
     "cline-free/z-ai/glm-4.5",
   ],
+
+  // ── DeepSeek family ───────────────────────────────────────────────────
   "deepseek-v4.1-flash": [
     "cline-free/deepseek/deepseek-v4.1-flash",
     "th/deepseek-v4.1-flash:free",
@@ -32,6 +39,12 @@ export const CORE_MODEL_COMBOS = {
     "openrouter/deepseek/deepseek-v4-flash-0731:free",
     "orca/deepseek/deepseek-v4-flash-free",
   ],
+  "deepseek-v4-pro": [
+    "uk/deepseek/deepseek-v4-pro",
+    "th/deepseek-v4.1-flash:free",
+  ],
+
+  // ── Other families ────────────────────────────────────────────────────
   "mimo-v2.5": [
     "oc/mimo-v2.5-free",
     "ocz/mimo-v2.5-free",
@@ -54,7 +67,44 @@ export const CORE_MODEL_COMBOS = {
   ],
 };
 
+// General ("no version") combos: newest healthy model per family, alias-free.
+export const GENERAL_LATEST_COMBOS = {
+  "gemini-flash-latest": [
+    "ag/gemini-3.8-flash-high",
+    "ag/gemini-3.8-flash-medium",
+  ],
+  "gemini-pro-latest": [
+    "ag/gemini-3.1-pro-low",
+    "uk/google/gemini-3.1-pro-preview",
+  ],
+  "claude-latest": [
+    "uk/claude-opus-4-8",
+    "ag/claude-opus-4-6-thinking",
+  ],
+  "glm-latest": [
+    "cline-free/z-ai/glm-5.3-flash",
+    "ocz/glm-5.3-flash",
+  ],
+  "deepseek-flash-latest": [
+    "cline-free/deepseek/deepseek-v4.1-flash",
+    "th/deepseek-v4.1-flash:free",
+    "openrouter/deepseek/deepseek-v4-flash-0731:free",
+  ],
+  "deepseek-pro-latest": [
+    "uk/deepseek/deepseek-v4-pro",
+    "th/deepseek-v4.1-flash:free",
+  ],
+  "gpt-latest": [
+    "cx/gpt-5.6-luna",
+    "uk/gpt-5.6-luna",
+  ],
+};
+
 export function getCoreComboMembers(canonicalName) {
   const key = String(canonicalName || "").replace(/[:^]free$/i, "").trim().toLowerCase();
-  return CORE_MODEL_COMBOS[key] || null;
+  return CORE_MODEL_COMBOS[key] || GENERAL_LATEST_COMBOS[key] || null;
+}
+
+export function isGeneralLatestCombo(name) {
+  return Object.prototype.hasOwnProperty.call(GENERAL_LATEST_COMBOS, String(name || ""));
 }
