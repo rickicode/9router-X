@@ -598,6 +598,7 @@ export async function startDaemonWithPassword(sudoPassword) {
       cwd: os.tmpdir(),
       env: { ...process.env, PATH: EXTENDED_PATH },
     });
+    child.on("error", (err) => console.log("[Tailscale] daemon spawn error:", err.message));
     child.stdin.write(`${sudoPassword}\n`);
     child.stdin.end();
     child.unref();
@@ -608,6 +609,7 @@ export async function startDaemonWithPassword(sudoPassword) {
       cwd: os.tmpdir(),
       env: { ...process.env, PATH: EXTENDED_PATH },
     });
+    child.on("error", (err) => console.log("[Tailscale] daemon spawn error:", err.message));
     child.unref();
   }
 

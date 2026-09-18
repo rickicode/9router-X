@@ -10,6 +10,7 @@ import {
   killCloudflared, isCloudflaredRunning, ensureCloudflared,
   isTailscaleRunning, isTailscaleRunningStrict, isDaemonAlive, startFunnel,
   checkInternet,
+  isTailscaleInstalled,
   RESTART_COOLDOWN_MS, NETWORK_SETTLE_MS,
   WATCHDOG_INTERVAL_MS, NETWORK_CHECK_INTERVAL_MS, VIRTUAL_IFACE_REGEX,
 } from "@/lib/tunnel";
@@ -83,21 +84,8 @@ async function runHeavyStartup() {
   await cleanupProviderConnections();
   const settings = await getSettings();
 
-  // Auto-resume tunnel (once per process)
-  if (settings.tunnelEnabled && !g.tunnelAutoResumed) {
-    g.tunnelAutoResumed = true;
-    console.log("[InitApp] Tunnel was enabled, auto-resuming...");
-    safeRestartTunnel("startup").catch((e) => console.log("[InitApp] Tunnel resume failed:", e.message));
-  }
-
-  // Auto-resume tailscale (once per process)
-  if (settings.tailscaleEnabled && !g.tailscaleAutoResumed) {
-    g.tailscaleAutoResumed = true;
-    console.log("[InitApp] Tailscale was enabled, auto-resuming...");
-    safeRestartTailscale("startup").catch((e) => console.log("[InitApp] Tailscale resume failed:", e.message));
-  }
-
-  if (settings.tunnelEnabled) ensureCloudflared().catch(() => {});
+  // Auto-resume tunnel/tailscale disabled — binaries not available in Docker.
+  // Users can re-enable manually from the dashboard after ensuring the binaries exist.
 
   if (settings.mitmEnabled) {
     // Sync mitmAlias DB → JSON cache so standalone MITM server can read it.
@@ -209,6 +197,8 @@ async function safeRestartTailscale(reason) {
   const svc = getTailscaleService();
   const settings = await getSettings();
   if (!settings.tailscaleEnabled) return;
+  // Binary not installed (Docker image has no tailscaled) → never spawn, prevents ENOENT crash
+  if (!isTailscaleInstalled()) return;
   if (svc.cancelToken.cancelled) return;
   if (svc.spawnInProgress) return;
 
