@@ -95,4 +95,22 @@ describe("opencode gate marker merge (bisected 2026-09-18: core markers required
     expect(toolNames(body.tools).sort()).toEqual(["bash", "edit", "glob", "grep", "read", "write"]);
     expect(body.tool_choice).toBe("auto");
   });
+
+  it("leaves paid (non-gated) models untouched — no quota burned", () => {
+    const ex = new OpenCodeExecutor();
+    const body = { model: "gpt-6-astra", messages: [], tools: stubs("Custom") };
+    ex.transformRequest("gpt-6-astra", body, true, creds());
+    expect(toolNames(body.tools)).toEqual(["Custom"]);
+  });
+
+  it("matches free-tier ids with thinking suffix and families", async () => {
+    const { isFreeTierGateModel } = await import("../../open-sse/config/opencodeAgentTools.js");
+    expect(isFreeTierGateModel("mimo-v2.5-free")).toBe(true);
+    expect(isFreeTierGateModel("muse-spark-1.3-contributor-free")).toBe(true);
+    expect(isFreeTierGateModel("union-alpha")).toBe(true);
+    expect(isFreeTierGateModel("mimo-v2.5-free(high)")).toBe(true);
+    expect(isFreeTierGateModel("gpt-6-astra")).toBe(false);
+    expect(isFreeTierGateModel("deepseek-v4-flash")).toBe(false);
+    expect(isFreeTierGateModel("")).toBe(false);
+  });
 });

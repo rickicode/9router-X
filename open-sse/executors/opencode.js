@@ -5,7 +5,7 @@ import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
-import { OPENCODE_AGENT_TOOLS } from "../config/opencodeAgentTools.js";
+import { OPENCODE_AGENT_TOOLS, isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 
 const OPENCODE_CLIENT_VERSION = "1.18.31";
 // Reverse-engineered from the genuine OpenCode CLI 1.18.31 (local packet
@@ -176,30 +176,30 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
 
-      body.tools = appendMissingGateTools(body.tools, (t) => ({
+      body.tools = isFreeTierGateModel(model) ? appendMissingGateTools(body.tools, (t) => ({
         type: "function",
         name: t.name,
         description: t.description,
         parameters: t.parameters,
-      }));
+      })) : body.tools;
       if (!body.tool_choice) {
         body.tool_choice = "auto";
       }
     } else if (isClaudeModel(model)) {
-      body.tools = appendMissingGateTools(body.tools, (t) => ({
+      body.tools = isFreeTierGateModel(model) ? appendMissingGateTools(body.tools, (t) => ({
         name: t.name,
         description: t.description,
         input_schema: t.parameters,
-      }));
+      })) : body.tools;
     } else {
-      body.tools = appendMissingGateTools(body.tools, (t) => ({
+      body.tools = isFreeTierGateModel(model) ? appendMissingGateTools(body.tools, (t) => ({
         type: "function",
         function: {
           name: t.name,
           description: t.description,
           parameters: t.parameters,
         },
-      }));
+      })) : body.tools;
       if (!body.tool_choice || body.tool_choice === "none") {
         body.tool_choice = "auto";
       }

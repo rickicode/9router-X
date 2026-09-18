@@ -3,6 +3,20 @@
 // CONTENT: lowercase core names + real JSON schemas pass; capitalized
 // placeholders with empty schemas yield 403 FreeTierError. Config-driven
 // per repo conventions - executors map these to each wire format.
+//
+// Token budget: the six schemas cost ~3K tokens per request. Only free-tier
+// models are gated upstream, so markers are injected for those models only —
+// paid-key traffic keeps its exact client payload (no quota burned).
+
+// Model ids served behind the keyless free-tier gate (suffix or family match;
+// zen thinking suffix "model(level)" is stripped before matching).
+const FREE_TIER_MODEL_RES = [/-free$/i, /muse-spark/i, /^union-alpha/i];
+
+export function isFreeTierGateModel(model) {
+  const id = String(model || "").replace(/\([^()]+\)\s*$/, "").trim();
+  if (!id) return false;
+  return FREE_TIER_MODEL_RES.some((re) => re.test(id));
+}
 
 export const OPENCODE_AGENT_TOOLS = [
   {

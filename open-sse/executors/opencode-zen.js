@@ -3,6 +3,7 @@ import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 import { appendMissingGateTools, OPENCODE_UA, GENUINE_CLI_UA_RE } from "./opencode.js";
+import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -173,17 +174,17 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     const isResponses = isResponsesModel(model || body?.model) || Array.isArray(out.input);
     if (!isResponses) {
       // Chat Completions path (e.g. mimo free models): same free-tier gate as
-      // the opencode executor — merge missing genuine core markers, never
-      // strip client tools.
+      // the opencode executor — merge missing genuine core markers for gated
+      // free models only (paid traffic keeps its exact payload, no quota burned).
       out.stream = true;
-      out.tools = appendMissingGateTools(out.tools, (t) => ({
+      out.tools = isFreeTierGateModel(model || body?.model) ? appendMissingGateTools(out.tools, (t) => ({
         type: "function",
         function: {
           name: t.name,
           description: t.description,
           parameters: t.parameters,
         },
-      }));
+      })) : out.tools;
       if (!out.tool_choice || out.tool_choice === "none") {
         out.tool_choice = "auto";
       }
@@ -226,13 +227,13 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     out.store = false;
     normalizeResponsesTools(out);
     // Responses path is gated on tool content too — merge missing markers in
-    // the flat Responses wire shape after normalization.
-    out.tools = appendMissingGateTools(out.tools, (t) => ({
+    // the flat Responses wire shape after normalization (free models only).
+    out.tools = isFreeTierGateModel(model || body?.model) ? appendMissingGateTools(out.tools, (t) => ({
       type: "function",
       name: t.name,
       description: t.description,
       parameters: t.parameters,
-    }));
+    })) : out.tools;
     if (!out.tool_choice) {
       out.tool_choice = "auto";
     }
