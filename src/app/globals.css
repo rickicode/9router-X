@@ -395,6 +395,21 @@ input, textarea {
   box-shadow: inset 3px 0 0 0 var(--color-primary);
 }
 
+/* Borderless variant: same padding/hover/zebra, zero grid lines.
+   Use on compact tables (e.g. dashboard Recent Requests) where
+   separators add noise instead of structure. */
+.data-table-plain thead th,
+.data-table-plain tbody td,
+.data-table-plain tbody th {
+  border-bottom: none;
+}
+
+.data-table-plain thead th + th,
+.data-table-plain tbody td + td,
+.data-table-plain tbody th + td {
+  border-left: none;
+}
+
 /* Mobile card lists get clear borders + subtle zebra striping */
 .data-cards {
   border-top: 1px solid var(--color-grid-line);

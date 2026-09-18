@@ -95,7 +95,7 @@ function RecentRequests({ requests = [] }) {
         <div className="flex-1 flex items-center justify-center text-text-muted text-sm">No requests yet.</div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <table className="data-table w-full min-w-[300px] text-xs" aria-label="Recent requests">
+          <table className="data-table data-table-plain w-full min-w-[300px] text-xs" aria-label="Recent requests">
             <thead className="sticky top-0 z-10">
               <tr>
                 <th scope="col" className="py-1.5 text-left font-semibold text-text-muted w-2"></th>
