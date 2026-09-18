@@ -9,7 +9,8 @@ import { createRequestLogger } from "../utils/requestLogger.js";
 import { getModelTargetFormat, getModelSupportedFormats, getModelStrip, getModelUpstreamId, getModelType, PROVIDER_ID_TO_ALIAS } from "../config/providerModels.js";
 import { PROVIDERS } from "../config/providers.js";
 import { createErrorResult, parseUpstreamError, formatProviderError } from "../utils/error.js";
-import { HTTP_STATUS, TOKEN_SAVER_HEADER } from "../config/runtimeConfig.js";
+import { HTTP_STATUS, TOKEN_SAVER_HEADER, MAX_CONCURRENT_UPSTREAM, UPSTREAM_QUEUE_TIMEOUT_MS } from "../config/runtimeConfig.js";
+import { acquireUpstreamSlot, UpstreamQueueTimeout } from "../utils/upstreamSemaphore.js";
 import { handleBypassRequest } from "../utils/bypassHandler.js";
 import { trackPendingRequest as persistPendingRequest, appendRequestLog as persistRequestLog, saveRequestDetail as persistRequestDetail, saveFailedRequest as persistFailedRequest } from "@/lib/usageDb.js";
 import { observeChatAttempt } from "@/lib/observeChatAttempt.js";
@@ -324,6 +325,18 @@ const executor = getExecutor(provider);
 // suffix (two requests can share a millisecond). Doubles as the usage-write
 // idempotency key so concurrent completion callbacks never double-count.
 const requestId = `${connectionId || "direct"}|${provider}|${model}|${requestStartTime}|${Math.random().toString(36).slice(2, 10)}`;
+// Upstream concurrency guard: bound in-flight upstream dispatches so traffic
+// spikes queue (503 + retry_after) instead of OOM-killing the box. Defined
+// early because the stream-controller callbacks below release the slot;
+// the slot itself is acquired just before dispatch. Retries inside one
+// attempt reuse the same slot — no nested acquire, no deadlock. Release is
+// idempotent: disconnect/error/complete paths may all fire for one request.
+const upstreamSlotHolder = { slot: null, released: false };
+const releaseUpstreamSlot = () => {
+  if (upstreamSlotHolder.released) return;
+  upstreamSlotHolder.released = true;
+  try { upstreamSlotHolder.slot?.release(); } catch { /* never break responses */ }
+};
 trackPendingRequest(model, provider, connectionId, true, false, { isStream: stream, apiKey, requestId });
 appendRequestLog({ model, provider, connectionId, status: "PENDING" }).catch(() => { });
 
@@ -332,10 +345,11 @@ log?.debug?.("REQUEST", `${provider.toUpperCase()} | ${model} | ${msgCount} msgs
 
 const streamController = createStreamController({
   onDisconnect: (reason) => {
+    releaseUpstreamSlot();
     trackPendingRequest(model, provider, connectionId, false, false, { requestId });
     if (onDisconnect) onDisconnect(reason);
   },
-  onError: () => trackPendingRequest(model, provider, connectionId, false, false, { requestId }),
+  onError: () => { releaseUpstreamSlot(); trackPendingRequest(model, provider, connectionId, false, false, { requestId }); },
   log, provider, model, reqTag
 });
 
@@ -510,12 +524,31 @@ const executeWithPoolFallback = async (attempt = 0) => {
   return result;
 };
 
-// Execute request
+// Execute request — gated by the upstream concurrency semaphore. When the
+// box is saturated the request waits FIFO up to UPSTREAM_QUEUE_TIMEOUT_MS,
+// then fails fast with 503 + retry_after instead of piling native stream
+// buffers onto an OOM-bound process.
 let providerResponse, providerUrl, providerHeaders, finalBody;
 // Most executors return their registry format. Cursor AgentService is an
 // exception: it is decoded by the executor into OpenAI-compatible output.
 let providerResponseFormat = targetFormat;
 try {
+  try {
+    upstreamSlotHolder.slot = await acquireUpstreamSlot({ timeoutMs: UPSTREAM_QUEUE_TIMEOUT_MS, skip: isTestRequest });
+  } catch (queueErr) {
+    if (queueErr instanceof UpstreamQueueTimeout) {
+      const retryAfterMs = Date.now() + 15000;
+      trackPendingRequest(model, provider, connectionId, false, true, { requestId });
+      appendRequestLog({ model, provider, connectionId, status: "FAILED 503" }).catch(() => { });
+      if (log?.errorLine) {
+        log.errorLine(reqTag, "✗", `ERROR 503 · ${provider}/${model} · upstream saturated (${queueErr.limit} concurrent), queued ${queueErr.queuedMs}ms — retry after ~15s`);
+      }
+      return createErrorResult(HTTP_STATUS.SERVICE_UNAVAILABLE,
+        `[${provider}/${model}] Upstream saturated, retry after ~15s`,
+        retryAfterMs, { retry_after: 15, queueTimeout: true });
+    }
+    throw queueErr;
+  }
   const result = await executeWithPoolFallback();
   providerResponse = result.response;
   providerUrl = result.url;
@@ -542,6 +575,7 @@ try {
 
   if (error.name === "AbortError") {
     streamController.handleError(error);
+    releaseUpstreamSlot();
     return createErrorResult(499, "Request aborted");
   }
   const errMsg = formatProviderError(error, provider, model, HTTP_STATUS.BAD_GATEWAY);
@@ -552,6 +586,7 @@ try {
   if (log?.errorLine) {
     log.errorLine(reqTag, "✗", `ERROR ${thrownStatus} · ${provider}/${model} · ${Date.now() - requestStartTime}ms\n    ${errMsg}`);
   }
+  releaseUpstreamSlot();
   return createErrorResult(thrownStatus, errMsg, error?.resetsAtMs || undefined, {
     poolScoped: error?.poolScoped,
     upstreamStatus: error?.upstreamStatus || error?.status,
@@ -641,6 +676,7 @@ if (!providerResponse.ok) {
     log.errorLine(reqTag, "✗", `ERROR ${statusCode} · ${provider}/${model} · ${Date.now() - requestStartTime}ms${urlStr}\n    ${errMsg}`);
   }
   reqLogger.logError(new Error(message), finalBody || translatedBody);
+  releaseUpstreamSlot();
   return createErrorResult(statusCode, errMsg, resetsAtMs, {
     poolScoped: parsedErr.poolScoped,
     freebuffKind: parsedErr.freebuffKind,
@@ -651,30 +687,49 @@ if (!providerResponse.ok) {
 
 const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, requestId, connectionId, apiKey, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, isTestRequest, comboName };
 const appendLog = (extra) => isTestRequest ? Promise.resolve() : appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
-const trackDone = () => trackPendingRequest(model, provider, connectionId, false, false, { requestId });
+const trackDone = () => { releaseUpstreamSlot(); trackPendingRequest(model, provider, connectionId, false, false, { requestId }); };
 
 // Provider forced streaming but client wants JSON
 if (!clientRequestedStreaming && providerRequiresStreaming) {
-  const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, customToolNames, trackDone, appendLog });
+  let result;
+  try {
+    result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, customToolNames, trackDone, appendLog });
+  } catch (e) {
+    releaseUpstreamSlot();
+    throw e;
+  }
   if (result) { streamController.handleComplete(); return result; }
   // Conversion failed: do NOT fall through to the streaming handler — the
   // client asked for JSON and would receive a raw SSE stream it cannot parse.
   // Cancel the upstream stream and answer with a clean 502.
   try { providerResponse.body?.cancel(); } catch {}
   streamController.handleError(new Error("sse_to_json_conversion_failed"));
+  releaseUpstreamSlot();
   return createErrorResult(HTTP_STATUS.BAD_GATEWAY, `Provider ${provider} only supports streaming and SSE→JSON conversion failed`);
 }
 
 // True non-streaming response
 if (!stream) {
-  const result = await handleNonStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, reqLogger, toolNameMap, customToolNames, trackDone, appendLog });
+  let result;
+  try {
+    result = await handleNonStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, reqLogger, toolNameMap, customToolNames, trackDone, appendLog });
+  } catch (e) {
+    releaseUpstreamSlot();
+    throw e;
+  }
   streamController.handleComplete();
   return result;
 }
 
 // Streaming response
-const { onStreamComplete, streamDetailId } = buildOnStreamComplete({ ...sharedCtx });
-return handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, credentials }); }
+const { onStreamComplete: rawOnStreamComplete, streamDetailId } = buildOnStreamComplete({ ...sharedCtx });
+const onStreamComplete = (...args) => { releaseUpstreamSlot(); return rawOnStreamComplete(...args); };
+try {
+  return handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, credentials });
+} catch (e) {
+  releaseUpstreamSlot();
+  throw e;
+} }
 
 export function isTokenExpiringSoon(expiresAt, bufferMs = 5 * 60 * 1000) {
   if (!expiresAt) return false;

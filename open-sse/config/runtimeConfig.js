@@ -31,6 +31,14 @@ function envInt(name, def) {
   return Number.isFinite(n) && n > 0 ? n : def;
 }
 
+// Upstream concurrency guard: each in-flight upstream stream holds native
+// socket/TLS/undici buffers (measured ~1GB+ ArrayBuffers at ~40 concurrent
+// streams on a 4GB box). Past the cap, requests wait FIFO up to the queue
+// timeout, then fail fast with 503 + retry_after instead of OOM-killing the
+// box and taking every in-flight request down with it.
+export const MAX_CONCURRENT_UPSTREAM = envInt("MAX_CONCURRENT_UPSTREAM", 32);
+export const UPSTREAM_QUEUE_TIMEOUT_MS = envInt("UPSTREAM_QUEUE_TIMEOUT_MS", 30000);
+
 // Memory management config
 export const MEMORY_CONFIG = {
   sessionTtlMs: 2 * 60 * 60 * 1000,
