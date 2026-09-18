@@ -221,7 +221,7 @@ export default function RealtimeRequestsCard({
       ) : (
         <div className="rounded-xl border border-border bg-surface-1/50 overflow-hidden">
           {/* Mobile Card List (< sm) */}
-          <div className="sm:hidden divide-y divide-border/60">
+          <div className="sm:hidden data-cards">
             {filteredRecents.map((r, i) => (
               <RealtimeRequestCardMobile key={`mob-${i}`} req={r} onOpenError={handleOpenErrorModal} />
             ))}
@@ -229,9 +229,9 @@ export default function RealtimeRequestsCard({
 
           {/* Desktop Table (sm+) */}
           <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-left text-xs" aria-label="Recent requests stream">
+            <table className="data-table w-full min-w-[860px] text-left text-xs" aria-label="Recent requests stream">
               <thead>
-                <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
+                <tr className="text-text-muted font-semibold text-[11px]">
                   <th scope="col" className="py-2.5 px-3 w-8 text-center">Status</th>
                   <th scope="col" className="py-2.5 px-3 w-24">Type</th>
                   <th scope="col" className="py-2.5 px-3 w-28">Stream State</th>
@@ -250,7 +250,7 @@ export default function RealtimeRequestsCard({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/40">
+              <tbody>
                 {filteredRecents.map((r, i) => (
                   <RealtimeRequestRow key={i} req={r} onOpenError={handleOpenErrorModal} />
                 ))}

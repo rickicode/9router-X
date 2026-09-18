@@ -171,7 +171,7 @@ export default function RequestLogger() {
         ) : (
           <>
             {/* Mobile Card List (< sm) */}
-            <div className="sm:hidden divide-y divide-border/60">
+            <div className="sm:hidden data-cards">
               {logs.map((log, i) => {
                 const status = log.status;
                 const isPending = status.includes("PENDING");
@@ -259,20 +259,20 @@ export default function RequestLogger() {
 
             {/* Desktop Table (sm+) */}
             <div className="hidden sm:block p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
-              <table className="w-full text-left border-collapse" aria-label="Request logs">
-                <thead className="sticky top-0 bg-bg-subtle border-b border-border z-10">
+              <table className="data-table w-full text-left" aria-label="Request logs">
+                <thead className="sticky top-0 z-10">
                   <tr>
-                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">DateTime</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border">Model</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">Provider</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border">Account</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border text-right whitespace-nowrap">In</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border text-right whitespace-nowrap">Out</th>
-                    <th scope="col" className="px-3 py-2 border-r border-border whitespace-nowrap">Status</th>
+                    <th scope="col" className="px-3 py-2 whitespace-nowrap">DateTime</th>
+                    <th scope="col" className="px-3 py-2">Model</th>
+                    <th scope="col" className="px-3 py-2 whitespace-nowrap">Provider</th>
+                    <th scope="col" className="px-3 py-2">Account</th>
+                    <th scope="col" className="px-3 py-2 text-right whitespace-nowrap">In</th>
+                    <th scope="col" className="px-3 py-2 text-right whitespace-nowrap">Out</th>
+                    <th scope="col" className="px-3 py-2 whitespace-nowrap">Status</th>
                     <th scope="col" className="px-3 py-2 text-center whitespace-nowrap">Detail</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/50">
+                <tbody>
                   {logs.map((log, i) => {
                     const status = log.status;
                     const isPending = status.includes("PENDING");
@@ -280,18 +280,18 @@ export default function RequestLogger() {
                     const isSuccess = status.includes("OK");
 
                     return (
-                      <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''} ${isFailed ? 'bg-error/[0.04]' : ''}`}>
-                        <td className="px-3 py-1.5 border-r border-border text-text-muted whitespace-nowrap">{log.datetime}</td>
-                        <td className="px-3 py-1.5 border-r border-border font-medium break-all max-w-[220px]">{log.model}</td>
-                        <td className="px-3 py-1.5 border-r border-border whitespace-nowrap">
+                      <tr key={i} className={`transition-colors ${isPending ? 'row-pending' : ''} ${isFailed ? 'row-failed' : ''}`}>
+                        <td className="px-3 py-1.5 text-text-muted whitespace-nowrap">{log.datetime}</td>
+                        <td className="px-3 py-1.5 font-medium break-all max-w-[220px]">{log.model}</td>
+                        <td className="px-3 py-1.5 whitespace-nowrap">
                           <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
                             {log.provider}
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={log.account}>{log.account}</td>
-                        <td className="px-3 py-1.5 border-r border-border text-right text-primary whitespace-nowrap">{log.sent}</td>
-                        <td className="px-3 py-1.5 border-r border-border text-right text-success whitespace-nowrap">{log.received}</td>
-                        <td className={`px-3 py-1.5 border-r border-border font-bold whitespace-nowrap ${isSuccess ? 'text-success' :
+                        <td className="px-3 py-1.5 truncate max-w-[150px]" title={log.account}>{log.account}</td>
+                        <td className="px-3 py-1.5 text-right text-primary whitespace-nowrap">{log.sent}</td>
+                        <td className="px-3 py-1.5 text-right text-success whitespace-nowrap">{log.received}</td>
+                        <td className={`px-3 py-1.5 font-bold whitespace-nowrap ${isSuccess ? 'text-success' :
                             isFailed ? 'text-error' :
                               'text-primary animate-pulse'
                           }`}>

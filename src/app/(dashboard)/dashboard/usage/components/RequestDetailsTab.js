@@ -306,7 +306,7 @@ export default function RequestDetailsTab() {
 
       <Card padding="none" className="overflow-hidden">
         {/* Mobile Card List (< sm) */}
-        <div className="sm:hidden divide-y divide-black/5 dark:divide-white/5">
+        <div className="sm:hidden data-cards">
           {fetchError ? (
             <div className="p-6 text-center">
               <div role="alert" className="flex flex-col items-center justify-center gap-2 text-danger text-sm">
@@ -422,9 +422,9 @@ export default function RequestDetailsTab() {
 
         {/* Desktop Table (sm+) */}
         <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full min-w-[980px]" aria-label="Request details table">
-            <thead className="bg-black/[0.02] dark:bg-white/[0.02]">
-              <tr className="border-b border-black/5 dark:border-white/5">
+          <table className="data-table w-full min-w-[980px]" aria-label="Request details table">
+            <thead>
+              <tr>
                 <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Time</th>
                 <th scope="col" className="text-center px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide w-28">Status</th>
                 <th scope="col" className="text-left px-3 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Model</th>
@@ -477,7 +477,10 @@ export default function RequestDetailsTab() {
                   return (
                   <tr
                     key={`${detail.id}-${index}`}
-                    className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                    className={cn(
+                      "transition-colors",
+                      !isSuccess && "row-failed"
+                    )}
                   >
                     <th scope="row" className="whitespace-nowrap px-3 py-3 text-xs text-text-main font-normal text-left">
                       <div className="font-medium">{new Date(detail.timestamp).toLocaleDateString("en-US")}</div>

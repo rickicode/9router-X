@@ -156,9 +156,9 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
       }
     >
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[760px] border-collapse text-left text-xs" aria-label="Top providers breakdown">
+        <table className="data-table w-full min-w-[760px] text-left text-xs" aria-label="Top providers breakdown">
           <thead>
-            <tr className="border-b border-border bg-surface-2/60 text-text-muted font-semibold text-[11px]">
+            <tr className="text-text-muted font-semibold text-[11px]">
               <th scope="col" className="py-2.5 px-3 w-8 text-center">#</th>
               <th scope="col" className="py-2.5 px-3">Provider</th>
               <th scope="col" className="py-2.5 px-3 w-24 text-right">Requests</th>
@@ -170,7 +170,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
               <th scope="col" className="py-2.5 px-3">Error Breakdown</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/40">
+          <tbody>
             {sorted.map((row, i) => {
               const barWidth = Math.round((row.count / maxCount) * 100);
               return (

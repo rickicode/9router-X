@@ -163,7 +163,7 @@ export default function UsageTable({
       )}
 
       {/* Mobile Card List (< sm) */}
-      <div className="sm:hidden divide-y divide-border">
+      <div className="sm:hidden data-cards">
         {groupedData.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-text-muted">
             {emptyMessage}
@@ -244,8 +244,8 @@ export default function UsageTable({
 
       {/* Desktop Table (sm+) */}
       <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-sm text-left" aria-label={title || "Usage breakdown table"}>
-          <thead className="bg-bg-subtle/30 text-text-muted uppercase text-xs">
+        <table className="data-table w-full text-sm text-left" aria-label={title || "Usage breakdown table"}>
+          <thead className="text-text-muted uppercase text-xs">
             <tr>
               {columns.map((col) => {
                 const isSorted = sortBy === col.field;
@@ -293,7 +293,7 @@ export default function UsageTable({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {groupedData.map((group) => (
               <Fragment key={group.groupKey}>
                 {/* Group summary row */}

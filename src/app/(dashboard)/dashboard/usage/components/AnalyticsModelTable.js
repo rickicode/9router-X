@@ -12,8 +12,8 @@ export default function AnalyticsModelTable({ data, handleSelectModel }) {
       className="overflow-hidden"
     >
       <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
-        <table className="w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
-          <thead className="bg-surface-2/60 text-text-muted text-xs uppercase font-semibold">
+        <table className="data-table w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
+          <thead className="text-text-muted text-xs uppercase font-semibold">
             <tr>
               {[
                 "Model & Provider",
@@ -32,7 +32,7 @@ export default function AnalyticsModelTable({ data, handleSelectModel }) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody>
             {data.models.map((row) => (
               <tr
                 key={`${row.provider}/${row.model}`}

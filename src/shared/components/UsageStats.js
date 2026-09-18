@@ -95,20 +95,20 @@ function RecentRequests({ requests = [] }) {
         <div className="flex-1 flex items-center justify-center text-text-muted text-sm">No requests yet.</div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full min-w-[300px] border-collapse text-xs" aria-label="Recent requests">
-            <thead className="sticky top-0 bg-bg z-10">
-              <tr className="border-b border-border">
+          <table className="data-table w-full min-w-[300px] text-xs" aria-label="Recent requests">
+            <thead className="sticky top-0 z-10">
+              <tr>
                 <th scope="col" className="py-1.5 text-left font-semibold text-text-muted w-2"></th>
                 <th scope="col" className="py-1.5 text-left font-semibold text-text-muted">Model</th>
                 <th scope="col" className="py-1.5 text-right font-semibold text-text-muted whitespace-nowrap">In / Out</th>
                 <th scope="col" className="py-1.5 text-right font-semibold text-text-muted">When</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody>
               {requests.map((r, i) => {
                 const ok = !r.status || r.status === "ok" || r.status === "success";
                 return (
-                  <tr key={i} className="hover:bg-bg-subtle transition-colors">
+                  <tr key={i} className={`transition-colors ${!ok ? "row-failed" : ""}`}>
                     <td className="py-1.5">
                       <span className={`block w-1.5 h-1.5 rounded-full ${ok ? "bg-success" : "bg-error"}`} />
                     </td>

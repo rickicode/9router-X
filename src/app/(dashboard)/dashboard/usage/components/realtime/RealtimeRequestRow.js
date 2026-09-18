@@ -2,6 +2,7 @@
 
 import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
+import { cn } from "@/shared/utils/cn";
 import { fmt, TimeAgo } from "./realtimeHelpers";
 
 export default function RealtimeRequestRow({ req, onOpenError }) {
@@ -9,7 +10,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
   const isOk = !r.status || r.status === "ok" || r.status === "success";
 
   return (
-    <tr className="hover:bg-surface-2/60 transition-colors">
+    <tr className={cn("transition-colors", !isOk && "row-failed")}>
       {/* Status Dot + Text */}
       <td className="py-2 px-3 text-center">
         {!isOk ? (

@@ -60,7 +60,14 @@
 
   /* Borders */
   --color-border: #e5e7eb;
-  --color-border-subtle: #f1f1f3;
+  --color-border-subtle: #e9e6e2;
+
+  /* Data tables (grid lines, zebra rows, header) */
+  --color-grid-line: #dcd8d0;
+  --color-table-head: #ebe6df;
+  --color-table-row: #ffffff;
+  --color-table-row-alt: #f4f0ea;
+  --color-table-row-hover: #fcebe5;
 
   /* Text */
   --color-text: #0a0a0a;
@@ -105,7 +112,14 @@
   --color-sidebar: rgba(30, 30, 30, 0.85);
 
   --color-border: #333333;
-  --color-border-subtle: #2a2a2a;
+  --color-border-subtle: #333333;
+
+  /* Data tables (grid lines, zebra rows, header) */
+  --color-grid-line: #444444;
+  --color-table-head: #1e1e1e;
+  --color-table-row: #262626;
+  --color-table-row-alt: #313131;
+  --color-table-row-hover: #3d2a23;
 
   --color-text: #ededed;
   --color-text-main: #ededed;
@@ -173,6 +187,11 @@ select {
   --color-sidebar: var(--color-sidebar);
   --color-border: var(--color-border);
   --color-border-subtle: var(--color-border-subtle);
+  --color-grid-line: var(--color-grid-line);
+  --color-table-head: var(--color-table-head);
+  --color-table-row: var(--color-table-row);
+  --color-table-row-alt: var(--color-table-row-alt);
+  --color-table-row-hover: var(--color-table-row-hover);
   --color-text: var(--color-text);
   --color-text-main: var(--color-text-main);
   --color-text-muted: var(--color-text-muted);
@@ -320,6 +339,74 @@ input, textarea {
 }
 .dark .tab-scroll-fade {
   --tab-fade-color: var(--color-bg);
+}
+
+/* ============================================================
+   Data tables — shared grid lines + zebra striping.
+   Use on <table className="data-table"> so every usage/log table
+   keeps visible row separators and alternating row colors in both
+   light and dark mode. Row backgrounds come from --color-table-*.
+   ============================================================ */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table thead th {
+  background: var(--color-table-head);
+  border-bottom: 1px solid var(--color-grid-line);
+}
+
+.data-table tbody td,
+.data-table tbody th {
+  border-bottom: 1px solid var(--color-grid-line);
+}
+
+/* Vertical separators between columns */
+.data-table thead th + th,
+.data-table tbody td + td,
+.data-table tbody th + td {
+  border-left: 1px solid var(--color-grid-line);
+}
+
+.data-table tbody tr:nth-child(odd) {
+  background-color: var(--color-table-row);
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: var(--color-table-row-alt);
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+/* Sticky header keeps its own background instead of inheriting the row */
+.data-table thead.sticky th {
+  background: var(--color-table-head);
+}
+
+/* Row status accents: keep zebra readable, tint only the status cell edge */
+.data-table tbody tr.row-failed {
+  box-shadow: inset 3px 0 0 0 var(--color-danger);
+}
+
+.data-table tbody tr.row-pending {
+  box-shadow: inset 3px 0 0 0 var(--color-primary);
+}
+
+/* Mobile card lists get clear borders + subtle zebra striping */
+.data-cards {
+  border-top: 1px solid var(--color-grid-line);
+}
+.data-cards > * {
+  border-bottom: 1px solid var(--color-grid-line);
+}
+.data-cards > *:nth-child(odd) {
+  background-color: var(--color-table-row);
+}
+.data-cards > *:nth-child(even) {
+  background-color: var(--color-table-row-alt);
 }
 
 /* Reusable elevated card */
