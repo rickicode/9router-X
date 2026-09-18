@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getCombos, createCombo, getComboByName } from "@/lib/localDb";
+import { seedDefaultCombos } from "@/lib/seed/seedDefaultCombos";
 
 export const dynamic = "force-dynamic";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
 
-// GET /api/combos - Get all combos
+// GET /api/combos - Get all combos (lazily seeds built-ins on first load;
+// seed only inserts names that don't exist — user edits/deletes win).
 export async function GET() {
   try {
+    await seedDefaultCombos().catch((e) => console.warn("[combos] seed skipped:", e?.message));
     const combos = await getCombos();
     return NextResponse.json({ combos });
   } catch (error) {
