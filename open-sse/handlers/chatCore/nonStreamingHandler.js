@@ -307,6 +307,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
+        comboName,
         latency: { ttft: 0, total: Date.now() - requestStartTime },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
         request: extractRequestConfig(body, stream),
@@ -327,6 +328,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.BAD_GATEWAY, isStream: false, error: errMsg }).catch(() => { });
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
+        comboName,
         latency: { ttft: 0, total: Date.now() - requestStartTime },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
         request: extractRequestConfig(body, stream),

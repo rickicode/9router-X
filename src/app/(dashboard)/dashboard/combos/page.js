@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
-import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, CapacityBadges, Select, Toggle } from "@/shared/components";
+import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, CapacityBadges, Select, Toggle, SegmentedControl } from "@/shared/components";
+
+const ComboAnalyticsTab = dynamic(() => import("./components/ComboAnalyticsTab"), {
+  ssr: false,
+  loading: () => <CardSkeleton />,
+});
 import { useNotificationStore } from "@/store/notificationStore";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
@@ -46,6 +53,43 @@ function normalizeCapEntry(entry) {
 }
 
 export default function CombosPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabFromUrl = searchParams.get("tab");
+  const activeTab = tabFromUrl === "analytics" ? "analytics" : "combos";
+
+  const handleTabChange = (value) => {
+    if (value === activeTab) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", value);
+    router.push(`/dashboard/combos?${params.toString()}`, { scroll: false });
+  };
+
+  return (
+    <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
+      <div className="w-full max-w-full min-w-0 overflow-x-auto no-scrollbar tab-scroll-fade pb-0.5 sm:pb-0">
+        <SegmentedControl
+          options={[
+            { value: "combos", label: "Combos" },
+            { value: "analytics", label: "Analytics" },
+          ]}
+          value={activeTab}
+          onChange={handleTabChange}
+          className="w-full sm:w-auto min-w-max"
+        />
+      </div>
+      {activeTab === "analytics" ? (
+        <ComboAnalyticsTab />
+      ) : (
+        <Suspense fallback={<CardSkeleton />}>
+          <CombosContent />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+function CombosContent() {
   const [combos, setCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);

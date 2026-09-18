@@ -45,7 +45,7 @@ function buildTransformStream({ provider, sourceFormat, targetFormat, userAgent,
 /**
  * Handle streaming response — pipe provider SSE through transform stream to client.
  */
-export async function handleStreamingResponse({ providerResponse, provider, model, sourceFormat, targetFormat, userAgent, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, pxpipe, reqTag, log, credentials }) {
+export async function handleStreamingResponse({ providerResponse, provider, model, sourceFormat, targetFormat, userAgent, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, pxpipe, reqTag, log, credentials, comboName }) {
   // Success side-effects fire only once the stream is COMMITTED (first data
   // byte seen or peek timeout) — never for zero-byte deaths, which fail over
   // below instead of hanging the client on a stillborn SSE.
@@ -76,9 +76,10 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     if (log?.errorLine) log.errorLine(reqTag, "✗", `BLOCKED ${status} · ${provider}/${model} · non-SSE (${upstreamContentType})\n    ${shortMsg}`);
     else console.warn(`[STREAM] ${provider} | ${model} | blocked pipe: ${shortMsg} [${status}]`);
     streamController?.handleError?.(new Error(`upstream non-SSE: ${status}`));
-    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: true, error: shortMsg }).catch(() => { });
+    saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: true, error: shortMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => { });
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
+      comboName,
       latency: { ttft: 0, total: Date.now() - requestStartTime },
       tokens: { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),
@@ -119,6 +120,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     saveFailedRequest({ provider, model, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: 502, isStream: true, error: errMsg }).catch(() => { });
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
+      comboName,
       latency: { ttft: 0, total: Date.now() - requestStartTime },
       tokens: { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),
@@ -176,6 +178,7 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
 
     if (!isTestRequest) saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
+      comboName,
       latency,
       tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),

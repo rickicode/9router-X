@@ -505,9 +505,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
             setProviderDead(provider, 300).catch(() => {});
           }
         }
-         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});
+         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => {});
          if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: failedConnId || null,
+          comboName: comboName || clientRawRequest?.comboName || null,
           account: failedAccount,
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
@@ -538,9 +539,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         // 404 tells clients the endpoint/model is wrong and they stop retrying.
         log.warn("AUTH", `No active credentials for provider: ${provider}`);
         const noCredMsg = `No active credentials for provider: ${provider} — add an account or re-enable disabled ones`;
-         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: noCredMsg }).catch(() => {});
+         if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: null, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: HTTP_STATUS.SERVICE_UNAVAILABLE, isStream: body?.stream, error: noCredMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => {});
          if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: null,
+          comboName: comboName || clientRawRequest?.comboName || null,
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },
           request: body,
@@ -560,9 +562,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       log.warn("CHAT", "No more accounts available", { provider });
       const noMoreMsg = lastError || "All accounts unavailable";
       const noMoreStatus = lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE;
-       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg }).catch(() => {});
+       if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: lastAttemptedConnectionId || null, account: lastAttemptedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: noMoreStatus, isStream: body?.stream, error: noMoreMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => {});
         if (!isTestRequest) saveRequestDetail({
         provider, model, connectionId: lastAttemptedConnectionId || null,
+        comboName: comboName || clientRawRequest?.comboName || null,
         account: lastAttemptedAccount,
         latency: { ttft: 0, total: 0 },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
@@ -866,9 +869,10 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       if (credentials.connectionId === "noauth") {
         const noAuthMsg = result.error || "No-auth provider unavailable from this egress";
         log.warn("FALLBACK", `noAuth provider ${provider} — no more accounts, failing fast`);
-        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: "noauth", account: "Public", apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: effectiveStatus || HTTP_STATUS.FORBIDDEN, isStream: body?.stream, error: noAuthMsg }).catch(() => {});
+        if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: "noauth", account: "Public", apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: effectiveStatus || HTTP_STATUS.FORBIDDEN, isStream: body?.stream, error: noAuthMsg, comboName: comboName || clientRawRequest?.comboName || null }).catch(() => {});
         if (!isTestRequest) saveRequestDetail({
           provider, model, connectionId: "noauth",
+          comboName: comboName || clientRawRequest?.comboName || null,
           account: "Public",
           latency: { ttft: 0, total: 0 },
           tokens: { prompt_tokens: 0, completion_tokens: 0 },

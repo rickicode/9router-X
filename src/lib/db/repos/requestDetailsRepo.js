@@ -369,6 +369,102 @@ export async function getFailureAnalytics({
   }
 }
 
+// Combo analytics: aggregate per combo (comboName in data) and per member
+// (provider+model) over the window — success/error counts, avg latency,
+// top error samples. Members are keyed "model|provider"; comboName is null
+// for solo (non-combo) requests, so filter it explicitly.
+export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
+  try {
+    const db = await getAdapter();
+    const conditions = ["data->>'comboName' IS NOT NULL", "data->>'comboName' != ''"];
+    const params = [];
+    const add = (condition, value) => {
+      params.push(value);
+      conditions.push(condition.replace("?", `$${params.length}`));
+    };
+    if (timeFrom) add("timestamp >= ?", new Date(timeFrom).toISOString());
+    if (timeTo) add("timestamp <= ?", new Date(timeTo).toISOString());
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+
+    const comboSql = `
+      SELECT
+        data->>'comboName' AS combo_name,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'success')::int AS success,
+        COUNT(*) FILTER (WHERE status != 'success')::int AS errors,
+        COALESCE(ROUND(AVG(COALESCE((data->'latency'->>'total')::numeric, 0)) / 1000.0, 2), 0) AS avg_latency_s,
+        MAX(timestamp) AS last_seen
+      FROM request_details
+      ${where}
+      GROUP BY 1
+      ORDER BY errors DESC, total DESC;
+    `;
+
+    const memberSql = `
+      SELECT
+        data->>'comboName' AS combo_name,
+        model,
+        provider,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'success')::int AS success,
+        COUNT(*) FILTER (WHERE status != 'success')::int AS errors,
+        COALESCE(ROUND(AVG(CASE WHEN status = 'success' THEN COALESCE((data->'latency'->>'total')::numeric, 0) END) / 1000.0, 2), 0) AS avg_latency_s,
+        MAX(timestamp) AS last_seen,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->>'error', ''),
+          NULLIF(data->'response'->>'error', ''),
+          NULLIF(data->'response'->>'message', ''),
+          NULLIF(data->'providerResponse'->>'error', ''),
+          status,
+          'Unknown failure'
+        ) ORDER BY timestamp DESC))[1] AS sample_error,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->'response'->>'status', ''),
+          NULLIF(data->'providerResponse'->>'status', ''),
+          NULLIF(data->>'errorCode', ''),
+          status,
+          ''
+        ) ORDER BY timestamp DESC))[1] AS sample_status
+      FROM request_details
+      ${where}
+      GROUP BY 1, 2, 3
+      ORDER BY combo_name ASC, errors DESC, total DESC;
+    `;
+
+    const [comboRows, memberRows] = await Promise.all([
+      db.all(comboSql, params).catch(() => []),
+      db.all(memberSql, params).catch(() => []),
+    ]);
+
+    return {
+      combos: (comboRows || []).map((row) => ({
+        comboName: row.combo_name,
+        total: Number(row.total || 0),
+        success: Number(row.success || 0),
+        errors: Number(row.errors || 0),
+        avgLatencyS: Number(row.avg_latency_s || 0),
+        lastSeen: row.last_seen,
+      })),
+      members: (memberRows || []).map((row) => ({
+        comboName: row.combo_name,
+        model: row.model,
+        provider: row.provider,
+        total: Number(row.total || 0),
+        success: Number(row.success || 0),
+        errors: Number(row.errors || 0),
+        avgLatencyS: Number(row.avg_latency_s || 0),
+        lastSeen: row.last_seen,
+        sampleError: row.sample_error,
+        sampleStatus: row.sample_status,
+      })),
+    };
+  } catch (err) {
+    console.error("[requestDetailsRepo] getComboAnalytics error:", err);
+    return { combos: [], members: [] };
+  }
+}
+
 async function flushOnShutdown() {
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = null;

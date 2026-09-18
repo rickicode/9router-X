@@ -347,7 +347,7 @@ export async function getActiveRequests() {
   return { activeRequests, recentRequests, errorProvider };
 }
 
-export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error, account }) {
+export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error, account, comboName }) {
   try {
     const db = await getAdapter();
     const ts = new Date().toISOString();
@@ -376,7 +376,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
           apiKey || null,
           endpoint || null,
           status,
-          JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined }),
+          JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined, ...(comboName ? { comboName } : {}) }),
         ],
       );
 
@@ -484,6 +484,11 @@ export async function saveRequestUsage(entry) {
       // (request_id, timestamp) index makes the second insert a no-op so the
       // attempt is never double-counted in history, daily aggregates, or cost.
       const requestId = entry.requestId || null;
+      const entryMeta = JSON.stringify(
+        typeof entry.meta === "string"
+          ? (parseJson(entry.meta, {}) || {})
+          : (entry.meta || {})
+      ) || "{}";
       if (requestId) {
         const idem = await tx.run(
           `INSERT INTO usage_history
@@ -502,7 +507,7 @@ export async function saveRequestUsage(entry) {
             cost || 0,
             entry.status || "ok",
             tokens,
-            {},
+            entryMeta,
             requestId,
           ],
         );
@@ -524,7 +529,7 @@ export async function saveRequestUsage(entry) {
             cost || 0,
             entry.status || "ok",
             tokens,
-            {},
+            entryMeta,
           ],
         );
       }
