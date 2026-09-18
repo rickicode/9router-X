@@ -13,16 +13,27 @@ let seeded = false;
 export async function seedDefaultCombos() {
   if (seeded) return;
   seeded = true;
+  const results = [];
   try {
     const seeds = [
       ...Object.entries(CORE_MODEL_COMBOS),
       ...Object.entries(GENERAL_LATEST_COMBOS),
     ];
     for (const [name, models] of seeds) {
-      const existing = await getComboByName(name).catch(() => null);
-      if (existing) continue; // user owns it now — never overwrite/restore
-      await createCombo({ name, kind: "llm", models }).catch(() => {});
+      try {
+        const existing = await getComboByName(name);
+        if (existing) {
+          results.push(`${name}:exists`);
+          continue;
+        }
+        await createCombo({ name, kind: "llm", models });
+        results.push(`${name}:created`);
+      } catch (err) {
+        console.error(`[Seed] combo "${name}" failed:`, err?.message || err);
+        results.push(`${name}:error`);
+      }
     }
+    console.error(`[Seed] done: ${results.join(", ")}`);
   } catch (error) {
     console.error("[Seed] default combos failed:", error.message);
     seeded = false; // retry next boot
