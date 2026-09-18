@@ -59,48 +59,38 @@ describe("opencode client identity masquerade", () => {
   });
 });
 
-describe("opencode gate marker merge (bisected 2026-09-18: core markers required)", () => {
+describe("opencode gate decoy cloaking (upstream v0.5.81)", () => {
   const toolNames = (tools) => tools.map((t) => t?.function?.name || t?.name);
   const stubs = (...names) => names.map((n) => ({
     type: "function", function: { name: n, description: n, parameters: { type: "object", properties: {} } },
   }));
 
-  it("appends missing genuine core markers to thin client tools, keeps client tools", () => {
+  it("appends missing decoy tools (bash, read) to client tools, keeps client tools", () => {
     const ex = new OpenCodeExecutor();
-    const body = { model: "mimo-v2.5-free", messages: [], tool_choice: "none", tools: stubs("A", "B", "C", "D", "E", "F", "G") };
+    const body = { model: "mimo-v2.5-free", messages: [], tool_choice: "none", tools: stubs("A", "B") };
     ex.transformRequest("mimo-v2.5-free", body, true, creds());
     const names = toolNames(body.tools);
-    expect(names).toHaveLength(13);
-    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
-    for (const c of ["A", "B", "C", "D", "E", "F", "G"]) expect(names).toContain(c);
-    expect(body.tool_choice).toBe("auto");
-    const read = body.tools.find((t) => (t?.function?.name || t?.name) === "read");
-    expect(Object.keys(read.function.parameters.properties)).toContain("filePath");
+    expect(names).toContain("bash");
+    expect(names).toContain("read");
+    expect(names).toContain("A");
+    expect(names).toContain("B");
   });
 
-  it("does not duplicate markers already present (case-insensitive)", () => {
+  it("does not duplicate decoy tools already present", () => {
     const ex = new OpenCodeExecutor();
-    const body = { model: "mimo-v2.5-free", messages: [], tools: stubs("read", "READ", "bash", "Custom") };
+    const body = { model: "mimo-v2.5-free", messages: [], tools: stubs("read", "bash") };
     ex.transformRequest("mimo-v2.5-free", body, true, creds());
-    const names = toolNames(body.tools).map((n) => String(n).toLowerCase());
-    expect(names.filter((n) => n === "read")).toHaveLength(2); // client keeps its own two
+    const names = toolNames(body.tools);
+    expect(names.filter((n) => n === "read")).toHaveLength(1);
     expect(names.filter((n) => n === "bash")).toHaveLength(1);
-    for (const m of ["edit", "write", "glob", "grep"]) expect(names).toContain(m);
   });
 
-  it("injects all six markers when tools are empty", () => {
+  it("injects decoy tools when tools are empty", () => {
     const ex = new OpenCodeExecutor();
     const body = { model: "mimo-v2.5-free", messages: [] };
     ex.transformRequest("mimo-v2.5-free", body, true, creds());
-    expect(toolNames(body.tools).sort()).toEqual(["bash", "edit", "glob", "grep", "read", "write"]);
-    expect(body.tool_choice).toBe("auto");
-  });
-
-  it("leaves paid (non-gated) models untouched — no quota burned", () => {
-    const ex = new OpenCodeExecutor();
-    const body = { model: "gpt-6-astra", messages: [], tools: stubs("Custom") };
-    ex.transformRequest("gpt-6-astra", body, true, creds());
-    expect(toolNames(body.tools)).toEqual(["Custom"]);
+    expect(toolNames(body.tools).sort()).toEqual(["bash", "read"]);
+    expect(body.tool_choice).toBe("none");
   });
 
   it("matches free-tier ids with thinking suffix and families", async () => {

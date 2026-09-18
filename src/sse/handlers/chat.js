@@ -495,6 +495,14 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
               ? Math.min(Math.ceil((new Date(credentials.retryAfter).getTime() - Date.now()) / 1000), 86400)
               : 300;
             setProviderDead(provider, ttlSec).catch(() => {});
+          } else if ((credentials.blockedNames?.length || 0) > 0 && credentials.statusBreakdown
+            && Number(credentials.statusBreakdown.disabled || 0) > 0
+            && Number(credentials.statusBreakdown.active || 0) === 0) {
+            // Every account exists but is disabled (e.g. freebuff 33/33 banned):
+            // mark the provider dead so combo health-reorder demotes (fallback)
+            // and the loop fast-skips (RR) its members instead of re-scanning
+            // the whole disabled fleet on every rotation.
+            setProviderDead(provider, 300).catch(() => {});
           }
         }
          if (!isTestRequest) saveFailedRequest({ provider, model, connectionId: failedConnId || null, account: failedAccount, apiKey, endpoint: clientRawRequest?.endpoint, errorStatus: status, isStream: body?.stream, error: errorMsg }).catch(() => {});

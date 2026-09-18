@@ -349,7 +349,7 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
                     onSetStrategy({ stickyLimit: Number.isFinite(num) && num > 0 ? num : null });
                     setStickyDraft(null);
                   }}
-                  disabled={loading}                  className="w-20 py-1 text-center text-xs"
+                  className="w-20 py-1 text-center text-xs"
                 />
               </div>
             )}
