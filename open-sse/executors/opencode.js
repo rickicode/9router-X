@@ -199,7 +199,7 @@ export class OpenCodeExecutor extends BaseExecutor {
           },
         }));
         if (!body.tool_choice) {
-          body.tool_choice = "none";
+          body.tool_choice = "auto";
         }
       }
     }
