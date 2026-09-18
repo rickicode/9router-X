@@ -653,10 +653,10 @@ export default function UsageStats({
           </button>
         </div>
       )}
-      {/* Period selector (hidden when controlled by parent) */}
+      {/* Period selector (hidden when controlled by parent); pinned right end */}
       {!hidePeriodSelector && (
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:self-end">
-          <div className="flex flex-1 flex-wrap items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex sm:flex-none">
+        <div className="flex w-full items-center justify-end gap-2">
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex-none">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
