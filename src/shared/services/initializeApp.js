@@ -84,6 +84,12 @@ async function runHeavyStartup() {
   await cleanupProviderConnections();
   const settings = await getSettings();
 
+  // Seed built-in combos (core families + -latest + open-weight) on first
+  // boot only — afterwards they are ordinary editable DB combos.
+  import("@/lib/seed/seedDefaultCombos")
+    .then(({ seedDefaultCombos }) => seedDefaultCombos())
+    .catch((e) => console.log("[InitApp] combo seed failed:", e.message));
+
   // Auto-resume tunnel/tailscale disabled — binaries not available in Docker.
   // Users can re-enable manually from the dashboard after ensuring the binaries exist.
 
