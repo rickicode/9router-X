@@ -65,10 +65,16 @@ const clineFree = {
     { id: "inclusionai/ling-3.0-flash-fin:free", name: "Ling 3.0 Flash Fin (Free)" },
     { id: "inclusionai/ling-3.0-flash-sante:free", name: "Ling 3.0 Flash Santé (Free)" },
 
+    // DeepSeek Free Models (verified live 2026-09-18: v4.1-flash + v4-flash-0731:free
+    // answer correctly on free accounts; vision-exp/r1 hit 402 paid-only)
+    { id: "deepseek/deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash (Free)" },
+    { id: "deepseek/deepseek-v4-flash-0731:free", name: "DeepSeek V4 Flash (Free)" },
+
     // Free Aggregator
     { id: "openrouter/free", name: "OpenRouter Free" },
   ],
   passthroughModels: true,
+  modelsFetcher: { url: "https://api.cline.bot/api/v1/models", type: "cline-free" },
   oauth: {
     appBaseUrl: "https://app.cline.bot",
     apiBaseUrl: "https://api.cline.bot",
