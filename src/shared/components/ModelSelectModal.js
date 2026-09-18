@@ -8,6 +8,7 @@ import CapacityBadges from "./CapacityBadges";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
+import { canonicalModelId } from "@/shared/constants/canonicalModels";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
@@ -95,6 +96,7 @@ export default function ModelSelectModal({
   const { getCaps } = useModelCaps();
   const [searchQuery, setSearchQuery] = useState("");
   const [providerFilter, setProviderFilter] = useState("all");
+  const [dedupeView, setDedupeView] = useState(false);
   const [combos, setCombos] = useState([]);
   const [providerNodes, setProviderNodes] = useState([]);
   const [customModels, setCustomModels] = useState([]);
@@ -495,6 +497,39 @@ export default function ModelSelectModal({
     return filtered;
   }, [groupedModels, searchQuery, providerFilter, addedModelValues, capFilter]);
 
+  // Dedupe/canonical view: collapse identical model families served by many
+  // providers into one entry. Each canonical model keeps its provider variants
+  // (the actual binding a client must pick) plus the provider display name.
+  const canonicalGroups = useMemo(() => {
+    const byCanonical = new Map();
+    for (const [providerId, group] of Object.entries(filteredGroups)) {
+      for (const m of group.models) {
+        const cid = canonicalModelId(m.value || m.id || m.name);
+        if (!cid) continue;
+        if (!byCanonical.has(cid)) byCanonical.set(cid, { id: cid, providers: new Map() });
+        const entry = byCanonical.get(cid);
+        const name = typeof m.name === "string" ? m.name : m.id;
+        entry.displayName = entry.displayName || name.replace(/[:^]free$/i, "").trim();
+        if (!entry.providers.has(providerId)) entry.providers.set(providerId, []);
+        entry.providers.get(providerId).push({ ...m, name });
+      }
+    }
+    return [...byCanonical.values()]
+      .map((c) => ({
+        id: c.id,
+        displayName: c.displayName || c.id,
+        variantCount: [...c.providers.values()].reduce((sum, arr) => sum + arr.length, 0),
+        providers: [...c.providers.entries()].map(([providerId, models]) => ({
+          providerId,
+          providerName: filteredGroups[providerId]?.name || providerId,
+          alias: filteredGroups[providerId]?.alias || null,
+          color: filteredGroups[providerId]?.color || "#666",
+          models,
+        })),
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [filteredGroups]);
+
   const handleSelect = (model) => {
     const value = model?.value || model?.name || model;
     const isAdded = addedModelValues.includes(value);
@@ -543,6 +578,23 @@ export default function ModelSelectModal({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-2 bg-surface border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
           />
+        </div>
+        {/* Dedupe toggle: collapse identical models across providers into core entries */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDedupeView((v) => !v)}
+            aria-pressed={dedupeView}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              dedupeView
+                ? "bg-primary text-white border-primary"
+                : "bg-surface border-border text-text-muted hover:border-primary/50"
+            }`}
+            title="Group identical models served by many providers under one core entry"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>deployed_code</span>
+            {dedupeView ? "Hide duplicates" : "Show all models"}
+          </button>
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           <span className="text-[11px] text-text-muted shrink-0">Provider:</span>
@@ -604,8 +656,66 @@ export default function ModelSelectModal({
           </div>
         )}
 
+        {/* Dedupe/canonical view: one entry per core model, provider variants inside */}
+        {dedupeView && (
+          <div>
+            {canonicalGroups.map((c) => {
+              const isSelected = c.providers.some((p) => p.models.some((m) => selectedModel === m.value));
+              const allAdded = c.providers.every((p) => p.models.every((m) => addedModelValues.includes(m.value)));
+              const anyAdded = c.providers.some((p) => p.models.some((m) => addedModelValues.includes(m.value)));
+              return (
+                <div key={c.id}>
+                  {/* Canonical header */}
+                  <div className="flex items-center gap-1.5 mb-1.5 sticky top-0 bg-surface py-0.5">
+                    <span className="text-xs font-semibold text-primary truncate">{c.displayName}</span>
+                    <span className="text-[10px] text-text-muted">({c.variantCount} via {c.providers.length} providers)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.providers.map((p) => (
+                      <div key={p.providerId} className="flex items-center gap-1">
+                        {p.models.map((model) => {
+                          const modelSelected = selectedModel === model.value;
+                          return (
+                            <button
+                              key={model.value}
+                              onClick={() => handleSelect(model)}
+                              title={`${model.name} · ${p.providerName}`}
+                              className={`
+                                px-2 py-1 rounded-xl text-xs font-medium transition-all border hover:cursor-pointer
+                                ${modelSelected
+                                  ? "bg-primary text-white border-primary"
+                                  : addedModelValues.includes(model.value)
+                                    ? "bg-primary border-primary text-white hover:bg-primary-hover"
+                                    : "bg-surface border-border text-text-muted hover:border-primary/50 hover:bg-primary/5"
+                                }
+                              `}
+                            >
+                              <span className="flex items-center gap-1">
+                                {addedModelValues.includes(model.value) && (
+                                  <span className="material-symbols-outlined leading-none" style={{ fontSize: "10px" }}>check</span>
+                                )}
+                                <span className="text-[9px] opacity-70 font-normal">{p.alias || p.providerId}</span>
+                                <span className="text-[11px]">{model.name}</span>
+                                {isFreeModel(model, p.providerId) && (
+                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 tracking-tight">
+                                    FREE
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Provider models */}
-        {Object.entries(filteredGroups).map(([providerId, group]) => (
+        {!dedupeView && Object.entries(filteredGroups).map(([providerId, group]) => (
           <div key={providerId}>
             {/* Provider header */}
             <div className="flex items-center gap-1.5 mb-1.5 sticky top-0 bg-surface py-0.5">

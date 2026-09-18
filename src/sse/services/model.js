@@ -1,6 +1,7 @@
 // Re-export from open-sse with localDb integration
 import { getModelAliases, getComboByName, getProviderNodes } from "@/lib/localDb";
 import { parseModel as parseModelCore, resolveModelAliasFromMap, getModelInfoCore } from "open-sse/services/model.js";
+import { getCoreComboMembers } from "open-sse/config/coreModelCombos.js";
 import REGISTRY from "open-sse/providers/registry/index.js";
 
 // Local provider alias overrides (HMR-friendly, applied on top of open-sse map)
@@ -66,10 +67,10 @@ export async function getModelInfo(modelStr) {
     };
   }
 
-  // Check if this is a combo name before resolving as alias
-  // This prevents combo names from being incorrectly routed to providers
-  const combo = await getComboByName(parsed.model);
-  if (combo) {
+  // Check if this is a combo name (or core-model family) before resolving as
+  // alias — prevents combo/core names from being incorrectly routed to providers.
+  const comboModels = await getComboModels(parsed.model);
+  if (comboModels) {
     // Return null provider to signal this should be handled as combo
     // The caller (handleChat) will detect this and handle it as combo
     return { provider: null, model: parsed.model };
@@ -89,6 +90,12 @@ export async function getComboModels(modelStr) {
   const combo = await getComboByName(modelStr);
   if (combo && combo.models && combo.models.length > 0) {
     return combo.models;
+  }
+  // Core-model family: bare canonical model name (e.g. "glm-5.3-flash",
+  // "deepseek-v4.1-flash") routes as a virtual combo over provider bindings.
+  const coreMembers = getCoreComboMembers(modelStr);
+  if (coreMembers && coreMembers.length > 0) {
+    return coreMembers;
   }
   return null;
 }
