@@ -31,8 +31,25 @@ const RESPONSES_MODELS = new Set([
 const CLAUDE_MODELS = new Set([
   "union-alpha",
 ]);
-// Gate-passing agent tools live in config/opencodeAgentTools.js (genuine CLI
-// definitions — the upstream free-tier gate validates tool content).
+// Gate marker merge: the upstream free-tier gate rejects requests whose tool
+// set lacks the genuine CLI core markers (bisected 2026-09-18: 0-70 genuine
+// tools 403, +read 200, core6 alone 200). Client tools are preserved;
+// missing markers are appended so thin clients (e.g. 7 dashboard stubs)
+// pass without altering rich agent payloads.
+function toolNameOf(t) {
+  if (!t || typeof t !== "object") return "";
+  if (typeof t.name === "string") return t.name;
+  if (t.function && typeof t.function.name === "string") return t.function.name;
+  return "";
+}
+
+function appendMissingGateTools(existing, toWire) {
+  const list = Array.isArray(existing) ? existing : [];
+  const have = new Set(list.map((t) => toolNameOf(t).toLowerCase()).filter(Boolean));
+  const missing = OPENCODE_AGENT_TOOLS.filter((t) => !have.has(t.name.toLowerCase()));
+  if (missing.length === 0) return list;
+  return list.concat(missing.map(toWire));
+}
 
 const OPENCODE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 // Real client Identifier shape: 12 lowercase-hex (time-ordered) + 14 mixed-case
@@ -140,10 +157,9 @@ export class OpenCodeExecutor extends BaseExecutor {
   transformRequest(model, body, stream, credentials) {
     this._currentSessionId = resolveOpencodeSession(body, credentials);
     // OpenCode upstream gate enforcement across all models:
-    // Upstream /zen/v1/chat/completions, /zen/v1/responses, and /zen/v1/messages
-    // strictly require `stream: true` and at least 1 tool in `tools` (how official
-    // OpenCode CLI agents operate). Requests without tools or in non-streaming mode
-    // are rejected with 403 FreeTierError.
+    // Upstream rejects non-agent fingerprints with 403 FreeTierError. The gate
+    // validates tool CONTENT (genuine core markers required), so missing
+    // markers are merged in below; client tools are never stripped.
     body.stream = true;
 
     if (isResponsesModel(model)) {
@@ -160,38 +176,32 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
 
-      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
-          type: "function",
+      body.tools = appendMissingGateTools(body.tools, (t) => ({
+        type: "function",
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      }));
+      if (!body.tool_choice) {
+        body.tool_choice = "auto";
+      }
+    } else if (isClaudeModel(model)) {
+      body.tools = appendMissingGateTools(body.tools, (t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters,
+      }));
+    } else {
+      body.tools = appendMissingGateTools(body.tools, (t) => ({
+        type: "function",
+        function: {
           name: t.name,
           description: t.description,
           parameters: t.parameters,
-        }));
-        if (!body.tool_choice) {
-          body.tool_choice = "auto";
-        }
-      }
-    } else if (isClaudeModel(model)) {
-      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          input_schema: t.parameters,
-        }));
-      }
-    } else {
-      if (!body.tools || !Array.isArray(body.tools) || body.tools.length === 0) {
-        body.tools = OPENCODE_AGENT_TOOLS.map((t) => ({
-          type: "function",
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.parameters,
-          },
-        }));
-        if (!body.tool_choice) {
-          body.tool_choice = "auto";
-        }
+        },
+      }));
+      if (!body.tool_choice || body.tool_choice === "none") {
+        body.tool_choice = "auto";
       }
     }
     return injectReasoningContent({ provider: this.provider, model, body });

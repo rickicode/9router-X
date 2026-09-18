@@ -58,3 +58,41 @@ describe("opencode client identity masquerade", () => {
     expect(good["x-opencode-request"]).toBe(goodReq);
   });
 });
+
+describe("opencode gate marker merge (bisected 2026-09-18: core markers required)", () => {
+  const toolNames = (tools) => tools.map((t) => t?.function?.name || t?.name);
+  const stubs = (...names) => names.map((n) => ({
+    type: "function", function: { name: n, description: n, parameters: { type: "object", properties: {} } },
+  }));
+
+  it("appends missing genuine core markers to thin client tools, keeps client tools", () => {
+    const ex = new OpenCodeExecutor();
+    const body = { model: "mimo-v2.5-free", messages: [], tool_choice: "none", tools: stubs("A", "B", "C", "D", "E", "F", "G") };
+    ex.transformRequest("mimo-v2.5-free", body, true, creds());
+    const names = toolNames(body.tools);
+    expect(names).toHaveLength(13);
+    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
+    for (const c of ["A", "B", "C", "D", "E", "F", "G"]) expect(names).toContain(c);
+    expect(body.tool_choice).toBe("auto");
+    const read = body.tools.find((t) => (t?.function?.name || t?.name) === "read");
+    expect(Object.keys(read.function.parameters.properties)).toContain("filePath");
+  });
+
+  it("does not duplicate markers already present (case-insensitive)", () => {
+    const ex = new OpenCodeExecutor();
+    const body = { model: "mimo-v2.5-free", messages: [], tools: stubs("read", "READ", "bash", "Custom") };
+    ex.transformRequest("mimo-v2.5-free", body, true, creds());
+    const names = toolNames(body.tools).map((n) => String(n).toLowerCase());
+    expect(names.filter((n) => n === "read")).toHaveLength(2); // client keeps its own two
+    expect(names.filter((n) => n === "bash")).toHaveLength(1);
+    for (const m of ["edit", "write", "glob", "grep"]) expect(names).toContain(m);
+  });
+
+  it("injects all six markers when tools are empty", () => {
+    const ex = new OpenCodeExecutor();
+    const body = { model: "mimo-v2.5-free", messages: [] };
+    ex.transformRequest("mimo-v2.5-free", body, true, creds());
+    expect(toolNames(body.tools).sort()).toEqual(["bash", "edit", "glob", "grep", "read", "write"]);
+    expect(body.tool_choice).toBe("auto");
+  });
+});
