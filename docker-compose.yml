@@ -9,11 +9,10 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     restart: always
-    # Box only has 6GB RAM and next-server leaks under load (~240MB/min during
-    # 403 retry storms). Cap so the kernel OOM-kills + compose restarts just
-    # this container instead of the whole box thrashing into swap.
-    mem_limit: 4g
-    memswap_limit: 4g
+    # Box max is 4GB total: app 2.5g + postgres 1g leaves ~0.5g for the
+    # host/docker. OOM kills recycle just this container (restart: always).
+    mem_limit: 2500m
+    memswap_limit: 2500m
     ports:
       - "10128:10128"
     volumes:
@@ -45,8 +44,8 @@ services:
     image: postgres:17-alpine
     container_name: 9router-postgres
     restart: always
-    mem_limit: 2g
-    memswap_limit: 2g
+    mem_limit: 1g
+    memswap_limit: 1g
     ports:
       - "5432:5432"
     command:
