@@ -18,7 +18,7 @@ import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
 import { getTransform as getPxpipeTransform } from "@/lib/pxpipe/loader.js";
 import { appendPxpipeEvent } from "@/lib/pxpipe/events.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
-import { handleComboChat, handleFusionChat, detectRequiredCapabilities } from "open-sse/services/combo.js";
+import { handleComboChat, handleFusionChat, handleDifficultyChat, detectRequiredCapabilities } from "open-sse/services/combo.js";
 import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActiveAdapterStrategy } from "open-sse/services/capacityAdapter.js";
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
@@ -366,6 +366,28 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           tuning: comboStrategies[modelStr]?.fusionTuning,
           rotationBudget,
           externalSignal
+        });
+      }
+
+      // Difficulty / smart-routing: judge picks a tier (easy/medium/hard),
+      // then ONLY that tier runs (one model at a time, escalate on failure).
+      if (comboStrategy === "difficulty") {
+        log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: difficulty)`);
+        return handleDifficultyChat({
+          body,
+          models: comboModels,
+          handleSingleModel: (b, m, opts) =>
+            handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null),
+          log,
+          comboName: modelStr,
+          judgeModel: comboStrategies[modelStr]?.judgeModel || "cline-free/z-ai/glm-4.5",
+          tuning: {
+            easyModels: comboStrategies[modelStr]?.easyModels,
+            mediumModels: comboStrategies[modelStr]?.mediumModels,
+            hardModels: comboStrategies[modelStr]?.hardModels,
+          },
+          rotationBudget,
+          externalSignal,
         });
       }
 

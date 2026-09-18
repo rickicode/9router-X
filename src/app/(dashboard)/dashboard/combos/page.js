@@ -347,17 +347,30 @@ const STRATEGY_OPTIONS = [
   { value: "round-robin", label: "Round Robin — rotate" },
   { value: "round-robin-sticky", label: "Round Robin Sticky — N per model" },
   { value: "random", label: "Random — shuffle each request" },
+  { value: "difficulty", label: "Smart Routing — difficulty judge (easy/med/hard)" },
   { value: "fusion", label: "Fusion — panel + judge" },
 ];
 
 function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdit, onDelete, strategy = {}, onSetStrategy }) {
   const [showJudgeSelect, setShowJudgeSelect] = useState(false);
+  const [tierEditor, setTierEditor] = useState(null); // { tier: "easy"|"medium"|"hard" }
+  const [tierDraft, setTierDraft] = useState(null);
   const [stickyDraft, setStickyDraft] = useState(null);
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
   const isFusion = current === "fusion";
+  const isDifficulty = current === "difficulty";
   const isRR = current === "round-robin" || current === "round-robin-sticky";
   const stickyValue = stickyDraft ?? strategy.stickyLimit ?? "";
+  const tierValue = (tier) => {
+    if (tierDraft?.tier === tier) return tierDraft.value;
+    return Array.isArray(strategy[`${tier}Models`]) ? strategy[`${tier}Models`].join(", ") : "";
+  };
+  const TIERS = [
+    { key: "easy", label: "Easy", color: "text-emerald-600", hint: "menial fixes, short prompts" },
+    { key: "medium", label: "Medium", color: "text-yellow-600", hint: "typical agent tasks" },
+    { key: "hard", label: "Hard", color: "text-red-500", hint: "complex, tools, big context" },
+  ];
 
   return (
     <Card padding="sm" className="group">
@@ -427,6 +440,61 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
                 )}
               </div>
             )}
+
+            {/* Difficulty / smart-routing: judge + easy/medium/hard tiers */}
+            {isDifficulty && (
+              <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-bg-subtle p-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-text-muted">Judge</span>
+                  <button
+                    onClick={() => setShowJudgeSelect(true)}
+                    className="inline-flex max-w-full items-center gap-1 rounded border border-dashed border-primary/40 px-1.5 py-0.5 font-mono text-[11px] text-primary hover:border-primary hover:bg-primary/5 transition-colors"
+                    title="Judge model classifies difficulty for ambiguous prompts (1 cheap call)"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">smart_toy</span>
+                    <span className="truncate">{judge || "Auto — first model"}</span>
+                  </button>
+                  {judge && (
+                    <button
+                      onClick={() => onSetStrategy({ judgeModel: "" })}
+                      className="p-0.5 rounded text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="Reset judge to Auto"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">close</span>
+                    </button>
+                  )}
+                </div>
+                {TIERS.map((t) => (
+                  <div key={t.key} className="flex items-start gap-2">
+                    <span className={`mt-1.5 shrink-0 text-[10px] font-semibold uppercase ${t.color} w-14`} title={t.hint}>
+                      {t.label}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        type="text"
+                        placeholder={`e.g. ${t.key === "easy" ? "oc/mimo-v2.5-free, openrouter/deepseek-v4-flash-0731:free" : t.key === "medium" ? "cline-free/z-ai/glm-5.3-flash" : "claude-latest, gpt-latest"}`}
+                        value={tierValue(t.key)}
+                        onChange={(e) => setTierDraft({ tier: t.key, value: e.target.value })}
+                        onBlur={() => {
+                          if (!tierDraft || tierDraft.tier !== t.key) return;
+                          const list = tierDraft.value.split(",").map((s) => s.trim()).filter(Boolean);
+                          onSetStrategy({ [`${t.key}Models`]: list });
+                          setTierDraft(null);
+                        }}
+                        className="py-1 text-[11px] font-mono"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setTierEditor(t.key)}
+                      className="shrink-0 p-1 rounded text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
+                      title={`Pick models for ${t.label} tier`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">add_circle</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -483,6 +551,30 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
           title="Select Judge Model"
           addedModelValues={judge ? [judge] : []}
           closeOnSelect={true}
+        />
+      )}
+
+      {/* Difficulty tier picker: toggling adds/removes a model from the tier */}
+      {tierEditor && (
+        <ModelSelectModal
+          isOpen={!!tierEditor}
+          onClose={() => setTierEditor(null)}
+          onSelect={(m) => {
+            const field = `${tierEditor}Models`;
+            const val = m?.value || "";
+            const cur = Array.isArray(strategy[field]) ? strategy[field] : [];
+            const next = cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val];
+            onSetStrategy({ [field]: next });
+          }}
+          onDeselect={(m) => {
+            const field = `${tierEditor}Models`;
+            const val = m?.value || "";
+            onSetStrategy({ [field]: (Array.isArray(strategy[field]) ? strategy[field] : []).filter((x) => x !== val) });
+          }}
+          activeProviders={activeProviders}
+          title={`Pick ${tierEditor} tier models`}
+          addedModelValues={Array.isArray(strategy[`${tierEditor}Models`]) ? strategy[`${tierEditor}Models`] : []}
+          closeOnSelect={false}
         />
       )}
     </Card>
