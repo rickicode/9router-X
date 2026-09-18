@@ -240,6 +240,8 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
 
   const ctx = {
     provider, model, connectionId,
+    comboName: comboName || clientRawRequest?.comboName || null,
+    difficulty: clientRawRequest?.difficulty || null,
     request: extractRequestConfig(body, stream),
     providerRequest: finalBody || translatedBody || null
   };

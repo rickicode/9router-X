@@ -371,13 +371,20 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
 
       // Difficulty / smart-routing: judge picks a tier (easy/medium/hard),
       // then ONLY that tier runs (one model at a time, escalate on failure).
+      // Tier decisions flow into request_details via clientRawRequest.difficulty
+      // so the analytics tab can show per-tier usage + judge hit rate.
       if (comboStrategy === "difficulty") {
         log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: difficulty)`);
+        const diffCtx = {};
         return handleDifficultyChat({
           body,
           models: comboModels,
-          handleSingleModel: (b, m, opts) =>
-            handleSingleModelChat(b, m, clientRawRequest, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null),
+          handleSingleModel: (b, m, opts) => {
+            const crr = clientRawRequest && (diffCtx.tier || diffCtx.winningModel)
+              ? { ...clientRawRequest, difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } }
+              : clientRawRequest;
+            return handleSingleModelChat(b, m, crr, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null);
+          },
           log,
           comboName: modelStr,
           judgeModel: comboStrategies[modelStr]?.judgeModel || "cline-free/z-ai/glm-4.5",
@@ -386,6 +393,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
             mediumModels: comboStrategies[modelStr]?.mediumModels,
             hardModels: comboStrategies[modelStr]?.hardModels,
           },
+          onDecision: (d) => Object.assign(diffCtx, d),
           rotationBudget,
           externalSignal,
         });
@@ -687,6 +695,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
       isTestRequest,
       comboName,
+      difficulty: clientRawRequest?.difficulty || null,
       // Fusion straggler / combo target-timeout abort: linked to the stream
       // controller inside chatCore (fail-open when ignored downstream).
       externalSignal,

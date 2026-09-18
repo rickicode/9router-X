@@ -49,9 +49,14 @@ export default function ComboAnalyticsTab() {
 
   const combos = data?.combos || [];
   const members = data?.members || [];
+  const difficulty = data?.difficulty || [];
   const membersByCombo = {};
   for (const m of members) {
     (membersByCombo[m.comboName] ||= []).push(m);
+  }
+  const difficultyByCombo = {};
+  for (const d of difficulty) {
+    (difficultyByCombo[d.comboName] ||= []).push(d);
   }
 
   return (
@@ -120,6 +125,36 @@ export default function ComboAnalyticsTab() {
                     <p className="text-[11px] text-red-500/90 mt-2 truncate" title={worst.sampleError || ""}>
                       Weakest member: {worst.model} ({worst.errors} errors{worst.sampleError ? ` — ${String(worst.sampleError).slice(0, 60)}` : ""})
                     </p>
+                  )}
+                  {(difficultyByCombo[c.comboName] || []).length > 0 && (
+                    <div className="mt-2 border-t border-border pt-2">
+                      <p className="text-[11px] font-medium text-text-muted mb-1.5">Smart routing (difficulty)</p>
+                      <div className="flex flex-col gap-1">
+                        {(difficultyByCombo[c.comboName] || []).map((d) => (
+                          <div key={d.tier} className="flex items-center justify-between gap-2 text-xs">
+                            <span className={`font-medium capitalize ${d.tier === "easy" ? "text-emerald-600" : d.tier === "medium" ? "text-yellow-600" : d.tier === "hard" ? "text-red-500" : "text-text-muted"}`}>
+                              {d.tier}
+                            </span>
+                            <span className="text-text-muted">
+                              {d.total}× · {pct(d.success, d.total)}
+                              {d.judgeUsed > 0 && (
+                                <span title="decided by the judge model"> · ⚖️{d.judgeUsed}</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {(() => {
+                        const rows = difficultyByCombo[c.comboName] || [];
+                        const tot = rows.reduce((s, r) => s + r.total, 0);
+                        const judged = rows.reduce((s, r) => s + r.judgeUsed, 0);
+                        return tot > 0 ? (
+                          <p className="text-[11px] text-text-muted mt-1.5">
+                            Judge used {judged}/{tot} ({Math.round((judged / tot) * 100)}%) — rest decided by rules, no judge call.
+                          </p>
+                        ) : null;
+                      })()}
+                    </div>
                   )}
                 </Card>
               );

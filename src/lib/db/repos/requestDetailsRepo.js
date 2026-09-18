@@ -432,10 +432,26 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
       ORDER BY combo_name ASC, errors DESC, total DESC;
     `;
 
-    const [comboRows, memberRows] = await Promise.all([
+    const difficultySql = `
+      SELECT
+        data->>'comboName' AS combo_name,
+        COALESCE(data->'difficulty'->>'tier', 'unknown') AS tier,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'success')::int AS success,
+        COUNT(*) FILTER (WHERE (data->'difficulty'->>'judgeUsed')::boolean IS TRUE)::int AS judge_used,
+        COUNT(*) FILTER (WHERE (data->'difficulty'->>'source') = 'judge')::int AS judged,
+        MAX(timestamp) AS last_seen
+      FROM request_details
+      ${where} AND data->'difficulty' IS NOT NULL
+      GROUP BY 1, 2
+      ORDER BY combo_name ASC, total DESC;
+    `;
+
+    const [comboRows, memberRows, difficultyRows] = await Promise.all([
       db.all(comboSql, params).catch(() => []),
       db.all(memberSql, params).catch(() => []),
-    ]);
+      db.all(difficultySql, params).catch(() => []),
+    ));
 
     return {
       combos: (comboRows || []).map((row) => ({
@@ -457,6 +473,15 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
         lastSeen: row.last_seen,
         sampleError: row.sample_error,
         sampleStatus: row.sample_status,
+      })),
+      difficulty: (difficultyRows || []).map((row) => ({
+        comboName: row.combo_name,
+        tier: row.tier,
+        total: Number(row.total || 0),
+        success: Number(row.success || 0),
+        judgeUsed: Number(row.judge_used || 0),
+        judged: Number(row.judged || 0),
+        lastSeen: row.last_seen,
       })),
     };
   } catch (err) {

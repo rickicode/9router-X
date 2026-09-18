@@ -80,6 +80,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
       comboName,
+      difficulty: clientRawRequest?.difficulty || null,
       latency: { ttft: 0, total: Date.now() - requestStartTime },
       tokens: { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),
@@ -121,6 +122,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
       comboName,
+      difficulty: clientRawRequest?.difficulty || null,
       latency: { ttft: 0, total: Date.now() - requestStartTime },
       tokens: { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),
@@ -179,6 +181,7 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
     if (!isTestRequest) saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,
       comboName,
+      difficulty: clientRawRequest?.difficulty || null,
       latency,
       tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),

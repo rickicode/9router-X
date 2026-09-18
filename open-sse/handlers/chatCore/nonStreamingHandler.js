@@ -308,6 +308,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
         comboName,
+        difficulty: clientRawRequest?.difficulty || null,
         latency: { ttft: 0, total: Date.now() - requestStartTime },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
         request: extractRequestConfig(body, stream),
@@ -329,6 +330,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
       if (!isTestRequest) saveRequestDetail(buildRequestDetail({
         provider, model, connectionId,
         comboName,
+        difficulty: clientRawRequest?.difficulty || null,
         latency: { ttft: 0, total: Date.now() - requestStartTime },
         tokens: { prompt_tokens: 0, completion_tokens: 0 },
         request: extractRequestConfig(body, stream),

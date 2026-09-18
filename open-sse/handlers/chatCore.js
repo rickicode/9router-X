@@ -565,6 +565,7 @@ try {
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     comboName: comboName || clientRawRequest?.comboName || null,
+    difficulty: clientRawRequest?.difficulty || null,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),
@@ -663,6 +664,7 @@ if (!providerResponse.ok) {
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     comboName: comboName || clientRawRequest?.comboName || null,
+    difficulty: clientRawRequest?.difficulty || null,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),

@@ -811,7 +811,8 @@ const DIFFICULTY_JUDGE_PROMPT = `Classify this coding/typing task. Reply with ON
 difficulty = how complex the task is; ambiguity = how underspecified it is.
 Task:`;
 
-export async function handleDifficultyChat({ body, models = [], handleSingleModel, log, comboName, judgeModel, tuning = {}, rotationBudget = null, externalSignal = null }) {
+export async function handleDifficultyChat({ body, models = [], handleSingleModel, log, comboName, judgeModel, tuning = {}, rotationBudget = null, externalSignal = null, onDecision = null }) {
+  const notify = (d) => { try { onDecision && onDecision(d); } catch {} };
   const cfg = { ...DIFFICULTY_DEFAULTS, ...(tuning || {}) };
   const easyTier = (Array.isArray(cfg.easyModels) ? cfg.easyModels : []).filter(Boolean);
   const medTier = (Array.isArray(cfg.mediumModels) ? cfg.mediumModels : []).filter(Boolean);
@@ -853,6 +854,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   }
 
   log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | ~${bodyTokens} tok`);
+  notify({ tier, source, judgeUsed: source === "judge", judgeModel: source === "judge" ? judgeModel : null });
 
   // Run selected tier sequentially; escalate up on total failure.
   const startIdx = tier === "easy" ? 0 : tier === "hard" ? 2 : 1;
@@ -887,6 +889,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
       }
       bumpRoutingMetric("difficultyMemberSucceeded");
       log.info("DIFFICULTY", `Member ${m} succeeded (${tierCfg.name} tier)`);
+      notify({ tier: tierCfg.name, winningModel: m, source: "member-result" });
       return result;
     }
   }
