@@ -84,7 +84,9 @@ function withDeadline(promise, ms = 500) {
 async function prepareComboOrder(models, comboName, strategy, stickyLimit) {
   let ordered = Array.isArray(models) ? models : [];
   let effectiveStrategy = strategy;
-  if (strategy === "round-robin" && ordered.length > 1) {
+  // "round-robin-sticky" shares the round-robin path: the sticky window is
+  // settings.comboStickyRoundRobinLimit (per-request N before switching).
+  if ((strategy === "round-robin" || strategy === "round-robin-sticky") && ordered.length > 1) {
     const start = await withDeadline(strictRRStartIndex(comboName, ordered.length, stickyLimit));
     if (start !== null) {
       ordered = rotateFromIndex(ordered, start);
@@ -278,6 +280,11 @@ export async function handleChat(request, clientRawRequest = null) {
       autoSwitch: comboAutoSwitch,
       rotationBudget,
         externalSignal,
+      memberHealth: {
+        getFailCounts: (members) => getModelFailCounts(members),
+        onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
+        onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
+      },
     });
   }
 
@@ -302,6 +309,11 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStrategy: preparedSolo.strategy,
       rotationBudget,
         externalSignal,
+      memberHealth: {
+        getFailCounts: (members) => getModelFailCounts(members),
+        onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
+        onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
+      },
     });
   }
 

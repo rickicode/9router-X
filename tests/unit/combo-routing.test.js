@@ -55,4 +55,40 @@ describe("combo round-robin routing", () => {
     expect(getRotatedModels(models, "code-xhigh", "fallback", 2)).toEqual(models);
     expect(getRotatedModels(models, "code-xhigh", "fallback", 2)).toEqual(models);
   });
+
+  it("round-robin-sticky behaves like round-robin (sticky window from settings)", () => {
+    const models = ["provider/model-a", "provider/model-b"];
+
+    const firstChoices = Array.from({ length: 4 }, () => (
+      getRotatedModels(models, "sticky-combo", "round-robin-sticky", 2)[0]
+    ));
+
+    expect(firstChoices).toEqual([
+      "provider/model-a",
+      "provider/model-a",
+      "provider/model-b",
+      "provider/model-b",
+    ]);
+  });
+
+  it("random shuffles members and never loses one", () => {
+    const models = ["m/1", "m/2", "m/3", "m/4", "m/5", "m/6"];
+
+    for (let i = 0; i < 30; i++) {
+      const out = getRotatedModels(models, "rand-combo", "random");
+      expect(out).toHaveLength(models.length);
+      expect([...out].sort()).toEqual([...models].sort());
+    }
+  });
+
+  it("random does not use rotation state (independent from round-robin)", () => {
+    const models = ["provider/model-a", "provider/model-b"];
+    resetComboRotation();
+    // Consume a round-robin step
+    getRotatedModels(models, "mixed-combo", "round-robin");
+    // Random on the same combo name must not advance/interfere with RR state
+    getRotatedModels(models, "mixed-combo", "random");
+    // Next RR pick must continue the cycle: after 1 RR request (sticky=1) index=1
+    expect(getRotatedModels(models, "mixed-combo", "round-robin")[0]).toBe("provider/model-b");
+  });
 });

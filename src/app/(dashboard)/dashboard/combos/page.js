@@ -293,6 +293,8 @@ export default function CombosPage() {
 const STRATEGY_OPTIONS = [
   { value: "fallback", label: "Fallback — try in order" },
   { value: "round-robin", label: "Round Robin — rotate" },
+  { value: "round-robin-sticky", label: "Round Robin Sticky — N per model" },
+  { value: "random", label: "Random — shuffle each request" },
   { value: "fusion", label: "Fusion — panel + judge" },
 ];
 

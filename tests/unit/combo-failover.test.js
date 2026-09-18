@@ -82,6 +82,10 @@ vi.mock("@/lib/cache/client.js", () => ({
   delLkg: vi.fn(async () => true),
   getDeadCircuit: vi.fn(async () => 0),
   incrDeadCircuit: vi.fn(async () => 1),
+  clearProviderDead: vi.fn(async () => true),
+  setProviderDead: vi.fn(async () => true),
+  isProviderDead: vi.fn(async () => false),
+  incrSharedCounter: vi.fn(async () => 1),
 }));
 
 const { handleSingleModelChat } = await import("@/sse/handlers/chat.js");

@@ -6,6 +6,7 @@ import { checkFallbackError, formatRetryAfter } from "./accountFallback.js";
 import { unavailableResponse } from "../utils/error.js";
 import { COMBO_TARGET_TIMEOUT_MS, COMBO_LOOP_SAFETY_MS } from "../config/errorConfig.js";
 import { bumpRoutingMetric } from "./routingMetrics.js";
+import { MODEL_FAILOVER_THRESHOLD } from "../config/errorConfig.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { extractTextContent } from "../translator/formats/gemini.js";
 
@@ -209,12 +210,28 @@ function rotateModelsFromIndex(models, currentIndex) {
  * Get rotated model list based on strategy
  * @param {string[]} models - Array of model strings
  * @param {string} comboName - Name of the combo
- * @param {string} strategy - "fallback" or "round-robin"
+ * @param {string} strategy - "fallback" | "round-robin" | "round-robin-sticky" | "random"
  * @param {number|string} [stickyLimit=1] - Requests per combo model before switching
  * @returns {string[]} Rotated models array
  */
 export function getRotatedModels(models, comboName, strategy, stickyLimit = 1) {
-  if (!models || models.length <= 1 || strategy !== "round-robin") {
+  if (!models || models.length <= 1) return models;
+
+  if (strategy === "random") {
+    // Fisher-Yates: fresh unbiased shuffle per request (not rotation state —
+    // random must not correlate with previous requests).
+    const shuffled = [...models];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  // "round-robin-sticky" is round-robin with stickyLimit > 1 (the sticky
+  // window comes from settings.comboStickyRoundRobinLimit); same state machine.
+  const isRoundRobin = strategy === "round-robin" || strategy === "round-robin-sticky";
+  if (!isRoundRobin) {
     return models;
   }
 
@@ -285,13 +302,23 @@ export function getComboModelsFromData(modelStr, combosData) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @returns {Promise<Response>}
  */
-export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null, targetTimeoutMs = COMBO_TARGET_TIMEOUT_MS, loopSafetyMs = COMBO_LOOP_SAFETY_MS, externalSignal = null }) {
+export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, rotationBudget = null, targetTimeoutMs = COMBO_TARGET_TIMEOUT_MS, loopSafetyMs = COMBO_LOOP_SAFETY_MS, externalSignal = null, memberHealth = null }) {
   bumpRoutingMetric("comboRequests");
   // Client-gone detection: without this a disconnected client's fallback loop
   // keeps billing upstream members to completion.
   const clientGone = () => Boolean(externalSignal?.aborted);
   // Apply rotation strategy if enabled
   let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
+
+  // Dead-member fast-skip: members with >= MODEL_FAILOVER_THRESHOLD recent
+  // consecutive failures (memory fail-count, TTL window) are skipped without
+  // paying a credential lookup / refresh check / per-target timeout each.
+  // This is what keeps a wide combo fast while a member upstream is down —
+  // the TTL guarantees the member is retried again after the window lapses.
+  const FAILOVER_SKIP_THRESHOLD = MODEL_FAILOVER_THRESHOLD;
+  const memberFailCounts = memberHealth?.getFailCounts
+    ? await memberHealth.getFailCounts(models).catch(() => ({})) || {}
+    : {};
 
   // Auto-switch: float models that satisfy the request's required capabilities to the front.
   if (autoSwitch) {
@@ -386,6 +413,15 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       return unavailableResponse(503, msg, earliestRetryAfter, earliestRetryAfter ? formatRetryAfter(earliestRetryAfter) : null, { code: "ROTATION_BUDGET" });
     }
     const modelStr = rotatedModels[i];
+
+    // Fast-skip dead members (fail streak >= threshold): saves the target
+    // timeout + upstream attempt per dead member per request.
+    if ((memberFailCounts[modelStr] || 0) >= FAILOVER_SKIP_THRESHOLD) {
+      bumpRoutingMetric("comboDeadMemberSkips");
+      log.info("COMBO", `Skipping ${modelStr} (${memberFailCounts[modelStr]} recent failures, TTL window) — trying next`);
+      continue;
+    }
+
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
 
     // Fair-share accounting for the shared rotation budget: each member gets
@@ -433,6 +469,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
           continue;
         }
         log.info("COMBO", `Model ${modelStr} succeeded`);
+        memberHealth?.onSuccess?.(modelStr);
         if (loopTimer) clearTimeout(loopTimer);
         return result;
       }
@@ -479,11 +516,13 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       // Fallback to next model
       lastError = errorText || String(result.status);
       lastStatus = result.status;
+      memberHealth?.onFailure?.(modelStr);
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });
     } catch (error) {
       // Catch unexpected exceptions to ensure fallback continues
       lastError = error.message || String(error);
       lastStatus = 500;
+      memberHealth?.onFailure?.(modelStr);
       log.warn("COMBO", `Model ${modelStr} threw error, trying next`, { error: lastError });
     }
   }
