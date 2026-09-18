@@ -93,13 +93,18 @@ export const GENERAL_LATEST_COMBOS = {
     "cx/gpt-5.6-luna",
     "uk/gpt-5.6-luna",
   ],
-  // Frontier open-weight coding models — only bindings that PASSED a live
-  // code-execution benchmark (2026-09-19: sort-evens + fibonacci ran &
-  // returned correct output). nemotron-ultra-550b FAILED execution (garbled
-  // code) and nemotron-super/nemotron-3.5-leak reasoning text — excluded.
+  // Frontier open-weight coding models — every binding below PASSED a live
+  // code-execution benchmark (2026-09-19). This is the general "open weight"
+  // collection: the well-known open families (GLM, DeepSeek, Muse Spark,
+  // Gemma, Nemotron) plus niche-but-strong open weights (Nex, Laguna).
+  // Excluded: nemotron-ultra-550b (garbled code), nemotron-super &
+  // nemotron-3.5 (reasoning-text leak), cohere-north (rate-limited).
   "open-weight-latest": [
-    "cline-free/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "cline-free/z-ai/glm-5.3-flash",
+    "cline-free/deepseek/deepseek-v4.1-flash",
+    "oc/muse-spark-1.3-contributor-free",
     "cline-free/google/gemma-4-31b-it:free",
+    "cline-free/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     "cline-free/nex-agi/nex-n2.5-pro:free",
     "cline-free/poolside/laguna-s-2.1:free",
   ],
