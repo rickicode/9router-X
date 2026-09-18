@@ -265,6 +265,32 @@ export async function handleChat(request, clientRawRequest = null) {
       });
     }
 
+    if (comboStrategy === "difficulty") {
+      log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: difficulty)`);
+      const diffCtx = {};
+      return handleDifficultyChat({
+        body,
+        models: comboModels,
+        handleSingleModel: (b, m, opts) => {
+          const crr = clientRawRequest
+            ? { ...clientRawRequest, difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } }
+            : { difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } };
+          return handleSingleModelChat(b, m, crr, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null);
+        },
+        log,
+        comboName: modelStr,
+        judgeModel: comboStrategies[modelStr]?.judgeModel || "cline-free/z-ai/glm-4.5",
+        tuning: {
+          easyModels: comboStrategies[modelStr]?.easyModels,
+          mediumModels: comboStrategies[modelStr]?.mediumModels,
+          hardModels: comboStrategies[modelStr]?.hardModels,
+        },
+        onDecision: (d) => Object.assign(diffCtx, d),
+        rotationBudget,
+        externalSignal,
+      });
+    }
+
     // Per-combo autoSwitch opt-out: cost-ordered combos can keep their explicit
     // member order even when the request carries media/search. Default true.
     const comboAutoSwitch = comboStrategies[modelStr]?.autoSwitch !== false;
