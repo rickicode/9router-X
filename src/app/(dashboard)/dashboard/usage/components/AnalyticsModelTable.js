@@ -1,12 +1,60 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
+import { cn } from "@/shared/utils/cn";
 import { fmtNumber, formatMetric, fmtTokens } from "./analyticsData";
 
-export default function AnalyticsModelTable({ data, handleSelectModel }) {
+export default function AnalyticsModelTable({
+  data,
+  handleSelectModel,
+  onInspectFailures,
+}) {
+  const [sortKey, setSortKey] = useState("requests");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(false);
+    }
+  };
+
+  const sortedModels = useMemo(() => {
+    const list = [...(data?.models || [])];
+    return list.sort((a, b) => {
+      let valA = a[sortKey];
+      let valB = b[sortKey];
+      if (sortKey === "model") {
+        valA = `${a.provider}/${a.model}`.toLowerCase();
+        valB = `${b.provider}/${b.model}`.toLowerCase();
+        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      valA = Number(valA ?? -Infinity);
+      valB = Number(valB ?? -Infinity);
+      return sortAsc ? valA - valB : valB - valA;
+    });
+  }, [data?.models, sortKey, sortAsc]);
+
+  const headers = [
+    { key: "model", label: "Model & Provider" },
+    { key: "requests", label: "Requests" },
+    { key: "successes", label: "Success" },
+    { key: "failures", label: "Failed" },
+    { key: "successRate", label: "Success Rate" },
+    { key: "latencyMs", label: "P50 Latency" },
+    { key: "p95", label: "P95 Latency" },
+    { key: "inputTokens", label: "Input Tokens" },
+    { key: "outputTokens", label: "Output Tokens" },
+  ];
+
   return (
     <Card
       title="Model Performance Breakdown"
-      subtitle="Click any row to filter timeline and metrics specifically for that model"
+      subtitle="Click any row to filter timeline and metrics. Click table headers to sort."
       icon="table_chart"
       padding="none"
       className="overflow-hidden"
@@ -15,25 +63,30 @@ export default function AnalyticsModelTable({ data, handleSelectModel }) {
         <table className="data-table w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
           <thead className="text-text-muted text-xs uppercase font-semibold">
             <tr>
-              {[
-                "Model & Provider",
-                "Requests",
-                "Success",
-                "Failed",
-                "Success Rate",
-                "P50 Latency",
-                "P95 Latency",
-                "Input Tokens",
-                "Output Tokens",
-              ].map((v) => (
-                <th scope="col" className="px-4 py-3" key={v}>
-                  {v}
-                </th>
-              ))}
+              {headers.map(({ key, label }) => {
+                const isCurrent = sortKey === key;
+                return (
+                  <th
+                    scope="col"
+                    className="px-4 py-3 select-none cursor-pointer hover:text-text-main transition-colors"
+                    key={key}
+                    onClick={() => handleSort(key)}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>{label}</span>
+                      {isCurrent && (
+                        <span className="material-symbols-outlined text-[13px] text-brand-500">
+                          {sortAsc ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {data.models.map((row) => (
+            {sortedModels.map((row) => (
               <tr
                 key={`${row.provider}/${row.model}`}
                 onClick={() =>
@@ -70,8 +123,25 @@ export default function AnalyticsModelTable({ data, handleSelectModel }) {
                 <td className="px-4 py-3 font-mono text-success">
                   {fmtNumber(row.successes)}
                 </td>
-                <td className="px-4 py-3 font-mono text-danger">
-                  {fmtNumber(row.failures)}
+                <td className="px-4 py-3 font-mono">
+                  {row.failures > 0 && onInspectFailures ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onInspectFailures(row);
+                      }}
+                      className="inline-flex items-center gap-1 font-bold text-danger hover:underline cursor-pointer px-1.5 py-0.5 rounded bg-danger/10 border border-danger/20"
+                      title="Inspect failure responses for this model"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">bug_report</span>
+                      {fmtNumber(row.failures)}
+                    </button>
+                  ) : (
+                    <span className={cn("font-bold", row.failures > 0 ? "text-danger" : "text-text-muted")}>
+                      {fmtNumber(row.failures)}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <Badge

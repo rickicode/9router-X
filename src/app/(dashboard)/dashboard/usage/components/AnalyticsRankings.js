@@ -1,4 +1,5 @@
 import Card from "@/shared/components/Card";
+import { cn } from "@/shared/utils/cn";
 import { rankModels, formatMetric } from "./analyticsData";
 
 export default function AnalyticsRankings({ data, handleSelectModel }) {
@@ -16,6 +17,12 @@ export default function AnalyticsRankings({ data, handleSelectModel }) {
       `Highest success rate (min. ${data.minSamples} samples)`,
     ],
     [
+      "failed",
+      "Most Failed",
+      "error",
+      "Highest failed requests count",
+    ],
+    [
       "used",
       "Most Used",
       "trending_up",
@@ -24,7 +31,7 @@ export default function AnalyticsRankings({ data, handleSelectModel }) {
   ];
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
+    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {modes.map(([mode, title, icon, subtitle]) => {
         const ranked = rankModels(data.models, mode, data.minSamples);
         return (
@@ -42,7 +49,7 @@ export default function AnalyticsRankings({ data, handleSelectModel }) {
                   info
                 </span>
                 <span>
-                  Insufficient samples (min. {data.minSamples})
+                  {mode === "failed" ? "Zero failed models" : `Insufficient samples (min. ${data.minSamples})`}
                 </span>
               </div>
             ) : (
@@ -69,14 +76,19 @@ export default function AnalyticsRankings({ data, handleSelectModel }) {
                         </p>
                       </div>
                     </div>
-                    <span className="font-mono font-bold text-text-main shrink-0">
+                    <span className={cn(
+                      "font-mono font-bold shrink-0",
+                      mode === "failed" ? "text-danger" : "text-text-main",
+                    )}>
                       {formatMetric(
                         row[
                           mode === "fastest"
                             ? "latencyMs"
                             : mode === "reliable"
                               ? "successRate"
-                              : "requests"
+                              : mode === "failed"
+                                ? "failures"
+                                : "requests"
                         ],
                         mode === "fastest"
                           ? "latencyMs"

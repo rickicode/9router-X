@@ -248,6 +248,127 @@ export async function getDistinctProviders() {
   return rows.map((row) => row.provider);
 }
 
+export async function getFailureAnalytics({
+  provider,
+  model,
+  timeFrom,
+  timeTo,
+  limit = 20,
+} = {}) {
+  try {
+    const db = await getAdapter();
+    const conditions = ["status != 'success'"];
+    const params = [];
+    const add = (condition, value) => {
+      params.push(value);
+      conditions.push(condition.replace("?", `$${params.length}`));
+    };
+
+    if (provider) add("provider = ?", provider);
+    if (model) add("model = ?", model);
+    if (timeFrom) add("timestamp >= ?", new Date(timeFrom).toISOString());
+    if (timeTo) add("timestamp <= ?", new Date(timeTo).toISOString());
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+
+    const topModelsSql = `
+      SELECT 
+        provider,
+        model,
+        COUNT(*)::int AS failure_count,
+        MAX(timestamp) AS latest_failed_at,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->>'error', ''),
+          NULLIF(data->'response'->>'error', ''),
+          NULLIF(data->'response'->>'message', ''),
+          NULLIF(data->'providerResponse'->>'error', ''),
+          NULLIF(data->'response'->'error'->>'message', ''),
+          status,
+          'Unknown failure'
+        ) ORDER BY timestamp DESC))[1] AS sample_error,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->'response'->>'status', ''),
+          NULLIF(data->'providerResponse'->>'status', ''),
+          NULLIF(data->>'errorCode', ''),
+          NULLIF(data->>'status', ''),
+          status,
+          '500'
+        ) ORDER BY timestamp DESC))[1] AS sample_status_code
+      FROM request_details
+      ${where}
+      GROUP BY provider, model
+      ORDER BY failure_count DESC
+      LIMIT 25;
+    `;
+
+    const topProvidersSql = `
+      SELECT 
+        provider,
+        COUNT(*)::int AS failure_count,
+        MAX(timestamp) AS latest_failed_at,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->>'error', ''),
+          NULLIF(data->'response'->>'error', ''),
+          NULLIF(data->'response'->>'message', ''),
+          NULLIF(data->'providerResponse'->>'error', ''),
+          NULLIF(data->'response'->'error'->>'message', ''),
+          status,
+          'Unknown failure'
+        ) ORDER BY timestamp DESC))[1] AS sample_error,
+        (ARRAY_AGG(COALESCE(
+          NULLIF(data->'response'->>'status', ''),
+          NULLIF(data->'providerResponse'->>'status', ''),
+          NULLIF(data->>'errorCode', ''),
+          NULLIF(data->>'status', ''),
+          status,
+          '500'
+        ) ORDER BY timestamp DESC))[1] AS sample_status_code
+      FROM request_details
+      ${where}
+      GROUP BY provider
+      ORDER BY failure_count DESC
+      LIMIT 25;
+    `;
+
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+    const recentSql = `
+      SELECT data
+      FROM request_details
+      ${where}
+      ORDER BY timestamp DESC, id DESC
+      LIMIT $${params.length + 1};
+    `;
+
+    const [topModels, topProviders, recentRows] = await Promise.all([
+      db.all(topModelsSql, params).catch(() => []),
+      db.all(topProvidersSql, params).catch(() => []),
+      db.all(recentSql, [...params, safeLimit]).catch(() => []),
+    ]);
+
+    return {
+      topModels: (topModels || []).map((row) => ({
+        provider: row.provider,
+        model: row.model,
+        failureCount: Number(row.failure_count || 0),
+        latestFailedAt: row.latest_failed_at,
+        sampleError: row.sample_error,
+        sampleStatusCode: row.sample_status_code,
+      })),
+      topProviders: (topProviders || []).map((row) => ({
+        provider: row.provider,
+        failureCount: Number(row.failure_count || 0),
+        latestFailedAt: row.latest_failed_at,
+        sampleError: row.sample_error,
+        sampleStatusCode: row.sample_status_code,
+      })),
+      recentFailures: (recentRows || []).map(rowToDetail).filter(Boolean),
+    };
+  } catch (err) {
+    console.error("[requestDetailsRepo] getFailureAnalytics error:", err);
+    return { topModels: [], topProviders: [], recentFailures: [] };
+  }
+}
+
 async function flushOnShutdown() {
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = null;

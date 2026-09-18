@@ -47,13 +47,16 @@ export function rankModels(models, mode, minSamples = MIN_SAMPLES) {
       ? "latencyMs"
       : mode === "reliable"
         ? "successRate"
-        : "requests";
+        : mode === "failed"
+          ? "failures"
+          : "requests";
   return models
     .filter(
       (r) =>
-        (mode === "used" || r.requests >= minSamples) &&
+        (mode === "used" || mode === "failed" || r.requests >= minSamples) &&
         r[key] != null &&
-        (mode !== "fastest" || r.latencySamples >= minSamples),
+        (mode !== "fastest" || r.latencySamples >= minSamples) &&
+        (mode !== "failed" || r.failures > 0),
     )
     .slice()
     .sort(

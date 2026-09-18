@@ -89,7 +89,7 @@ function ErrorBreakdownRow({ errorBreakdown, totalFailures }) {
   );
 }
 
-export default function TopProvidersCard({ byProvider = [], onProviderClick, className }) {
+export default function TopProvidersCard({ byProvider = [], onProviderClick, onInspectFailures, className }) {
   const [sortBy, setSortBy] = useState("count");
 
   const sorted = useMemo(() => {
@@ -218,9 +218,24 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, cla
                   <td className="py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap">
                     <span className="text-success font-semibold">{fmt(row.successCount)}</span>
                     <span className="text-text-muted mx-1">/</span>
-                    <span className={row.failureCount > 0 ? "text-danger font-semibold" : "text-text-muted"}>
-                      {fmt(row.failureCount)}
-                    </span>
+                    {row.failureCount > 0 && onInspectFailures ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onInspectFailures(row);
+                        }}
+                        className="text-danger font-semibold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                        title="Inspect failure responses for this provider"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">bug_report</span>
+                        {fmt(row.failureCount)}
+                      </button>
+                    ) : (
+                      <span className={row.failureCount > 0 ? "text-danger font-semibold" : "text-text-muted"}>
+                        {fmt(row.failureCount)}
+                      </span>
+                    )}
                   </td>
 
                   {/* P50 latency */}

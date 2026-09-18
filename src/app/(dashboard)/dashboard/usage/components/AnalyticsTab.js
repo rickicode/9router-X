@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Card from "@/shared/components/Card";
 import GlobalAnalyticsChart from "./GlobalAnalyticsChart";
 import TopProvidersCard from "./TopProvidersCard";
@@ -10,9 +11,68 @@ import AnalyticsErrorDistribution from "./AnalyticsErrorDistribution";
 import AnalyticsRankings from "./AnalyticsRankings";
 import AnalyticsModelTable from "./AnalyticsModelTable";
 import AnalyticsDrilldowns from "./AnalyticsDrilldowns";
+import FailureAnalyticsCard from "./FailureAnalyticsCard";
+import FailureResponseModal from "./FailureResponseModal";
 
 export default function AnalyticsTab({ period }) {
   const analytics = useAnalytics(period);
+
+  // Failure response modal state for top providers and model table
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTarget, setModalTarget] = useState({ title: "", type: "model" });
+  const [modalFailures, setModalFailures] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+
+  const handleInspectFailures = async (target, type = "model") => {
+    const isModel = type === "model" || Boolean(target.model);
+    const title = isModel ? `${target.provider}/${target.model}` : target.provider;
+    setModalTarget({ title, type: isModel ? "model" : "provider" });
+    setModalOpen(true);
+    setModalLoading(true);
+    setModalFailures([]);
+
+    try {
+      const params = new URLSearchParams({ limit: "25" });
+      if (isModel) {
+        params.set("provider", target.provider);
+        params.set("model", target.model);
+      } else {
+        params.set("provider", target.provider);
+      }
+
+      // First try /api/usage/analytics/failures
+      const res = await fetch(`/api/usage/analytics/failures?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.recentFailures && json.recentFailures.length > 0) {
+          setModalFailures(json.recentFailures);
+          setModalLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: /api/usage/request-details?status=failed
+      const fbParams = new URLSearchParams({
+        status: "failed",
+        pageSize: "25",
+      });
+      if (isModel) {
+        fbParams.set("provider", target.provider);
+        fbParams.set("model", target.model);
+      } else {
+        fbParams.set("provider", target.provider);
+      }
+      const fbRes = await fetch(`/api/usage/request-details?${fbParams.toString()}`);
+      if (fbRes.ok) {
+        const fbJson = await fbRes.json();
+        setModalFailures(fbJson.details || []);
+      }
+    } catch (e) {
+      console.error("Error fetching failed responses:", e);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   return (
     <section className="flex min-w-0 max-w-full flex-col gap-6">
@@ -96,12 +156,20 @@ export default function AnalyticsTab({ period }) {
               <TopProvidersCard
                 byProvider={analytics.data.byProvider || []}
                 onProviderClick={(p) => analytics.handleProviderChange(p)}
+                onInspectFailures={(p) => handleInspectFailures(p, "provider")}
               />
 
               <AnalyticsErrorDistribution
                 data={analytics.data}
                 errorCategory={analytics.errorCategory}
                 setErrorCategory={analytics.setErrorCategory}
+              />
+
+              {/* Dedicated Failure Intelligence & Error Responses Card */}
+              <FailureAnalyticsCard
+                data={analytics.data}
+                onSelectModel={(prov, mod) => analytics.handleSelectModel(prov, mod)}
+                onSelectProvider={(prov) => analytics.handleProviderChange(prov)}
               />
 
               <AnalyticsRankings
@@ -112,6 +180,7 @@ export default function AnalyticsTab({ period }) {
               <AnalyticsModelTable
                 data={analytics.data}
                 handleSelectModel={analytics.handleSelectModel}
+                onInspectFailures={(m) => handleInspectFailures(m, "model")}
               />
 
               <AnalyticsDrilldowns data={analytics.data} />
@@ -119,6 +188,16 @@ export default function AnalyticsTab({ period }) {
           )}
         </>
       )}
+
+      {/* Shared Failure Response Modal */}
+      <FailureResponseModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        targetTitle={modalTarget.title}
+        targetType={modalTarget.type}
+        failures={modalFailures}
+        loading={modalLoading}
+      />
     </section>
   );
 }
