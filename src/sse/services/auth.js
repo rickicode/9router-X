@@ -22,6 +22,7 @@ import {
   incrDeadCircuit,
   resetDeadCircuit,
   getDeadCircuit,
+  isProviderDead,
 } from "@/lib/cache/client.js";
 import * as log from "../utils/logger.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
@@ -249,11 +250,176 @@ function isConnectionRoutable(c, ctx) {
 }
 
 /**
- * Get provider credentials from localDb
- * Filters out unavailable accounts and returns the selected account based on strategy
- * @param {string} provider - Provider name
- * @param {Set<string>|string|null} excludeConnectionIds - Connection ID(s) to exclude (for retry with next account)
- * @param {string|null} model - Model name for per-model rate limit filtering
+ * Proactive model availability probe for combo pre-checks: "does this
+ * provider+model have ANY routable account right now?" A fresh selection
+ * that finds nothing is an expensive PG scan (multi-window) paid per combo
+ * member per request; this probe front-runs it with the same SQL predicate
+ * (durable eligibility is the DB's job — `test_status`, `model_locks`,
+ * `locked_all_until`, `rate_limited_until` stay the source of truth) plus a
+ * short negative memo so an exhausted fleet is not rescanned on every request.
+ *
+ * Fail-open by design: unknown providers, zero rows (misconfiguration), or
+ * probe errors return { available: true } so callers fall through to normal
+ * selection and get their accurate NO_CREDENTIALS / classified response.
+ *
+ * Returns { available: boolean, retryAfter?, retryAfterHuman?, code?, message? }.
+ */
+const AVAILABILITY_POSITIVE_TTL_S = 15;
+const AVAILABILITY_NEGATIVE_TTL_S = 60;
+const availabilityMemo = new Map(); // `${providerId}|${model || "*"}` -> memo entry
+
+export function clearAvailabilityMemo(providerId = null, model = null) {
+  if (!providerId) {
+    availabilityMemo.clear();
+    return;
+  }
+  availabilityMemo.delete(`${providerId}|${model || "*"}`);
+}
+
+function memoAvailability(key, verdict) {
+  if (availabilityMemo.size > 500) availabilityMemo.clear();
+  availabilityMemo.set(key, verdict);
+}
+
+function memoVerdictTtl(retryAfter) {
+  if (!retryAfter) return AVAILABILITY_NEGATIVE_TTL_S;
+  const ms = new Date(retryAfter).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return AVAILABILITY_NEGATIVE_TTL_S;
+  return Math.max(5, Math.min(Math.ceil(ms / 1000), AVAILABILITY_NEGATIVE_TTL_S));
+}
+
+export async function checkModelAvailability(provider, model) {
+  const providerId = resolveProviderId(provider);
+  if (FREE_PROVIDERS[providerId]?.noAuth) return { available: true };
+
+  const key = `${providerId}|${model || "*"}`;
+  const now = Date.now();
+  const memo = availabilityMemo.get(key);
+  if (memo && memo.until > now) {
+    return memo.verdict === "ok" ? { available: true } : { ...memo.result };
+  }
+
+  // Open dead circuit: recent consecutive fresh selections found nothing —
+  // skip the PG scan and report the circuit's own retry window.
+  const deadCount = typeof getDeadCircuit === "function"
+    ? await getDeadCircuit(providerId, model).catch(() => 0)
+    : 0;
+  if (deadCount >= DEAD_CIRCUIT_THRESHOLD) {
+    const retryAfter = new Date(now + DEAD_CIRCUIT_WINDOW_S * 1000).toISOString();
+    const result = {
+      available: false,
+      retryAfter,
+      retryAfterHuman: formatRetryAfter(retryAfter),
+      code: "PROVIDER_CIRCUIT_OPEN",
+      message: `All ${providerId} accounts recently exhausted (circuit) for ${model || "any model"}.`,
+    };
+    memoAvailability(key, { verdict: "blocked", until: now + DEAD_CIRCUIT_WINDOW_S * 1000, result });
+    return result;
+  }
+
+  // Provider-wide dead marker (set after a classified all-accounts-blocked
+  // selection): every model of this provider is out of accounts.
+  if (typeof isProviderDead === "function" && await isProviderDead(providerId).catch(() => false)) {
+    const retryAfter = new Date(now + 300 * 1000).toISOString();
+    const result = {
+      available: false,
+      retryAfter,
+      retryAfterHuman: formatRetryAfter(retryAfter),
+      code: "ACCOUNT_EXHAUSTED",
+      message: `All ${providerId} accounts are exhausted or unavailable.`,
+    };
+    memoAvailability(key, { verdict: "blocked", until: now + 300 * 1000, result });
+    return result;
+  }
+
+  // Window scan mirroring the selection path (SQL pre-filters durable
+  // eligibility: active rows minus exhausted/locked per the routing model).
+  const candidateWindow = 100;
+  let connections = [];
+  for (let windowIdx = 0; windowIdx < 2; windowIdx++) {
+    const batch = await getProviderConnections({
+      provider: providerId,
+      isActive: true,
+      routingModel: model,
+      limit: candidateWindow,
+      offset: windowIdx * candidateWindow,
+    }).catch(() => []);
+    if (batch.length === 0) break;
+    connections = connections.concat(batch);
+
+    let cooledDownIds = new Set();
+    if (providerId === "antigravity" && model) {
+      try {
+        const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
+        const snapshots = typeof getSnapshots === "function" ? await getSnapshots(providerId).catch(() => []) : [];
+        for (const snapshot of snapshots) {
+          if (snapshot?.connectionId && snapshot.quotas) hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
+        }
+      } catch {}
+    }
+    const candidateIds = batch.map((c) => c.id);
+    const cooldownResult = await getBatchCooldowns(candidateIds, model).catch(() => ({ ids: new Set(), healthy: true }));
+    cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
+    const ctx = {
+      excludeSet: new Set(), locallyExhaustedIds: new Set(), cooledDownIds,
+      model, providerId,
+      isAntigravity: providerId === "antigravity",
+      isFreebuff: providerId === "freebuff",
+      antigravityQuotaCache: providerId === "antigravity" && model ? getAntigravityQuotaCache() : null,
+      freebuffQuotaCache: providerId === "freebuff" && model ? getFreebuffQuotaCache() : null,
+    };
+    if (batch.some((c) => isConnectionRoutable(c, ctx))) {
+      memoAvailability(key, { verdict: "ok", until: now + AVAILABILITY_POSITIVE_TTL_S * 1000 });
+      return { available: true };
+    }
+  }
+
+  if (connections.length === 0) {
+    // Zero active rows: distinguish misconfiguration (provider has no
+    // accounts at all) from exhaustion before reporting a verdict.
+    const allConnections = await getProviderConnections({ provider: providerId, limit: 500 }).catch(() => []);
+    if (allConnections.length === 0) {
+      memoAvailability(key, { verdict: "ok", until: now + AVAILABILITY_POSITIVE_TTL_S * 1000 });
+      return { available: true };
+    }
+    const blocked = classifyBlockedCredentials(providerId, model, allConnections);
+    if (!blocked) {
+      memoAvailability(key, { verdict: "ok", until: now + AVAILABILITY_POSITIVE_TTL_S * 1000 });
+      return { available: true };
+    }
+    const result = {
+      available: false,
+      retryAfter: blocked.retryAfter || null,
+      retryAfterHuman: blocked.retryAfterHuman || null,
+      code: blocked.lastErrorCode || "MIXED_BLOCKED",
+      message: blocked.lastError || `No usable ${providerId} credentials for ${model || "requested model"}.`,
+      statusBreakdown: blocked.statusBreakdown || null,
+    };
+    const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
+    memoAvailability(key, { verdict: "blocked", until: now + ttl * 1000, result });
+    return result;
+  }
+
+  const blocked = classifyBlockedCredentials(providerId, model, connections);
+  if (!blocked) {
+    memoAvailability(key, { verdict: "ok", until: now + AVAILABILITY_POSITIVE_TTL_S * 1000 });
+    return { available: true };
+  }
+  const result = {
+    available: false,
+    retryAfter: blocked.retryAfter || null,
+    retryAfterHuman: blocked.retryAfterHuman || null,
+    code: blocked.lastErrorCode || "MIXED_BLOCKED",
+    message: blocked.lastError || `No usable ${providerId} credentials for ${model || "requested model"}.`,
+    statusBreakdown: blocked.statusBreakdown || null,
+  };
+  const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
+  memoAvailability(key, { verdict: "blocked", until: now + ttl * 1000, result });
+  return result;
+}
+
+/**
+  * Get provider credentials from localDb
  */
 export async function getProviderCredentials(provider, excludeConnectionIds = null, model = null, options = {}) {
   // Normalize to Set for consistent handling
@@ -272,7 +438,26 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
   try {
     await currentMutex;
-
+    // Negative-availability pre-check: a fresh selection that just found
+    // nothing (exhausted fleet) memoizes the verdict, so the next request
+    // skips the whole multi-window PG scan + cooldown batch and reports the
+    // same classified shortage immediately. Inside the mutex so concurrent
+    // requests for the same pair don't all scan PG at once. Classify-phase
+    // detail (statusBreakdown, blocked names) is preserved on the verdict.
+    // Skipped while retrying with exclusions (per-account failover inside a
+    // member must still scan remaining accounts, not reuse a fleet verdict)
+    // and for probe pins (model Test buttons need the honest account verdict).
+    if (excludeSet.size === 0 && !preferredConnectionId) {
+      const key = `${providerId}|${model || "*"}`;
+      const memo = availabilityMemo.get(key);
+      if (memo && memo.until > Date.now()) {
+        if (memo.verdict === "blocked") {
+          bumpRoutingMetric("availabilityMemoHits");
+          return { allRateLimited: true, ...memo.result };
+        }
+        if (memo.verdict === "ok") bumpRoutingMetric("availabilityOkHits");
+      }
+    }
     // Inject a virtual connection for no-auth free providers (with optional proxy pool or proxy group from settings)
     if (FREE_PROVIDERS[providerId]?.noAuth) {
       // If the synthesized noAuth account was already excluded (failed attempt),
@@ -469,7 +654,27 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // unavailable accounts are not confused with a missing provider.
       const allConnections = await getProviderConnections({ provider: providerId, limit: 500 });
       const blocked = classifyBlockedCredentials(provider, model, allConnections);
-      if (blocked) return blocked;
+      if (blocked) {
+        // Fresh selection that found nothing: memoize so the next request
+        // skips the multi-window PG scan (see the memo read above).
+        if (excludeSet.size === 0) {
+          const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
+          memoAvailability(`${providerId}|${model || "*"}` , {
+            verdict: "blocked", until: Date.now() + ttl * 1000,
+            result: {
+              allRateLimited: true,
+              retryAfter: blocked.retryAfter,
+              retryAfterHuman: blocked.retryAfterHuman,
+              lastError: blocked.lastError,
+              lastErrorCode: blocked.lastErrorCode,
+              statusBreakdown: blocked.statusBreakdown,
+              blockedNames: blocked.blockedNames,
+              blockedConnectionIds: blocked.blockedConnectionIds,
+            },
+          });
+        }
+        return blocked;
+      }
       log.warn("AUTH", `No credentials for ${provider}`);
       // Rows exist but none are routable (and this is a fresh selection):
       // feed the dead-circuit like the filtered-empty path below. A provider
@@ -611,8 +816,25 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const blocked = classifyBlockedCredentials(provider, model, stateConnections, {
         cooledDown: cooldownHealthy && !excludedAll && cooledDownIds.size > 0 && cooledDownIds.size >= lastCandidateIds.length,
       });
-      if (blocked) return blocked;
-
+      if (blocked) {
+        if (excludeSet.size === 0) {
+          const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
+          memoAvailability(`${providerId}|${model || "*"}` , {
+            verdict: "blocked", until: Date.now() + ttl * 1000,
+            result: {
+              allRateLimited: true,
+              retryAfter: blocked.retryAfter,
+              retryAfterHuman: blocked.retryAfterHuman,
+              lastError: blocked.lastError,
+              lastErrorCode: blocked.lastErrorCode,
+              statusBreakdown: blocked.statusBreakdown,
+              blockedNames: blocked.blockedNames,
+              blockedConnectionIds: blocked.blockedConnectionIds,
+            },
+          });
+        }
+        return blocked;
+      }
       log.warn("AUTH", `${provider} | all ${connections.length} accounts unavailable`);
       // Fleet signal: a FRESH selection (no exclusions) that finds nothing
       // means the provider/model is likely fully dead — count toward the
@@ -902,7 +1124,7 @@ export function extractValidationUrl(errorText) {
  * @param {string} [freebuffKind] - Freebuff gate kind: "banned" | "country_blocked" | "free_mode_unavailable"
  * @returns {{ shouldFallback: boolean, cooldownMs: number }}
  */
-export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null, freebuffKind = null) {
+export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null, freebuffKind = null, rawBody = null) {
   if (!connectionId || connectionId === "noauth") return { shouldFallback: false, cooldownMs: 0 };
   const connections = await getProviderConnections({ provider });
   const conn = connections.find(c => c.id === connectionId);
@@ -1348,9 +1570,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   }
 
   // Fatal auth/account failure: permanently disable connection from routing
-  if ((disableAccount || isFatalAuthError(status, errorText)) && !opencodeZenModelOnlyError) {
+  const candidateText = [rawBody, errorText].filter(Boolean).map(v => typeof v === "string" ? v : JSON.stringify(v)).join("\n");
+  const validationData = extractValidationUrl(candidateText);
+  if (validationData) {
+    disableAccount = true;
+  }
+  if ((disableAccount || isFatalAuthError(status, candidateText)) && !opencodeZenModelOnlyError) {
     const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
-    const validationData = extractValidationUrl(reason);
     await updateProviderConnection(connectionId, {
       isActive: false,
       testStatus: "disabled",
@@ -1382,7 +1608,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     cacheSetAccountCooldown(connectionId, 7 * 24 * 3600).catch(() => {});
     if (providerId) invalidateCachedConnections(providerId).catch(() => {});
     const connName = conn?.displayName || conn?.name || conn?.email || connectionId.slice(0, 8);
-    log.warn("AUTH", `${connName} account auth fatal error — DISABLED (is_active=false), removed from routing`);
+    if (validationData) {
+      log.warn("AUTH", `${connName} account verification required by upstream — validation URL saved, DISABLED (is_active=false), removed from routing`);
+    } else {
+      log.warn("AUTH", `${connName} account auth fatal error — DISABLED (is_active=false), removed from routing`);
+    }
     if (provider && status && reason) {
       console.error(`❌ ${provider} [${status}]: ${reason}`);
     }
@@ -1401,8 +1631,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const lockExpiryIso = new Date(Date.now() + cooldownMs).toISOString();
 
   // Extract validation_url from VALIDATION_REQUIRED 403 responses (Antigravity/Google)
-  const validationData = extractValidationUrl(reason);
-
+  const fallbackValidationData = validationData || extractValidationUrl(candidateText);
   const resolvedTestStatus = is524Timeout
     ? (conn?.testStatus || "active")
     : isExhausted
@@ -1422,11 +1651,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     errorCode: is524Timeout ? null : status,
     lastErrorAt: is524Timeout ? (conn?.lastErrorAt || null) : new Date().toISOString(),
     backoffLevel: is524Timeout ? 0 : (newBackoffLevel ?? backoffLevel),
-    ...(validationData ? {
+    ...(fallbackValidationData ? {
       providerSpecificData: {
         ...(conn?.providerSpecificData || {}),
-        validationUrl: validationData.url,
-        validationMessage: validationData.message,
+        validationUrl: fallbackValidationData.url,
+        validationMessage: fallbackValidationData.message,
         validationAt: new Date().toISOString(),
       },
     } : {}),

@@ -17,6 +17,15 @@ const counters = {
   circuitTrips: 0,
   lkgHits: 0,
   lkgStale: 0,
+  comboDeadMemberSkips: 0,
+  comboExhaustedMemberSkips: 0,
+  comboClientAbortStops: 0,
+  fusionClientAbortStops: 0,
+  difficultyMemberThrown: 0,
+  difficultyMemberFailed: 0,
+  difficultyMemberSucceeded: 0,
+  difficultyJudgeFailed: 0,
+  difficultyJudgeUnparsed: 0,
 };
 
 export function bumpRoutingMetric(name, by = 1) {

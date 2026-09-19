@@ -222,7 +222,9 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
       result.error,
       providerId,
       fetchLockKey,
-      ...(result.resetsAtMs != null ? [result.resetsAtMs] : []),
+      result.resetsAtMs ?? null,
+      null,
+      result.rawBody || result.extra?.rawBody
     );
 
     if (shouldFallback) {

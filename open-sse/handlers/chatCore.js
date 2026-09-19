@@ -638,10 +638,11 @@ if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
           // THAT status instead of the stale pre-refresh 401/403, so downstream
           // lock/classification sees the actual failure.
           log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh still failed: ${retryResult.response.status}`);
-          try { providerResponse.body?.cancel(); } catch {}
+          try { if (providerResponse.body && !providerResponse.body.locked) await providerResponse.body.cancel(); } catch {}
           providerResponse = retryResult.response;
           providerUrl = retryResult.url;
           providerResponseFormat = retryResult.responseFormat || targetFormat;
+          parsedNonOk = null;
         }
       } catch (retryError) {
         log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh threw: ${retryError?.message || retryError}`);
@@ -686,6 +687,7 @@ if (!providerResponse.ok) {
     freebuffKind: parsedErr.freebuffKind,
     upstreamStatus: upstreamStatus || statusCode,
     upstreamCode,
+    rawBody: parsedErr.rawBody,
   });
 }
 

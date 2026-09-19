@@ -339,4 +339,32 @@ describe("fusion combo", () => {
     // Flattened tool_result
     expect(panelBody.messages[2].content).toBe("[Tool result: done]");
   });
+
+  it("skips exhausted panel members via memberHealth.checkAvailability", async () => {
+    const handleSingleModel = vi.fn(async (body, model) => {
+      return okResponse(`ans-${model}`);
+    });
+    const memberHealth = {
+      checkAvailability: vi.fn(async (m) => {
+        if (m === "p/exhausted") return { available: false, code: "ACCOUNT_EXHAUSTED" };
+        return { available: true };
+      }),
+      onSuccess: vi.fn(),
+      onFailure: vi.fn(),
+    };
+    const res = await handleFusionChat({
+      body: { messages: [{ role: "user", content: "Q" }] },
+      models: ["p/exhausted", "p/healthy-1", "p/healthy-2"],
+      handleSingleModel,
+      log,
+      judgeModel: "p/healthy-1",
+      memberHealth,
+    });
+    expect(res.ok).toBe(true);
+    expect(memberHealth.checkAvailability).toHaveBeenCalledWith("p/exhausted");
+    const calledModels = handleSingleModel.mock.calls.map(([_, m]) => m);
+    expect(calledModels).not.toContain("p/exhausted");
+    expect(calledModels).toContain("p/healthy-1");
+    expect(calledModels).toContain("p/healthy-2");
+  });
 });

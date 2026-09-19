@@ -113,4 +113,28 @@ describe("extractValidationUrl", () => {
   it("rejects non-URL validation values", () => {
     expect(extractValidationUrl(JSON.stringify({ error: { metadata: { validation_url: 12345 } } }))).toBe(null);
   });
+  it("extracts validation URL from Google 403 rawBody with details and metadata", () => {
+    const rawBody = JSON.stringify({
+      error: {
+        code: 403,
+        message: "Verify your account to continue.",
+        status: "PERMISSION_DENIED",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "VALIDATION_REQUIRED",
+            domain: "cloudcode-pa.googleapis.com",
+            metadata: {
+              validation_error_message: "Verify your account to continue.",
+              validation_url: "https://accounts.google.com/signin/continue?test=123"
+            }
+          }
+        ]
+      }
+    });
+    const res = extractValidationUrl(rawBody);
+    expect(res).toBeTruthy();
+    expect(res.url).toBe("https://accounts.google.com/signin/continue?test=123");
+    expect(res.message).toBe("Verify your account to continue.");
+  });
 });

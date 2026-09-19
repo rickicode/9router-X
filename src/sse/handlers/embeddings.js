@@ -188,7 +188,7 @@ export async function handleEmbeddings(request) {
     // Probes never mutate production account state (locks, cooldowns).
     const { shouldFallback } = isTestRequest
       ? { shouldFallback: true }
-      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs, null, result.rawBody || result.extra?.rawBody);
 
     if (shouldFallback) {
       log.warn("AUTH", `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`);

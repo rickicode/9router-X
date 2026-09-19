@@ -39,7 +39,6 @@ export default {
     { id: "morph-kimik3-fast", name: "Kimi K3 Fast", contextLength: 1048576, vision: true, reasoning: true },
     { id: "morph-glm53-744b", name: "GLM-5.3 744B", contextLength: 1048576, reasoning: true },
     { id: "morph-glm53flash", name: "GLM-5.3-Flash", contextLength: 1048576, vision: true, reasoning: true },
-    { id: "morph-dsv4flash", name: "DeepSeek V4 Flash 0731", contextLength: 1048576, reasoning: true },
-    { id: "morph-dsv4flash-0731", name: "DeepSeek V4 Flash 0731", contextLength: 1048576, reasoning: true },
+    { id: "morph-dsv4flash", name: "DeepSeek V4 Flash", contextLength: 1048576, reasoning: true },
   ],
 };

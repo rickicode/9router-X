@@ -144,7 +144,7 @@ async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutpu
     // Probes never mutate production account state (locks, cooldowns).
     const { shouldFallback } = isTestRequest
       ? { shouldFallback: true }
-      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+      : await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs, null, result.rawBody || result.extra?.rawBody);
 
     if (shouldFallback) {
       excludeConnectionIds.add(credentials.connectionId);

@@ -319,7 +319,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   const memberFailCounts = memberHealth?.getFailCounts
     ? await memberHealth.getFailCounts(models).catch(() => ({})) || {}
     : {};
-
+  const allFailing = rotatedModels.length > 0 && rotatedModels.every((m) => (memberFailCounts[m] || 0) >= FAILOVER_SKIP_THRESHOLD);
   // Auto-switch: float models that satisfy the request's required capabilities to the front.
   if (autoSwitch) {
     const required = detectRequiredCapabilities(body);
@@ -415,13 +415,21 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
     const modelStr = rotatedModels[i];
 
     // Fast-skip dead members (fail streak >= threshold): saves the target
-    // timeout + upstream attempt per dead member per request.
-    if ((memberFailCounts[modelStr] || 0) >= FAILOVER_SKIP_THRESHOLD) {
+    // timeout + upstream attempt per dead member per request. Fail-open if all failing.
+    if (!allFailing && (memberFailCounts[modelStr] || 0) >= FAILOVER_SKIP_THRESHOLD) {
       bumpRoutingMetric("comboDeadMemberSkips");
       log.info("COMBO", `Skipping ${modelStr} (${memberFailCounts[modelStr]} recent failures, TTL window) — trying next`);
       continue;
     }
 
+    if (memberHealth?.checkAvailability) {
+      const avail = await memberHealth.checkAvailability(modelStr).catch(() => ({ available: true }));
+      if (avail && avail.available === false) {
+        bumpRoutingMetric("comboExhaustedMemberSkips");
+        log.info("COMBO", `Skipping exhausted ${modelStr} (${avail.code || "UNAVAILABLE"}) — trying next`);
+        continue;
+      }
+    }
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
 
     // Fair-share accounting for the shared rotation budget: each member gets
@@ -900,7 +908,7 @@ const DIFFICULTY_JUDGE_PROMPT = `Classify this task. Reply with ONLY JSON, no ma
 {"difficulty":"easy|medium|hard","ambiguity":"low|medium|high","domain":"general|summary|coding|design|data","confidence":0.0-1.0}
 Task:`;
 
-export async function handleDifficultyChat({ body, models = [], handleSingleModel, log, comboName, judgeModel, tuning = {}, rotationBudget = null, externalSignal = null, onDecision = null }) {
+export async function handleDifficultyChat({ body, models = [], handleSingleModel, log, comboName, judgeModel, tuning = {}, rotationBudget = null, externalSignal = null, onDecision = null, memberHealth = null }) {
   const notify = (d) => { try { onDecision && onDecision(d); } catch {} };
   const cfg = { ...DIFFICULTY_DEFAULTS, ...(tuning || {}) };
   const easyTier = (Array.isArray(cfg.easyModels) ? cfg.easyModels : []).filter(Boolean);
@@ -1007,15 +1015,23 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
     log.info("DIFFICULTY", `Combo "${comboName}" running ${tierCfg.name} tier [${candidateModels.join(", ")}]`);
     for (let i = 0; i < candidateModels.length; i++) {
       const m = candidateModels[i];
+      if (memberHealth?.checkAvailability) {
+        const avail = await memberHealth.checkAvailability(m).catch(() => ({ available: true }));
+        if (avail && avail.available === false) {
+          bumpRoutingMetric("comboExhaustedMemberSkips");
+          log.info("DIFFICULTY", `Skipping exhausted ${m} (${avail.code || "UNAVAILABLE"}) — trying next`);
+          continue;
+        }
+      }
       let result;
       try {
         result = await handleSingleModel(body, m, { signal: externalSignal?.aborted ? undefined : undefined });
       } catch (e) {
         bumpRoutingMetric("difficultyMemberThrown");
         difficultyModelHealth.set(m, { failedAt: Date.now(), error: e.message });
+        memberHealth?.onFailure?.(m);
         log.warn("DIFFICULTY", `Member ${m} threw: ${e.message}`, { tier: tierCfg.name });
         lastError = e.message;
-        continue;
       }
       if (!result) {
         difficultyModelHealth.set(m, { failedAt: Date.now(), error: "empty result" });
@@ -1024,6 +1040,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
       if (result.__error || result.__timeout) {
         lastError = result.__error?.message || "timeout";
         difficultyModelHealth.set(m, { failedAt: Date.now(), error: lastError });
+        memberHealth?.onFailure?.(m);
         bumpRoutingMetric("difficultyMemberFailed");
         log.warn("DIFFICULTY", `Member ${m} ${result.__timeout ? "timed out" : "failed"}`, { tier: tierCfg.name });
         continue;
@@ -1031,12 +1048,14 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
       if (!result.ok) {
         lastStatus = result.status;
         difficultyModelHealth.set(m, { failedAt: Date.now(), error: `http ${result.status}` });
+        memberHealth?.onFailure?.(m);
         bumpRoutingMetric("difficultyMemberFailed");
         log.warn("DIFFICULTY", `Member ${m} http ${result.status}`, { tier: tierCfg.name });
         continue;
       }
       bumpRoutingMetric("difficultyMemberSucceeded");
       difficultyModelHealth.delete(m);
+      memberHealth?.onSuccess?.(m);
       log.info("DIFFICULTY", `Member ${m} succeeded (${tierCfg.name} tier)`);
       notify({ tier: tierCfg.name, winningModel: m, source: "member-result", domain, policy });
       if (sKey) {
@@ -1203,9 +1222,28 @@ function collectPanel(calls, { minPanel, stragglerGraceMs, panelHardTimeoutMs })
  * @param {Object} [options.tuning] - Override FUSION_DEFAULTS (minPanel, grace, timeout)
  * @returns {Promise<Response>}
  */
-export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning, rotationBudget = null, externalSignal = null }) {
+export async function handleFusionChat({ body, models, handleSingleModel, log, comboName, judgeModel, tuning, rotationBudget = null, externalSignal = null, memberHealth = null }) {
   const clientGone = () => Boolean(externalSignal?.aborted);
-  const panel = Array.isArray(models) ? models.filter(Boolean) : [];
+  let panel = Array.isArray(models) ? models.filter(Boolean) : [];
+  if (memberHealth?.checkAvailability && panel.length > 1) {
+    const checks = await Promise.all(
+      panel.map(async (m) => {
+        const avail = await memberHealth.checkAvailability(m).catch(() => ({ available: true }));
+        return { model: m, available: avail?.available !== false, code: avail?.code };
+      })
+    );
+    const availableModels = checks.filter((c) => c.available).map((c) => c.model);
+    const skipped = checks.filter((c) => !c.available);
+    if (skipped.length > 0) {
+      bumpRoutingMetric("comboExhaustedMemberSkips", skipped.length);
+      for (const s of skipped) {
+        log.info("FUSION", `Skipping exhausted panel member ${s.model} (${s.code || "UNAVAILABLE"})`);
+      }
+    }
+    if (availableModels.length > 0) {
+      panel = availableModels;
+    }
+  }
   if (panel.length === 0) {
     return new Response(
       JSON.stringify({ error: { message: "Fusion combo has no models" } }),
@@ -1274,9 +1312,21 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
     const res = settled[i];
     const model = panel[i];
     if (!res) { log.warn("FUSION", `Panel ${model} dropped (straggler/timeout)`); continue; }
-    if (res.__timeout) { log.warn("FUSION", `Panel ${model} timed out`); continue; }
-    if (res.__error) { log.warn("FUSION", `Panel ${model} threw`, { error: res.__error?.message || String(res.__error) }); continue; }
-    if (!res.ok) { log.warn("FUSION", `Panel ${model} failed`, { status: res.status }); continue; }
+    if (res.__timeout) {
+      memberHealth?.onFailure?.(model);
+      log.warn("FUSION", `Panel ${model} timed out`);
+      continue;
+    }
+    if (res.__error) {
+      memberHealth?.onFailure?.(model);
+      log.warn("FUSION", `Panel ${model} threw`, { error: res.__error?.message || String(res.__error) });
+      continue;
+    }
+    if (!res.ok) {
+      memberHealth?.onFailure?.(model);
+      log.warn("FUSION", `Panel ${model} failed`, { status: res.status });
+      continue;
+    }
     try {
       const json = await res.clone().json();
       const text = extractPanelText(json);
@@ -1284,6 +1334,7 @@ export async function handleFusionChat({ body, models, handleSingleModel, log, c
         // Keep the original Response: single-survivor non-streaming turns can
         // return it directly instead of paying for the same model twice.
         answers.push({ model, text, res });
+        memberHealth?.onSuccess?.(model);
         log.info("FUSION", `Panel ${model} ok (${text.length} chars)`);
       } else {
         log.warn("FUSION", `Panel ${model} returned empty content`);

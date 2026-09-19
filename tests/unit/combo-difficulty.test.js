@@ -333,4 +333,33 @@ describe("handleDifficultyChat (smart routing)", () => {
     // easy-ok is healthy and must be tried first without wasting a call on easy-fail
     expect(calls).toEqual(["easy-ok"]);
   });
+
+  it("skips exhausted member via memberHealth.checkAvailability in difficulty tier", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      return okRes("pong");
+    });
+    const memberHealth = {
+      checkAvailability: vi.fn(async (m) => {
+        if (m === "easy-exhausted") return { available: false, code: "ACCOUNT_EXHAUSTED" };
+        return { available: true };
+      }),
+      onSuccess: vi.fn(),
+      onFailure: vi.fn(),
+    };
+    const res = await handleDifficultyChat({
+      body: { messages: [{ role: "user", content: "hi" }], stream: false },
+      models: ["easy-exhausted", "easy-ok"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      tuning: { easyModels: ["easy-exhausted", "easy-ok"] },
+      memberHealth,
+    });
+    expect(res.ok).toBe(true);
+    expect(calls).toEqual(["easy-ok"]);
+    expect(memberHealth.checkAvailability).toHaveBeenCalledWith("easy-exhausted");
+    expect(memberHealth.onSuccess).toHaveBeenCalledWith("easy-ok");
+  });
 });

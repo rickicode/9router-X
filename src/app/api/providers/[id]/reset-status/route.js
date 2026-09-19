@@ -53,6 +53,12 @@ export async function POST(request, { params }) {
         delete psdUpdates.refreshBlockedAt;
         changed = true;
       }
+      if (psdUpdates.validationUrl !== undefined || psdUpdates.validationMessage !== undefined || psdUpdates.validationAt !== undefined) {
+        delete psdUpdates.validationUrl;
+        delete psdUpdates.validationMessage;
+        delete psdUpdates.validationAt;
+        changed = true;
+      }
       if (changed) updates.providerSpecificData = psdUpdates;
     }
 

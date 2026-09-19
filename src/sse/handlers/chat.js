@@ -6,6 +6,7 @@ import {
   clearAccountError,
   extractApiKey,
   isValidApiKey,
+  checkModelAvailability,
 } from "../services/auth.js";
 import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
 import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
@@ -125,6 +126,11 @@ async function reorderComboByHealth(models) {
           failing.add(m);
           continue;
         }
+        const avail = await checkModelAvailability(info.provider, info.model).catch(() => ({ available: true }));
+        if (avail && avail.available === false) {
+          failing.add(m);
+          continue;
+        }
         const canonical = `${info.provider}/${info.model}`;
         if (canonical !== m) {
           const canonicalCounts = await withDeadline(getModelFailCounts([canonical])).catch(() => ({})) || {};
@@ -240,6 +246,20 @@ export async function handleChat(request, clientRawRequest = null) {
     // the complete fallback set.
     const augmentedModels = comboModels;
     const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
+    const comboMemberHealth = {
+      getFailCounts: (members) => getModelFailCounts(members),
+      onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
+      onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
+      checkAvailability: async (m) => {
+        try {
+          const info = await getModelInfo(m);
+          if (info?.provider) {
+            return await checkModelAvailability(info.provider, info.model);
+          }
+        } catch {}
+        return { available: true };
+      },
+    };
 
     if (comboStrategy === "fusion") {
       log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: fusion)`);
@@ -261,7 +281,8 @@ export async function handleChat(request, clientRawRequest = null) {
         judgeModel: comboStrategies[modelStr]?.judgeModel,
         tuning: comboStrategies[modelStr]?.fusionTuning,
         rotationBudget,
-        externalSignal
+        externalSignal,
+        memberHealth: comboMemberHealth,
       });
     }
 
@@ -300,6 +321,7 @@ export async function handleChat(request, clientRawRequest = null) {
         onDecision: (d) => Object.assign(diffCtx, d),
         rotationBudget,
         externalSignal,
+        memberHealth: comboMemberHealth,
       });
     }
 
@@ -323,11 +345,7 @@ export async function handleChat(request, clientRawRequest = null) {
       autoSwitch: comboAutoSwitch,
       rotationBudget,
         externalSignal,
-      memberHealth: {
-        getFailCounts: (members) => getModelFailCounts(members),
-        onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
-        onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
-      },
+      memberHealth: comboMemberHealth,
     });
   }
 
@@ -356,6 +374,15 @@ export async function handleChat(request, clientRawRequest = null) {
         getFailCounts: (members) => getModelFailCounts(members),
         onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
         onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
+        checkAvailability: async (m) => {
+          try {
+            const info = await getModelInfo(m);
+            if (info?.provider) {
+              return await checkModelAvailability(info.provider, info.model);
+            }
+          } catch {}
+          return { available: true };
+        },
       },
     });
   }
@@ -383,6 +410,20 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       const requiredCapabilities = detectRequiredCapabilities(body);
        const augmentedModels = comboModels;
       const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
+      const comboMemberHealth = {
+        getFailCounts: (members) => getModelFailCounts(members),
+        onSuccess: (m) => { if (!isTestRequest) resetModelFailCount(m).catch(() => {}); },
+        onFailure: (m) => { if (!isTestRequest) incrModelFailCount(m, MODEL_FAILOVER_WINDOW_S).catch(() => {}); },
+        checkAvailability: async (m) => {
+          try {
+            const info = await getModelInfo(m);
+            if (info?.provider) {
+              return await checkModelAvailability(info.provider, info.model);
+            }
+          } catch {}
+          return { available: true };
+        },
+      };
 
       if (comboStrategy === "fusion") {
         log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: fusion)`);
@@ -403,7 +444,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           judgeModel: comboStrategies[modelStr]?.judgeModel,
           tuning: comboStrategies[modelStr]?.fusionTuning,
           rotationBudget,
-          externalSignal
+          externalSignal,
+          memberHealth: comboMemberHealth,
         });
       }
 
@@ -446,6 +488,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           onDecision: (d) => Object.assign(diffCtx, d),
           rotationBudget,
           externalSignal,
+          memberHealth: comboMemberHealth,
         });
       }
 
@@ -467,6 +510,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         autoSwitch: nestedAutoSwitch,
         rotationBudget,
         externalSignal,
+        memberHealth: comboMemberHealth,
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });
@@ -910,6 +954,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         model,
         resetsAtMs,
         "banned",
+        result.rawBody || result.extra?.rawBody,
       );
       log.warn("FALLBACK", `⇄ ACC:${connName} BANNED & DISABLED → NEXT ACCOUNT`);
       excludeConnectionIds.add(credentials.connectionId);
@@ -938,6 +983,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         model,
         resetsAtMs,
         result.extra?.freebuffKind,
+        result.rawBody || result.extra?.rawBody,
        )).shouldFallback;
 
     if (shouldFallback || quotaFailure) {

@@ -1191,7 +1191,7 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
                   jsonb_set(
                     (CASE WHEN jsonb_typeof(data) = 'object' THEN data ELSE '{}'::jsonb END) - 'disabledReason' - 'disabledAt' - 'disabledBy',
                     '{providerSpecificData}',
-                    (data->'providerSpecificData') - 'refreshBlocked' - 'refreshBlockedAt'
+                    (data->'providerSpecificData') - 'refreshBlocked' - 'refreshBlockedAt' - 'validationUrl' - 'validationMessage' - 'validationAt'
                   )
                 WHEN jsonb_typeof(data) = 'object' THEN
                   data - 'disabledReason' - 'disabledAt' - 'disabledBy'

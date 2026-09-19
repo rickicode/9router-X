@@ -197,6 +197,7 @@ export async function parseUpstreamError(response, executor = null) {
           // Executors declare IP/pool-scoped failures (e.g. per-IP rate limits)
           // here; chatCore completes poolId/scope and retries via another pool.
           poolScoped: parsed.poolScoped,
+          rawBody: parsed.rawBody || bodyText,
         };
       }
     } catch { /* fall through to default parsing */ }
@@ -231,6 +232,7 @@ export async function parseUpstreamError(response, executor = null) {
     resetsAtMs,
     upstreamStatus,
     upstreamCode,
+    rawBody: bodyText,
   };
 }
 
@@ -249,6 +251,7 @@ export function createErrorResult(statusCode, message, resetsAtMs, extra = {}) {
     error: message,
     resetsAtMs,
     extra,
+    rawBody: extra?.rawBody || null,
     response: errorResponse(statusCode, message)
   };
 }

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   handleChatCore: vi.fn(),
   getSettings: vi.fn(async () => ({})),
   checkAndRefreshToken: vi.fn(async (provider, creds) => creds),
+  checkModelAvailability: vi.fn(async () => ({ available: true })),
   failCounts: {},
   incrCalls: [],
   resetCalls: [],
@@ -18,6 +19,7 @@ vi.mock("@/sse/services/auth.js", () => ({
   clearAccountError: mocks.clearAccountError,
   extractApiKey: vi.fn(() => null),
   isValidApiKey: vi.fn(async () => true),
+  checkModelAvailability: mocks.checkModelAvailability,
 }));
 vi.mock("@/sse/services/antigravityQuota.js", () => ({
   handleAntigravityQuotaError: vi.fn(async () => null),
@@ -97,6 +99,7 @@ beforeEach(() => {
   mocks.failCounts = {};
   mocks.incrCalls = [];
   mocks.resetCalls = [];
+  mocks.checkModelAvailability.mockResolvedValue({ available: true });
   let n = 0;
   mocks.getProviderCredentials.mockImplementation(async () => ({
     connectionId: `c-${++n}`,
@@ -145,5 +148,25 @@ describe("combo failover after 3 consecutive failures", () => {
     const res = await handleSingleModelChat({ ...BODY }, "combo", null, null, null, null, false, { used: 0 });
     expect(res.status).toBe(200);
     expect(mocks.handleChatCore).toHaveBeenCalledTimes(1);
+  });
+
+  it("fast-skips exhausted member via checkModelAvailability probe without calling chatCore", async () => {
+    mocks.checkModelAvailability.mockImplementation(async (provider, model) => {
+      if (provider === "uk" && model === "dead-model") {
+        return { available: false, code: "ACCOUNT_EXHAUSTED" };
+      }
+      return { available: true };
+    });
+
+    const tried = [];
+    mocks.handleChatCore.mockImplementation(async (opts) => {
+      tried.push(`${opts.modelInfo.provider}/${opts.modelInfo.model}`);
+      return { success: true, response: { status: 200 } };
+    });
+
+    const res = await handleSingleModelChat({ ...BODY }, "combo", null, null, null, null, false, { used: 0 });
+    expect(res.status).toBe(200);
+    expect(tried).toEqual(["ag/good-model"]);
+    expect(mocks.checkModelAvailability).toHaveBeenCalledWith("uk", "dead-model");
   });
 });
