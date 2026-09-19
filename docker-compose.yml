@@ -17,6 +17,7 @@ services:
       - "10128:10128"
     volumes:
       - 9router-data:/app/data
+      - /opt/9router-x/logs:/app/data/logs
     env_file:
       - .env
     environment:
