@@ -16,9 +16,9 @@ describe("Morph Provider & Rate Limiting System", () => {
     expect(modelIds).toContain("morph-glm53-744b");
     expect(modelIds).toContain("morph-glm53flash");
     expect(modelIds).toContain("morph-dsv4flash");
-    expect(modelIds).toContain("morph-v3-fast");
-    expect(modelIds).toContain("morph-v3-large");
     expect(modelIds).toContain("auto");
+    expect(modelIds).not.toContain("morph-v3-fast");
+    expect(modelIds).not.toContain("morph-compactor");
   });
 
   describe("Morph error rules in errorConfig", () => {
