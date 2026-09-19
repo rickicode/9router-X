@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardSkeleton, SegmentedControl } from "@/shared/components";
 
 const PERIODS = [
@@ -50,6 +50,7 @@ export default function ComboAnalyticsTab() {
   const combos = data?.combos || [];
   const members = data?.members || [];
   const difficulty = data?.difficulty || [];
+  const difficultyModels = data?.difficultyModels || [];
   const membersByCombo = {};
   for (const m of members) {
     (membersByCombo[m.comboName] ||= []).push(m);
@@ -58,6 +59,71 @@ export default function ComboAnalyticsTab() {
   for (const d of difficulty) {
     (difficultyByCombo[d.comboName] ||= []).push(d);
   }
+  const difficultyModelsByCombo = {};
+  for (const dm of difficultyModels) {
+    (difficultyModelsByCombo[dm.comboName] ||= []).push(dm);
+  }
+
+  // Aggregate model usage across all smart combos
+  const smartModelStats = useMemo(() => {
+    if (!difficultyModels.length) return null;
+    const modelMap = {};
+    const comboMap = {};
+    let totalSmartRequests = 0;
+
+    for (const dm of difficultyModels) {
+      totalSmartRequests += dm.total;
+
+      if (!modelMap[dm.model]) {
+        modelMap[dm.model] = {
+          model: dm.model,
+          total: 0,
+          success: 0,
+          errors: 0,
+          combos: new Set(),
+          tiers: new Set(),
+        };
+      }
+      modelMap[dm.model].total += dm.total;
+      modelMap[dm.model].success += dm.success;
+      modelMap[dm.model].errors += dm.errors;
+      if (dm.comboName) modelMap[dm.model].combos.add(dm.comboName);
+      if (dm.tier) modelMap[dm.model].tiers.add(dm.tier);
+
+      if (!comboMap[dm.comboName]) {
+        comboMap[dm.comboName] = { total: 0, models: {} };
+      }
+      comboMap[dm.comboName].total += dm.total;
+      comboMap[dm.comboName].models[dm.model] = (comboMap[dm.comboName].models[dm.model] || 0) + dm.total;
+    }
+
+    const sortedModels = Object.values(modelMap).sort((a, b) => b.total - a.total);
+    const topModel = sortedModels[0] || null;
+
+    // Find top model per tier
+    const tierTop = { easy: null, medium: null, hard: null };
+    for (const tierKey of ["easy", "medium", "hard"]) {
+      const tierRows = difficultyModels.filter((dm) => dm.tier === tierKey);
+      if (tierRows.length > 0) {
+        const tierModels = {};
+        for (const r of tierRows) {
+          tierModels[r.model] = (tierModels[r.model] || 0) + r.total;
+        }
+        const topInTier = Object.entries(tierModels).sort((a, b) => b[1] - a[1])[0];
+        if (topInTier) {
+          tierTop[tierKey] = { model: topInTier[0], count: topInTier[1] };
+        }
+      }
+    }
+
+    return {
+      total: totalSmartRequests,
+      topModel,
+      sortedModels,
+      tierTop,
+      comboMap,
+    };
+  }, [difficultyModels]);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -78,6 +144,153 @@ export default function ComboAnalyticsTab() {
         </Card>
       ) : (
         <>
+          {/* Smart Routing Model Insights Banner */}
+          {smartModelStats && smartModelStats.total > 0 && (
+            <Card padding="sm" className="border-emerald-500/25 bg-emerald-500/[0.02]">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-sm font-semibold text-text-main">Smart Combo Model Usage</h3>
+                        <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {smartModelStats.total} calls
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-muted">
+                        Breakdown of models selected & executed across prompt difficulty tiers
+                      </p>
+                    </div>
+                  </div>
+                  {smartModelStats.topModel && (
+                    <div className="text-right hidden sm:block">
+                      <span className="text-[10px] text-text-muted block">Most Used Overall</span>
+                      <code className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                        {smartModelStats.topModel.model} ({smartModelStats.topModel.total}× · {pct(smartModelStats.topModel.total, smartModelStats.total)})
+                      </code>
+                    </div>
+                  )}
+                </div>
+
+                {/* Metric Highlights: Leader per Tier */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="rounded-lg border border-emerald-500/20 bg-surface p-2.5">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Easy Tier Leader</span>
+                      <span className="material-symbols-outlined text-[14px] text-emerald-500">bolt</span>
+                    </div>
+                    {smartModelStats.tierTop.easy ? (
+                      <div>
+                        <code className="block text-xs font-mono font-medium text-text-main truncate" title={smartModelStats.tierTop.easy.model}>
+                          {smartModelStats.tierTop.easy.model}
+                        </code>
+                        <span className="text-[10px] text-text-muted">{smartModelStats.tierTop.easy.count} requests</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-text-muted italic">No traffic yet</span>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-amber-500/20 bg-surface p-2.5">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">Medium Tier Leader</span>
+                      <span className="material-symbols-outlined text-[14px] text-amber-500">psychology</span>
+                    </div>
+                    {smartModelStats.tierTop.medium ? (
+                      <div>
+                        <code className="block text-xs font-mono font-medium text-text-main truncate" title={smartModelStats.tierTop.medium.model}>
+                          {smartModelStats.tierTop.medium.model}
+                        </code>
+                        <span className="text-[10px] text-text-muted">{smartModelStats.tierTop.medium.count} requests</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-text-muted italic">No traffic yet</span>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-rose-500/20 bg-surface p-2.5">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">Hard Tier Leader</span>
+                      <span className="material-symbols-outlined text-[14px] text-rose-500">diamond</span>
+                    </div>
+                    {smartModelStats.tierTop.hard ? (
+                      <div>
+                        <code className="block text-xs font-mono font-medium text-text-main truncate" title={smartModelStats.tierTop.hard.model}>
+                          {smartModelStats.tierTop.hard.model}
+                        </code>
+                        <span className="text-[10px] text-text-muted">{smartModelStats.tierTop.hard.count} requests</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-text-muted italic">No traffic yet</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Leaderboard Table of Models in Smart Routing */}
+                {smartModelStats.sortedModels.length > 0 && (
+                  <div className="overflow-x-auto rounded-lg border border-border/50 bg-surface">
+                    <table className="data-table w-full text-xs" aria-label="Smart Combo Model Leaderboard">
+                      <thead>
+                        <tr className="border-b border-border/50 text-[11px] text-text-muted">
+                          <th className="text-left py-1.5 px-2.5">Model</th>
+                          <th className="text-left py-1.5 px-2">Combos Used</th>
+                          <th className="text-left py-1.5 px-2">Tiers</th>
+                          <th className="text-right py-1.5 px-2">Requests</th>
+                          <th className="text-right py-1.5 px-2">Share</th>
+                          <th className="text-right py-1.5 px-2.5">Success Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {smartModelStats.sortedModels.map((sm, idx) => (
+                          <tr key={sm.model} className="border-b border-border/30 last:border-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
+                            <td className="py-1.5 px-2.5 font-mono font-medium text-text-main">
+                              <span className="text-[10px] text-text-muted mr-1.5">#{idx + 1}</span>
+                              {sm.model}
+                            </td>
+                            <td className="py-1.5 px-2 text-text-muted">
+                              {[...sm.combos].join(", ") || "—"}
+                            </td>
+                            <td className="py-1.5 px-2">
+                              <div className="flex items-center gap-1">
+                                {[...sm.tiers].map((t) => (
+                                  <span
+                                    key={t}
+                                    className={`px-1 py-0.2 rounded font-mono text-[9px] font-semibold uppercase ${
+                                      t === "easy"
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : t === "medium"
+                                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                    }`}
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-1.5 px-2 text-right font-medium text-text-main">
+                              {sm.total}×
+                            </td>
+                            <td className="py-1.5 px-2 text-right text-text-muted font-mono text-[11px]">
+                              {pct(sm.total, smartModelStats.total)}
+                            </td>
+                            <td className="py-1.5 px-2.5 text-right font-medium">
+                              <span className={sm.errors > 0 ? "text-amber-600" : "text-emerald-600"}>
+                                {pct(sm.success, sm.total)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
           {/* Per-combo cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {combos.map((c) => {
@@ -128,34 +341,61 @@ export default function ComboAnalyticsTab() {
                   )}
                   {(difficultyByCombo[c.comboName] || []).length > 0 && (
                     <div className="mt-2 border-t border-border pt-2">
-                      <p className="text-[11px] font-medium text-text-muted mb-1.5">Smart routing (difficulty)</p>
-                      <div className="flex flex-col gap-1">
-                        {(difficultyByCombo[c.comboName] || []).map((d) => (
-                          <div key={`${d.tier}|${d.domain || ""}|${d.policy || ""}`} className="flex items-center justify-between gap-2 text-xs">
-                            <span>
-                              <span className={`font-medium capitalize ${d.tier === "easy" ? "text-emerald-600" : d.tier === "medium" ? "text-yellow-600" : d.tier === "hard" ? "text-red-500" : "text-text-muted"}`}>
-                                {d.tier}
-                              </span>
-                              {d.domain && (
-                                <span className="text-[10px] text-text-muted ml-1">· {d.domain}</span>
-                              )}
-                              {d.policy && (
-                                <span className="text-[10px] text-text-muted ml-1">· {d.policy}</span>
-                              )}
-                              {d.avgConfidence != null && (
-                                <span className="text-[10px] text-text-muted ml-1" title="average judge/heuristic confidence">
-                                  · conf {Number(d.avgConfidence).toFixed(2)}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[11px] font-medium text-text-muted">Smart routing (difficulty)</p>
+                        {(() => {
+                          const comboDiffs = [...(difficultyModelsByCombo[c.comboName] || [])].sort((a, b) => b.total - a.total);
+                          const topInThisCombo = comboDiffs[0];
+                          return topInThisCombo ? (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              Top model: <code className="font-mono font-semibold">{topInThisCombo.model}</code> ({topInThisCombo.total}×)
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {(difficultyByCombo[c.comboName] || []).map((d) => {
+                          const tierModels = (difficultyModelsByCombo[c.comboName] || []).filter((m) => m.tier === d.tier);
+                          return (
+                            <div key={`${d.tier}|${d.domain || ""}|${d.policy || ""}`} className="flex flex-col gap-1 rounded bg-black/[0.015] dark:bg-white/[0.015] p-1.5 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>
+                                  <span className={`font-medium capitalize ${d.tier === "easy" ? "text-emerald-600" : d.tier === "medium" ? "text-yellow-600" : d.tier === "hard" ? "text-red-500" : "text-text-muted"}`}>
+                                    {d.tier}
+                                  </span>
+                                  {d.domain && (
+                                    <span className="text-[10px] text-text-muted ml-1">· {d.domain}</span>
+                                  )}
+                                  {d.policy && (
+                                    <span className="text-[10px] text-text-muted ml-1">· {d.policy}</span>
+                                  )}
+                                  {d.avgConfidence != null && (
+                                    <span className="text-[10px] text-text-muted ml-1" title="average judge/heuristic confidence">
+                                      · conf {Number(d.avgConfidence).toFixed(2)}
+                                    </span>
+                                  )}
                                 </span>
+                                <span className="text-text-muted font-medium">
+                                  {d.total}× · {pct(d.success, d.total)}
+                                  {d.judgeUsed > 0 && (
+                                    <span title="decided by the judge model"> · ⚖️{d.judgeUsed}</span>
+                                  )}
+                                </span>
+                              </div>
+                              {tierModels.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 text-[11px] pt-0.5">
+                                  <span className="text-[10px] text-text-muted">Routed to:</span>
+                                  {tierModels.map((tm) => (
+                                    <span key={tm.model} className="inline-flex items-center gap-1 rounded bg-surface border border-border/60 px-1.5 py-0.2 font-mono text-[10px] text-text-main shadow-2xs">
+                                      <span>{tm.model}</span>
+                                      <span className="text-text-muted font-sans font-medium">({tm.total}×)</span>
+                                    </span>
+                                  ))}
+                                </div>
                               )}
-                            </span>
-                            <span className="text-text-muted">
-                              {d.total}× · {pct(d.success, d.total)}
-                              {d.judgeUsed > 0 && (
-                                <span title="decided by the judge model"> · ⚖️{d.judgeUsed}</span>
-                              )}
-                            </span>
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                       {(() => {
                         const rows = difficultyByCombo[c.comboName] || [];

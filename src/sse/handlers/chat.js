@@ -274,7 +274,7 @@ export async function handleChat(request, clientRawRequest = null) {
         handleSingleModel: (b, m, opts) => {
           const diffPayload = {
             tier: diffCtx.tier || null,
-            winningModel: diffCtx.winningModel || null,
+            winningModel: diffCtx.winningModel || m || null,
             judgeUsed: !!diffCtx.judgeUsed,
             judgeModel: diffCtx.judgeModel || null,
             source: diffCtx.source || null,
@@ -420,7 +420,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           handleSingleModel: (b, m, opts) => {
             const diffPayload = {
               tier: diffCtx.tier || null,
-              winningModel: diffCtx.winningModel || null,
+              winningModel: diffCtx.winningModel || m || null,
               judgeUsed: !!diffCtx.judgeUsed,
               judgeModel: diffCtx.judgeModel || null,
               source: diffCtx.source || null,

@@ -449,11 +449,26 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
       GROUP BY 1, 2, 3, 4
       ORDER BY combo_name ASC, total DESC;
     `;
+    const difficultyModelSql = `
+      SELECT
+        data->>'comboName' AS combo_name,
+        COALESCE(data->'difficulty'->>'tier', 'unknown') AS tier,
+        COALESCE(NULLIF(data->'difficulty'->>'winningModel', ''), model) AS model,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'success')::int AS success,
+        COUNT(*) FILTER (WHERE status != 'success')::int AS errors,
+        MAX(timestamp) AS last_seen
+      FROM request_details
+      ${where} AND data->'difficulty' IS NOT NULL
+      GROUP BY 1, 2, 3
+      ORDER BY combo_name ASC, total DESC;
+    `;
 
-    const [comboRows, memberRows, difficultyRows] = await Promise.all([
+    const [comboRows, memberRows, difficultyRows, difficultyModelRows] = await Promise.all([
       db.all(comboSql, params).catch(() => []),
       db.all(memberSql, params).catch(() => []),
       db.all(difficultySql, params).catch(() => []),
+      db.all(difficultyModelSql, params).catch(() => []),
     ]);
 
     return {
@@ -487,6 +502,15 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
         success: Number(row.success || 0),
         judgeUsed: Number(row.judge_used || 0),
         judged: Number(row.judged || 0),
+        lastSeen: row.last_seen,
+      })),
+      difficultyModels: (difficultyModelRows || []).map((row) => ({
+        comboName: row.combo_name,
+        tier: row.tier,
+        model: row.model,
+        total: Number(row.total || 0),
+        success: Number(row.success || 0),
+        errors: Number(row.errors || 0),
         lastSeen: row.last_seen,
       })),
     };
