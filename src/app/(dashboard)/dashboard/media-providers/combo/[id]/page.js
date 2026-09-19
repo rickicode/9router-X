@@ -8,6 +8,7 @@ import { ConfirmModal } from "@/shared/components/Modal";
 import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { getComboBadge } from "@/shared/utils/comboBadge";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
@@ -255,9 +256,14 @@ export default function ComboDetailPage() {
           <Link href={backHref} className="text-text-muted hover:text-primary">
             <span className="material-symbols-outlined">arrow_back</span>
           </Link>
-          <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary">layers</span>
-          </div>
+          {(() => {
+            const badge = getComboBadge(combo);
+            return (
+              <div className={`size-10 rounded-lg flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`} title={badge.title}>
+                <span className="material-symbols-outlined text-[20px]">{badge.icon}</span>
+              </div>
+            );
+          })()}
           <div className="min-w-0">
             <p className="text-xs text-text-muted">{kindLabel} Combo</p>
             <code className="text-lg font-semibold font-mono">{combo.name}</code>

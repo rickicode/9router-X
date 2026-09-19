@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import Input from "./Input";
 import Button from "./Button";
 import ModelSelectModal from "./ModelSelectModal";
+import { getComboBadge } from "@/shared/utils/comboBadge";
 
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
 
@@ -135,7 +136,9 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
             <label className="text-sm font-medium mb-1.5 block">Models</label>
             {models.length === 0 ? (
               <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 rounded-lg bg-black/[0.01] dark:bg-white/[0.01]">
-                <span className="material-symbols-outlined text-text-muted text-xl mb-1">layers</span>
+                <span className="material-symbols-outlined text-text-muted text-xl mb-1">
+                  {combo ? getComboBadge(combo).icon : "person"}
+                </span>
                 <p className="text-xs text-text-muted">No models added yet</p>
               </div>
             ) : (

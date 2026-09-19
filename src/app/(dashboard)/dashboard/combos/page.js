@@ -18,22 +18,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
-import { CORE_MODEL_COMBOS, GENERAL_LATEST_COMBOS } from "open-sse/config/coreModelCombos.js";
-
-const BUILTIN_COMBO_NAMES = new Set([
-  ...Object.keys(CORE_MODEL_COMBOS || {}),
-  ...Object.keys(GENERAL_LATEST_COMBOS || {}),
-  "smart-model",
-]);
-
-function isBuiltinCombo(combo) {
-  if (!combo?.name) return false;
-  const name = combo.name.trim().toLowerCase();
-  if (BUILTIN_COMBO_NAMES.has(name)) return true;
-  if (name.endsWith("-latest")) return true;
-  if (name === "gemini-flash" || name === "gemini-pro" || name === "claude" || name === "gpt") return true;
-  return false;
-}
+import { getComboBadge, isBuiltinCombo, BUILTIN_COMBO_NAMES } from "@/shared/utils/comboBadge";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -362,8 +347,14 @@ function CombosContent() {
       {combos.length === 0 ? (
         <Card>
           <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
-              <span className="material-symbols-outlined text-[32px]">layers</span>
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+              comboCategory === "custom"
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                : "bg-primary/10 text-primary border border-primary/20"
+            }`}>
+              <span className="material-symbols-outlined text-[32px]">
+                {comboCategory === "custom" ? "person" : comboCategory === "builtin" ? "verified" : "layers"}
+              </span>
             </div>
             <p className="text-text-main font-medium mb-1">No combos yet</p>
             <p className="text-sm text-text-muted mb-4">Create model combos with fallback support</p>
@@ -387,7 +378,7 @@ function CombosContent() {
             <Card>
               <div className="text-center py-10">
                 <span className="material-symbols-outlined text-text-muted text-[32px] mb-2 block">
-                  {searchQuery ? "search_off" : "tune"}
+                  {searchQuery ? "search_off" : "person"}
                 </span>
                 <p className="text-text-main font-medium mb-1">
                   {searchQuery ? "No matching custom combos" : "No custom combos yet"}
@@ -468,7 +459,7 @@ function CombosContent() {
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <div className="flex items-center gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                  <span className="material-symbols-outlined text-[16px]">tune</span>
+                  <span className="material-symbols-outlined text-[16px]">person</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -649,18 +640,19 @@ function ComboCard({
     <Card padding="sm" className="group">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-          <div
-            className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${
-              isBuiltin
-                ? "bg-primary/10 text-primary"
-                : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-            }`}
-            title={isBuiltin ? "Preset Combo" : "Custom Combo"}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {isDifficulty ? "auto_awesome" : isFusion ? "hub" : isBuiltin ? "layers" : "tune"}
-            </span>
-          </div>
+          {(() => {
+            const badge = getComboBadge(combo, strategy);
+            return (
+              <div
+                className={`size-8 rounded-lg flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`}
+                title={badge.title}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {badge.icon}
+                </span>
+              </div>
+            );
+          })()}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <code className="block truncate font-mono text-sm font-semibold">{combo.name}</code>
@@ -1213,7 +1205,9 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
 
             {models.length === 0 ? (
               <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 rounded-lg bg-black/[0.01] dark:bg-white/[0.01]">
-                <span className="material-symbols-outlined text-text-muted text-xl mb-1">layers</span>
+                <span className="material-symbols-outlined text-text-muted text-xl mb-1">
+                  {combo ? getComboBadge(combo, strategy).icon : "person"}
+                </span>
                 <p className="text-xs text-text-muted">No models added yet</p>
               </div>
             ) : (

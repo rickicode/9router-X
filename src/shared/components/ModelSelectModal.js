@@ -10,6 +10,7 @@ import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
 import { canonicalModelId } from "@/shared/constants/canonicalModels";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
+import { getComboBadge } from "@/shared/utils/comboBadge";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
 const PROVIDER_ORDER = [
@@ -631,12 +632,13 @@ export default function ModelSelectModal({
             <div className="flex flex-wrap gap-1.5">
               {filteredCombos.map((combo) => {
                 const isSelected = selectedModel === combo.name;
+                const badge = getComboBadge(combo);
                 return (
                   <button
                     key={combo.id}
                     onClick={() => handleSelect({ id: combo.name, name: combo.name, value: combo.name })}
                     className={`
-                      px-2 py-1 rounded-xl text-xs font-medium transition-all border hover:cursor-pointer flex items-center gap-1
+                      px-2 py-1 rounded-xl text-xs font-medium transition-all border hover:cursor-pointer flex items-center gap-1.5
                       ${isSelected
                         ? "bg-primary text-white border-primary"
                         : addedModelValues.includes(combo.name)
@@ -645,8 +647,16 @@ export default function ModelSelectModal({
                       }
                     `}
                   >
-                    {addedModelValues.includes(combo.name) && (
-                      <span className="material-symbols-outlined leading-none" style={{ fontSize: "10px" }}>check</span>
+                    {addedModelValues.includes(combo.name) ? (
+                      <span className="material-symbols-outlined leading-none" style={{ fontSize: "11px" }}>check</span>
+                    ) : (
+                      <span
+                        className={`material-symbols-outlined leading-none ${isSelected ? "text-white" : badge.text}`}
+                        style={{ fontSize: "13px" }}
+                        title={badge.title}
+                      >
+                        {badge.icon}
+                      </span>
                     )}
                     {combo.name}
                   </button>
