@@ -584,6 +584,7 @@ function CombosContent() {
           key={editingCombo.id}
           isOpen={!!editingCombo}
           combo={editingCombo}
+          isBuiltin={isBuiltinCombo(editingCombo)}
           strategy={editingCombo ? (comboStrategies[editingCombo.name] || {}) : null}
           onClose={() => setEditingCombo(null)}
           onSave={(data) => handleUpdate(editingCombo.id, data)}
@@ -776,7 +777,7 @@ function ComboCard({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-1 sm:flex">
+          <div className={isBuiltin ? "grid grid-cols-2 gap-1 sm:flex" : "grid grid-cols-3 gap-1 sm:flex"}>
             <button
               onClick={(e) => { e.stopPropagation(); onCopy(combo.name, `combo-${combo.id}`); }}
               className="flex flex-col items-center rounded px-2 py-1 text-text-muted transition-colors hover:bg-black/5 hover:text-primary dark:hover:bg-white/5"
@@ -795,14 +796,16 @@ function ComboCard({
               <span className="material-symbols-outlined text-[18px]">edit</span>
               <span className="text-[10px] leading-tight">Edit</span>
             </button>
-            <button
-              onClick={onDelete}
-              className="flex flex-col items-center rounded px-2 py-1 text-red-500 transition-colors hover:bg-red-500/10"
-              title="Delete"
-            >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
-              <span className="text-[10px] leading-tight">Delete</span>
-            </button>
+            {!isBuiltin && (
+              <button
+                onClick={onDelete}
+                className="flex flex-col items-center rounded px-2 py-1 text-red-500 transition-colors hover:bg-red-500/10"
+                title="Delete"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+                <span className="text-[10px] leading-tight">Delete</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1073,7 +1076,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
   );
 }
 
-function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null, strategy = null }) {
+function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null, strategy = null, isBuiltin = false }) {
   // Initialize state with combo values - key prop on parent handles reset on remount
   const [name, setName] = useState(combo?.name || "");
   const [models, setModels] = useState(combo?.models || []);
@@ -1188,10 +1191,13 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
               value={name}
               onChange={handleNameChange}
               placeholder="my-combo"
+              disabled={isBuiltin}
               error={nameError}
             />
             <p className="text-[10px] text-text-muted mt-0.5">
-              Only letters, numbers, -, _ and . allowed
+              {isBuiltin
+                ? "Built-in preset name is fixed and cannot be changed"
+                : "Only letters, numbers, -, _ and . allowed"}
             </p>
           </div>
           {/* Smart Routing Notice */}
