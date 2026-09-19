@@ -40,7 +40,6 @@ export default {
     { id: "morph-glm53-744b", name: "GLM-5.3 744B", contextLength: 1048576, reasoning: true },
     { id: "morph-glm53flash", name: "GLM-5.3-Flash", contextLength: 1048576, vision: true, reasoning: true },
     { id: "morph-dsv4flash", name: "DeepSeek V4 Flash 0731", contextLength: 1048576, reasoning: true },
-    { id: "morph-dsv4flash-0731", name: "DeepSeek V4 Flash 0731 (Legacy)", contextLength: 1048576, reasoning: true },
-    { id: "auto", name: "MorphLLM Auto Router", contextLength: 1048576 },
+    { id: "morph-dsv4flash-0731", name: "DeepSeek V4 Flash 0731", contextLength: 1048576, reasoning: true },
   ],
 };
