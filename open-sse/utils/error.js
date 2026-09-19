@@ -162,6 +162,14 @@ export function extractQuotaResetMs(bodyText, response) {
         if (n > 0) resetsAtMs = now + n * mult;
       }
     }
+    // Cloudflare Workers AI free daily 10,000 neurons resets at midnight UTC (pad to 00:01 UTC)
+    if (!resetsAtMs && /daily free allocation|10,000 neurons/i.test(String(bodyText))) {
+      const nowObj = new Date();
+      const resetToday = Date.UTC(nowObj.getUTCFullYear(), nowObj.getUTCMonth(), nowObj.getUTCDate(), 0, 1, 0, 0);
+      resetsAtMs = nowObj.getTime() < resetToday
+        ? resetToday
+        : Date.UTC(nowObj.getUTCFullYear(), nowObj.getUTCMonth(), nowObj.getUTCDate() + 1, 0, 1, 0, 0);
+    }
   }
 
   return resetsAtMs;

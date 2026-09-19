@@ -15,7 +15,8 @@ const projectIdCache = new Map();
 
 /** How long a cached project ID is considered fresh (1 hour). */
 const CACHE_TTL_MS = 60 * 60 * 1000;
-
+/** How long a failed project ID lookup is cached to avoid N+1 hammer (5 min). */
+const NEGATIVE_CACHE_TTL_MS = 5 * 60 * 1000;
 // ─── Pending-fetch deduplication ─────────────────────────────────────────────
 // connectionId -> { promise: Promise<string|null>, controller: AbortController, startedAt: number }
 const pendingFetches = new Map();
@@ -89,10 +90,10 @@ export async function getProjectIdForConnection(connectionId, accessToken, provi
 
     // Return cached value if still fresh
     const cached = projectIdCache.get(connectionId);
-    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    const ttl = cached?.ttlMs || CACHE_TTL_MS;
+    if (cached && Date.now() - cached.fetchedAt < ttl) {
         return cached.projectId;
     }
-
     // Deduplicate concurrent fetches for the same connection
     if (pendingFetches.has(connectionId)) {
         return pendingFetches.get(connectionId).promise;
@@ -105,13 +106,15 @@ export async function getProjectIdForConnection(connectionId, accessToken, provi
         try {
             const projectId = await fetchProjectId(accessToken, controller.signal, provider, tag);
             if (projectId) {
-                projectIdCache.set(connectionId, {projectId, fetchedAt: Date.now()});
+                projectIdCache.set(connectionId, {projectId, fetchedAt: Date.now(), ttlMs: CACHE_TTL_MS});
                 return projectId;
             }
             console.warn(`[ProjectId] ACC:${tag} | could not fetch projectId`);
+            projectIdCache.set(connectionId, {projectId: null, fetchedAt: Date.now(), ttlMs: NEGATIVE_CACHE_TTL_MS});
             return null;
         } catch (error) {
             console.warn(`[ProjectId] ACC:${tag} | Error fetching project ID: ${error.message}`);
+            projectIdCache.set(connectionId, {projectId: null, fetchedAt: Date.now(), ttlMs: NEGATIVE_CACHE_TTL_MS});
             return null;
         } finally {
             pendingFetches.delete(connectionId);

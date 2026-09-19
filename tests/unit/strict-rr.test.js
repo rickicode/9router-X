@@ -73,6 +73,8 @@ vi.mock("@/lib/cache/client.js", () => ({
   incrModelFailCount: vi.fn(async () => 0),
   resetModelFailCount: vi.fn(async () => true),
   getModelFailCounts: vi.fn(async () => ({})),
+  clearProviderDead: vi.fn(async () => true),
+  isProviderDead: vi.fn(async () => false),
   incrSharedCounter: vi.fn(async () => {
     if (mocks.cacheDown) throw new Error("cache down");
     return ++mocks.rrSeq;

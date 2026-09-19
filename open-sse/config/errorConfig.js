@@ -131,6 +131,19 @@ export const ERROR_RULES = [
     lockAll: true,
     shouldFallback: true,
   },
+  // Cloudflare Workers AI free-tier daily neuron quota (account-wide, 24h)
+  {
+    text: "daily free allocation",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    shouldFallback: true,
+  },
+  {
+    text: "10,000 neurons",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    shouldFallback: true,
+  },
   {
     text: "did not pass the safety review",
     cooldownMs: 0,

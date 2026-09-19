@@ -487,9 +487,10 @@ export class OpenCodeExecutor extends BaseExecutor {
     // always stream upstream and let the handler layer aggregate for non-stream clients.
     if (body && typeof body === "object") body.stream = true;
     if (isResponsesModel(model || body?.model) && body && typeof body === "object") {
-      // ponytail: only confirmed auto-only models; open allowlist when evidence arises.
-      if ("tool_choice" in body && body.tool_choice !== "auto"
-        && this.config.quirks?.forceAutoToolChoiceModels?.includes(baseModelId(model))) {
+      // Muse Spark models only support "auto" for tool_choice upstream.
+      const isAutoOnly = isMuseSparkModel(baseModelId(model))
+        || this.config.quirks?.forceAutoToolChoiceModels?.includes(baseModelId(model));
+      if (isAutoOnly) {
         body.tool_choice = "auto";
       }
       const normalized = normalizeResponsesInput(body.input);
@@ -514,6 +515,9 @@ export class OpenCodeExecutor extends BaseExecutor {
       normalizeResponsesTools(body);
       sanitizeResponsesItems(body);
       cloakOpencodeTools(body, true);
+      if (isAutoOnly) {
+        body.tool_choice = "auto";
+      }
     } else if (body && typeof body === "object") {
       cloakOpencodeTools(body, false);
     }

@@ -337,7 +337,11 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
 
       return { success: true, response: new Response(JSON.stringify(finalResp), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }) };
     } catch (err) {
-      console.error("[ChatCore] Responses API SSE→JSON failed:", err);
+      if (err.name === "AbortError" || /aborted|terminated|client is destroyed/i.test(err.message || "")) {
+        log?.debug?.("CHAT", `Responses API SSE→JSON aborted: ${err.message}`);
+      } else {
+        console.error("[ChatCore] Responses API SSE→JSON failed:", err);
+      }
       return createErrorResult(HTTP_STATUS.BAD_GATEWAY, "Failed to convert streaming response to JSON");
     }
   }
@@ -407,7 +411,11 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
 
     return { success: true, response: new Response(JSON.stringify(finalBody), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }) };
   } catch (err) {
-    console.error("[ChatCore] Chat Completions SSE→JSON failed:", err);
+    if (err.name === "AbortError" || /aborted|terminated|client is destroyed/i.test(err.message || "")) {
+      log?.debug?.("CHAT", `Chat Completions SSE→JSON aborted: ${err.message}`);
+    } else {
+      console.error("[ChatCore] Chat Completions SSE→JSON failed:", err);
+    }
     return createErrorResult(HTTP_STATUS.BAD_GATEWAY, "Failed to convert streaming response to JSON");
   }
 }

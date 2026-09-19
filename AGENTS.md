@@ -14,6 +14,7 @@ Valkey/Redis L2 cache. Deployed at `http://192.168.90.101:10128`.
 ## Layout
 - `src/sse/services/auth.js` — credential resolution, account/model locking, `markAccountUnavailable`, `classifyBlockedCredentials`. HOT FILE for quota/exhaustion bugs.
 - `src/sse/handlers/chat.js` — request pipeline, 503 fallback when `getProviderCredentials()` returns null
+- `src/lib/consoleLogBuffer.js` — live console log capture + rotating file logger (default `${DATA_DIR}/logs/console.log`, max 5MB, 5 files). Check this file or `/dashboard/console-log` to debug provider issues and gateway errors.
 - `src/lib/db/repos/connectionsRepo.js` — connection filters (`disabledAt`, `testStatus`, `isActive`)
 - `open-sse/config/errorConfig.js` — error rules: cooldown per error text, `MAX_RATE_LIMIT_COOLDOWN_MS` (7d cap)
 - `open-sse/utils/error.js` — `extractQuotaResetMs` ("Try again in N" parsing)

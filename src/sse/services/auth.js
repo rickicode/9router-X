@@ -39,6 +39,15 @@ function githubMonthlyResetMs(status, errorText, provider) {
   const now = new Date();
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
 }
+function cloudflareDailyResetMs(status, errorText, provider) {
+  if (resolveProviderId(provider) !== "cloudflare-ai") return null;
+  if (!/daily free allocation|10,000 neurons/i.test(String(errorText || ""))) return null;
+  const now = new Date();
+  const todayReset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 1, 0, 0);
+  return now.getTime() < todayReset
+    ? todayReset
+    : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 1, 0, 0);
+}
 // Safe accessor for optional localDb helpers. Direct property access throws
 // under vitest strict mocks that omit newer exports, and typeof-access throws
 // there too — so probe inside try/catch. Returns the function or null.
@@ -1241,7 +1250,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
   let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false, frequencyLimitReset = false;
-  if (githubResetAtMs) {
+  const cfResetAtMs = cloudflareDailyResetMs(status, errorText, provider);
+  if (cfResetAtMs) {
+    shouldFallback = true;
+    cooldownMs = cfResetAtMs - Date.now();
+    newBackoffLevel = 0;
+    lockAll = true;
+    isExhausted = true;
+  } else if (githubResetAtMs) {
     shouldFallback = true;
     cooldownMs = githubResetAtMs - Date.now();
     newBackoffLevel = 0;
@@ -1371,7 +1387,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // throttle. A 429 without quota/credit words (pure rate limit, daily cap
     // without credit wording) rides a timed lock as "unavailable" instead, so
     // it recovers and never pollutes the exhausted fleet signal.
-    const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
+    const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|allocation|neurons|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
     isExhausted = lockAll && (isCreditQuota429 || isCodebuddyCreditExhausted);
   }
 

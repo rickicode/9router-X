@@ -19,6 +19,12 @@ export default {
     },
     noAuth: true,
     forceStream: true,
+    quirks: {
+      forceAutoToolChoiceModels: [
+        "muse-spark-1.2-contributor-free",
+        "muse-spark-1.3-contributor-free",
+      ],
+    },
   },
   forceStream: true,
   models: [
@@ -32,7 +38,4 @@ export default {
   ],
   modelsFetcher: { url: "https://opencode.ai/zen/v1/models", type: "opencode-free" },
   passthroughModels: true,
-  quirks: {
-    forceAutoToolChoiceModels: ["muse-spark-1.3-contributor-free"],
-  },
 };

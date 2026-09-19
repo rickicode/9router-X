@@ -1,5 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { EventEmitter } from "events";
 import { CONSOLE_LOG_CONFIG } from "@/shared/constants/config.js";
+import { getDataDir } from "./dataDir.js";
 
 const consoleLevels = ["log", "info", "warn", "error", "debug"];
 
@@ -15,7 +18,6 @@ if (!global._consoleLogBufferState) {
 
 const state = global._consoleLogBufferState;
 
-// Ensure emitter exists (handles hot reload with stale global)
 if (!state.emitter) {
   state.emitter = new EventEmitter();
   state.emitter.setMaxListeners(50);
@@ -26,13 +28,136 @@ if (!state.flushTimer) state.flushTimer = null;
 
 const FLUSH_INTERVAL_MS = 100;
 const MAX_BATCH_LINES = 50;
+let isWriting = false;
 
-function flushPendingLines() {
+export function getLogFilePath() {
+  if (process.env.CONSOLE_LOG_FILE) return process.env.CONSOLE_LOG_FILE;
+  try {
+    const dataDir = getDataDir();
+    return path.join(dataDir, "logs", "console.log");
+  } catch {
+    return path.join(process.cwd(), "logs", "console.log");
+  }
+}
+
+export function getRotatedPath(baseFile, index) {
+  const dir = path.dirname(baseFile);
+  const ext = path.extname(baseFile);
+  const base = path.basename(baseFile, ext);
+  return path.join(dir, `${base}.${index}${ext}`);
+}
+
+export function rotateLogFiles(baseFile, maxFiles = 5) {
+  try {
+    if (maxFiles <= 1) {
+      if (fs.existsSync(baseFile)) fs.rmSync(baseFile, { force: true });
+      return;
+    }
+
+    const oldest = getRotatedPath(baseFile, maxFiles - 1);
+    if (fs.existsSync(oldest)) {
+      fs.rmSync(oldest, { force: true });
+    }
+
+    for (let i = maxFiles - 2; i >= 1; i--) {
+      const src = getRotatedPath(baseFile, i);
+      const dst = getRotatedPath(baseFile, i + 1);
+      if (fs.existsSync(src)) {
+        if (fs.existsSync(dst)) {
+          fs.rmSync(dst, { force: true });
+        }
+        fs.renameSync(src, dst);
+      }
+    }
+
+    if (fs.existsSync(baseFile)) {
+      const dst1 = getRotatedPath(baseFile, 1);
+      if (fs.existsSync(dst1)) {
+        fs.rmSync(dst1, { force: true });
+      }
+      fs.renameSync(baseFile, dst1);
+    }
+  } catch {
+    // Fail-safe
+  }
+}
+
+export function writeLogLines(lines) {
+  if (!lines || !lines.length || isWriting) return;
+  isWriting = true;
+  try {
+    const logFile = getLogFilePath();
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    let payload = lines.join("\n") + "\n";
+    let payloadBytes = Buffer.byteLength(payload, "utf8");
+
+    const maxFileSize = Number(process.env.CONSOLE_LOG_MAX_BYTES) || CONSOLE_LOG_CONFIG.maxFileSizeBytes || 5 * 1024 * 1024;
+    const maxFiles = Number(process.env.CONSOLE_LOG_MAX_FILES) || CONSOLE_LOG_CONFIG.maxFiles || 5;
+
+    if (payloadBytes > maxFileSize) {
+      payload = Buffer.from(payload, "utf8").subarray(payloadBytes - maxFileSize).toString("utf8");
+      payloadBytes = Buffer.byteLength(payload, "utf8");
+    }
+
+    let currentSize = 0;
+    try {
+      currentSize = fs.statSync(logFile).size;
+    } catch {
+      currentSize = 0;
+    }
+
+    if (currentSize + payloadBytes > maxFileSize) {
+      rotateLogFiles(logFile, maxFiles);
+    }
+
+    fs.appendFileSync(logFile, payload, "utf8");
+  } catch {
+    // Fail-safe
+  } finally {
+    isWriting = false;
+  }
+}
+
+function loadInitialLogsFromFile() {
+  if (state.logs.length > 0) return;
+  try {
+    const logFile = getLogFilePath();
+    if (!fs.existsSync(logFile)) return;
+    const stat = fs.statSync(logFile);
+    if (stat.size === 0) return;
+
+    const readSize = Math.min(stat.size, 128 * 1024);
+    const buffer = Buffer.alloc(readSize);
+    const fd = fs.openSync(logFile, "r");
+    try {
+      fs.readSync(fd, buffer, 0, readSize, stat.size - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    const text = buffer.toString("utf8");
+    let lines = text.split("\n").filter(Boolean);
+    if (stat.size > readSize && lines.length > 1) {
+      lines = lines.slice(1);
+    }
+    const maxLines = CONSOLE_LOG_CONFIG.maxLines || 200;
+    state.logs = lines.slice(-maxLines);
+  } catch {
+    // Ignore
+  }
+}
+
+export function flushPendingLines() {
   state.flushTimer = null;
   if (!state.pendingLines.length) return;
 
   const lines = state.pendingLines.splice(0, state.pendingLines.length);
   state.emitter.emit("lines", lines);
+  writeLogLines(lines);
 }
 
 function scheduleFlush() {
@@ -45,7 +170,6 @@ function toLogLine(level, args) {
   return args.map(formatArg).join(" ");
 }
 
-// Strip ANSI escape codes so terminal colors don't bleed into UI
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function stripAnsi(str) {
@@ -81,6 +205,8 @@ function appendLine(line) {
 }
 
 export function initConsoleLogCapture() {
+  loadInitialLogsFromFile();
+
   if (state.patched) return;
 
   for (const level of consoleLevels) {
@@ -105,4 +231,10 @@ export function clearConsoleLogs() {
 
 export function getConsoleEmitter() {
   return state.emitter;
+}
+
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  process.on("beforeExit", () => {
+    flushPendingLines();
+  });
 }
