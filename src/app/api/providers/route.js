@@ -14,6 +14,7 @@ import {
 import { APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { AI_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider } from "@/shared/constants/providers";
 import { normalizeProviderId, normalizeProviderSpecificData } from "@/lib/providerNormalization";
+import { backfillCodeBuddyIntlIdentity } from "@/lib/oauth/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,9 @@ export async function GET(request) {
     } else {
       connections = await getProviderConnections(filter);
     }
+    // Self-heal legacy CodeBuddy Intl OAuth rows that predate identity capture
+    // (they show as "Account N" with no email). Runs once per process.
+    await backfillCodeBuddyIntlIdentity();
 
     // Build nodeNameMap for compatible providers (id → name)
     let nodeNameMap = {};

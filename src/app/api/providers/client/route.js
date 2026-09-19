@@ -3,7 +3,7 @@ export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import { getClientUsageConnections, getClientUsageMeta } from "@/lib/localDb";
-import { backfillCodexEmails } from "@/lib/oauth/providers";
+import { backfillCodexEmails, backfillCodeBuddyIntlIdentity } from "@/lib/oauth/providers";
 import { USAGE_APIKEY_PROVIDERS, USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 
 const SAFE_FIELDS = [
@@ -67,6 +67,7 @@ function parsePositiveInt(value, fallback) {
 export async function GET(request) {
   try {
     await backfillCodexEmails();
+    await backfillCodeBuddyIntlIdentity();
 
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider") || "all";
