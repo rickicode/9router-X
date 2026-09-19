@@ -55,6 +55,7 @@ export const CORE_MODEL_COMBOS = {
   "gemini-3.8-flash": [
     "ag/gemini-3.8-flash-high",
     "ag/gemini-3.8-flash-medium",
+    "ag/gemini-3.8-flash-low",
   ],
   "muse-spark": [
     "oc/muse-spark-1.3-contributor-free",
@@ -67,6 +68,13 @@ export const GENERAL_LATEST_COMBOS = {
   "gemini-flash-latest": [
     "ag/gemini-3.8-flash-high",
     "ag/gemini-3.8-flash-medium",
+    "ag/gemini-3.8-flash-low",
+    "ag/gemini-3.7-flash-high",
+    "ag/gemini-3.7-flash-medium",
+    "ag/gemini-3.7-flash-low",
+    "ag/gemini-3.6-flash-high",
+    "ag/gemini-3.6-flash-medium",
+    "ag/gemini-3.6-flash-low",
   ],
   "gemini-pro-latest": [
     "ag/gemini-3.1-pro-low",

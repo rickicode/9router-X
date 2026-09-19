@@ -480,9 +480,6 @@ function CombosContent() {
                   <p className="text-[11px] text-text-muted">Your custom-defined model groups</p>
                 </div>
               </div>
-              <Button icon="add" variant="ghost" size="sm" onClick={() => setShowCreateModal(true)}>
-                New Custom
-              </Button>
             </div>
 
             {filteredCustom.length === 0 ? (
