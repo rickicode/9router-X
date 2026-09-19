@@ -516,7 +516,7 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
     };
   } catch (err) {
     console.error("[requestDetailsRepo] getComboAnalytics error:", err);
-    return { combos: [], members: [] };
+    return { combos: [], members: [], difficulty: [], difficultyModels: [] };
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { getComboBadge } from "@/shared/utils/comboBadge";
 import { Card, CardSkeleton, SegmentedControl } from "@/shared/components";
 
 const PERIODS = [
@@ -38,32 +39,34 @@ export default function ComboAnalyticsTab() {
     return () => { alive = false; };
   }, [period]);
 
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col gap-6">
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-    );
-  }
-
   const combos = data?.combos || [];
   const members = data?.members || [];
   const difficulty = data?.difficulty || [];
   const difficultyModels = data?.difficultyModels || [];
-  const membersByCombo = {};
-  for (const m of members) {
-    (membersByCombo[m.comboName] ||= []).push(m);
-  }
-  const difficultyByCombo = {};
-  for (const d of difficulty) {
-    (difficultyByCombo[d.comboName] ||= []).push(d);
-  }
-  const difficultyModelsByCombo = {};
-  for (const dm of difficultyModels) {
-    (difficultyModelsByCombo[dm.comboName] ||= []).push(dm);
-  }
 
+  const membersByCombo = useMemo(() => {
+    const map = {};
+    for (const m of members) {
+      (map[m.comboName] ||= []).push(m);
+    }
+    return map;
+  }, [members]);
+
+  const difficultyByCombo = useMemo(() => {
+    const map = {};
+    for (const d of difficulty) {
+      (map[d.comboName] ||= []).push(d);
+    }
+    return map;
+  }, [difficulty]);
+
+  const difficultyModelsByCombo = useMemo(() => {
+    const map = {};
+    for (const dm of difficultyModels) {
+      (map[dm.comboName] ||= []).push(dm);
+    }
+    return map;
+  }, [difficultyModels]);
   // Aggregate model usage across all smart combos
   const smartModelStats = useMemo(() => {
     if (!difficultyModels.length) return null;
@@ -124,6 +127,15 @@ export default function ComboAnalyticsTab() {
       comboMap,
     };
   }, [difficultyModels]);
+
+  if (loading && !data) {
+    return (
+      <div className="flex flex-col gap-6">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -302,6 +314,17 @@ export default function ComboAnalyticsTab() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <HealthDot success={c.success} total={c.total} />
+                        {(() => {
+                          const badge = getComboBadge(c.comboName);
+                          return (
+                            <span
+                              className={`material-symbols-outlined text-[15px] shrink-0 ${badge.text}`}
+                              title={badge.title}
+                            >
+                              {badge.icon}
+                            </span>
+                          );
+                        })()}
                         <p className="font-medium text-text-main truncate">{c.comboName}</p>
                       </div>
                       <p className="text-xs text-text-muted mt-0.5">
