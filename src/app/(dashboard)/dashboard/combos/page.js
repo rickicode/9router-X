@@ -13,10 +13,27 @@ const ComboAnalyticsTab = dynamic(() => import("./components/ComboAnalyticsTab")
   ssr: false,
   loading: () => <CardSkeleton />,
 });
+import SmartRoutingSection from "./components/SmartRoutingSection";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
+import { CORE_MODEL_COMBOS, GENERAL_LATEST_COMBOS } from "open-sse/config/coreModelCombos.js";
+
+const BUILTIN_COMBO_NAMES = new Set([
+  ...Object.keys(CORE_MODEL_COMBOS || {}),
+  ...Object.keys(GENERAL_LATEST_COMBOS || {}),
+  "smart-model",
+]);
+
+function isBuiltinCombo(combo) {
+  if (!combo?.name) return false;
+  const name = combo.name.trim().toLowerCase();
+  if (BUILTIN_COMBO_NAMES.has(name)) return true;
+  if (name.endsWith("-latest")) return true;
+  if (name === "gemini-flash" || name === "gemini-pro" || name === "claude" || name === "gpt") return true;
+  return false;
+}
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -107,7 +124,8 @@ function CombosContent() {
   const [confirmState, setConfirmState] = useState(null);
   const { copied, copy } = useCopyToClipboard();
   const notify = useNotificationStore();
-
+  const [comboCategory, setComboCategory] = useState("all"); // "all" | "custom" | "builtin"
+  const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -174,7 +192,7 @@ function CombosContent() {
     }
   };
 
-  const handleUpdate = async (id, data) => {
+  const handleUpdate = async (id, data, silent = false) => {
     try {
       const res = await fetch(`/api/combos/${id}`, {
         method: "PUT",
@@ -182,17 +200,23 @@ function CombosContent() {
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        await fetchData();
-        setEditingCombo(null);
+        const updated = await res.json();
+        setCombos((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
+        if (!silent) {
+          setEditingCombo(null);
+        }
       } else {
         const err = await res.json();
-        notify.error(err.error || "Failed to update combo");
+        if (!silent) {
+          notify.error(err.error || "Failed to update combo");
+        }
       }
     } catch (error) {
-
+      if (!silent) {
+        notify.error("Failed to update combo");
+      }
     }
   };
-
   const handleDelete = async (id) => {
     setConfirmState({
       title: "Delete Combo",
@@ -238,6 +262,36 @@ function CombosContent() {
     }
   };
 
+  const { customCombos, builtinCombos } = useMemo(() => {
+    const custom = [];
+    const builtin = [];
+    for (const c of combos) {
+      if (isBuiltinCombo(c)) {
+        builtin.push(c);
+      } else {
+        custom.push(c);
+      }
+    }
+    return { customCombos: custom, builtinCombos: builtin };
+  }, [combos]);
+
+  const filterBySearch = useCallback((list) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.trim().toLowerCase();
+    return list.filter((c) => {
+      if (c.name.toLowerCase().includes(q)) return true;
+      if (Array.isArray(c.models) && c.models.some((m) => m.toLowerCase().includes(q))) return true;
+      const strat = comboStrategies[c.name] || {};
+      if (strat.easyModels?.some((m) => m.toLowerCase().includes(q))) return true;
+      if (strat.mediumModels?.some((m) => m.toLowerCase().includes(q))) return true;
+      if (strat.hardModels?.some((m) => m.toLowerCase().includes(q))) return true;
+      return false;
+    });
+  }, [searchQuery, comboStrategies]);
+
+  const filteredCustom = useMemo(() => filterBySearch(customCombos), [filterBySearch, customCombos]);
+  const filteredBuiltin = useMemo(() => filterBySearch(builtinCombos), [filterBySearch, builtinCombos]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -258,12 +312,50 @@ function CombosContent() {
           <ul className="text-sm text-text-muted mt-2 flex flex-col gap-1">
             <li><span className="font-medium text-text-main">Fallback</span> — tries models in order (next on failure)</li>
             <li><span className="font-medium text-text-main">Round Robin</span> — rotates models across requests to spread load</li>
+            <li><span className="font-medium text-text-main">Smart Routing</span> — classifies prompt difficulty into Easy, Medium, or Hard tiers for cost & speed</li>
             <li><span className="font-medium text-text-main">Fusion</span> — queries all models in parallel, then a judge synthesizes one answer. Best quality, but costs the most: every request bills all panel models + the judge (N+1 calls)</li>
           </ul>
         </div>
         <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto whitespace-nowrap">
           Create Combo
         </Button>
+      </div>
+
+      {/* Category Tabs (Custom vs Built-in) + Search Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full sm:w-auto overflow-x-auto no-scrollbar">
+          <SegmentedControl
+            options={[
+              { value: "all", label: `All (${combos.length})` },
+              { value: "custom", label: `Custom Combos (${customCombos.length})` },
+              { value: "builtin", label: `Built-in Presets (${builtinCombos.length})` },
+            ]}
+            value={comboCategory}
+            onChange={setComboCategory}
+            className="w-full sm:w-auto min-w-max"
+          />
+        </div>
+        <div className="relative w-full sm:w-64">
+          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Search combos or models..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1 text-xs text-text-main placeholder:text-text-muted/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
+              title="Clear search"
+            >
+              <span className="material-symbols-outlined text-[14px]">close</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Combos List */}
@@ -280,22 +372,191 @@ function CombosContent() {
             </Button>
           </div>
         </Card>
-      ) : (
+      ) : comboCategory === "custom" ? (
         <div className="flex flex-col gap-4">
-          {combos.map((combo) => (
-            <ComboCard
-              key={combo.id}
-              combo={combo}
-              getCaps={getCaps}
-              activeProviders={activeProviders}
-              copied={copied}
-              onCopy={copy}
-              onEdit={() => setEditingCombo(combo)}
-              onDelete={() => handleDelete(combo.id)}
-              strategy={comboStrategies[combo.name] || {}}
-              onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
-            />
-          ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-text-main">Custom Combos</h3>
+              <p className="text-xs text-text-muted">User-created model combinations and fallbacks</p>
+            </div>
+            <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              {filteredCustom.length} Custom
+            </span>
+          </div>
+          {filteredCustom.length === 0 ? (
+            <Card>
+              <div className="text-center py-10">
+                <span className="material-symbols-outlined text-text-muted text-[32px] mb-2 block">
+                  {searchQuery ? "search_off" : "person_add"}
+                </span>
+                <p className="text-text-main font-medium mb-1">
+                  {searchQuery ? "No matching custom combos" : "No custom combos yet"}
+                </p>
+                <p className="text-xs text-text-muted mb-4">
+                  {searchQuery ? "Try a different search query" : "Create a custom combo to group models with fallback or round-robin"}
+                </p>
+                {!searchQuery && (
+                  <Button icon="add" size="sm" onClick={() => setShowCreateModal(true)}>
+                    Create Custom Combo
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ) : (
+            filteredCustom.map((combo) => (
+              <ComboCard
+                key={combo.id}
+                combo={combo}
+                isBuiltin={false}
+                getCaps={getCaps}
+                activeProviders={activeProviders}
+                copied={copied}
+                onCopy={copy}
+                onEdit={() => setEditingCombo(combo)}
+                onDelete={() => handleDelete(combo.id)}
+                strategy={comboStrategies[combo.name] || {}}
+                onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
+                onUpdateCombo={(id, patch) => handleUpdate(id, patch, true)}
+              />
+            ))
+          )}
+        </div>
+      ) : comboCategory === "builtin" ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-text-main">Built-in Presets & Smart Routing</h3>
+              <p className="text-xs text-text-muted">System seed combos with auto-failover across healthy providers</p>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+              {filteredBuiltin.length} Presets
+            </span>
+          </div>
+          {filteredBuiltin.length === 0 ? (
+            <Card>
+              <div className="text-center py-10">
+                <span className="material-symbols-outlined text-text-muted text-[32px] mb-2 block">
+                  search_off
+                </span>
+                <p className="text-text-main font-medium mb-1">No matching built-in presets</p>
+                <p className="text-xs text-text-muted">Try a different search query</p>
+              </div>
+            </Card>
+          ) : (
+            filteredBuiltin.map((combo) => (
+              <ComboCard
+                key={combo.id}
+                combo={combo}
+                isBuiltin={true}
+                getCaps={getCaps}
+                activeProviders={activeProviders}
+                copied={copied}
+                onCopy={copy}
+                onEdit={() => setEditingCombo(combo)}
+                onDelete={() => handleDelete(combo.id)}
+                strategy={comboStrategies[combo.name] || {}}
+                onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
+                onUpdateCombo={(id, patch) => handleUpdate(id, patch, true)}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {/* Custom Combos Section */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <span className="material-symbols-outlined text-[16px]">person</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-text-main">Custom Combos</h3>
+                    <span className="rounded-full bg-blue-500/10 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      {filteredCustom.length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-muted">Your custom-defined model groups</p>
+                </div>
+              </div>
+              <Button icon="add" variant="ghost" size="sm" onClick={() => setShowCreateModal(true)}>
+                New Custom
+              </Button>
+            </div>
+
+            {filteredCustom.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/70 bg-surface/50 p-6 text-center">
+                <p className="text-xs font-medium text-text-muted">No custom combos</p>
+                <p className="text-[11px] text-text-muted/70 mt-0.5 mb-2.5">
+                  Create your own model groups with custom fallback or round-robin strategies.
+                </p>
+                <Button icon="add" size="sm" variant="ghost" onClick={() => setShowCreateModal(true)}>
+                  Create Custom Combo
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {filteredCustom.map((combo) => (
+                  <ComboCard
+                    key={combo.id}
+                    combo={combo}
+                    isBuiltin={false}
+                    getCaps={getCaps}
+                    activeProviders={activeProviders}
+                    copied={copied}
+                    onCopy={copy}
+                    onEdit={() => setEditingCombo(combo)}
+                    onDelete={() => handleDelete(combo.id)}
+                    strategy={comboStrategies[combo.name] || {}}
+                    onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
+                    onUpdateCombo={(id, patch) => handleUpdate(id, patch, true)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Built-in Presets Section */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-text-main">Built-in Presets & Smart Routing</h3>
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-primary border border-primary/20">
+                      {filteredBuiltin.length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-muted">
+                    Pre-configured family fallbacks and intelligent difficulty routing
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {filteredBuiltin.map((combo) => (
+                <ComboCard
+                  key={combo.id}
+                  combo={combo}
+                  isBuiltin={true}
+                  getCaps={getCaps}
+                  activeProviders={activeProviders}
+                  copied={copied}
+                  onCopy={copy}
+                  onEdit={() => setEditingCombo(combo)}
+                  onDelete={() => handleDelete(combo.id)}
+                  strategy={comboStrategies[combo.name] || {}}
+                  onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
+                  onUpdateCombo={(id, patch) => handleUpdate(id, patch, true)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -323,6 +584,7 @@ function CombosContent() {
           key={editingCombo.id}
           isOpen={!!editingCombo}
           combo={editingCombo}
+          strategy={editingCombo ? (comboStrategies[editingCombo.name] || {}) : null}
           onClose={() => setEditingCombo(null)}
           onSave={(data) => handleUpdate(editingCombo.id, data)}
           activeProviders={activeProviders}
@@ -351,10 +613,20 @@ const STRATEGY_OPTIONS = [
   { value: "fusion", label: "Fusion — panel + judge" },
 ];
 
-function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdit, onDelete, strategy = {}, onSetStrategy }) {
+function ComboCard({
+  combo,
+  getCaps,
+  activeProviders = [],
+  copied,
+  onCopy,
+  onEdit,
+  onDelete,
+  strategy = {},
+  onSetStrategy,
+  onUpdateCombo,
+  isBuiltin = false,
+}) {
   const [showJudgeSelect, setShowJudgeSelect] = useState(false);
-  const [tierEditor, setTierEditor] = useState(null); // { tier: "easy"|"medium"|"hard" }
-  const [tierDraft, setTierDraft] = useState(null);
   const [stickyDraft, setStickyDraft] = useState(null);
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
@@ -362,38 +634,87 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
   const isDifficulty = current === "difficulty";
   const isRR = current === "round-robin" || current === "round-robin-sticky";
   const stickyValue = stickyDraft ?? strategy.stickyLimit ?? "";
-  const tierValue = (tier) => {
-    if (tierDraft?.tier === tier) return tierDraft.value;
-    return Array.isArray(strategy[`${tier}Models`]) ? strategy[`${tier}Models`].join(", ") : "";
-  };
-  const TIERS = [
-    { key: "easy", label: "Easy", color: "text-emerald-600", hint: "menial fixes, short prompts" },
-    { key: "medium", label: "Medium", color: "text-yellow-600", hint: "typical agent tasks" },
-    { key: "hard", label: "Hard", color: "text-red-500", hint: "complex, tools, big context" },
-  ];
+
+  const easyCount = Array.isArray(strategy.easyModels) ? strategy.easyModels.length : 0;
+  const mediumCount = Array.isArray(strategy.mediumModels) ? strategy.mediumModels.length : 0;
+  const hardCount = Array.isArray(strategy.hardModels) ? strategy.hardModels.length : 0;
+  const totalTierModels = useMemo(() => {
+    const set = new Set([
+      ...(Array.isArray(strategy.easyModels) ? strategy.easyModels : []),
+      ...(Array.isArray(strategy.mediumModels) ? strategy.mediumModels : []),
+      ...(Array.isArray(strategy.hardModels) ? strategy.hardModels : []),
+    ]);
+    return set.size;
+  }, [strategy.easyModels, strategy.mediumModels, strategy.hardModels]);
 
   return (
     <Card padding="sm" className="group">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
           <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-primary text-[18px]">layers</span>
+            <span className="material-symbols-outlined text-primary text-[18px]">
+              {isDifficulty ? "auto_awesome" : isFusion ? "hub" : "layers"}
+            </span>
           </div>
           <div className="min-w-0 flex-1">
-            <code className="block truncate font-mono text-sm font-medium">{combo.name}</code>
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
-              {combo.models.length === 0 ? (
-                <span className="text-xs text-text-muted italic">No models</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <code className="block truncate font-mono text-sm font-semibold">{combo.name}</code>
+              {isBuiltin ? (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary border border-primary/20">
+                  <span className="material-symbols-outlined text-[11px]">verified</span>
+                  Preset
+                </span>
               ) : (
-                combo.models.map((model, index) => (
-                  <code key={`${model}-${index}`} className="inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-text-muted dark:bg-white/5">
-                    <span>{model}</span>
-                    <CapacityBadges caps={getCaps?.(model)} />
-                  </code>
-                ))
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <span className="material-symbols-outlined text-[11px]">person</span>
+                  Custom
+                </span>
+              )}
+              {isDifficulty && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="material-symbols-outlined text-[11px]">auto_awesome</span>
+                  Smart Routing
+                </span>
               )}
             </div>
-            {/* Round-robin sticky window (per combo; overrides global) */}
+
+            {/* If difficulty: tier summary; otherwise: normal model chips */}
+            {isDifficulty ? (
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
+                <span>{totalTierModels || combo.models.length} models in 3 tiers</span>
+                <span className="text-text-muted/40">•</span>
+                <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                  Easy: {easyCount}
+                </span>
+                <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                  <span className="size-1.5 rounded-full bg-amber-500"></span>
+                  Medium: {mediumCount}
+                </span>
+                <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
+                  <span className="size-1.5 rounded-full bg-rose-500"></span>
+                  Hard: {hardCount}
+                </span>
+              </div>
+            ) : (
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+                {combo.models.length === 0 ? (
+                  <span className="text-xs text-text-muted italic">No models</span>
+                ) : (
+                  combo.models.map((model, index) => (
+                    <code
+                      key={`${model}-${index}`}
+                      className="inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-text-muted dark:bg-white/5"
+                    >
+                      <span>{model}</span>
+                      <CapacityBadges caps={getCaps?.(model)} />
+                    </code>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Round-robin sticky window */}
             {isRR && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-[11px] font-medium text-text-muted" title="Requests per model before rotating to the next (blank = use the global setting)">
@@ -417,7 +738,7 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
               </div>
             )}
 
-            {/* Fusion: judge picker (Auto = first model) */}
+            {/* Fusion: judge picker */}
             {isFusion && (
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-medium text-text-muted">Judge</span>
@@ -440,82 +761,13 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
                 )}
               </div>
             )}
-
-            {/* Difficulty / smart-routing: judge + policy + easy/medium/hard tiers */}
-            {isDifficulty && (
-              <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-bg-subtle p-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-text-muted">Judge</span>
-                    <button
-                      onClick={() => setShowJudgeSelect(true)}
-                      className="inline-flex max-w-full items-center gap-1 rounded border border-dashed border-primary/40 px-1.5 py-0.5 font-mono text-[11px] text-primary hover:border-primary hover:bg-primary/5 transition-colors"
-                      title="Judge model classifies difficulty for ambiguous prompts (1 cheap call)"
-                    >
-                      <span className="material-symbols-outlined text-[13px]">smart_toy</span>
-                      <span className="truncate">{judge || "Auto — first model"}</span>
-                    </button>
-                    {judge && (
-                      <button
-                        onClick={() => onSetStrategy({ judgeModel: "" })}
-                        className="p-0.5 rounded text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                        title="Reset judge to Auto"
-                      >
-                        <span className="material-symbols-outlined text-[13px]">close</span>
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-text-muted">Policy</span>
-                    <select
-                      value={strategy.difficultyPolicy || "balanced"}
-                      onChange={(e) => onSetStrategy({ difficultyPolicy: e.target.value })}
-                      className="rounded border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-text-main focus:outline-none"
-                    >
-                      <option value="balanced">Balanced (Morph matrix)</option>
-                      <option value="cost_efficient">Cost Efficient (prefer cheap)</option>
-                      <option value="capability_heavy">Capability Heavy (prefer strong)</option>
-                    </select>
-                  </div>
-                </div>
-                {TIERS.map((t) => (
-                  <div key={t.key} className="flex items-start gap-2">
-                    <span className={`mt-1.5 shrink-0 text-[10px] font-semibold uppercase ${t.color} w-14`} title={t.hint}>
-                      {t.label}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <Input
-                        type="text"
-                        placeholder={`e.g. ${t.key === "easy" ? "oc/mimo-v2.5-free, openrouter/deepseek-v4-flash-0731:free" : t.key === "medium" ? "cline-free/z-ai/glm-5.3-flash" : "claude-latest, gpt-latest"}`}
-                        value={tierValue(t.key)}
-                        onChange={(e) => setTierDraft({ tier: t.key, value: e.target.value })}
-                        onBlur={() => {
-                          if (!tierDraft || tierDraft.tier !== t.key) return;
-                          const list = tierDraft.value.split(",").map((s) => s.trim()).filter(Boolean);
-                          onSetStrategy({ [`${t.key}Models`]: list });
-                          setTierDraft(null);
-                        }}
-                        className="py-1 text-[11px] font-mono"
-                      />
-                    </div>
-                    <button
-                      onClick={() => setTierEditor(t.key)}
-                      className="shrink-0 p-1 rounded text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
-                      title={`Pick models for ${t.label} tier`}
-                    >
-                      <span className="material-symbols-outlined text-[15px]">add_circle</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3 sm:shrink-0">
           {/* Strategy selector — always visible */}
-          <div className="w-full sm:w-[200px]">
+          <div className="w-full sm:w-[220px]">
             <Select
               options={STRATEGY_OPTIONS}
               value={current}
@@ -555,40 +807,28 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
         </div>
       </div>
 
-      {/* Judge model picker (single-select; combo members make natural judges too) */}
-      {showJudgeSelect && (
+      {/* Smart Routing 3-Tier Section (Full width below header) */}
+      {isDifficulty && (
+        <SmartRoutingSection
+          combo={combo}
+          strategy={strategy}
+          onSetStrategy={onSetStrategy}
+          onUpdateComboModels={(newModels) => onUpdateCombo?.(combo.id, { models: newModels })}
+          activeProviders={activeProviders}
+          getCaps={getCaps}
+        />
+      )}
+
+      {/* Fusion Judge model picker */}
+      {isFusion && showJudgeSelect && (
         <ModelSelectModal
           isOpen={showJudgeSelect}
           onClose={() => setShowJudgeSelect(false)}
           onSelect={(m) => { onSetStrategy({ judgeModel: m?.value || "" }); setShowJudgeSelect(false); }}
           activeProviders={activeProviders}
-          title="Select Judge Model"
+          title="Select Fusion Judge Model"
           addedModelValues={judge ? [judge] : []}
           closeOnSelect={true}
-        />
-      )}
-
-      {/* Difficulty tier picker: toggling adds/removes a model from the tier */}
-      {tierEditor && (
-        <ModelSelectModal
-          isOpen={!!tierEditor}
-          onClose={() => setTierEditor(null)}
-          onSelect={(m) => {
-            const field = `${tierEditor}Models`;
-            const val = m?.value || "";
-            const cur = Array.isArray(strategy[field]) ? strategy[field] : [];
-            const next = cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val];
-            onSetStrategy({ [field]: next });
-          }}
-          onDeselect={(m) => {
-            const field = `${tierEditor}Models`;
-            const val = m?.value || "";
-            onSetStrategy({ [field]: (Array.isArray(strategy[field]) ? strategy[field] : []).filter((x) => x !== val) });
-          }}
-          activeProviders={activeProviders}
-          title={`Pick ${tierEditor} tier models`}
-          addedModelValues={Array.isArray(strategy[`${tierEditor}Models`]) ? strategy[`${tierEditor}Models`] : []}
-          closeOnSelect={false}
         />
       )}
     </Card>
@@ -833,7 +1073,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
   );
 }
 
-function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null }) {
+function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null, strategy = null }) {
   // Initialize state with combo values - key prop on parent handles reset on remount
   const [name, setName] = useState(combo?.name || "");
   const [models, setModels] = useState(combo?.models || []);
@@ -954,6 +1194,19 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
               Only letters, numbers, -, _ and . allowed
             </p>
           </div>
+          {/* Smart Routing Notice */}
+          {strategy?.fallbackStrategy === "difficulty" && (
+            <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-2.5 text-xs text-text-muted">
+              <div className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                <span>Smart Routing Combo</span>
+              </div>
+              <p className="mt-1 text-[11px] text-text-muted leading-relaxed">
+                This combo routes requests through <strong>Easy</strong>, <strong>Medium</strong>, and <strong>Hard</strong> tiers.
+                You can manage tier assignments, priority order, and the judge model directly on the combo card.
+              </p>
+            </div>
+          )}
 
           {/* Models */}
           <div>
