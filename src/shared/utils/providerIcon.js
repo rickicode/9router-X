@@ -14,6 +14,9 @@ const ICON_ALIASES = {
   "opencode-go": "opencode",
   "zen": "opencode",
   "ocz": "opencode",
+  "morphllm": "morphllm",
+  "mrp": "morphllm",
+  "morph": "morphllm",
 };
 
 // Runtime only — first 404 remembers id for the whole session
