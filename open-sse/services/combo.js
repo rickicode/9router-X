@@ -778,6 +778,27 @@ function estimateBodyTokens(body) {
   }
 }
 
+function detectDomain(body) {
+  try {
+    const text = extractJudgeInput(body).toLowerCase();
+    if (/(?:def |function|class |import |const |let |var |=>|SELECT |INSERT |UPDATE |DELETE |curl |git |npm |docker |<html|<script|\.py|\.js|\.ts|\.rs|\.go|\bcode\b|\bbug\b|\berror\b|\brefactor\b)/i.test(text)) {
+      return "coding";
+    }
+    if (/(?:summarize|summary|tl;?dr|tldr|key points|bullet points|extract|digest|recap)/i.test(text)) {
+      return "summary";
+    }
+    if (/(?:ui\b|ux\b|layout|tailwind|css|design|component|figma|color palette|responsive|padding|margin|flexbox|grid)/i.test(text)) {
+      return "design";
+    }
+    if (/(?:csv|json|sql|database|table|dataframe|pandas|aggregate|metrics|statistics|analytics|schema)/i.test(text)) {
+      return "data";
+    }
+    return "general";
+  } catch {
+    return "general";
+  }
+}
+
 function heuristicDifficulty(body) {
   const tokens = estimateBodyTokens(body);
   const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
@@ -796,19 +817,51 @@ function heuristicDifficulty(body) {
       if (m?.role === "user") userMsgs++;
     }
   }
+  const domain = detectDomain(body);
   // Clear-cut signals: expensive context, tool history, images, multi-turn.
-  if (tokens >= 20000 || hasToolCalls || hasImages || userMsgs >= 6) return { tier: "hard", source: "heuristic" };
+  if (tokens >= 20000 || hasToolCalls || hasImages || userMsgs >= 6) {
+    return { tier: "hard", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  }
   // Deliberately narrow: only greetings/small-talk skip the judge
   // (<~35 chars). Anything with real content deserves classification.
-  if (tokens <= 8 && userMsgs <= 1 && !hasToolCalls) return { tier: "easy", source: "heuristic" };
+  if (tokens <= 8 && userMsgs <= 1 && !hasToolCalls) {
+    return { tier: "easy", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  }
   return null; // ambiguous -> ask the judge
 }
 
-// Judge JSON prompt: return difficulty + ambiguity so routing can escalate
-// high-ambiguity prompts to the hard tier even when they look short.
-const DIFFICULTY_JUDGE_PROMPT = `Classify this coding/typing task. Reply with ONLY JSON, no markdown:
-{"difficulty":"easy|medium|hard","ambiguity":"low|medium|high"}
-difficulty = how complex the task is; ambiguity = how underspecified it is.
+// Morph-aligned: 2D matrix (Difficulty x Ambiguity) adjusted by Policy
+// balanced (default), cost_efficient, capability_heavy
+function resolveTierMatrix(difficulty, ambiguity, domain, policy = "balanced") {
+  const diff = String(difficulty || "").toLowerCase();
+  const amb = String(ambiguity || "").toLowerCase();
+  const pol = String(policy || "balanced").toLowerCase();
+
+  // High ambiguity always escalates to hard tier (Morph core principle)
+  if (amb === "high") return "hard";
+
+  if (pol === "cost_efficient") {
+    // Prefer cheaper tier whenever reasonable
+    if (diff === "easy") return "easy";
+    if (diff === "medium") return amb === "low" ? "easy" : "medium";
+    return amb === "low" ? "medium" : "hard";
+  }
+
+  if (pol === "capability_heavy") {
+    // Escalate coding/design or medium to stronger tier
+    if (diff === "easy") return amb === "low" && domain === "general" ? "easy" : "medium";
+    return "hard";
+  }
+
+  // balanced (default Morph matrix)
+  if (diff === "easy") return amb === "med" || amb === "medium" ? "medium" : "easy";
+  if (diff === "medium") return "medium";
+  return "hard";
+}
+
+// Judge JSON prompt: asks for difficulty, ambiguity, domain, and confidence.
+const DIFFICULTY_JUDGE_PROMPT = `Classify this task. Reply with ONLY JSON, no markdown:
+{"difficulty":"easy|medium|hard","ambiguity":"low|medium|high","domain":"general|summary|coding|design|data","confidence":0.0-1.0}
 Task:`;
 
 export async function handleDifficultyChat({ body, models = [], handleSingleModel, log, comboName, judgeModel, tuning = {}, rotationBudget = null, externalSignal = null, onDecision = null }) {
@@ -824,37 +877,61 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
     { name: "hard", models: hardTier.length ? hardTier : order },
   ];
 
+  const policy = cfg.policy || "balanced";
   const sKey = sessionKeyOf(body);
   const bodyTokens = estimateBodyTokens(body);
   let tier = null;
   let source = "heuristic";
+  let domain = "general";
+  let ambiguity = "low";
+  let confidence = 1.0;
 
   const cached = sKey ? difficultyCacheGet(sKey) : null;
   if (bodyTokens >= cfg.contextLockTokens) {
     // Context lock (Morph pattern): once context is expensive, hold the
     // session's existing tier and skip re-classifying; fresh sessions with
     // huge context default to hard (safe).
-    tier = cached || "hard";
+    tier = (typeof cached === "object" ? cached.tier : cached) || "hard";
     source = "context-lock";
+    domain = (typeof cached === "object" ? cached.domain : null) || detectDomain(body);
   } else if (cached) {
-    tier = cached;
+    tier = typeof cached === "object" ? cached.tier : cached;
     source = "session-cache";
+    domain = typeof cached === "object" ? cached.domain : "general";
+    ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
+    confidence = typeof cached === "object" ? cached.confidence : 1.0;
   } else {
     const h = heuristicDifficulty(body);
     if (h) {
       tier = h.tier;
+      domain = h.domain;
+      source = h.source;
+      confidence = h.confidence;
     } else if (judgeModel) {
-      const jr = await classifyWithJudge(body, judgeModel, handleSingleModel, cfg.judgeTimeoutMs, log, comboName);
+      const jr = await classifyWithJudge(body, judgeModel, handleSingleModel, cfg.judgeTimeoutMs, log, comboName, policy);
       tier = jr?.tier || "hard";
       source = jr?.source || "judge";
+      domain = jr?.domain || detectDomain(body);
+      ambiguity = jr?.ambiguity || "low";
+      confidence = jr?.confidence ?? 0.8;
     } else {
       tier = "medium";
+      domain = detectDomain(body);
     }
-    if (sKey) difficultyCacheSet(sKey, tier);
+    if (sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy });
   }
 
-  log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | ~${bodyTokens} tok`);
-  notify({ tier, source, judgeUsed: source === "judge", judgeModel: source === "judge" ? judgeModel : null });
+  log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | domain=${domain} | policy=${policy} | ~${bodyTokens} tok`);
+  notify({
+    tier,
+    source,
+    domain,
+    ambiguity,
+    confidence,
+    policy,
+    judgeUsed: source === "judge",
+    judgeModel: source === "judge" ? judgeModel : null,
+  });
 
   // Run selected tier sequentially; escalate up on total failure.
   const startIdx = tier === "easy" ? 0 : tier === "hard" ? 2 : 1;
@@ -889,7 +966,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
       }
       bumpRoutingMetric("difficultyMemberSucceeded");
       log.info("DIFFICULTY", `Member ${m} succeeded (${tierCfg.name} tier)`);
-      notify({ tier: tierCfg.name, winningModel: m, source: "member-result" });
+      notify({ tier: tierCfg.name, winningModel: m, source: "member-result", domain, policy });
       return result;
     }
   }
@@ -901,10 +978,10 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   );
 }
 
-// Call the judge LLM; returns { tier, source } or null on any failure (fail-open).
-async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs, log, comboName) {
+// Call the judge LLM; returns { tier, source, domain, ambiguity, confidence } or fallback.
+async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs, log, comboName, policy = "balanced") {
   const prompt = `${DIFFICULTY_JUDGE_PROMPT}\n${extractJudgeInput(body)}`;
-  const judgeBody = { messages: [{ role: "user", content: prompt }], stream: false, max_tokens: 40 };
+  const judgeBody = { messages: [{ role: "user", content: prompt }], stream: false, max_tokens: 60 };
   try {
     const res = await withTimeout(
       Promise.resolve().then(() => handleSingleModel(judgeBody, judgeModel)),
@@ -913,10 +990,9 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     if (!res || ((res.__error || res.__timeout)) || !res.ok) {
       bumpRoutingMetric("difficultyJudgeFailed");
       log.warn("DIFFICULTY", "Judge call failed — defaulting to hard", { comboName });
-      return { tier: "hard", source: "judge-fallback" };
+      return { tier: "hard", source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
     }
     const txt = await res.clone().text();
-    // Prefer OpenAI choices content.
     let content = "";
     try {
       const json = JSON.parse(txt);
@@ -924,21 +1000,36 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     } catch {
       content = txt;
     }
-    const m = String(content).match(/"difficulty"\s*:\s*"(easy|medium|hard)"/i) ||
-      String(content).match(/"(easy|medium|hard)"/i);
-    const amb = String(content).match(/"ambiguity"\s*:\s*"(low|medium|high)"/i);
-    if (!m) {
+
+    let parsed = null;
+    try {
+      // Find JSON object within response
+      const jsonMatch = String(content).match(/\{[\s\S]*?\}/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+    } catch {}
+
+    const diffRaw = parsed?.difficulty || (String(content).match(/"difficulty"\s*:\s*"(easy|medium|hard)"/i)?.[1]) || (String(content).match(/\b(easy|medium|hard)\b/i)?.[1]);
+    const ambRaw = parsed?.ambiguity || (String(content).match(/"ambiguity"\s*:\s*"(low|medium|high|med)"/i)?.[1]) || "low";
+    const domRaw = parsed?.domain || (String(content).match(/"domain"\s*:\s*"(general|summary|coding|design|data)"/i)?.[1]) || detectDomain(body);
+    const confRaw = typeof parsed?.confidence === "number" ? parsed.confidence : 0.85;
+
+    if (!diffRaw) {
       bumpRoutingMetric("difficultyJudgeUnparsed");
       log.warn("DIFFICULTY", "Judge response unparsed — defaulting to hard", { comboName, content: String(content).slice(0, 120) });
-      return { tier: "hard", source: "judge-fallback" };
+      return { tier: "hard", source: "judge-fallback", domain: domRaw, ambiguity: "high", confidence: 0.0 };
     }
-    let tier = m[1] === "medium" ? "medium" : m[1];
-    if (amb && /high/.test(amb[1])) tier = "hard"; // Morph: high ambiguity escalates
-    return { tier, source: "judge" };
+
+    // Low confidence (< 0.5) acts like Morph's needs_info -> escalate to hard
+    if (confRaw < 0.5) {
+      return { tier: "hard", source: "judge-low-conf", domain: domRaw, ambiguity: ambRaw, confidence: confRaw };
+    }
+
+    const tier = resolveTierMatrix(diffRaw, ambRaw, domRaw, policy);
+    return { tier, source: "judge", domain: domRaw, ambiguity: ambRaw, confidence: confRaw };
   } catch (e) {
     bumpRoutingMetric("difficultyJudgeFailed");
     log.warn("DIFFICULTY", "Judge threw — defaulting to hard", { comboName, error: e?.message });
-    return { tier: "hard", source: "judge-fallback" };
+    return { tier: "hard", source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
   }
 }
 

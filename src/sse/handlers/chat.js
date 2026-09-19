@@ -272,9 +272,20 @@ export async function handleChat(request, clientRawRequest = null) {
         body,
         models: comboModels,
         handleSingleModel: (b, m, opts) => {
+          const diffPayload = {
+            tier: diffCtx.tier || null,
+            winningModel: diffCtx.winningModel || null,
+            judgeUsed: !!diffCtx.judgeUsed,
+            judgeModel: diffCtx.judgeModel || null,
+            source: diffCtx.source || null,
+            domain: diffCtx.domain || null,
+            ambiguity: diffCtx.ambiguity || null,
+            confidence: diffCtx.confidence ?? null,
+            policy: diffCtx.policy || null,
+          };
           const crr = clientRawRequest
-            ? { ...clientRawRequest, difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } }
-            : { difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } };
+            ? { ...clientRawRequest, difficulty: diffPayload }
+            : { difficulty: diffPayload };
           return handleSingleModelChat(b, m, crr, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null);
         },
         log,
@@ -284,6 +295,7 @@ export async function handleChat(request, clientRawRequest = null) {
           easyModels: comboStrategies[modelStr]?.easyModels,
           mediumModels: comboStrategies[modelStr]?.mediumModels,
           hardModels: comboStrategies[modelStr]?.hardModels,
+          policy: comboStrategies[modelStr]?.difficultyPolicy || "balanced",
         },
         onDecision: (d) => Object.assign(diffCtx, d),
         rotationBudget,
@@ -406,9 +418,20 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
           body,
           models: comboModels,
           handleSingleModel: (b, m, opts) => {
-            const crr = clientRawRequest && (diffCtx.tier || diffCtx.winningModel)
-              ? { ...clientRawRequest, difficulty: { tier: diffCtx.tier || null, winningModel: diffCtx.winningModel || null, judgeUsed: !!diffCtx.judgeUsed, judgeModel: diffCtx.judgeModel || null, source: diffCtx.source || null } }
-              : clientRawRequest;
+            const diffPayload = {
+              tier: diffCtx.tier || null,
+              winningModel: diffCtx.winningModel || null,
+              judgeUsed: !!diffCtx.judgeUsed,
+              judgeModel: diffCtx.judgeModel || null,
+              source: diffCtx.source || null,
+              domain: diffCtx.domain || null,
+              ambiguity: diffCtx.ambiguity || null,
+              confidence: diffCtx.confidence ?? null,
+              policy: diffCtx.policy || null,
+            };
+            const crr = clientRawRequest
+              ? { ...clientRawRequest, difficulty: diffPayload }
+              : { difficulty: diffPayload };
             return handleSingleModelChat(b, m, crr, request, apiKey, modelStr, isTestRequest, rotationBudget, opts?.signal ?? null);
           },
           log,
@@ -418,6 +441,7 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
             easyModels: comboStrategies[modelStr]?.easyModels,
             mediumModels: comboStrategies[modelStr]?.mediumModels,
             hardModels: comboStrategies[modelStr]?.hardModels,
+            policy: comboStrategies[modelStr]?.difficultyPolicy || "balanced",
           },
           onDecision: (d) => Object.assign(diffCtx, d),
           rotationBudget,

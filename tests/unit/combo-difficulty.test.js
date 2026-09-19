@@ -156,4 +156,54 @@ describe("handleDifficultyChat (smart routing)", () => {
     expect(res.ok).toBe(true);
     expect(calls).toContain("hard-a");
   });
+
+  it("high ambiguity escalates to hard tier (Morph core principle)", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      if (m === "judge-model") return judgeRes('{"difficulty":"easy","ambiguity":"high","domain":"coding"}');
+      return okRes("pong");
+    });
+    const body = {
+      messages: [{ role: "user", content: "Please help optimize this nested loop implementation for performance across large inputs." }],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"], policy: "balanced" },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls[0]).toBe("judge-model");
+    expect(calls).toContain("hard-a"); // escalated from easy to hard due to high ambiguity
+  });
+
+  it("cost_efficient policy drops medium to easy when ambiguity is low", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      if (m === "judge-model") return judgeRes('{"difficulty":"medium","ambiguity":"low","domain":"summary"}');
+      return okRes("pong");
+    });
+    const body = {
+      messages: [{ role: "user", content: "Summarize this article section by section with takeaways." }],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"], policy: "cost_efficient" },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls[0]).toBe("judge-model");
+    expect(calls).toContain("easy-a"); // dropped to easy under cost_efficient
+  });
 });

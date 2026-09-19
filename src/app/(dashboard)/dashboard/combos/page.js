@@ -441,28 +441,42 @@ function ComboCard({ combo, getCaps, activeProviders = [], copied, onCopy, onEdi
               </div>
             )}
 
-            {/* Difficulty / smart-routing: judge + easy/medium/hard tiers */}
+            {/* Difficulty / smart-routing: judge + policy + easy/medium/hard tiers */}
             {isDifficulty && (
               <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-bg-subtle p-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-text-muted">Judge</span>
-                  <button
-                    onClick={() => setShowJudgeSelect(true)}
-                    className="inline-flex max-w-full items-center gap-1 rounded border border-dashed border-primary/40 px-1.5 py-0.5 font-mono text-[11px] text-primary hover:border-primary hover:bg-primary/5 transition-colors"
-                    title="Judge model classifies difficulty for ambiguous prompts (1 cheap call)"
-                  >
-                    <span className="material-symbols-outlined text-[13px]">smart_toy</span>
-                    <span className="truncate">{judge || "Auto — first model"}</span>
-                  </button>
-                  {judge && (
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-text-muted">Judge</span>
                     <button
-                      onClick={() => onSetStrategy({ judgeModel: "" })}
-                      className="p-0.5 rounded text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                      title="Reset judge to Auto"
+                      onClick={() => setShowJudgeSelect(true)}
+                      className="inline-flex max-w-full items-center gap-1 rounded border border-dashed border-primary/40 px-1.5 py-0.5 font-mono text-[11px] text-primary hover:border-primary hover:bg-primary/5 transition-colors"
+                      title="Judge model classifies difficulty for ambiguous prompts (1 cheap call)"
                     >
-                      <span className="material-symbols-outlined text-[13px]">close</span>
+                      <span className="material-symbols-outlined text-[13px]">smart_toy</span>
+                      <span className="truncate">{judge || "Auto — first model"}</span>
                     </button>
-                  )}
+                    {judge && (
+                      <button
+                        onClick={() => onSetStrategy({ judgeModel: "" })}
+                        className="p-0.5 rounded text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        title="Reset judge to Auto"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-text-muted">Policy</span>
+                    <select
+                      value={strategy.difficultyPolicy || "balanced"}
+                      onChange={(e) => onSetStrategy({ difficultyPolicy: e.target.value })}
+                      className="rounded border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-text-main focus:outline-none"
+                    >
+                      <option value="balanced">Balanced (Morph matrix)</option>
+                      <option value="cost_efficient">Cost Efficient (prefer cheap)</option>
+                      <option value="capability_heavy">Capability Heavy (prefer strong)</option>
+                    </select>
+                  </div>
                 </div>
                 {TIERS.map((t) => (
                   <div key={t.key} className="flex items-start gap-2">

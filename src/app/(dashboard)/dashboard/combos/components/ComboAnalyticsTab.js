@@ -131,9 +131,22 @@ export default function ComboAnalyticsTab() {
                       <p className="text-[11px] font-medium text-text-muted mb-1.5">Smart routing (difficulty)</p>
                       <div className="flex flex-col gap-1">
                         {(difficultyByCombo[c.comboName] || []).map((d) => (
-                          <div key={d.tier} className="flex items-center justify-between gap-2 text-xs">
-                            <span className={`font-medium capitalize ${d.tier === "easy" ? "text-emerald-600" : d.tier === "medium" ? "text-yellow-600" : d.tier === "hard" ? "text-red-500" : "text-text-muted"}`}>
-                              {d.tier}
+                          <div key={`${d.tier}|${d.domain || ""}|${d.policy || ""}`} className="flex items-center justify-between gap-2 text-xs">
+                            <span>
+                              <span className={`font-medium capitalize ${d.tier === "easy" ? "text-emerald-600" : d.tier === "medium" ? "text-yellow-600" : d.tier === "hard" ? "text-red-500" : "text-text-muted"}`}>
+                                {d.tier}
+                              </span>
+                              {d.domain && (
+                                <span className="text-[10px] text-text-muted ml-1">· {d.domain}</span>
+                              )}
+                              {d.policy && (
+                                <span className="text-[10px] text-text-muted ml-1">· {d.policy}</span>
+                              )}
+                              {d.avgConfidence != null && (
+                                <span className="text-[10px] text-text-muted ml-1" title="average judge/heuristic confidence">
+                                  · conf {Number(d.avgConfidence).toFixed(2)}
+                                </span>
+                              )}
                             </span>
                             <span className="text-text-muted">
                               {d.total}× · {pct(d.success, d.total)}

@@ -31,6 +31,7 @@ const SMART_MODEL = {
   ],
   strategy: {
     fallbackStrategy: "difficulty",
+    difficultyPolicy: "balanced",
     judgeModel: "cline-free/z-ai/glm-4.5",
     easyModels: [
       "oc/mimo-v2.5-free",

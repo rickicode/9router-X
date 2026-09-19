@@ -436,6 +436,9 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
       SELECT
         data->>'comboName' AS combo_name,
         COALESCE(data->'difficulty'->>'tier', 'unknown') AS tier,
+        NULLIF(data->'difficulty'->>'domain', '') AS domain,
+        NULLIF(data->'difficulty'->>'policy', '') AS policy,
+        ROUND(AVG(COALESCE((data->'difficulty'->>'confidence')::numeric, 1.0)), 2) AS avg_confidence,
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE status = 'success')::int AS success,
         COUNT(*) FILTER (WHERE (data->'difficulty'->>'judgeUsed')::boolean IS TRUE)::int AS judge_used,
@@ -443,7 +446,7 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
         MAX(timestamp) AS last_seen
       FROM request_details
       ${where} AND data->'difficulty' IS NOT NULL
-      GROUP BY 1, 2
+      GROUP BY 1, 2, 3, 4
       ORDER BY combo_name ASC, total DESC;
     `;
 
@@ -477,6 +480,9 @@ export async function getComboAnalytics({ timeFrom, timeTo } = {}) {
       difficulty: (difficultyRows || []).map((row) => ({
         comboName: row.combo_name,
         tier: row.tier,
+        domain: row.domain || null,
+        policy: row.policy || null,
+        avgConfidence: row.avg_confidence != null ? Number(row.avg_confidence) : null,
         total: Number(row.total || 0),
         success: Number(row.success || 0),
         judgeUsed: Number(row.judge_used || 0),
