@@ -20,32 +20,30 @@ import { CORE_MODEL_COMBOS, GENERAL_LATEST_COMBOS } from "open-sse/config/coreMo
 const SMART_MODEL = {
   name: "smart-model",
   models: [
-    "oc/mimo-v2.5-free",
-    "openrouter/deepseek/deepseek-v4-flash-0731:free",
-    "cline-free/z-ai/glm-5.3-flash",
-    "cline-free/deepseek/deepseek-v4.1-flash",
+    "free-model",
     "oc/muse-spark-1.3-contributor-free",
+    "ocz/muse-spark-1.3-contributor-free",
+    "cline-free/z-ai/glm-5.3-flash",
+    "gemini-flash-latest",
     "claude-latest",
     "gpt-latest",
-    "gemini-flash-latest",
   ],
   strategy: {
     fallbackStrategy: "difficulty",
     difficultyPolicy: "balanced",
     judgeModel: "cline-free/z-ai/glm-4.5",
     easyModels: [
-      "oc/mimo-v2.5-free",
-      "openrouter/deepseek/deepseek-v4-flash-0731:free",
-    ],
-    mediumModels: [
-      "cline-free/z-ai/glm-5.3-flash",
-      "cline-free/deepseek/deepseek-v4.1-flash",
+      "free-model",
       "oc/muse-spark-1.3-contributor-free",
     ],
+    mediumModels: [
+      "ocz/muse-spark-1.3-contributor-free",
+      "cline-free/z-ai/glm-5.3-flash",
+    ],
     hardModels: [
+      "gemini-flash-latest",
       "claude-latest",
       "gpt-latest",
-      "gemini-flash-latest",
     ],
   },
 };
@@ -58,9 +56,9 @@ export async function seedDefaultCombos() {
   const results = [];
   try {
     const seeds = [
+      [SMART_MODEL.name, SMART_MODEL.models],
       ...Object.entries(CORE_MODEL_COMBOS),
       ...Object.entries(GENERAL_LATEST_COMBOS),
-      [SMART_MODEL.name, SMART_MODEL.models],
     ];
     for (const [name, models] of seeds) {
       try {

@@ -387,7 +387,7 @@ function CombosContent() {
             <Card>
               <div className="text-center py-10">
                 <span className="material-symbols-outlined text-text-muted text-[32px] mb-2 block">
-                  {searchQuery ? "search_off" : "person_add"}
+                  {searchQuery ? "search_off" : "tune"}
                 </span>
                 <p className="text-text-main font-medium mb-1">
                   {searchQuery ? "No matching custom combos" : "No custom combos yet"}
@@ -468,7 +468,7 @@ function CombosContent() {
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <div className="flex items-center gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                  <span className="material-symbols-outlined text-[16px]">person</span>
+                  <span className="material-symbols-outlined text-[16px]">tune</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -649,25 +649,21 @@ function ComboCard({
     <Card padding="sm" className="group">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-primary text-[18px]">
-              {isDifficulty ? "auto_awesome" : isFusion ? "hub" : "layers"}
+          <div
+            className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${
+              isBuiltin
+                ? "bg-primary/10 text-primary"
+                : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            }`}
+            title={isBuiltin ? "Preset Combo" : "Custom Combo"}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {isDifficulty ? "auto_awesome" : isFusion ? "hub" : isBuiltin ? "layers" : "tune"}
             </span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <code className="block truncate font-mono text-sm font-semibold">{combo.name}</code>
-              {isBuiltin ? (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary border border-primary/20">
-                  <span className="material-symbols-outlined text-[11px]">verified</span>
-                  Preset
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                  <span className="material-symbols-outlined text-[11px]">person</span>
-                  Custom
-                </span>
-              )}
               {isDifficulty && (
                 <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   <span className="material-symbols-outlined text-[11px]">auto_awesome</span>
