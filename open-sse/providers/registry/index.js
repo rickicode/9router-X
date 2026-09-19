@@ -109,7 +109,7 @@ import p107 from "./kilo-gateway.js";
 import p108 from "./llm7.js";
 import p109 from "./sambanova.js";
 import p110 from "./tencent.js";
-import p111 from "./morph.js";
+import p111 from "./morphllm.js";
 import p112 from "./devin-cli.js";
 import p113 from "./windsurf.js";
 import p114 from "./poolside.js";

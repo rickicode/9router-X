@@ -28,7 +28,7 @@ import WindsurfExecutor from "./windsurf.js";
 import { DefaultExecutor } from "./default.js";
 import { DevinCliExecutor } from "./devin-cli.js";
 import { FreebuffExecutor } from "./freebuff.js";
-import { MorphExecutor } from "./morph.js";
+import { MorphExecutor } from "./morphllm.js";
 const executors = {
   antigravity: new AntigravityExecutor(),
   azure: new AzureExecutor(),
@@ -112,4 +112,4 @@ export { default as TraeExecutor } from "./trae.js";
 export { default as ZedExecutor } from "./zed.js";
 export { default as WindsurfExecutor } from "./windsurf.js";
 export { DevinCliExecutor } from "./devin-cli.js";
-export { MorphExecutor } from "./morph.js";
+export { MorphExecutor } from "./morphllm.js";

@@ -1,10 +1,10 @@
 import { CLAUDE_API_HEADERS } from "../shared.js";
 
 export default {
-  id: "morph",
+  id: "morphllm",
   alias: "morphllm",
-  aliases: ["morph"],
-  uiAlias: "morphllm",
+  aliases: ["mrp", "morph"],
+  uiAlias: "mrp",
   display: {
     name: "MorphLLM",
     icon: "change_history",

@@ -22,7 +22,7 @@ function cleanKeyWindow(key) {
 
 export class MorphExecutor extends DefaultExecutor {
   constructor() {
-    super("morph");
+    super("morphllm");
   }
 
   async execute(args) {

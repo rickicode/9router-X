@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MorphExecutor } from "../../open-sse/executors/morph.js";
+import { MorphExecutor } from "../../open-sse/executors/morphllm.js";
 import { checkFallbackError } from "../../open-sse/services/accountFallback.js";
-import morphRegistry from "../../open-sse/providers/registry/morph.js";
+import morphRegistry from "../../open-sse/providers/registry/morphllm.js";
 
 describe("Morph Provider & Rate Limiting System", () => {
   it("morph registry contains updated live models and dual transports", () => {
-    expect(morphRegistry.id).toBe("morph");
+    expect(morphRegistry.id).toBe("morphllm");
     expect(morphRegistry.transports).toHaveLength(2);
     expect(morphRegistry.transports.map((t) => t.format)).toEqual(["openai", "claude"]);
 
