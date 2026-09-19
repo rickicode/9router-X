@@ -206,4 +206,131 @@ describe("handleDifficultyChat (smart routing)", () => {
     expect(calls[0]).toBe("judge-model");
     expect(calls).toContain("easy-a"); // dropped to easy under cost_efficient
   });
+  it("heuristic-trivial: trivial typo/formatting queries route directly to easy tier without judge", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      return okRes("fixed");
+    });
+    const body = {
+      messages: [{ role: "user", content: "Please fix typo in this variable name" }],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"] },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls).toEqual(["easy-a"]); // judge never called
+  });
+
+  it("heuristic-complex: concurrency/race-condition queries route directly to hard tier without judge", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      return okRes("analyzed");
+    });
+    const body = {
+      messages: [{ role: "user", content: "Investigate this race condition and deadlock in the worker mutex" }],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"] },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls).toEqual(["hard-a"]); // judge bypassed, direct to hard
+  });
+
+  it("prompt-cache affinity: multi-turn conversation sticks to winning model across turns", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      return okRes("turn response");
+    });
+    // Turn 1
+    const bodyTurn1 = {
+      session_id: "test-affinity-sess-1",
+      messages: [
+        { role: "user", content: "hi" },
+      ],
+      stream: false,
+    };
+    await handleDifficultyChat({
+      body: bodyTurn1,
+      models: ["easy-1", "easy-2"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      tuning: { easyModels: ["easy-1", "easy-2"] },
+    });
+    expect(calls).toEqual(["easy-1"]);
+
+    // Turn 2 with same session_id - easy-1 was winning model, should stay first even if easy-2 exists
+    const bodyTurn2 = {
+      session_id: "test-affinity-sess-1",
+      messages: [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "turn response" },
+        { role: "user", content: "second question" },
+      ],
+      stream: false,
+    };
+    await handleDifficultyChat({
+      body: bodyTurn2,
+      models: ["easy-2", "easy-1"], // user swapped default order
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      tuning: { easyModels: ["easy-2", "easy-1"] },
+    });
+    // Should prioritize sticky winning model "easy-1" from turn 1
+    expect(calls[1]).toBe("easy-1");
+  });
+
+  it("health-aware sorting: deprioritizes recently failed model within the tier", async () => {
+    const calls = [];
+    let callCount = 0;
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      callCount++;
+      // First request: easy-1 fails with 500, easy-2 succeeds
+      if (m === "easy-fail" && callCount === 1) return errRes(500);
+      return okRes("pong");
+    });
+
+    // Request 1: easy-fail is tried first, fails, then easy-ok succeeds
+    await handleDifficultyChat({
+      body: { messages: [{ role: "user", content: "hi" }], stream: false },
+      models: ["easy-fail", "easy-ok"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      tuning: { easyModels: ["easy-fail", "easy-ok"] },
+    });
+    expect(calls).toEqual(["easy-fail", "easy-ok"]);
+
+    // Request 2 immediately after: easy-fail should be deprioritized behind healthy easy-ok
+    calls.length = 0;
+    await handleDifficultyChat({
+      body: { messages: [{ role: "user", content: "hi" }], stream: false },
+      models: ["easy-fail", "easy-ok"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      tuning: { easyModels: ["easy-fail", "easy-ok"] },
+    });
+    // easy-ok is healthy and must be tried first without wasting a call on easy-fail
+    expect(calls).toEqual(["easy-ok"]);
+  });
 });

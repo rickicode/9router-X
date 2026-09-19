@@ -43,7 +43,6 @@ import p40 from "./glm.js";
 import p41 from "./google-pse.js";
 import p42 from "./google-tts.js";
 import p43 from "./grok-cli.js";
-import p44 from "./grok-web.js";
 import p45 from "./groq.js";
 import p46 from "./huggingface.js";
 import p47 from "./hyperbolic.js";
@@ -174,7 +173,6 @@ export default [
   p41,
   p42,
   p43,
-  p44,
   p45,
   p46,
   p47,

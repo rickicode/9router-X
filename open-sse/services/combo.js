@@ -719,19 +719,39 @@ const DIFFICULTY_DEFAULTS = {
   classifyReuseMs: 30 * 60 * 1000, // how long a per-session tier decision is cached
 };
 
-// Session filter keys cache by session_id / conversation_id / x-pplx-session when known.
+// Session filter keys cache by session_id / conversation_id / x-pplx-session / user when known,
+// or fallback to a deterministic conversation fingerprint from multi-turn messages.
 function sessionKeyOf(body) {
   try {
     if (!body || typeof body !== "object") return null;
-    const s = body.session_id || body.conversation_id || body.metadata?.session_id;
-    return typeof s === "string" && s.trim() ? s.trim().slice(0, 128) : null;
+    const s = body.session_id || body.conversation_id || body.metadata?.session_id || body.user;
+    if (typeof s === "string" && s.trim()) return s.trim().slice(0, 128);
+    const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
+    if (arr && arr.length >= 2) {
+      const first = arr[0];
+      const second = arr[1];
+      const rootText = (typeof first?.content === "string" ? first.content : "") +
+        (typeof second?.content === "string" ? second.content : "");
+      if (rootText.length >= 8) {
+        let hash = 5381;
+        const len = Math.min(rootText.length, 500);
+        for (let i = 0; i < len; i++) {
+          hash = ((hash << 5) + hash) + rootText.charCodeAt(i);
+          hash = hash & hash;
+        }
+        return `conv_${Math.abs(hash).toString(36)}`;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-const difficultyCache = new Map(); // sessionKey -> { tier, at }
+const difficultyCache = new Map(); // sessionKey -> { tier, domain, ambiguity, confidence, policy, winningModel, at }
 let difficultyCacheTimer = null;
+const difficultyModelHealth = new Map(); // modelName -> { failedAt: number, error: string }
+const MODEL_FAILURE_COOLDOWN_MS = 25 * 1000;
 
 function difficultyCacheGet(key) {
   const e = difficultyCache.get(key);
@@ -740,13 +760,16 @@ function difficultyCacheGet(key) {
     difficultyCache.delete(key);
     return null;
   }
-  return e.tier;
+  return e;
 }
 
-function difficultyCacheSet(key, tier) {
+function difficultyCacheSet(key, tierData) {
   if (!key) return;
   if (difficultyCache.size > 2000) difficultyCache.clear();
-  difficultyCache.set(key, { tier, at: Date.now() });
+  const entry = typeof tierData === "object"
+    ? { ...tierData, at: Date.now() }
+    : { tier: tierData, at: Date.now() };
+  difficultyCache.set(key, entry);
   if (!difficultyCacheTimer) {
     difficultyCacheTimer = setInterval(() => {
       const now = Date.now();
@@ -799,6 +822,9 @@ function detectDomain(body) {
   }
 }
 
+const TRIVIAL_CODING_REGEX = /\b(?:fix typo|fix spelling|correct spelling|rename variable|format code|prettify|add comment|add docstring|add jsdoc|sort array|sort list|sort keys|what is regex for|regex for email|how to center a div)\b/i;
+const COMPLEX_CODING_REGEX = /\b(?:race condition|deadlock|memory leak|architect(?:ure|ing)?|distributed system|thread safety|concurrency issue|mutex|semaphore|refactor (?:the )?entire|rewrite (?:the )?entire|security audit|vulnerability assessment|sql injection|cryptographic|zero-day)\b/i;
+
 function heuristicDifficulty(body) {
   const tokens = estimateBodyTokens(body);
   const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
@@ -818,14 +844,24 @@ function heuristicDifficulty(body) {
     }
   }
   const domain = detectDomain(body);
+  const userText = extractJudgeInput(body);
+
   // Clear-cut signals: expensive context, tool history, images, multi-turn.
   if (tokens >= 20000 || hasToolCalls || hasImages || userMsgs >= 6) {
     return { tier: "hard", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  }
+  // Clear-cut complex engineering / architecture keywords bypass judge directly to hard
+  if (COMPLEX_CODING_REGEX.test(userText) && !hasImages) {
+    return { tier: "hard", source: "heuristic-complex", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
   // Deliberately narrow: only greetings/small-talk skip the judge
   // (<~35 chars). Anything with real content deserves classification.
   if (tokens <= 8 && userMsgs <= 1 && !hasToolCalls) {
     return { tier: "easy", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  }
+  // Zero-latency trivial queries & small edits (< 150 tokens) bypass judge directly to easy
+  if (tokens <= 150 && userMsgs <= 1 && !hasToolCalls && TRIVIAL_CODING_REGEX.test(userText)) {
+    return { tier: "easy", source: "heuristic-trivial", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
   return null; // ambiguous -> ask the judge
 }
@@ -933,40 +969,86 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
     judgeModel: source === "judge" ? judgeModel : null,
   });
 
+  const stickyModel = (typeof cached === "object" && cached?.winningModel) ? cached.winningModel : null;
+
   // Run selected tier sequentially; escalate up on total failure.
   const startIdx = tier === "easy" ? 0 : tier === "hard" ? 2 : 1;
   let lastError = null;
   let lastStatus = null;
   for (let t = startIdx; t < tiers.length; t++) {
     const tierCfg = tiers[t];
-    log.info("DIFFICULTY", `Combo "${comboName}" running ${tierCfg.name} tier [${tierCfg.models.join(", ")}]`);
-    for (let i = 0; i < tierCfg.models.length; i++) {
-      const m = tierCfg.models[i];
+    let candidateModels = [...tierCfg.models];
+    const now = Date.now();
+
+    // 1. Prompt-Cache Affinity: prioritize sticky model from previous turn if in tier and healthy
+    if (stickyModel && candidateModels.includes(stickyModel)) {
+      const failInfo = difficultyModelHealth.get(stickyModel);
+      const isStickyBad = failInfo && (now - failInfo.failedAt < MODEL_FAILURE_COOLDOWN_MS);
+      if (!isStickyBad) {
+        candidateModels = [stickyModel, ...candidateModels.filter((x) => x !== stickyModel)];
+        bumpRoutingMetric("lkgHits");
+        log.info("DIFFICULTY", `Prompt-Cache Affinity: sticking to previous model "${stickyModel}"`);
+      }
+    }
+
+    // 2. Health-aware sorting: deprioritize models that recently failed (< 25s)
+    candidateModels.sort((a, b) => {
+      if (stickyModel && a === stickyModel) return -1;
+      if (stickyModel && b === stickyModel) return 1;
+      const failA = difficultyModelHealth.get(a);
+      const failB = difficultyModelHealth.get(b);
+      const isBadA = failA && (now - failA.failedAt < MODEL_FAILURE_COOLDOWN_MS);
+      const isBadB = failB && (now - failB.failedAt < MODEL_FAILURE_COOLDOWN_MS);
+      if (isBadA && !isBadB) return 1;
+      if (!isBadA && isBadB) return -1;
+      return 0;
+    });
+
+    log.info("DIFFICULTY", `Combo "${comboName}" running ${tierCfg.name} tier [${candidateModels.join(", ")}]`);
+    for (let i = 0; i < candidateModels.length; i++) {
+      const m = candidateModels[i];
       let result;
       try {
         result = await handleSingleModel(body, m, { signal: externalSignal?.aborted ? undefined : undefined });
       } catch (e) {
         bumpRoutingMetric("difficultyMemberThrown");
+        difficultyModelHealth.set(m, { failedAt: Date.now(), error: e.message });
         log.warn("DIFFICULTY", `Member ${m} threw: ${e.message}`, { tier: tierCfg.name });
         lastError = e.message;
         continue;
       }
-      if (!result) continue;
+      if (!result) {
+        difficultyModelHealth.set(m, { failedAt: Date.now(), error: "empty result" });
+        continue;
+      }
       if (result.__error || result.__timeout) {
         lastError = result.__error?.message || "timeout";
+        difficultyModelHealth.set(m, { failedAt: Date.now(), error: lastError });
         bumpRoutingMetric("difficultyMemberFailed");
         log.warn("DIFFICULTY", `Member ${m} ${result.__timeout ? "timed out" : "failed"}`, { tier: tierCfg.name });
         continue;
       }
       if (!result.ok) {
         lastStatus = result.status;
+        difficultyModelHealth.set(m, { failedAt: Date.now(), error: `http ${result.status}` });
         bumpRoutingMetric("difficultyMemberFailed");
         log.warn("DIFFICULTY", `Member ${m} http ${result.status}`, { tier: tierCfg.name });
         continue;
       }
       bumpRoutingMetric("difficultyMemberSucceeded");
+      difficultyModelHealth.delete(m);
       log.info("DIFFICULTY", `Member ${m} succeeded (${tierCfg.name} tier)`);
       notify({ tier: tierCfg.name, winningModel: m, source: "member-result", domain, policy });
+      if (sKey) {
+        difficultyCacheSet(sKey, {
+          tier: tierCfg.name,
+          domain,
+          ambiguity,
+          confidence,
+          policy,
+          winningModel: m,
+        });
+      }
       return result;
     }
   }
