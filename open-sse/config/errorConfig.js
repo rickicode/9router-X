@@ -248,6 +248,32 @@ export const ERROR_RULES = [
     isExhausted: true,
   },
 
+  // Morph LLM quota & rate limit rules
+  {
+    text: "monthly quota exceeded",
+    cooldownMs: COOLDOWN.monthlyExhausted,
+    lockAll: true,
+    isExhausted: true,
+    shouldFallback: true,
+  },
+  {
+    text: "limit: 5 requests/minute",
+    cooldownMs: 15 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "please slow down your requests",
+    cooldownMs: 15 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "is not served by this endpoint",
+    cooldownMs: 0,
+    lockAll: false,
+    shouldFallback: true,
+  },
   // Model-level restrictions (do NOT lock other models on the same account)
   {
     text: "not available on the workers free plan",
