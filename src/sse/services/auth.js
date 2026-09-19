@@ -1135,6 +1135,10 @@ export function extractValidationUrl(errorText) {
  */
 export async function markAccountUnavailable(connectionId, status, errorText, provider = null, model = null, resetsAtMs = null, freebuffKind = null, rawBody = null) {
   if (!connectionId || connectionId === "noauth") return { shouldFallback: false, cooldownMs: 0 };
+  // Client abort / disconnect (499) must never lock accounts or models
+  if (status === 499 || /request aborted|client closed|client disconnected/i.test(String(errorText || ""))) {
+    return { shouldFallback: false, cooldownMs: 0 };
+  }
   const connections = await getProviderConnections({ provider });
   const conn = connections.find(c => c.id === connectionId);
   const backoffLevel = conn?.backoffLevel || 0;

@@ -893,6 +893,11 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
     // Preserve upstream status/kind because chatCore returns thrown upstream
     // errors as a 502 gateway response.
     const effectiveStatus = upstreamStatus;
+    // Client abort / disconnect: caller canceled request. Stop fallback immediately without penalizing account.
+    if (effectiveStatus === 499 || result.status === 499 || result.error === "Request aborted" || externalSignal?.aborted) {
+      log.warn("CHAT", `Request aborted by client — stopping fallback without penalizing account`);
+      return errorResponse(499, result.error || "Request aborted");
+    }
 
     // Strict probe pin: report the pinned account's actual upstream outcome
     // without touching ANY routing state — no locks, no cooldowns, no token

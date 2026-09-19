@@ -341,6 +341,7 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
         const dispatcher = await getDispatcher(proxyUrl);
         return await originalFetch(url, { ...options, dispatcher });
       } catch (proxyError) {
+        if (options?.signal?.aborted) throw proxyError;
         proxyFailed(proxyError, " bypass");
       }
     }
@@ -359,6 +360,7 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
       const dispatcher = await getDispatcher(proxyUrl);
       return await originalFetch(url, { ...options, dispatcher });
     } catch (proxyError) {
+      if (options?.signal?.aborted) throw proxyError;
       // Fail-closed (keyless providers): proxyFailed throws above so chatCore
       // rotates pools instead of silently burning the shared direct egress.
       // Otherwise preserve the legacy direct fallback.
