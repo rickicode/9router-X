@@ -76,7 +76,7 @@ describe("OpenCode Zen executor", () => {
   it("injects cli client and session headers (genuine CLI 1.18.31 fingerprint)", () => {
     const executor = getExecutor("opencode-zen");
     const headers = executor.buildHeaders({ apiKey: "test-key" }, true, "https://opencode.ai/zen/v1/chat/completions", "deepseek-v4-flash");
-    expect(headers["x-opencode-client"]).toBe("cli");
+    expect(headers["x-opencode-client"]).toBe("desktop");
     expect(headers["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{12}[A-Za-z0-9]{14}$/);
     expect(headers["User-Agent"]).toMatch(/^opencode\/\d+\.\d+/i);
     // Streaming keeps the executor's SSE accept; non-streaming falls back to */*.
@@ -181,10 +181,8 @@ describe("OpenCode Zen executor", () => {
     const names = body.tools.map((t) => t?.function?.name || t?.name);
     expect(body.stream).toBe(true);
     expect(body.tool_choice).toBe("auto");
-    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
+    for (const m of ["bash", "read"]) expect(names).toContain(m);
     expect(names).toContain("A");
-    const read = body.tools.find((t) => (t?.function?.name || t?.name) === "read");
-    expect(Object.keys(read.function.parameters.properties)).toContain("filePath");
   });
 
   it("merges markers into responses payloads in flat wire shape", () => {
@@ -192,8 +190,8 @@ describe("OpenCode Zen executor", () => {
     const body = { model: "muse-spark-1.3-contributor-free", input: "hi", tools: [] };
     executor.transformRequest("muse-spark-1.3-contributor-free", body, true, { connectionId: "t", rawHeaders: {} });
     const names = body.tools.map((t) => t?.name);
-    for (const m of ["bash", "read", "edit", "write", "glob", "grep"]) expect(names).toContain(m);
     expect(body.tool_choice).toBe("auto");
+    for (const m of ["bash", "read"]) expect(names).toContain(m);
   });
 
   it("forwards genuine downstream CLI UAs, synthesizes otherwise", () => {

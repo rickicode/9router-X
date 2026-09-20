@@ -76,7 +76,7 @@ const OPENCODE_DECOY_RESPONSES_TOOLS = [
   { type: "function", name: "read", description: "This tool is currently unavailable and must not be used.", parameters: { type: "object", properties: {} } },
 ];
 
-function cloakOpencodeTools(body, isResponses) {
+export function cloakOpencodeTools(body, isResponses) {
   if (!body || typeof body !== "object") return;
   if (isResponses) {
     if (!Array.isArray(body.tools)) body.tools = [];
@@ -462,8 +462,8 @@ function normalizeOpencodeReasoning(model, body) {
 
 const MUSE_SPARK_MAX_OUTPUT_TOKENS = 200000;
 
-const IP_LIMIT_BODY = /(?:egress|proxy|ip[_ -]?limit|client[_ -]?ip|source[_ -]?ip|remote[_ -]?address|network[_ -]?limit|too many requests from (?:this|your) (?:ip|network))/i;
-const FREE_TIER_GATE = /(?:free tier can only be used from within [Oo]pen[Cc]ode|free_mode_unavailable|anonymous[_ -]?network|proxy[_ -]?traffic)/i;
+export const IP_LIMIT_BODY = /(?:egress|proxy|ip[_ -]?limit|client[_ -]?ip|source[_ -]?ip|remote[_ -]?address|network[_ -]?limit|too many requests from (?:this|your) (?:ip|network))/i;
+export const FREE_TIER_GATE = /(?:free tier can only be used from within [Oo]pen[Cc]ode|free_mode_unavailable|anonymous[_ -]?network|proxy[_ -]?traffic)/i;
 
 export class OpenCodeExecutor extends BaseExecutor {
   constructor() {

@@ -2,8 +2,7 @@ import crypto from "node:crypto";
 import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
-import { appendMissingGateTools, cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE } from "./opencode.js";
-import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
+import { cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE, IP_LIMIT_BODY, FREE_TIER_GATE } from "./opencode.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -218,18 +217,34 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     out.stream = stream === true;
     out.store = false;
     normalizeResponsesTools(out);
-    // Responses path is gated on tool content too — merge missing markers in
-    // the flat Responses wire shape after normalization (free models only).
-    out.tools = isFreeTierGateModel(model || body?.model) ? appendMissingGateTools(out.tools, (t) => ({
-      type: "function",
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters,
-    })) : out.tools;
+    cloakOpencodeTools(out, true);
     if (!out.tool_choice) {
       out.tool_choice = "auto";
     }
     sanitizeResponsesItems(out);
     return out;
+  }
+
+  parseError(response, bodyText) {
+    const status = response?.status || 0;
+    const text = String(bodyText || "");
+    // Free-tier gate ("can only be used from within OpenCode"): per-egress,
+    // not per-account. Mark poolScoped so chatCore retries via another pool
+    // instead of burning rotation budget locking accounts.
+    if ((status === 429 || status === 403) && FREE_TIER_GATE.test(text)) {
+      return {
+        status,
+        message: text.slice(0, 300) || `OpenCode free-tier gate (${status})`,
+        poolScoped: { reason: "free-tier-gate" },
+      };
+    }
+    if ((status === 429 || status === 403) && IP_LIMIT_BODY.test(text)) {
+      return {
+        status,
+        message: text.slice(0, 300) || `OpenCode free limit (${status})`,
+        poolScoped: { reason: "ip-limit" },
+      };
+    }
+    return null;
   }
 }
