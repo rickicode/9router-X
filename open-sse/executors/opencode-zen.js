@@ -3,6 +3,7 @@ import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 import { cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE, IP_LIMIT_BODY, FREE_TIER_GATE } from "./opencode.js";
+import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -147,6 +148,13 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
   buildHeaders(credentials, stream = true, url, model) {
     const headers = super.buildHeaders(credentials || {}, stream, url, model);
     if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "desktop";
+    // Free-tier models (muse-spark, mimo-v2.5-free, etc.) are keyless
+    // upstream — the gate rejects real API keys with 403 FreeTierError.
+    // Override auth to "Bearer public" (same as opencode executor) so the
+    // keyless path is used; paid models keep their real API key.
+    if (isFreeTierGateModel(model)) {
+      headers["Authorization"] = "Bearer public";
+    }
     // The free-tier gate rejects missing/non-CLI User-Agents: DefaultExecutor
     // sends none (registry declares no UA). Forward genuine CLI UAs,
     // synthesize the versioned identity otherwise — same rule as opencode.js.
