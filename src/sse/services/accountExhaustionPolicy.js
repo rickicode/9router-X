@@ -41,7 +41,6 @@ export const NEVER_ACCOUNT_EXHAUSTED_PROVIDERS = new Set([
   "gemini-cli",
   "opencode",
   "kiro",
-  "mimo-free",
   "kilocode-free",
 
   // registry category "freeTier" — except cloudflare-ai, whose daily neuron

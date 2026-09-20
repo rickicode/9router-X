@@ -643,9 +643,11 @@ def print_detailed_provider_report(results, models_meta, provider_name):
 
 PROVIDER_ALIASES = {
     "kc": "kc", "kilocode": "kc",
+    "kcf": "kcf", "kilocode-free": "kcf",
     "ag": "ag", "antigravity": "ag",
     "uk": "uk", "unikey": "uk",
-    "oc": "oc", "opencode": "oc", "ocz": "oc", "opencode-zen": "oc",
+    "oc": "oc", "opencode": "oc",
+    "ocz": "ocz", "opencode-zen": "ocz",
     "cf": "cf", "cloudflare": "cf", "cloudflare-ai": "cf",
     "cx": "cx", "codex": "cx",
     "gh": "gh", "github": "gh",
@@ -656,7 +658,7 @@ PROVIDER_ALIASES = {
     "qd": "qd", "qoder": "qd",
     "cbai": "cbai", "codebuddy-intl": "cbai",
     "cbcn": "cbcn", "codebuddy-cn": "cbcn",
-    "bx": "bx", "bai": "bx",
+    "bx": "bai", "bai": "bai",
     "nx": "nx", "nvidia": "nx",
     "mm": "mm", "minimax": "mm",
     "gc": "gc", "grok-cli": "gc",

@@ -145,7 +145,7 @@ describe("Account Exhaustion Policy", () => {
       "github",
       "gemini",
       "gemini-cli",
-      "mimo-free",
+      "kilocode-free",
     ];
     for (const p of freeTierProviders) {
       expect(providerAllowsAccountExhausted(p)).toBe(false);
