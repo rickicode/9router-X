@@ -331,7 +331,9 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
     ? Math.max(1, Math.ceil((new Date(connection.lockedToModelUntil).getTime() - now) / 60000))
     : null;
 
-  const isExhausted = connection.testStatus === "exhausted" || hasAccountLock;
+  // exhausted = final state (credits/quota gone). A timed account lock is a
+  // transient cooldown handled by effectiveStatus below.
+  const isExhausted = connection.testStatus === "exhausted";
 
   const effectiveStatus = connection.isActive === false
     ? "disabled"

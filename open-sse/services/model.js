@@ -22,6 +22,12 @@ const BUILTIN_MODEL_ALIASES = {
   "z-ai/glm-5.3-flash": "cline-free/z-ai/glm-5.3-flash",
   "poolside/laguna-s-2.1:free": "cline-free/poolside/laguna-s-2.1:free",
   "poolside/laguna-s-2.1": "cline-free/poolside/laguna-s-2.1:free",
+  "laguna-s-2.1:free": "cline-free/poolside/laguna-s-2.1:free",
+  "laguna-s-2.1": "cline-free/poolside/laguna-s-2.1:free",
+  "deepseek/deepseek-v4.1-flash": "cline-free/deepseek/deepseek-v4.1-flash",
+  "meta/muse-spark-1.3-contributor": "cline-free/meta/muse-spark-1.3-contributor",
+  "upstage/solar-pro4": "cline-free/upstage/solar-pro4",
+  "solar-pro4": "cline-free/upstage/solar-pro4",
 };
 /**
  * Resolve provider alias to provider ID
@@ -38,6 +44,14 @@ export function parseModel(modelStr) {
     return { provider: null, model: null, isAlias: false, providerAlias: null };
   }
 
+  if (BUILTIN_MODEL_ALIASES[modelStr]) {
+    const aliased = BUILTIN_MODEL_ALIASES[modelStr];
+    const firstSlash = aliased.indexOf("/");
+    const providerOrAlias = aliased.slice(0, firstSlash);
+    const model = aliased.slice(firstSlash + 1);
+    const provider = resolveProviderAlias(providerOrAlias);
+    return { provider, model, isAlias: false, providerAlias: providerOrAlias };
+  }
   // Check if standard format: provider/model or alias/model
   if (modelStr.includes("/")) {
     const firstSlash = modelStr.indexOf("/");

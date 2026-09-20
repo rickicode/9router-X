@@ -366,16 +366,13 @@ const FUTURE_MODEL_LOCK_SQL = `EXISTS (
   ) AS kv(k, v)
   WHERE k <> '__all' AND COALESCE(${safeTimestampSql('kv.v')}, '-infinity'::timestamptz) > NOW()
 )`;
-// Status semantics (per-model credit providers like antigravity):
-// per-model locks -> "exhausted", account remains usable for other models;
-// routing skips only locked (model, account) pair. Account-wide lock
-// (locked_all_until, model_locks.__all, rate_limited_until) -> "unavailable".
-// Permanent failures (fatal errors, bad test_status, refreshBlocked) ->
-// "unavailable". Active only when none apply.
-// Buckets partition every row: DISABLED is purely is_active=false (disable
-// paths always sync the column with the data.disabledAt marker, enable paths
-// clear both). EXHAUSTED wins ties over UNAVAILABLE to mirror the classifier
-// order (model-lock > disabled > exhausted > unavailable).
+// Status semantics:
+// - "exhausted": global terminal state (test_status = 'exhausted') where all
+//   models/quota on the account are fully depleted.
+// - "unavailable": transient cooldowns (account-wide lock or per-model lock) or
+//   permanent failures (fatal errors, bad test_status, refreshBlocked).
+// - "active": healthy and free of any locks.
+// Buckets partition every row: DISABLED is purely is_active=false.
 const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid', 'disabled')";
 const DISABLED_DATA_SQL = "data->>'disabledAt' IS NOT NULL";
 const PERMANENT_UNAVAILABLE_SQL = `(

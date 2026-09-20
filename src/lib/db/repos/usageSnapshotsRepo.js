@@ -144,6 +144,7 @@ export async function getBatchProviderQuotas(provider) {
        c.email,
        c.priority,
        c.is_active,
+       c.test_status,
        c.locked_all_until,
        c.data->'providerSpecificData' AS provider_specific_data
      FROM usage_snapshots AS s
@@ -159,6 +160,7 @@ export async function getBatchProviderQuotas(provider) {
     email: row.email,
     priority: row.priority,
     isActive: row.is_active === true || row.is_active === 1,
+    testStatus: row.test_status || "active",
     lockedAllUntil: row.locked_all_until,
     providerSpecificData: row.provider_specific_data || {},
   }));

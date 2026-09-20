@@ -69,6 +69,11 @@ vi.mock("@/lib/cache/client.js", () => ({
   cacheSetRaw: vi.fn(async () => {}),
   cacheDelRaw: vi.fn(async () => {}),
   isCacheAvailable: vi.fn(() => false),
+  incrModelFailCount: vi.fn(async () => 1),
+  resetModelFailCount: vi.fn(async () => true),
+  setProviderDead: vi.fn(async () => true),
+  isProviderDead: vi.fn(async () => false),
+  clearProviderDead: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/network/connectionProxy", () => ({

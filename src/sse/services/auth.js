@@ -23,7 +23,11 @@ import {
   resetDeadCircuit,
   getDeadCircuit,
   isProviderDead,
+  setProviderDead,
+  incrModelFailCount,
+  resetModelFailCount,
 } from "@/lib/cache/client.js";
+import { providerAllowsAccountExhausted, isCreditQuotaErrorText, isAccountFullyExhausted } from "./accountExhaustionPolicy.js";
 import * as log from "../utils/logger.js";
 import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
@@ -1367,7 +1371,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isModelDailyLimit = Boolean(model) && /limit reached on model|daily.*limit reached on model|daily limit reached for|limit_rpd|credits don't affect this cap/i.test(lowerErrorText);
+    const isModelDailyLimit = Boolean(model) && !isPooledQuotaProvider && /limit reached on model|daily.*limit reached on model|daily limit reached for model|limit_rpd|credits don't affect this cap/i.test(lowerErrorText);
     const isDailyCap429 = !isModelDailyLimit && !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
@@ -1398,6 +1402,17 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|allocation|neurons|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
     const isAccountWideLock = Boolean(lockAll);
     isExhausted = lockAll && isAccountWideLock && (isCreditQuota429 || isCodebuddyCreditExhausted);
+  }
+  // Provider circuit breaker: repeated 5xx storms (systematic upstream
+  // outage) open a 10-minute provider-wide circuit so rotation stops
+  // burning every account. Per-account quota locks (429/402/403) are normal
+  // fleet rotation and must never count toward the circuit breaker.
+  if (Number(status) >= 500 && providerId) {
+    const cbFails = await incrModelFailCount(`provcircuit:${providerId}`, 300);
+    if (cbFails >= 25) {
+      await setProviderDead(providerId, 600);
+      log.error("AUTH", `Provider circuit opened for ${providerId}: ${cbFails} upstream 5xx failures in 5m`);
+    }
   }
 
   // Antigravity quota snapshots cover the whole account. Once every tracked
@@ -1505,7 +1520,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       ? resetsAtMs - Date.now()
       : (/daily.*limit|limit.*reached/i.test(lowerErr) ? 24 * 60 * 60 * 1000 : 2 * 60 * 1000);
   }
-  const isQuotaExhausted = /resource_exhausted|quota_exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
+  const isQuotaExhausted = /resource.*exhausted|quota.*exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
   if (providerId === "antigravity" && isQuotaExhausted && model) {
     // A model quota error is always a durable model lock, even when the
     // upstream was wrapped in HTTP 502 or the generic fallback classifier
@@ -1579,10 +1594,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // A positive quota snapshot cannot prove that an arbitrary requested model
   // is usable. A quota/capacity error for that model is therefore always a
   // durable 24-hour model lock, while account-wide exhaustion remains distinct.
+  // Respect exact upstream resetsAtMs when known; otherwise use standard 24-hour model lock.
   if (providerId === "antigravity" && isQuotaExhausted && model && !isExhausted) {
     lockAll = false;
     shouldFallback = true;
-    cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, cooldownMs || 0);
+    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : Math.max(ANTIGRAVITY_MODEL_LOCK_MS, cooldownMs || 0);
   }
 
 
@@ -1673,6 +1691,29 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // These must not disable the API key: free models on the same account can
   // remain usable. Store a model-specific cooldown instead.
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
+
+  // FINAL GUARD: "exhausted" (testStatus = "exhausted") is a TERMINAL account state
+  // meaning EVERY model on the account is dead because global credits/quota are gone.
+  // 1. Providers whose free models survive credit death or whose quota recovers on a timer
+  //    must NEVER have testStatus = "exhausted".
+  // 2. Antigravity requires snapshot proof that all buckets are 0% (credit wording on a single
+  //    model's 429 must not exhaust the account).
+  if (isExhausted) {
+    if (!providerAllowsAccountExhausted(providerId)) {
+      isExhausted = false;
+      if (model && isCreditQuotaErrorText(lowerErr)) {
+        lockAll = false;
+      }
+    } else if (providerId === "antigravity") {
+      const isDurableSnapshotExhausted = Boolean(
+        isAntigravityAccountQuotaExhausted(connectionId) ||
+        (durableSnapshot && isAntigravityQuotaMapExhausted(durableSnapshot.quotas))
+      );
+      if (!isDurableSnapshotExhausted) {
+        isExhausted = false;
+      }
+    }
+  }
 
   const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Provider error");
   const isAccountWideLock = Boolean(lockAll || githubResetAtMs);
@@ -1810,6 +1851,9 @@ export async function clearAccountError(connectionId, currentConnection, model =
   }
   if (model) {
     cacheSetModelCooldown(connectionId, model, 0).catch(() => {});
+  }
+  if (conn?.provider) {
+    resetModelFailCount(`provcircuit:${conn.provider}`).catch(() => {});
   }
 
   await updateProviderConnection(connectionId, clearObj);

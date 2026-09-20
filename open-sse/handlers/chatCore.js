@@ -215,6 +215,11 @@ if (passthrough) {
   translatedBody.model = stripThinkingSuffix(upstreamModel);
   stripContinuityFields(translatedBody);
 }
+// When provider requires streaming (e.g. Cline, OpenAI), ensure the upstream
+// payload actually requests stream:true even if the client asked for non-streaming.
+if (providerRequiresStreaming) {
+  translatedBody.stream = true;
+}
 
 // Dedupe duplicate built-in tools when equivalent MCP tools are present (Claude clients only).
 if (clientTool === "claude" && Array.isArray(translatedBody.tools)) {

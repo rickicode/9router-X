@@ -149,7 +149,10 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
     ...Object.entries(connection.modelLocks || {}).map(([k, v]) => ({ model: k || "__all", until: v })),
   ].some((item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now);
 
-  const isExhausted = connection.testStatus === "exhausted" || hasModelLock;
+  // exhausted = final state: all credits/quota gone (testStatus set by auth.js
+  // only for account-wide credit exhaustion). Timed account locks are a
+  // transient cooldown, not exhaustion.
+  const isExhausted = connection.testStatus === "exhausted";
 
   const effectiveStatus = connection.isActive === false
     ? "disabled"
