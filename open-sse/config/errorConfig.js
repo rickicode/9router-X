@@ -130,6 +130,19 @@ export const ERROR_RULES = [
     lockAll: false,
     shouldFallback: true,
   },
+  // OpenRouter/KiloCode/Cline free-tier per-model daily cap (e.g. "limit_rpd", "Daily limit reached for <model>")
+  {
+    text: "limit_rpd",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "daily limit reached for",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
   // Cline free-tier daily cap: quota is strictly per-model on Cline Free.
   // Lock ONLY the affected model for 24h (or until resetsAtMs), never the entire account!
   {

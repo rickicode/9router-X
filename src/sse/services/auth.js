@@ -1367,7 +1367,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isModelDailyLimit = Boolean(model) && /limit reached on model|daily.*limit reached on model/i.test(lowerErrorText);
+    const isModelDailyLimit = Boolean(model) && /limit reached on model|daily.*limit reached on model|daily limit reached for|limit_rpd|credits don't affect this cap/i.test(lowerErrorText);
     const isDailyCap429 = !isModelDailyLimit && !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
