@@ -132,28 +132,41 @@ async function refreshOne(connection) {
     // disable the connection from routing so it does not stay "active". The marker is
     // lifted by checkAndRefreshToken on the next successful re-auth.
     if (result?.refreshError) {
-      const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
-      await updateProviderConnection(connection.id, {
-        isActive: false,
-        testStatus: "disabled",
-        previousStatus: connection.testStatus || "active",
-        disabledReason: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
-        disabledAt: result.refreshErrorAt || new Date().toISOString(),
-        disabledBy: "system",
-        lastError: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
-        errorCode: 401,
-        lastErrorAt: new Date().toISOString(),
-        providerSpecificData: {
-          ...(connection.providerSpecificData || {}),
-          refreshBlocked: result.refreshError,
-          refreshBlockedAt: result.refreshErrorAt,
-        },
-      });
-      log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection DISABLED, re-login required", {
-        id: connection.id,
-        provider: connection.provider,
-        error: result.refreshError,
-      });
+      // Check if access token is still valid before disabling.
+      // If access token has not expired yet, keep the connection active!
+      const expiresAt = connection.expiresAt ? new Date(connection.expiresAt).getTime() : null;
+      const isAccessTokenStillValid = expiresAt && expiresAt > Date.now() + 30_000;
+
+      if (!isAccessTokenStillValid) {
+        const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
+        await updateProviderConnection(connection.id, {
+          isActive: false,
+          testStatus: "disabled",
+          previousStatus: connection.testStatus || "active",
+          disabledReason: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
+          disabledAt: result.refreshErrorAt || new Date().toISOString(),
+          disabledBy: "system",
+          lastError: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
+          errorCode: 401,
+          lastErrorAt: new Date().toISOString(),
+          providerSpecificData: {
+            ...(connection.providerSpecificData || {}),
+            refreshBlocked: result.refreshError,
+            refreshBlockedAt: result.refreshErrorAt,
+          },
+        });
+        log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection DISABLED, re-login required", {
+          id: connection.id,
+          provider: connection.provider,
+          error: result.refreshError,
+        });
+      } else {
+        log.warn("BG_TOKEN_REFRESH", "Refresh token failed, but access token is still valid — keeping connection active", {
+          id: connection.id,
+          provider: connection.provider,
+          expiresAt: connection.expiresAt,
+        });
+      }
     }
     return result;
   } finally {
