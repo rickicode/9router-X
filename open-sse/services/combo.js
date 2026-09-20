@@ -833,45 +833,44 @@ function detectDomain(body) {
 const TRIVIAL_CODING_REGEX = /\b(?:fix typo|fix spelling|correct spelling|rename variable|format code|prettify|add comment|add docstring|add jsdoc|sort array|sort list|sort keys|what is regex for|regex for email|how to center a div)\b/i;
 const COMPLEX_CODING_REGEX = /\b(?:race condition|deadlock|memory leak|architect(?:ure|ing)?|distributed system|thread safety|concurrency issue|mutex|semaphore|refactor (?:the )?entire|rewrite (?:the )?entire|security audit|vulnerability assessment|sql injection|cryptographic|zero-day)\b/i;
 
-function heuristicDifficulty(body) {
-  const tokens = estimateBodyTokens(body);
+function heuristicDifficulty(body, policy = "balanced") {
   const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
-  let hasToolCalls = false;
   let hasImages = false;
-  let userMsgs = 0;
+  let activeToolTurns = 0;
   if (arr) {
     for (const m of arr) {
-      if (m?.tool_calls && (!Array.isArray(m.tool_calls) || m.tool_calls.length > 0)) hasToolCalls = true;
+      if (m?.role === "tool" || (m?.tool_calls && (!Array.isArray(m.tool_calls) || m.tool_calls.length > 0))) {
+        activeToolTurns++;
+      }
       if (Array.isArray(m?.content)) {
         for (const p of m.content) {
           const type = p?.type;
           if (type === "image_url" || type === "image" || p?.image_url) hasImages = true;
         }
       }
-      if (m?.role === "user") userMsgs++;
     }
   }
   const domain = detectDomain(body);
   const userText = extractJudgeInput(body);
+  const userTokens = Math.ceil((userText || "").length / 4);
 
-  // Clear-cut signals: expensive context, tool history, images, multi-turn.
-  if (tokens >= 20000 || hasToolCalls || hasImages || userMsgs >= 6) {
-    return { tier: "hard", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  // Vision multimodal request -> hard tier
+  if (hasImages) {
+    return { tier: "hard", source: "heuristic-vision", domain, ambiguity: "low", confidence: 1.0 };
   }
   // Clear-cut complex engineering / architecture keywords bypass judge directly to hard
-  if (COMPLEX_CODING_REGEX.test(userText) && !hasImages) {
+  if (COMPLEX_CODING_REGEX.test(userText)) {
     return { tier: "hard", source: "heuristic-complex", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  // Deliberately narrow: only greetings/small-talk skip the judge
-  // (<~35 chars). Anything with real content deserves classification.
-  if (tokens <= 8 && userMsgs <= 1 && !hasToolCalls) {
-    return { tier: "easy", source: "heuristic", domain, ambiguity: "low", confidence: 1.0 };
+  // Short greetings, smalltalk, ping (< 15 tokens on latest user turn)
+  if (userTokens <= 15) {
+    return { tier: "easy", source: "heuristic-smalltalk", domain, ambiguity: "low", confidence: 1.0 };
   }
   // Zero-latency trivial queries & small edits (< 150 tokens) bypass judge directly to easy
-  if (tokens <= 150 && userMsgs <= 1 && !hasToolCalls && TRIVIAL_CODING_REGEX.test(userText)) {
+  if (userTokens <= 150 && TRIVIAL_CODING_REGEX.test(userText)) {
     return { tier: "easy", source: "heuristic-trivial", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  return null; // ambiguous -> ask the judge
+  return null; // pass to judge or policy matrix
 }
 
 // Morph-aligned: 2D matrix (Difficulty x Ambiguity) adjusted by Policy
@@ -930,41 +929,36 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   let ambiguity = "low";
   let confidence = 1.0;
 
-  const cached = sKey ? difficultyCacheGet(sKey) : null;
-  if (bodyTokens >= cfg.contextLockTokens) {
-    // Context lock (Morph pattern): once context is expensive, hold the
-    // session's existing tier and skip re-classifying; fresh sessions with
-    // huge context default to hard (safe).
-    tier = (typeof cached === "object" ? cached.tier : cached) || "hard";
-    source = "context-lock";
-    domain = (typeof cached === "object" ? cached.domain : null) || detectDomain(body);
-  } else if (cached) {
-    tier = typeof cached === "object" ? cached.tier : cached;
-    source = "session-cache";
-    domain = typeof cached === "object" ? cached.domain : "general";
-    ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
-    confidence = typeof cached === "object" ? cached.confidence : 1.0;
+  // Check heuristic on latest user message first
+  const h = heuristicDifficulty(body, policy);
+
+  if (h) {
+    tier = h.tier;
+    domain = h.domain;
+    source = h.source;
+    confidence = h.confidence;
   } else {
-    const h = heuristicDifficulty(body);
-    if (h) {
-      tier = h.tier;
-      domain = h.domain;
-      source = h.source;
-      confidence = h.confidence;
+    const cached = sKey ? difficultyCacheGet(sKey) : null;
+    if (cached && policy === "capability_heavy" && (typeof cached === "object" ? cached.tier : cached) === "hard") {
+      tier = "hard";
+      source = "session-cache";
+      domain = typeof cached === "object" ? cached.domain : "general";
+      ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
+      confidence = typeof cached === "object" ? cached.confidence : 1.0;
     } else if (judgeModel) {
       const jr = await classifyWithJudge(body, judgeModel, handleSingleModel, cfg.judgeTimeoutMs, log, comboName, policy);
-      tier = jr?.tier || "hard";
+      tier = jr?.tier || (policy === "cost_efficient" ? "easy" : "medium");
       source = jr?.source || "judge";
       domain = jr?.domain || detectDomain(body);
       ambiguity = jr?.ambiguity || "low";
       confidence = jr?.confidence ?? 0.8;
     } else {
-      tier = "medium";
+      // Fallback matrix when judgeModel is absent
+      tier = policy === "cost_efficient" ? "easy" : policy === "capability_heavy" ? "hard" : "medium";
       domain = detectDomain(body);
     }
     if (sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy });
   }
-
   log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | domain=${domain} | policy=${policy} | ~${bodyTokens} tok`);
   notify({
     tier,
