@@ -1079,10 +1079,74 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   );
 }
 
+// Normalize heterogeneous judge outputs: thinking tags, fences, prose.
+function normalizeJudgeOutput(content, fallbackDomain = "general") {
+  if (!content || typeof content !== "string") return null;
+  let cleaned = content
+    .replace(/<(?:think|thought|reasoning)[^>]*>[\s\S]*?<\/(?:think|thought|reasoning)>/gi, "")
+    .replace(/<\/?(?:think|thought|reasoning)[^>]*>/gi, "")
+    .trim();
+  const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch) cleaned = fenceMatch[1].trim();
+  let parsed = null;
+  try { parsed = JSON.parse(cleaned); } catch {}
+  if (!parsed || typeof parsed !== "object") {
+    const jsonMatches = cleaned.match(/\{[\s\S]*?\}/g);
+    if (jsonMatches) {
+      for (const candidate of jsonMatches) {
+        try {
+          const obj = JSON.parse(candidate);
+          if (obj && (obj.difficulty || obj.tier)) { parsed = obj; break; }
+        } catch {}
+      }
+    }
+  }
+  let diff = parsed?.difficulty || parsed?.tier || null;
+  let amb = parsed?.ambiguity || null;
+  let dom = parsed?.domain || null;
+  let conf = typeof parsed?.confidence === "number" ? parsed.confidence : null;
+  if (!diff) {
+    const diffMatch = cleaned.match(/(?:difficulty|tier)\s*[:=]?\s*(?:it's\s+|is\s+|be\s+)?["']?(easy|medium|hard)["']?/i)
+      || content.match(/(?:difficulty|tier)\s*[:=]?\s*(?:it's\s+|is\s+|be\s+)?["']?(easy|medium|hard)["']?/i)
+      || cleaned.match(/\b(easy|medium|hard)\b/i);
+    if (diffMatch) diff = diffMatch[1].toLowerCase();
+  }
+  if (!amb) {
+    const ambMatch = cleaned.match(/(?:ambiguity)\s*[:=]?\s*["']?(low|medium|med|high)["']?/i)
+      || content.match(/(?:ambiguity)\s*[:=]?\s*["']?(low|medium|med|high)["']?/i);
+    if (ambMatch) amb = ambMatch[1].toLowerCase();
+  }
+  if (!dom) {
+    const domMatch = cleaned.match(/(?:domain)\s*[:=]?\s*["']?(general|summary|coding|design|data)["']?/i)
+      || content.match(/(?:domain)\s*[:=]?\s*["']?(general|summary|coding|design|data)["']?/i);
+    if (domMatch) dom = domMatch[1].toLowerCase();
+  }
+  if (diff) {
+    diff = diff.toLowerCase().trim();
+    if (diff !== "easy" && diff !== "medium" && diff !== "hard") diff = null;
+  }
+  if (!diff) return null;
+  return {
+    difficulty: diff,
+    ambiguity: (amb === "med" ? "medium" : amb) || "low",
+    domain: dom || fallbackDomain,
+    confidence: conf ?? 0.85,
+  };
+}
+
 // Call the judge LLM; returns { tier, source, domain, ambiguity, confidence } or fallback.
 async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs, log, comboName, policy = "balanced") {
   const prompt = `${DIFFICULTY_JUDGE_PROMPT}\n${extractJudgeInput(body)}`;
-  const judgeBody = { messages: [{ role: "user", content: prompt }], stream: false, max_tokens: 60 };
+  // Thinking/reasoning models (stepfun, haiku-thinking, gemini-thinking) need
+  // headroom: 60 tokens truncates chain-of-thought before the JSON lands.
+  const judgeBody = {
+    messages: [
+      { role: "system", content: "You are a classifier. Output ONLY a valid JSON object. No explanation, no thinking, no markdown." },
+      { role: "user", content: prompt },
+    ],
+    stream: false,
+    max_tokens: 512,
+  };
   try {
     const res = await withTimeout(
       Promise.resolve().then(() => handleSingleModel(judgeBody, judgeModel)),
@@ -1103,17 +1167,11 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
       content = txt;
     }
 
-    let parsed = null;
-    try {
-      // Find JSON object within response
-      const jsonMatch = String(content).match(/\{[\s\S]*?\}/);
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-    } catch {}
-
-    const diffRaw = parsed?.difficulty || (String(content).match(/"difficulty"\s*:\s*"(easy|medium|hard)"/i)?.[1]) || (String(content).match(/\b(easy|medium|hard)\b/i)?.[1]);
-    const ambRaw = parsed?.ambiguity || (String(content).match(/"ambiguity"\s*:\s*"(low|medium|high|med)"/i)?.[1]) || "low";
-    const domRaw = parsed?.domain || (String(content).match(/"domain"\s*:\s*"(general|summary|coding|design|data)"/i)?.[1]) || detectDomain(body);
-    const confRaw = typeof parsed?.confidence === "number" ? parsed.confidence : 0.85;
+    const norm = normalizeJudgeOutput(content, detectDomain(body));
+    const diffRaw = norm?.difficulty || null;
+    const ambRaw = norm?.ambiguity || "low";
+    const domRaw = norm?.domain || detectDomain(body);
+    const confRaw = norm?.confidence ?? 0.85;
 
     if (!diffRaw) {
       bumpRoutingMetric("difficultyJudgeUnparsed");
