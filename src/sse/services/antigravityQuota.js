@@ -122,14 +122,22 @@ export function isAntigravityAccountQuotaExhausted(connectionId) {
  * Updates in-memory cache only. Cache expiry is the upstream model resetAt.
  * @returns {object|null} quotas map or null on failure
  */
-export async function refreshAntigravityQuota(connectionId, accessToken, providerSpecificData) {
+export async function refreshAntigravityQuota(connectionId, accessToken, providerSpecificData, opts = {}) {
   const now = Date.now();
   // Coalesce concurrent refreshes before applying the interval gate.
   const inflight = inflightRefresh.get(connectionId);
   if (inflight) return inflight;
 
+  // Error-path callers pass { force: true } to bypass the 30s gate: a 429/409
+  // is proof the cached reading is stale, and a throttled refresh returns the
+  // same optimistic cache that just failed — causing phantom strike blocks
+  // and a stale snapshot that the exhaustion guard in markAccountUnavailable
+  // then rejects. Forced refreshes still dedup inflight bursts above and
+  // still record lastRefreshAt below, so concurrent 429 storms share one
+  // upstream call instead of hammering the quota API.
+  const force = opts?.force === true;
   const lastRefresh = lastRefreshAt.get(connectionId) || 0;
-  if (now - lastRefresh < MIN_REFRESH_INTERVAL_MS) {
+  if (!force && now - lastRefresh < MIN_REFRESH_INTERVAL_MS) {
     log.debug("AG_QUOTA", `${connectionId.slice(0, 8)} | skip refresh (${Math.round((now - lastRefresh) / 1000)}s ago)`);
     return quotaCache.get(connectionId) || null;
   }
@@ -252,14 +260,20 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       }
     }
 
-    upsertUsageSnapshot({
-      connectionId,
-      provider: "antigravity",
-      plan: usage.plan || "free",
-      quotas: finalQuotas,
-      remainingPct: minRemaining,
-      resetAt: earliestReset,
-    }).catch(() => {});
+    try {
+      await upsertUsageSnapshot({
+        connectionId,
+        provider: "antigravity",
+        plan: usage.plan || "free",
+        quotas: finalQuotas,
+        remainingPct: minRemaining,
+        resetAt: earliestReset,
+      });
+    } catch {
+      // Fail-open: RAM cache above already carries the fresh reading for the
+      // in-request exhaustion guard; a failed snapshot write only means the
+      // durable cross-restart signal for this cycle is lost.
+    }
 
     publishEvent("9router:events", {
       type: "quota_updated",
@@ -284,12 +298,15 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
  * Called from chat handler error path.
  * @returns {number|null} resetAt timestamp ms (for resetsAtMs passthrough) or null
  */
-export async function handleAntigravityQuotaError(connectionId, status, model, accessToken, providerSpecificData) {
+export async function handleAntigravityQuotaError(connectionId, status, model, accessToken, providerSpecificData, opts = {}) {
   log.info("AG_QUOTA", `${connectionId.slice(0, 8)} | ${status} on ${model} — refreshing quota`);
 
-  // Throttle applies to error paths too: one quota request per account/30s.
-  // The first 409/429 populates cache; concurrent or repeated errors reuse it.
-  const quotaMap = await refreshAntigravityQuota(connectionId, accessToken, providerSpecificData);
+  // Throttle applies to background revive refreshes, NOT to this error path:
+  // force one fresh upstream read so the exhaustion guard downstream sees the
+  // true quota instead of the stale optimistic cache that just 429'd. Callers
+  // that want the gated behavior pass { force: false } explicitly.
+  const force = opts?.force !== false;
+  const quotaMap = await refreshAntigravityQuota(connectionId, accessToken, providerSpecificData, { force });
   const quota = quotaMap?.[model];
 
   // Strike breaker: count every 429 whose quota reading is either optimistic
@@ -314,8 +331,18 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
       const reading = quota ? `${Math.round(quota.remainingPercentage)}%` : "unknown";
       log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | STRIKE_${status} ${model} — ${count}x 429 (quota ${reading}); CACHE_BLOCK 15m`);
       // Synthesize a 0% entry in the shared cache so the auth pre-filter skips
-      // this pair on subsequent requests too, not just the current retry loop
-      // (the chat handler does not persist modelLock_* for this path).
+      // this pair on subsequent requests too, not just the current retry loop.
+      // Durable model lock: the routing SQL (routingModel filter) reads ONLY
+      // the model_locks JSONB column in PG — speed-layer cooldowns never
+      // reach that query. Without a DB lock this pair gets re-selected after
+      // the transient 30-min markAccountUnavailable lock lapses, 429s again,
+      // and loops forever as `active`. 24h matches ANTIGRAVITY_MODEL_LOCK_MS
+      // in auth.js. Same write on strike-block and on early strikes so the
+      // first 429 already sticks; markAccountUnavailable downstream merges
+      // (never overwrites) via row-level FOR UPDATE merge.
+      getLocalDbFn("updateProviderConnection")?.(connectionId, {
+        [`modelLock_${model}`]: new Date(blockedUntil).toISOString(),
+      }).catch(() => {});
       const cached = quotaCache.get(connectionId) || {};
       cached[model] = { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() };
       quotaCache.set(connectionId, cached);
@@ -325,9 +352,14 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
       setModelCooldown(connectionId, model, Math.ceil(STRIKE_BLOCK_MS / 1000)).catch(() => {});
       return blockedUntil;
     }
+    // Pre-threshold strike: still persist the durable 24h model lock so the
+    // pair is skipped by the routing SQL even though no resetAt is returned
+    // (markAccountUnavailable then applies its own transient lock on top).
+    getLocalDbFn("updateProviderConnection")?.(connectionId, {
+      [`modelLock_${model}`]: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+    }).catch(() => {});
     return null;
   }
-
   // Healthy-but-exhausted reading: clear strikes and use the exact resetAt.
   strikeCounts.delete(`${connectionId}|${model}`);
   if (!quota.resetAt) return null;

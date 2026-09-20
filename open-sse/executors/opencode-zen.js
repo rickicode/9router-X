@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
-import { cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE, IP_LIMIT_BODY, FREE_TIER_GATE } from "./opencode.js";
+import { cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE, IP_LIMIT_BODY, FREE_TIER_GATE, generateRequestId, translateSessionId, deriveRequestId } from "./opencode.js";
 import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 import {
   normalizeResponsesInput,
@@ -34,25 +34,11 @@ function nativeSession(headers) {
   return null;
 }
 
-function translatedSession(sessionId, clientTool) {
-  // Deterministic per (clientTool, sessionId), but conforming to the genuine
-  // CLI Identifier shape the free-tier gate validates (ses_ + 12
-  // lowercase-hex + 14 mixed-case alphanumerics). A raw 32-hex digest fails it.
-  const digest = crypto
-    .createHash("sha256")
-    .update(`opencode-zen\0${clientTool || "generic"}\0${sessionId}`)
-    .digest();
-  const hex = digest.toString("hex");
-  const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let tail = "";
-  for (let i = 0; i < 14; i++) tail += ALPHA[digest[12 + i] % ALPHA.length];
-  return `ses_${hex.slice(0, 12)}${tail}`;
-}
-
 // Strip the thinking suffix "model(level)" so checks hit the base id.
 function baseModelId(model) {
   return String(model || "").replace(/\([^()]+\)\s*$/, "").trim();
 }
+
 
 function isResponsesModel(model) {
   const base = baseModelId(model);
@@ -133,10 +119,11 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
       connectionId: sourceCredentials.connectionId,
       scope: "opencode-zen",
     });
-
+    const session = native || translateSessionId(resolved, clientTool);
     return {
       ...sourceCredentials,
-      [SESSION_FIELD]: native || translatedSession(resolved, clientTool),
+      [SESSION_FIELD]: session,
+      _opencodeZenRequest: deriveRequestId(session, body),
     };
   }
 
@@ -146,33 +133,32 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
   }
 
   buildHeaders(credentials, stream = true, url, model) {
+    const raw = credentials?.rawHeaders || {};
+    const lower = {};
+    for (const [k, v] of Object.entries(raw)) lower[k.toLowerCase()] = v;
+    const downstreamUa = lower["user-agent"] || "";
+    const session = credentials?.[SESSION_FIELD]
+      || this.prepareRequestCredentials({ credentials })[SESSION_FIELD];
+    const requestId = credentials?._opencodeZenRequest || generateRequestId();
+    if (isFreeTierGateModel(model)) {
+      // Free-tier path: byte-identical OC contract. Bearer public, desktop
+      // client, global project, valid ses_/msg_ pair, CLI UA.
+      return {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer public",
+        "User-Agent": GENUINE_CLI_UA_RE.test(downstreamUa.trim()) ? downstreamUa : OPENCODE_UA,
+        "x-opencode-client": lower["x-opencode-client"] || "desktop",
+        "x-opencode-session": session,
+        "x-opencode-request": requestId,
+        "x-opencode-project": lower["x-opencode-project"] || "global",
+        "Accept": "text/event-stream",
+      };
+    }
     const headers = super.buildHeaders(credentials || {}, stream, url, model);
     if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "desktop";
-    // Free-tier models (muse-spark, mimo-v2.5-free, etc.) are keyless
-    // upstream — the gate rejects real API keys with 403 FreeTierError.
-    // Override auth to "Bearer public" (same as opencode executor) so the
-    // keyless path is used; paid models keep their real API key.
-    if (isFreeTierGateModel(model)) {
-      headers["Authorization"] = "Bearer public";
-    }
-    // The free-tier gate rejects missing/non-CLI User-Agents: DefaultExecutor
-    // sends none (registry declares no UA). Forward genuine CLI UAs,
-    // synthesize the versioned identity otherwise — same rule as opencode.js.
-    const raw = credentials?.rawHeaders || {};
-    let downstreamUa = "";
-    for (const [k, v] of Object.entries(raw)) {
-      if (k.toLowerCase() === "user-agent" && typeof v === "string") { downstreamUa = v; break; }
-    }
     headers["User-Agent"] = GENUINE_CLI_UA_RE.test(downstreamUa.trim()) ? downstreamUa : OPENCODE_UA;
     if (!headers["Accept"]) headers["Accept"] = "*/*";
-    const prepared = credentials?.[SESSION_FIELD];
-    if (prepared) {
-      headers[SESSION_HEADER] = prepared;
-      return headers;
-    }
-
-    const fallback = this.prepareRequestCredentials({ credentials });
-    headers[SESSION_HEADER] = fallback[SESSION_FIELD];
+    headers[SESSION_HEADER] = session;
     return headers;
   }
 
@@ -222,7 +208,9 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     // non-streaming chat requests through the SSE converter: that path can
     // lose the final response.output message when the upstream returns a
     // completed JSON response. Preserve the client's requested mode.
-    out.stream = stream === true;
+    // Free-tier gate rejects non-streaming requests with 403 — always stream
+    // upstream and let the handler layer aggregate (same as OC executor).
+    out.stream = isFreeTierGateModel(model || body?.model) ? true : stream === true;
     out.store = false;
     normalizeResponsesTools(out);
     cloakOpencodeTools(out, true);
