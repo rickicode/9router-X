@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatchProviderQuotas } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import { autoHealConnectionOnQuotaRestored } from "@/sse/services/accountExhaustionPolicy.js";
+import { syncAntigravityConnectionStatus, isAntigravityQuotaMapExhausted } from "@/sse/services/antigravityQuota.js";
 export const dynamic = "force-dynamic";
 
 /**
@@ -23,15 +24,21 @@ export async function GET(request) {
 
     const quotas = await getBatchProviderQuotas(provider);
 
-    // Auto-heal on view for all providers: if any connection was marked exhausted
-    // or locked, but its snapshot shows restored quota, heal it automatically.
+    // Sync connection status on view: if snapshot shows quota is fully depleted (0%),
+    // mark exhausted; if restored (>0%), auto-heal; sync family-level locks.
     if (Array.isArray(quotas)) {
       for (const item of quotas) {
-        if (item.testStatus === "exhausted" || item.lockedAllUntil) {
+        const itemProvider = item.provider || provider;
+        if (itemProvider === "antigravity" && item.quotas) {
+          await syncAntigravityConnectionStatus(item.connectionId, item.quotas).catch(() => {});
+          if (isAntigravityQuotaMapExhausted(item.quotas)) {
+            item.testStatus = "exhausted";
+          }
+        } else if (item.testStatus === "exhausted" || item.lockedAllUntil) {
           const healed = await autoHealConnectionOnQuotaRestored(
             item.connectionId,
             {
-              provider: item.provider || provider,
+              provider: itemProvider,
               quotas: item.quotas,
               remainingPct: item.remainingPct,
             }

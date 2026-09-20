@@ -102,15 +102,15 @@ export function hydrateAntigravityQuotaCache(connectionId, quotas) {
  * model exhausted incorrectly marked active.
  */
 export function isAntigravityQuotaMapExhausted(quotas) {
-  if (!quotas) return false;
+  if (!quotas || typeof quotas !== "object") return false;
   const entries = Object.entries(quotas).filter(([, quota]) =>
     quota && typeof quota.remainingPercentage === "number"
   );
   if (entries.length === 0) return false;
-  const now = Date.now();
-  return entries.every(([, quota]) =>
-    quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > now
-  );
+  // Quota is exhausted when every reported bucket has remainingPercentage <= 0.
+  // Do NOT require a future resetAt — 0% is exhausted regardless of whether
+  // Google sent a future reset date or omitted it.
+  return entries.every(([, quota]) => quota.remainingPercentage <= 0);
 }
 
 export function isAntigravityAccountQuotaExhausted(connectionId) {
@@ -221,6 +221,119 @@ export async function autoHealAntigravityOnQuotaRestored(connectionId, quotas, e
   }
   return false;
 }
+export function hasAnyAntigravityQuota(quotas) {
+  if (!quotas || typeof quotas !== "object") return false;
+  return Object.values(quotas).some((quota) =>
+    quota && typeof quota.remainingPercentage === "number" && quota.remainingPercentage > 0
+  );
+}
+
+export async function autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas, existingConn = null) {
+  if (!quotas || !isAntigravityQuotaMapExhausted(quotas)) return false;
+  const now = Date.now();
+  try {
+    const getConn = getLocalDbFn("getProviderConnectionById");
+    const updateConn = getLocalDbFn("updateProviderConnection");
+    if (!updateConn) return false;
+    const conn = existingConn || (getConn ? await getConn(connectionId).catch(() => null) : null);
+    if (!conn) return false;
+    if (conn.isActive === false || conn.testStatus === "disabled") return false;
+
+    let earliestResetIso = null;
+    let earliestResetMs = null;
+    for (const q of Object.values(quotas)) {
+      if (q?.resetAt) {
+        const ms = new Date(q.resetAt).getTime();
+        if (Number.isFinite(ms) && ms > now && (!earliestResetMs || ms < earliestResetMs)) {
+          earliestResetMs = ms;
+          earliestResetIso = q.resetAt;
+        }
+      }
+    }
+    const lockExpiryIso = earliestResetIso || new Date(now + 24 * 60 * 60 * 1000).toISOString();
+
+    if (conn.testStatus !== "exhausted" || !conn.lockedAllUntil) {
+      await updateConn(connectionId, {
+        testStatus: "exhausted",
+        lockedAllUntil: lockExpiryIso,
+        modelLock___all: lockExpiryIso,
+        lastError: "Antigravity upstream quota fully exhausted (0%)",
+        errorCode: 429,
+        lastErrorAt: new Date().toISOString(),
+      });
+      const ttlSec = earliestResetMs ? Math.max(300, Math.ceil((earliestResetMs - now) / 1000)) : 86400;
+      setAccountCooldown(connectionId, ttlSec).catch(() => {});
+      log.info("AG_QUOTA", `${connectionId.slice(0, 8)} | quota fully exhausted upstream (0%) — marked connection exhausted & locked until ${lockExpiryIso}`);
+      return true;
+    }
+  } catch (err) {
+    log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | auto-exhaust failed: ${err.message}`);
+  }
+  return false;
+}
+
+const IMPORTANT_GEMINI_MODELS = [
+  "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+  "gemini-3.7-flash-high", "gemini-3.7-flash-medium", "gemini-3.7-flash-low",
+  "gemini-3.6-flash-high", "gemini-3.6-flash-medium", "gemini-3.6-flash-low",
+  "gemini-3.5-flash-low", "gemini-3.5-flash-extra-low",
+  "gemini-pro-agent", "gemini-3.1-pro-low", "gemini-2.5-pro", "gemini-2.5-flash",
+];
+
+const IMPORTANT_CLAUDE_MODELS = [
+  "claude-sonnet-4-6", "claude-opus-4-6-thinking",
+  "claude-3-5-sonnet", "claude-3-5-haiku", "gpt-oss-120b-medium",
+];
+
+export async function syncAntigravityConnectionStatus(connectionId, quotas, existingConn = null) {
+  if (!quotas || typeof quotas !== "object") return false;
+
+  // 1. If ALL quota buckets are exhausted (0%), mark account-wide exhausted
+  if (isAntigravityQuotaMapExhausted(quotas)) {
+    return await autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas, existingConn);
+  }
+
+  // 2. If any quota was restored, heal available models
+  if (hasAnyAntigravityQuota(quotas)) {
+    await autoHealAntigravityOnQuotaRestored(connectionId, quotas, existingConn);
+  }
+
+  // 3. Sync family-level locks for 0% weekly buckets (e.g. gemini_weekly 0% locks all Gemini models)
+  try {
+    const updateConn = getLocalDbFn("updateProviderConnection");
+    if (!updateConn) return false;
+    const now = Date.now();
+    const updates = {};
+
+    const geminiWeekly = quotas.gemini_weekly;
+    if (geminiWeekly && typeof geminiWeekly.remainingPercentage === "number" && geminiWeekly.remainingPercentage <= 0) {
+      const lockIso = (geminiWeekly.resetAt && new Date(geminiWeekly.resetAt).getTime() > now)
+        ? geminiWeekly.resetAt
+        : new Date(now + 24 * 60 * 60 * 1000).toISOString();
+      updates["modelLock_gemini_weekly"] = lockIso;
+      for (const m of IMPORTANT_GEMINI_MODELS) {
+        updates[`modelLock_${m}`] = lockIso;
+      }
+    }
+
+    const claudeWeekly = quotas.claude_gpt_weekly;
+    if (claudeWeekly && typeof claudeWeekly.remainingPercentage === "number" && claudeWeekly.remainingPercentage <= 0) {
+      const lockIso = (claudeWeekly.resetAt && new Date(claudeWeekly.resetAt).getTime() > now)
+        ? claudeWeekly.resetAt
+        : new Date(now + 24 * 60 * 60 * 1000).toISOString();
+      updates["modelLock_claude_gpt_weekly"] = lockIso;
+      for (const m of IMPORTANT_CLAUDE_MODELS) {
+        updates[`modelLock_${m}`] = lockIso;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await updateConn(connectionId, updates);
+    }
+  } catch {}
+
+  return true;
+}
 
 async function _doRefresh(connectionId, accessToken, providerSpecificData, now) {
   try {
@@ -282,10 +395,9 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       quotas: finalQuotas,
     }).catch(() => {});
 
-    // Self-healing: if upstream reports quota is available (>0%), unmark exhausted
-    // and clear expired/restored locks in PostgreSQL and speed-layer cache.
-    await autoHealAntigravityOnQuotaRestored(connectionId, finalQuotas);
-
+    // Sync connection status: if upstream reports quota is fully depleted (0%),
+    // mark exhausted; if restored (>0%), auto-heal; sync weekly family locks.
+    await syncAntigravityConnectionStatus(connectionId, finalQuotas);
     return finalQuotas;
   } catch (e) {
     log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | refresh failed: ${e.message}`);

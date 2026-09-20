@@ -9,6 +9,7 @@ import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import { publishEvent } from "@/lib/cache/client.js";
 import { autoHealConnectionOnQuotaRestored } from "@/sse/services/accountExhaustionPolicy.js";
+import { syncAntigravityConnectionStatus } from "@/sse/services/antigravityQuota.js";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -233,14 +234,17 @@ export async function GET(request, { params }) {
         provider: connection.provider,
         usage,
       }).catch(() => {});
-
-      // Auto-heal if usage snapshot reports available quota (>0%) for ANY provider
-      autoHealConnectionOnQuotaRestored(connection.id, {
-        provider: connection.provider,
-        quotas: usage.quotas,
-        remainingPct,
-        usage,
-      }, connection).catch(() => {});
+      // Sync connection status (exhaust if 0%, auto-heal if restored, sync family locks)
+      if (connection.provider === "antigravity" && usage.quotas) {
+        syncAntigravityConnectionStatus(connection.id, usage.quotas, connection).catch(() => {});
+      } else {
+        autoHealConnectionOnQuotaRestored(connection.id, {
+          provider: connection.provider,
+          quotas: usage.quotas,
+          remainingPct,
+          usage,
+        }, connection).catch(() => {});
+      }
     }
 
     return Response.json(usage);
