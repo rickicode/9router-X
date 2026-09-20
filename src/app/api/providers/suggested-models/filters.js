@@ -64,4 +64,22 @@ export const FILTERS = {
         maxTokens: m.top_provider?.max_completion_tokens || undefined,
       }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name))),
+
+  "ovhcloud-free": (models) =>
+    (Array.isArray(models) ? models : [])
+      .filter((m) => Boolean(m.id))
+      .map((m) => ({
+        id: m.id,
+        name: m.name || m.id,
+        contextLength: m.context_length || 131072,
+      })),
+
+  "vlmrun-free": (models) =>
+    (Array.isArray(models) ? models : [])
+      .filter((m) => Boolean(m.id))
+      .map((m) => ({
+        id: m.id,
+        name: m.name || m.id,
+        contextLength: m.context_length || 262144,
+      })),
 };

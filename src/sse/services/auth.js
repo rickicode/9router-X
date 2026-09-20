@@ -1485,9 +1485,16 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     disableAccount = false;
     isExhausted = false;
     shouldFallback = true;
-    cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
-      ? resetsAtMs - Date.now()
-      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+    // 401 No payment method = model permanently unavailable until upstream billing fixed.
+    // Lock 30 days. Other OCZ errors (temporary quota) use standard cooldown.
+    const isOczPaymentError = status === 401
+      && /no payment method|payment method|billing|add a payment/i.test(lowerErr);
+    const oczLockMs = isOczPaymentError
+      ? 30 * 24 * 60 * 60 * 1000  // 30 days
+      : Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
+        ? resetsAtMs - Date.now()
+        : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+    cooldownMs = Math.max(oczLockMs, cooldownMs || 0);
   }
 
   // Cline Free: "credits exhausted" / "insufficient credits" / "out of credits" means the

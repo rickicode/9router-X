@@ -21,6 +21,14 @@ const ICON_ALIASES = {
   "morphllm": "morphllm",
   "mrp": "morphllm",
   "morph": "morphllm",
+  "ovhcloud-free": "ovhcloud",
+  "ovhcf": "ovhcloud",
+  "vlmrun-free": "vlmrun",
+  "vlmrf": "vlmrun",
+  "llmtech-free": "llmtech",
+  "ltf": "llmtech",
+  "llm7-free": "llm7",
+  "l7f": "llm7",
 };
 
 // Runtime only — first 404 remembers id for the whole session
