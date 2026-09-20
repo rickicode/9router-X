@@ -16,13 +16,14 @@ const clineFree = {
   category: "oauth",
   authModes: ["oauth", "apikey"],
   hasOAuth: true,
-  transport: {
-    baseUrl: "https://api.cline.bot/api/v1/chat/completions",
-    headers: {
-      "HTTP-Referer": "https://cline.bot",
-      "X-Title": "Cline",
-    },
-    quirks: { clineEnvelope: true },
+    transport: {
+      baseUrl: "https://api.cline.bot/api/v1/chat/completions",
+      forceStream: true,
+      headers: {
+        "HTTP-Referer": "https://cline.bot",
+        "X-Title": "Cline",
+      },
+      quirks: { clineEnvelope: true },
     tokenUrl: "https://api.cline.bot/api/v1/auth/token",
     refreshUrl: "https://api.cline.bot/api/v1/auth/refresh",
     auth: {
@@ -70,7 +71,6 @@ const clineFree = {
     { id: "deepseek/deepseek-v4-flash-0731:free", name: "DeepSeek V4 Flash (Free)" },
     // Moonshot AI Free Models
     { id: "moonshotai/kimi-k3", name: "Kimi K3 (Free)", contextLength: 262144 },
-
     // Free Aggregator
     { id: "openrouter/free", name: "OpenRouter Free" },
   ],

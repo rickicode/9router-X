@@ -28,8 +28,31 @@ const DOT_VERSION_PROVIDERS = new Set(["kr", "kiro"]);
 // ("claude-sonnet-4-5" ~= "claude-sonnet-4.5"). Other providers use exact match only.
 function findModel(models, modelId, aliasOrId) {
   if (!models) return undefined;
-  const found = models.find(m => m.id === modelId);
+  let found = models.find(m => m.id === modelId);
   if (found) return found;
+
+  // Match by alias or aliases array
+  found = models.find(m => m.alias === modelId || (Array.isArray(m.aliases) && m.aliases.includes(modelId)));
+  if (found) return found;
+
+  // Short name without vendor prefix (e.g. "solar-pro4" matches "upstage/solar-pro4", "deepseek-v4.1-flash" matches "deepseek/deepseek-v4.1-flash")
+  if (typeof modelId === "string" && !modelId.includes("/")) {
+    found = models.find(m => typeof m.id === "string" && (m.id.endsWith("/" + modelId) || m.id.endsWith("/" + modelId + ":free")));
+    if (found) return found;
+  }
+
+  // Tolerant :free suffix (e.g. "poolside/laguna-s-2.1" matches "poolside/laguna-s-2.1:free" or vice versa)
+  if (typeof modelId === "string") {
+    if (modelId.endsWith(":free")) {
+      const withoutFree = modelId.slice(0, -5);
+      found = models.find(m => m.id === withoutFree || (typeof m.id === "string" && m.id.endsWith("/" + withoutFree)));
+      if (found) return found;
+    } else {
+      found = models.find(m => m.id === `${modelId}:free` || (typeof m.id === "string" && m.id.endsWith(`/${modelId}:free`)));
+      if (found) return found;
+    }
+  }
+
   if (!DOT_VERSION_PROVIDERS.has(aliasOrId)) return undefined;
   const normalized = normalizeModelId(modelId);
   if (normalized === modelId) return undefined;
@@ -74,6 +97,20 @@ export function getModelType(aliasOrId, modelId) {
   return found?.kind || found?.type || null;
 }
 
+const KNOWN_PREFIXLESS_MODELS = {
+  "deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash",
+  "deepseek-v4-flash": "deepseek/deepseek-v4-flash",
+  "solar-pro4": "upstage/solar-pro4",
+  "solar-pro-3": "upstage/solar-pro-3",
+  "muse-spark-1.3-contributor": "meta/muse-spark-1.3-contributor",
+  "muse-spark-1.2-contributor": "meta/muse-spark-1.2-contributor",
+  "laguna-s-2.1": "poolside/laguna-s-2.1:free",
+  "laguna-s-2.1:free": "poolside/laguna-s-2.1:free",
+  "laguna-xs-2.1": "poolside/laguna-xs-2.1:free",
+  "laguna-xs-2.1:free": "poolside/laguna-xs-2.1:free",
+  "glm-5.3-flash": "z-ai/glm-5.3-flash",
+  "glm-5.2": "z-ai/glm-5.2:free",
+};
 export function getModelUpstreamId(aliasOrId, modelId) {
   // Split off thinking suffix "(level)" so lookup hits the base id; re-append it to
   // the result so downstream applyThinking still sees the suffix (body.model is stripped separately).
@@ -88,6 +125,9 @@ export function getModelUpstreamId(aliasOrId, modelId) {
     const presetSuffix = presetMatch?.[0] || "";
     const resolvedBase = presetSuffix ? resolvedId.slice(0, presetMatch.index).trim() : resolvedId;
     return resolvedBase + (suffix || presetSuffix);
+  }
+  if (KNOWN_PREFIXLESS_MODELS[baseId]) {
+    return KNOWN_PREFIXLESS_MODELS[baseId] + suffix;
   }
   if (aliasOrId === "cx" && typeof baseId === "string" && baseId.endsWith(CODEX_REVIEW_SUFFIX)) {
     return baseId.slice(0, -CODEX_REVIEW_SUFFIX.length) + suffix;

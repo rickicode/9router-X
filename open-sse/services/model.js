@@ -19,8 +19,10 @@ for (const entry of REGISTRY) {
 
 const BUILTIN_MODEL_ALIASES = {
   "grok-build": "gcli/grok-build",
+  "z-ai/glm-5.3-flash": "cline-free/z-ai/glm-5.3-flash",
+  "poolside/laguna-s-2.1:free": "cline-free/poolside/laguna-s-2.1:free",
+  "poolside/laguna-s-2.1": "cline-free/poolside/laguna-s-2.1:free",
 };
-
 /**
  * Resolve provider alias to provider ID
  */
@@ -42,7 +44,9 @@ export function parseModel(modelStr) {
     const providerOrAlias = modelStr.slice(0, firstSlash);
     const model = modelStr.slice(firstSlash + 1);
     const provider = resolveProviderAlias(providerOrAlias);
-    return { provider, model, isAlias: false, providerAlias: providerOrAlias };
+    if (ALIAS_TO_PROVIDER_ID[providerOrAlias] || ALIAS_TO_PROVIDER_ID[provider]) {
+      return { provider, model, isAlias: false, providerAlias: providerOrAlias };
+    }
   }
 
   // Alias format (model alias, not provider alias)
@@ -115,6 +119,17 @@ export async function getModelInfoCore(modelStr, aliasesOrGetter) {
     return resolved;
   }
 
+  // Check if parsed.model matches a known model in any registry provider
+  if (parsed.model.includes("/")) {
+    for (const entry of REGISTRY) {
+      if (Array.isArray(entry.models) && entry.models.some((m) => m.id === parsed.model || m.id === `${parsed.model}:free` || (typeof m.id === "string" && m.id.endsWith("/" + parsed.model)))) {
+        return {
+          provider: entry.id,
+          model: parsed.model,
+        };
+      }
+    }
+  }
   // Fallback: infer provider from model name prefix
   return {
     provider: inferProviderFromModelName(parsed.model),

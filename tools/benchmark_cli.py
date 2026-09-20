@@ -187,8 +187,22 @@ def request_chat(gateway, key, model, prompt, max_tokens=300, temperature=0.2, t
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             dur = time.time() - t0
-            raw = resp.read().decode("utf-8")
-            data = json.loads(raw)
+            raw = resp.read().decode("utf-8").strip()
+            data = {}
+            try:
+                data = json.loads(raw)
+            except Exception:
+                # Fallback: find first valid JSON block
+                for line in raw.split("\n"):
+                    line_s = line.strip()
+                    if line_s.startswith("{"):
+                        try:
+                            data = json.loads(line_s)
+                            break
+                        except Exception:
+                            pass
+            if "data" in data and isinstance(data["data"], dict) and "choices" in data["data"]:
+                data = data["data"]
             choice = data.get("choices", [{}])[0]
             msg = choice.get("message", {})
             content = msg.get("content") or ""

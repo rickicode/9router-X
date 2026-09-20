@@ -16,14 +16,15 @@ const cline = {
   category: "oauth",
   authModes: ["oauth"],
   hasOAuth: true,
-  transport: {
-    baseUrl: "https://api.cline.bot/api/v1/chat/completions",
-    headers: {
-      "HTTP-Referer": "https://cline.bot",
-      "X-Title": "Cline",
-    },
-    // Non-stream chat completions come back wrapped in {"success":true,"data":{...}}
-    quirks: { clineEnvelope: true },
+    transport: {
+      baseUrl: "https://api.cline.bot/api/v1/chat/completions",
+      forceStream: true,
+      headers: {
+        "HTTP-Referer": "https://cline.bot",
+        "X-Title": "Cline",
+      },
+      // Non-stream chat completions come back wrapped in {"success":true,"data":{...}}
+      quirks: { clineEnvelope: true },
     tokenUrl: "https://api.cline.bot/api/v1/auth/token",
     refreshUrl: "https://api.cline.bot/api/v1/auth/refresh",
     auth: {
