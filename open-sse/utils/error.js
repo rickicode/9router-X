@@ -233,6 +233,18 @@ export async function parseUpstreamError(response, executor = null) {
     upstreamCode = nested?.error?.code || nested?.code || null;
     if (Number.isFinite(Number(upstreamCode))) upstreamStatus = Number(upstreamCode);
   } catch {}
+  // Detect IP-scoped / rate-limited upstream errors (e.g. Cline Free, OpenCode, Decart)
+  // When a proxy pool is in use, declare poolScoped so chatCore retries via another pool
+  // instead of locking the account or failing the request immediately!
+  let poolScoped = null;
+  const lowerBody = bodyText.toLowerCase();
+  if (
+    response.status === 429 ||
+    upstreamStatus === 429 ||
+    /daily free limit|rate.?limit exceeded|too many requests|temporarily rate-limited|upstream_provider_shared_pool|overloaded/i.test(lowerBody)
+  ) {
+    poolScoped = { reason: "egress_rate_limited" };
+  }
 
   return {
     statusCode: response.status,
@@ -240,6 +252,7 @@ export async function parseUpstreamError(response, executor = null) {
     resetsAtMs,
     upstreamStatus,
     upstreamCode,
+    poolScoped,
     rawBody: bodyText,
   };
 }
