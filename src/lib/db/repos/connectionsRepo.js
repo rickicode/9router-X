@@ -393,17 +393,12 @@ const ACTIVE_CONNECTION_SQL = `(
 )`;
 const EXHAUSTED_CONNECTION_SQL = `(
   is_active = true
-  AND NOT ${PERMANENT_UNAVAILABLE_SQL}
-  AND (
-    COALESCE(test_status, 'active') = 'exhausted'
-    OR ${FUTURE_MODEL_LOCK_SQL}
-  )
+  AND COALESCE(test_status, 'active') = 'exhausted'
 )`;
 const UNAVAILABLE_CONNECTION_SQL = `(
   is_active = true
   AND COALESCE(test_status, 'active') <> 'exhausted'
-  AND NOT ${FUTURE_MODEL_LOCK_SQL}
-  AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL})
+  AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL} OR ${FUTURE_MODEL_LOCK_SQL})
 )`;
 const ROUTABLE_CONNECTION_SQL = `(
   is_active = true
@@ -423,6 +418,14 @@ function buildConnectionFilterConditions(filter, params) {
   if (filter.providers && Array.isArray(filter.providers) && filter.providers.length > 0) {
     params.push(filter.providers);
     where.push(`provider = ANY($${params.length})`);
+  }
+  if (filter.email) {
+    params.push(filter.email);
+    where.push(`email = $${params.length}`);
+  }
+  if (filter.emails && Array.isArray(filter.emails) && filter.emails.length > 0) {
+    params.push(filter.emails);
+    where.push(`email = ANY($${params.length})`);
   }
   if (filter.authType) {
     params.push(filter.authType);

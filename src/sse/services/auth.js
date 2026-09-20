@@ -1396,7 +1396,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // without credit wording) rides a timed lock as "unavailable" instead, so
     // it recovers and never pollutes the exhausted fleet signal.
     const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|allocation|neurons|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
-    isExhausted = lockAll && (isCreditQuota429 || isCodebuddyCreditExhausted);
+    const isAccountWideLock = Boolean(lockAll);
+    isExhausted = lockAll && isAccountWideLock && (isCreditQuota429 || isCodebuddyCreditExhausted);
   }
 
   // Antigravity quota snapshots cover the whole account. Once every tracked

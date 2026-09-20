@@ -134,7 +134,13 @@ async function adoptFreshRowTokens(creds) {
       try {
         const siblings = await getProviderConnections({ email });
         for (const s of siblings) {
-          if (s.id !== connectionId && (s.provider === "cline" || s.provider === "cline-free") && s.refreshToken && s.refreshToken !== usedToken) {
+          if (
+            s.id !== connectionId &&
+            s.email?.toLowerCase().trim() === email.toLowerCase().trim() &&
+            (s.provider === "cline" || s.provider === "cline-free") &&
+            s.refreshToken &&
+            s.refreshToken !== usedToken
+          ) {
             log.info("TOKEN_REFRESH", "Adopting fresher Cline token from sibling connection", {
               connectionId,
               siblingId: s.id,
@@ -275,7 +281,12 @@ export async function updateProviderCredentials(connectionId, newCredentials) {
         if (currentConn?.email && (currentConn.provider === "cline" || currentConn.provider === "cline-free")) {
           const siblings = await getProviderConnections({ email: currentConn.email });
           for (const sibling of siblings) {
-            if (sibling.id !== connectionId && (sibling.provider === "cline" || sibling.provider === "cline-free")) {
+            // Strict email match guard: never sync across different accounts!
+            if (
+              sibling.id !== connectionId &&
+              sibling.email?.toLowerCase().trim() === currentConn.email.toLowerCase().trim() &&
+              (sibling.provider === "cline" || sibling.provider === "cline-free")
+            ) {
               await updateProviderConnection(sibling.id, {
                 ...(updates.accessToken ? { accessToken: updates.accessToken } : {}),
                 ...(updates.refreshToken ? { refreshToken: updates.refreshToken } : {}),
