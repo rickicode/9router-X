@@ -191,7 +191,8 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
     if (chunk.model && !responseModel) responseModel = chunk.model;
     if (chunk.created && !created) created = chunk.created;
     if (typeof delta.content === "string" && delta.content.length > 0) contentParts.push(delta.content);
-    if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length > 0) reasoningParts.push(delta.reasoning_content);
+    const reasoningDelta = delta.reasoning_content || delta.reasoning || delta.thought;
+    if (typeof reasoningDelta === "string" && reasoningDelta.length > 0) reasoningParts.push(reasoningDelta);
     if (choice?.finish_reason) finishReason = choice.finish_reason;
     if (chunk?.usage && typeof chunk.usage === "object") usage = chunk.usage;
 
@@ -210,8 +211,13 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
     }
   }
 
-  const message = { role: "assistant", content: contentParts.join("") || (toolCallMap.size > 0 ? null : "") };
-  if (reasoningParts.length > 0) message.reasoning_content = reasoningParts.join("");
+  const textContent = contentParts.join("");
+  const textReasoning = reasoningParts.join("");
+  const message = { role: "assistant", content: textContent || (toolCallMap.size > 0 ? null : (textReasoning || "")) };
+  if (textReasoning) {
+    message.reasoning_content = textReasoning;
+    message.reasoning = textReasoning;
+  }
   if (toolCallMap.size > 0) {
     message.tool_calls = [...toolCallMap.entries()].sort((a, b) => a[0] - b[0]).map(([, tc]) => tc);
   }
@@ -393,7 +399,7 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
     // Previously this was unconditional, which broke Qwen3.5, Claude extended thinking, etc.
     if (parsed?.choices) {
       for (const choice of parsed.choices) {
-        if (choice?.message?.reasoning_content && choice.message.content) {
+        if (choice?.message?.reasoning_content && choice.message.content && choice.message.content !== choice.message.reasoning_content) {
           delete choice.message.reasoning_content;
         }
       }

@@ -206,7 +206,7 @@ def request_chat(gateway, key, model, prompt, max_tokens=300, temperature=0.2, t
             choice = data.get("choices", [{}])[0]
             msg = choice.get("message", {})
             content = msg.get("content") or ""
-            reasoning = msg.get("reasoning") or ""
+            reasoning = msg.get("reasoning") or msg.get("reasoning_content") or ""
             tool_calls = msg.get("tool_calls") or []
             finish_reason = choice.get("finish_reason") or ""
             full_text = (content or reasoning).strip()

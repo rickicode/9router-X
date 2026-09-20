@@ -4,6 +4,7 @@ import {
   providerAllowsAccountExhausted,
   isCreditQuotaErrorText,
   isAccountFullyExhausted,
+  autoHealConnectionOnQuotaRestored,
 } from "../../src/sse/services/accountExhaustionPolicy.js";
 import { autoHealAntigravityOnQuotaRestored } from "../../src/sse/services/antigravityQuota.js";
 
@@ -298,6 +299,35 @@ describe("Account Exhaustion Policy", () => {
     expect(patch.lockedAllUntil).toBeNull();
     expect(patch.modelLocks).toEqual({});
   });
+  it("auto-heals any provider connection when usage snapshot reports positive quota", async () => {
+    const existing = {
+      id: "conn-codex-1",
+      provider: "codex",
+      isActive: true,
+      testStatus: "unavailable",
+      lockedAllUntil: new Date(Date.now() + 3600000).toISOString(),
+      modelLocks: { "gpt-4o": new Date(Date.now() + 3600000).toISOString() },
+    };
+
+    const healed = await autoHealConnectionOnQuotaRestored(
+      "conn-codex-1",
+      {
+        provider: "codex",
+        remainingPct: 90,
+        quotas: {
+          "gpt-4o": { remaining: 90, total: 100, used: 10 },
+        },
+      },
+      existing
+    );
+    expect(healed).toBe(true);
+
+    const patch = patchFor("conn-codex-1");
+    expect(patch.testStatus).toBe("active");
+    expect(patch.lockedAllUntil).toBeNull();
+    expect(patch.modelLocks).toEqual({});
+  });
+
   it("triggers provider circuit breaker on 25 upstream 5xx errors", async () => {
     for (let i = 0; i < 24; i++) {
       await markAccountUnavailable("conn-wb-1", 500, "Internal server error", "workbuddy", "model-a");
