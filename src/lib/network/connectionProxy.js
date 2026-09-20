@@ -63,14 +63,15 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   // A pool flagged as anonymous_network, limited, or rate-limited must NOT be reused.
   const isFreebuff = providerId === "freebuff" || scope?.startsWith("freebuff::");
   const isOpenCode = providerId === "opencode" || scope?.startsWith("opencode::");
-  if ((strategy === "smart" || isFreebuff || isOpenCode) && scope) {
+  const isKilocodeFree = providerId === "kilocode-free" || providerId === "kcf" || scope?.startsWith("kilocode-free::") || scope?.startsWith("kcf::");
+  if ((strategy === "smart" || isFreebuff || isOpenCode || isKilocodeFree) && scope) {
     eligible = fitPoolIds(eligible, scope);
   }
 
   if (eligible.length === 0) {
-    // If every pool is marked unfit, Freebuff & OpenCode fail fast so caller
+    // If every pool is marked unfit, Freebuff, OpenCode & Kilocode-Free fail fast so caller
     // can rotate or direct-fallback cleanly rather than hammering bad pools.
-    if (isFreebuff || isOpenCode) return null;
+    if (isFreebuff || isOpenCode || isKilocodeFree) return null;
     eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
     if (eligible.length === 0) return null;
   }
