@@ -399,17 +399,28 @@ export class GrokCliExecutor extends BaseExecutor {
   }
 
   parseError(response, bodyText) {
-    // 402 personal-team-blocked:spending-limit → surface as payment/quota for fallback
-    if (response.status === 402 && bodyText) {
+    if (bodyText) {
       try {
         const json = JSON.parse(bodyText);
         const code = json?.code || "";
         const msg = json?.error || json?.message || bodyText;
-        return {
-          status: 402,
-          message: typeof msg === "string" ? msg : bodyText,
-          code: typeof code === "string" ? code : undefined,
-        };
+        if (
+          code === "subscription:free-usage-exhausted" ||
+          /free-usage-exhausted|used all the included free usage|rolling 24-hour window/i.test(String(code || msg))
+        ) {
+          return {
+            status: 429,
+            message: typeof msg === "string" ? msg : bodyText,
+            code: "subscription:free-usage-exhausted",
+          };
+        }
+        if (response.status === 402) {
+          return {
+            status: 402,
+            message: typeof msg === "string" ? msg : bodyText,
+            code: typeof code === "string" ? code : undefined,
+          };
+        }
       } catch {
         /* fall through */
       }
@@ -479,12 +490,12 @@ export class GrokCliExecutor extends BaseExecutor {
     if (!body.reasoning || typeof body.reasoning !== "object") {
       body.reasoning = { summary: "concise" };
       if (supportsReasoningEffort) {
-        body.reasoning.effort = normalizeGrokCliEffort(body.reasoning_effort || modelEffort);
+        body.reasoning.effort = normalizeGrokCliEffort(body.reasoning_effort || modelEffort || "xhigh");
       }
     } else {
       if (supportsReasoningEffort) {
         body.reasoning.effort = normalizeGrokCliEffort(
-          body.reasoning.effort || body.reasoning_effort || modelEffort,
+          body.reasoning.effort || body.reasoning_effort || modelEffort || "xhigh",
         );
       } else {
         delete body.reasoning.effort;

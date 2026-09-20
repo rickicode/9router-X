@@ -19,6 +19,12 @@ for (const entry of REGISTRY) {
 
 const BUILTIN_MODEL_ALIASES = {
   "grok-build": "gcli/grok-build",
+  "grok-4.6": "gcli/grok-4.6",
+  "grok-4.6-xhigh": "gcli/grok-4.6-xhigh",
+  "grok-4.6-high": "gcli/grok-4.6-high",
+  "grok-4.6-medium": "gcli/grok-4.6-medium",
+  "grok-4.6-low": "gcli/grok-4.6-low",
+  "grok-4.5": "gcli/grok-4.5",
   "z-ai/glm-5.3-flash": "cline-free/z-ai/glm-5.3-flash",
   "poolside/laguna-s-2.1:free": "cline-free/poolside/laguna-s-2.1:free",
   "poolside/laguna-s-2.1": "cline-free/poolside/laguna-s-2.1:free",

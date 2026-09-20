@@ -35,6 +35,7 @@ export function getConnectionQuotaRemaining(connection, quotaData) {
   const quota = quotaData[connection.id]?.quotas?.[0];
   if (!quota) return Number.POSITIVE_INFINITY;
   if (typeof quota.remaining === "number") return quota.remaining;
+  if (typeof quota.remainingPercentage === "number") return quota.remainingPercentage;
   return Number.POSITIVE_INFINITY;
 }
 

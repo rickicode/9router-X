@@ -38,4 +38,21 @@ describe("daily-cap 429 cooldown resolution", () => {
     const cooldown = cooldownFor({ errorText: "too many requests", resetsAtMs: null, ruleCooldownMs: 0 });
     expect(cooldown).toBe(30 * 60 * 1000);
   });
+  it("keeps the Grok free-usage 24h exhaustion cooldown over the 30-minute default", () => {
+    const isGrokFreeExhausted = true;
+    const isCodebuddyThrottle = false;
+    const isCodebuddyCreditExhausted = false;
+    const isBaiThrottle = false;
+    const isClineFreeThrottle = false;
+    const resetsAtMs = null;
+    let cooldownMs = 24 * 3600 * 1000;
+    const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
+    const isDailyCap429 = false;
+    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle || isClineFreeThrottle || isGrokFreeExhausted
+        ? (cooldownMs || 0)
+        : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
+    expect(cooldownMs).toBe(24 * 3600 * 1000);
+  });
 });

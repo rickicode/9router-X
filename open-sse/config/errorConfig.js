@@ -188,6 +188,28 @@ export const ERROR_RULES = [
     lockAll: false,
     shouldFallback: false,
   },
+  // Grok CLI / Grok Build free usage exhaustion (rolling 24-hour window)
+  {
+    text: "free-usage-exhausted",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    isExhausted: true,
+    shouldFallback: true,
+  },
+  {
+    text: "used all the included free usage",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    isExhausted: true,
+    shouldFallback: true,
+  },
+  {
+    text: "rolling 24-hour window",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: true,
+    isExhausted: true,
+    shouldFallback: true,
+  },
 
   // Credit / Balance / User Quota exhaustion (Account-wide lock for 30 days, status: exhausted)
   {

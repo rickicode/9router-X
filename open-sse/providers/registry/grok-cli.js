@@ -38,7 +38,7 @@ export default {
   hasOAuth: true,
   thinkingConfig: {
     options: ["low", "medium", "high", "xhigh"],
-    defaultMode: "high",
+    defaultMode: "xhigh",
   },
   transport: {
     baseUrl: `${GROK_CLI_BASE_URL}/responses`,
@@ -68,12 +68,23 @@ export default {
   },
   models: [
     {
-      id: GROK_CLI_MODEL,
+      id: "grok-4.6",
+      name: "Grok 4.6",
+      contextLength: 500000,
+      maxOutputTokens: 500000,
+    },
+    { id: "grok-4.6-xhigh", name: "Grok 4.6 (Extra High)", upstreamModelId: "grok-4.6" },
+    { id: "grok-4.6-high", name: "Grok 4.6 (High)", upstreamModelId: "grok-4.6" },
+    { id: "grok-4.6-medium", name: "Grok 4.6 (Medium)", upstreamModelId: "grok-4.6" },
+    { id: "grok-4.6-low", name: "Grok 4.6 (Low)", upstreamModelId: "grok-4.6" },
+    {
+      id: "grok-build",
       name: "Grok Build",
       contextLength: 500000,
       maxOutputTokens: 64000,
     },
     { id: "grok-4.5", name: "Grok 4.5" },
+    { id: "grok-4.5-xhigh", name: "Grok 4.5 (Extra High)", upstreamModelId: "grok-4.5" },
     { id: "grok-4.5-high", name: "Grok 4.5 (High)", upstreamModelId: "grok-4.5" },
     { id: "grok-4.5-medium", name: "Grok 4.5 (Medium)", upstreamModelId: "grok-4.5" },
     { id: "grok-4.5-low", name: "Grok 4.5 (Low)", upstreamModelId: "grok-4.5" },

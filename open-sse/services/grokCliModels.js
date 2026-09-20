@@ -43,7 +43,10 @@ export function parseGrokCliModels(data) {
     if (Number.isFinite(maxOutputTokens) && maxOutputTokens > 0) {
       model.maxOutputTokens = maxOutputTokens;
     }
-    if (id === GROK_CLI_MODEL) {
+    if (id === GROK_CLI_MODEL || id === "grok-4.6") {
+      model.contextLength ||= 500000;
+      model.maxOutputTokens ||= 500000;
+    } else if (id === "grok-build" || id === "grok-4.5") {
       model.contextLength ||= 500000;
       model.maxOutputTokens ||= 64000;
     }

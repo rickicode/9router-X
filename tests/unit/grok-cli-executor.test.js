@@ -492,4 +492,22 @@ describe("GrokCliExecutor", () => {
     expect(err.code).toBe("personal-team-blocked:spending-limit");
     expect(err.message).toMatch(/credits/i);
   });
+
+  it("parseError surfaces subscription:free-usage-exhausted and triggers 24h exhaustion fallback", async () => {
+    const raw = JSON.stringify({
+      code: "subscription:free-usage-exhausted",
+      error: "You've used all the included free usage for model grok-4.6 for now. Usage resets over a rolling 24-hour window — tokens (actual/limit): 543786/500000. Upgrade to a Grok subscription for higher limits: https://grok.com/supergrok",
+    });
+    const err = executor.parseError({ status: 429 }, raw);
+    expect(err.status).toBe(429);
+    expect(err.code).toBe("subscription:free-usage-exhausted");
+    expect(err.message).toMatch(/rolling 24-hour window/i);
+
+    const { checkFallbackError } = await import("../../open-sse/services/accountFallback.js");
+    const fallback = checkFallbackError(err.status, err.message);
+    expect(fallback.shouldFallback).toBe(true);
+    expect(fallback.lockAll).toBe(true);
+    expect(fallback.isExhausted).toBe(true);
+    expect(fallback.cooldownMs).toBe(24 * 60 * 60 * 1000);
+  });
 });
