@@ -832,6 +832,8 @@ function detectDomain(body) {
 
 const TRIVIAL_CODING_REGEX = /\b(?:fix typo|fix spelling|correct spelling|rename variable|format code|prettify|add comment|add docstring|add jsdoc|sort array|sort list|sort keys|what is regex for|regex for email|how to center a div)\b/i;
 const COMPLEX_CODING_REGEX = /\b(?:race condition|deadlock|memory leak|architect(?:ure|ing)?|distributed system|thread safety|concurrency issue|mutex|semaphore|refactor (?:the )?entire|rewrite (?:the )?entire|security audit|vulnerability assessment|sql injection|cryptographic|zero-day)\b/i;
+const CASUAL_OR_GREETING_REGEX = /^(?:halo|hai|hi|hello|hey|selamat (?:pagi|siang|sore|malam)|thanks|terima kasih|makasih|ping|pong|test|tes|p|siapa namamu|who are you|jam berapa|what time is it)[!?.\s]*$/i;
+const CONTEXT_ACTION_REGEX = /\b(?:fix|perbaiki|benerin|debug|patch|error|gagal|bug|crash|exception|lanjut|continue|coba lagi|retry|ubah|ganti|edit|tambah|update|refactor|solve|selesaikan)\b/i;
 
 function heuristicDifficulty(body, policy = "balanced") {
   const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
@@ -862,15 +864,19 @@ function heuristicDifficulty(body, policy = "balanced") {
   if (COMPLEX_CODING_REGEX.test(userText)) {
     return { tier: "hard", source: "heuristic-complex", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  // Short greetings, smalltalk, ping (< 15 tokens on latest user turn)
-  if (userTokens <= 15) {
-    return { tier: "easy", source: "heuristic-smalltalk", domain, ambiguity: "low", confidence: 1.0 };
+  // Genuine greetings, smalltalk, ping (< 15 tokens and matches smalltalk pattern)
+  if (userTokens <= 15 && CASUAL_OR_GREETING_REGEX.test(userText.trim())) {
+    const tier = policy === "capability_heavy" ? "medium" : "easy";
+    return { tier, source: "heuristic-smalltalk", domain: "general", ambiguity: "low", confidence: 1.0 };
   }
   // Zero-latency trivial queries & small edits (< 150 tokens) bypass judge directly to easy
   if (userTokens <= 150 && TRIVIAL_CODING_REGEX.test(userText)) {
-    return { tier: "easy", source: "heuristic-trivial", domain: "coding", ambiguity: "low", confidence: 0.95 };
+    const tier = policy === "capability_heavy" ? "medium" : "easy";
+    return { tier, source: "heuristic-trivial", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  return null; // pass to judge or policy matrix
+  // All contextual commands (e.g. "fix kode tersebut", "coba benerin", "error ini")
+  // pass to judgeModel with recent context snippet so judge determines if the code is easy or hard!
+  return null;
 }
 
 // Morph-aligned: 2D matrix (Difficulty x Ambiguity) adjusted by Policy
@@ -1132,16 +1138,46 @@ function extractJudgeInput(body) {
   try {
     const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
     if (!arr) return typeof body.prompt === "string" ? body.prompt.slice(0, 2000) : "";
+    let userText = "";
+    let userIdx = -1;
     for (let i = arr.length - 1; i >= 0; i--) {
       const m = arr[i];
       if (m?.role !== "user") continue;
-      if (typeof m.content === "string" && m.content.trim()) return m.content.trim().slice(0, 2000);
+      userIdx = i;
+      if (typeof m.content === "string" && m.content.trim()) {
+        userText = m.content.trim();
+        break;
+      }
       if (Array.isArray(m.content)) {
         const t = m.content.map((p) => p?.text || p?.input_text || "").join(" ").trim();
-        if (t) return t.slice(0, 2000);
+        if (t) {
+          userText = t;
+          break;
+        }
       }
     }
-    return "";
+    if (!userText) return "";
+
+    // If user prompt is short (< 200 chars) and there are preceding turns,
+    // include brief preceding context (e.g. tool output / error) so judge/heuristics understand "fix"
+    if (userText.length < 200 && userIdx > 0) {
+      const prevMsg = arr[userIdx - 1];
+      if (prevMsg) {
+        const role = prevMsg.role || "context";
+        let content = typeof prevMsg.content === "string" ? prevMsg.content : "";
+        if (Array.isArray(prevMsg.content)) {
+          content = prevMsg.content.map((p) => p?.text || p?.input_text || "").join(" ");
+        }
+        if (prevMsg.tool_calls) {
+          content = JSON.stringify(prevMsg.tool_calls);
+        }
+        if (content) {
+          const snippet = content.slice(0, 350).replace(/\s+/g, " ").trim();
+          return `${userText} [Recent ${role}: ${snippet}]`.slice(0, 2000);
+        }
+      }
+    }
+    return userText.slice(0, 2000);
   } catch {
     return "";
   }
