@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { DefaultExecutor } from "./default.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
-import { appendMissingGateTools, OPENCODE_UA, GENUINE_CLI_UA_RE } from "./opencode.js";
+import { appendMissingGateTools, cloakOpencodeTools, OPENCODE_UA, GENUINE_CLI_UA_RE } from "./opencode.js";
 import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 import {
   normalizeResponsesInput,
@@ -147,7 +147,7 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
 
   buildHeaders(credentials, stream = true, url, model) {
     const headers = super.buildHeaders(credentials || {}, stream, url, model);
-    if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "cli";
+    if (!headers["x-opencode-client"]) headers["x-opencode-client"] = "desktop";
     // The free-tier gate rejects missing/non-CLI User-Agents: DefaultExecutor
     // sends none (registry declares no UA). Forward genuine CLI UAs,
     // synthesize the versioned identity otherwise — same rule as opencode.js.
@@ -174,17 +174,9 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     const isResponses = isResponsesModel(model || body?.model) || Array.isArray(out.input);
     if (!isResponses) {
       // Chat Completions path (e.g. mimo free models): same free-tier gate as
-      // the opencode executor — merge missing genuine core markers for gated
-      // free models only (paid traffic keeps its exact payload, no quota burned).
+      // the opencode executor — inject decoy bash/read tools to satisfy upstream.
       out.stream = true;
-      out.tools = isFreeTierGateModel(model || body?.model) ? appendMissingGateTools(out.tools, (t) => ({
-        type: "function",
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
-        },
-      })) : out.tools;
+      cloakOpencodeTools(out, false);
       if (!out.tool_choice || out.tool_choice === "none") {
         out.tool_choice = "auto";
       }

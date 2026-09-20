@@ -1,0 +1,300 @@
+[INFO] Cleared previous records for provider 'th'.
+
+Ditemukan 41 model untuk provider 'th' (th).
+=============================================================================================================================
+BENCHMARK COMPREHENSIVE (TOTAL 41 MODELS)
+Gateway: http://192.168.90.101:10128 | Concurrency: 2
+Test Suites: 1. Ping | 2. Coding + Tool Call | 3. Horror Story | 4. Logic Puzzle
+=============================================================================================================================
+
+>>> PHASE 1: SCREENING LATENSI & KONEKSI
+[  1/ 41] OK 200   |  5.62s | th/deepseek/deepseek-v4.1-flash:free          | PONG
+[  2/ 41] ERR 500  | 15.08s | th/deepseek-v4.1-flash:free                   | timed out
+[  3/ 41] OK 200   |  3.73s | th/deepseek/deepseek-v4-flash:free            | PONG
+[  4/ 41] ERR 500  | 15.08s | th/deepseek-v4-flash:free                     | timed out
+[  5/ 41] OK 200   |  5.37s | th/mimo-v2.5:free                             | PONG
+[  6/ 41] ERR 503  |  3.84s | th/gpt-5.6-sol                                | [tokenharbor/gpt-5.6-sol] Max rotation attemp
+[  7/ 41] OK 200   |  8.08s | th/xiaomi/mimo-v2.5:free                      | PONG! 🏓
+[  8/ 41] ERR 503  |  2.00s | th/openai/gpt-5.6-sol                         | [tokenharbor/openai/gpt-5.6-sol] [402 · token
+[  9/ 41] ERR 503  |  0.02s | th/openai/gpt-6-astra                         | [tokenharbor/openai/gpt-6-astra] All tokenhar
+[ 10/ 41] ERR 503  |  0.01s | th/claude-opus-5                              | [tokenharbor/claude-opus-5] All tokenharbor a
+[ 11/ 41] ERR 503  |  0.03s | th/anthropic/claude-opus-5                    | [tokenharbor/anthropic/claude-opus-5] All tok
+[ 12/ 41] ERR 503  |  0.01s | th/claude-opus-4.8                            | [tokenharbor/claude-opus-4.8] All tokenharbor
+[ 13/ 41] ERR 503  |  0.01s | th/anthropic/claude-opus-4.8                  | [tokenharbor/anthropic/claude-opus-4.8] All t
+[ 14/ 41] ERR 503  |  0.04s | th/claude-sonnet-5                            | [tokenharbor/claude-sonnet-5] All tokenharbor
+[ 15/ 41] ERR 503  |  0.01s | th/anthropic/claude-sonnet-5                  | [tokenharbor/anthropic/claude-sonnet-5] All t
+[ 16/ 41] ERR 503  |  0.01s | th/claude-sonnet-4.6                          | [tokenharbor/claude-sonnet-4.6] All tokenharb
+[ 17/ 41] ERR 503  |  0.05s | th/anthropic/claude-sonnet-4.6                | [tokenharbor/anthropic/claude-sonnet-4.6] All
+[ 18/ 41] ERR 503  |  0.02s | th/gemini-3.8-flash                           | [tokenharbor/gemini-3.8-flash] All tokenharbo
+[ 19/ 41] ERR 503  |  0.02s | th/google/gemini-3.8-flash                    | [tokenharbor/google/gemini-3.8-flash] All tok
+[ 20/ 41] ERR 503  |  1.51s | th/gpt-6-astra                                | [tokenharbor/gpt-6-astra] [402 · tokenharbor/
+[ 21/ 41] ERR 503  |  0.04s | th/gemini-3.7-flash                           | [tokenharbor/gemini-3.7-flash] All tokenharbo
+[ 22/ 41] ERR 503  |  0.05s | th/google/gemini-3.7-flash                    | [tokenharbor/google/gemini-3.7-flash] All tok
+[ 23/ 41] ERR 503  |  0.06s | th/gemini-3.5-flash                           | [tokenharbor/gemini-3.5-flash] All tokenharbo
+[ 24/ 41] ERR 503  |  0.05s | th/google/gemini-3.5-flash                    | [tokenharbor/google/gemini-3.5-flash] All tok
+[ 25/ 41] ERR 503  |  0.05s | th/deepseek-v4-flash                          | [tokenharbor/deepseek-v4-flash] All tokenharb
+[ 26/ 41] ERR 503  |  0.03s | th/deepseek/deepseek-v4-flash                 | [tokenharbor/deepseek/deepseek-v4-flash] All 
+[ 27/ 41] ERR 503  |  0.09s | th/deepseek-v4.1-flash                        | [tokenharbor/deepseek-v4.1-flash] All tokenha
+[ 28/ 41] ERR 503  |  0.09s | th/deepseek/deepseek-v4.1-flash               | [tokenharbor/deepseek/deepseek-v4.1-flash] Al
+[ 29/ 41] ERR 503  |  0.03s | th/deepseek-v4-pro                            | [tokenharbor/deepseek-v4-pro] All tokenharbor
+[ 30/ 41] ERR 503  |  0.03s | th/deepseek/deepseek-v4-pro                   | [tokenharbor/deepseek/deepseek-v4-pro] All to
+[ 31/ 41] ERR 503  |  0.02s | th/qwen3.8-max                                | [tokenharbor/qwen3.8-max] All tokenharbor acc
+[ 32/ 41] ERR 503  |  0.03s | th/qwen/qwen3.8-max                           | [tokenharbor/qwen/qwen3.8-max] All tokenharbo
+[ 33/ 41] ERR 503  |  0.06s | th/kimi-k3                                    | [tokenharbor/kimi-k3] All tokenharbor account
+[ 34/ 41] ERR 503  |  0.05s | th/moonshotai/kimi-k3                         | [tokenharbor/moonshotai/kimi-k3] All tokenhar
+[ 35/ 41] ERR 503  |  0.02s | th/mimo-v2.5                                  | [tokenharbor/mimo-v2.5] All tokenharbor accou
+[ 36/ 41] ERR 503  |  0.05s | th/xiaomi/mimo-v2.5                           | [tokenharbor/xiaomi/mimo-v2.5] All tokenharbo
+[ 37/ 41] ERR 503  |  0.05s | th/glm-5.3-flash                              | [tokenharbor/glm-5.3-flash] All tokenharbor a
+[ 38/ 41] ERR 503  |  0.04s | th/z-ai/glm-5.3-flash                         | [tokenharbor/z-ai/glm-5.3-flash] All tokenhar
+[ 39/ 41] ERR 503  |  0.04s | th/grok-4.6                                   | [tokenharbor/grok-4.6] All tokenharbor accoun
+[ 40/ 41] ERR 503  |  0.07s | th/x-ai/grok-4.6                              | [tokenharbor/x-ai/grok-4.6] All tokenharbor a
+[ 41/ 41] ERR 503  |  0.07s | th/th-orchestra                               | [tokenharbor/th-orchestra] All tokenharbor ac
+
+[PHASE 1 SELESAI] 4/41 MODEL AKTIF
+
+>>> PHASE 2, 3, 4: DEEP CAPABILITY BENCHMARK (CODING + TOOL CALL, HORROR, LOGIC)
+[  1/  4] DONE | th/deepseek/deepseek-v4.1-flash:free       | Code:   0 [Tool: ERROR           ] | Horror:   0 | Logic:   0
+[  2/  4] DONE | th/deepseek/deepseek-v4-flash:free         | Code:   0 [Tool: ERROR           ] | Horror:   0 | Logic:   0
+[  3/  4] DONE | th/mimo-v2.5:free                          | Code:   0 [Tool: ERROR           ] | Horror:   0 | Logic:   0
+[  4/  4] DONE | th/xiaomi/mimo-v2.5:free                   | Code:   0 [Tool: ERROR           ] | Horror:   0 | Logic:   0
+
+=======================================================================================================================================
+LAPORAN LENGKAP DETAIL BENCHMARK PROVIDER: TH (41 Models)
+=======================================================================================================================================
+
+Model: th/claude-opus-5
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/claude-opus-5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/claude-opus-4.8
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/claude-opus-4.8] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/anthropic/claude-opus-4.8
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/anthropic/claude-opus-4.8] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/anthropic/claude-sonnet-5
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/anthropic/claude-sonnet-5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/claude-sonnet-4.6
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/claude-sonnet-4.6] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/openai/gpt-6-astra
+  - Spek: Context Window: 272,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/openai/gpt-6-astra] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/gemini-3.8-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/gemini-3.8-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/google/gemini-3.8-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/google/gemini-3.8-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/qwen3.8-max
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/qwen3.8-max] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/mimo-v2.5
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/mimo-v2.5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/anthropic/claude-opus-5
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/anthropic/claude-opus-5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/deepseek/deepseek-v4-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek/deepseek-v4-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/deepseek-v4-pro
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek-v4-pro] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/deepseek/deepseek-v4-pro
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek/deepseek-v4-pro] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/qwen/qwen3.8-max
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/qwen/qwen3.8-max] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/claude-sonnet-5
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/claude-sonnet-5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/gemini-3.7-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/gemini-3.7-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/z-ai/glm-5.3-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/z-ai/glm-5.3-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/grok-4.6
+  - Spek: Context Window: 500,000 tokens | Max Output: 500,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/grok-4.6] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/anthropic/claude-sonnet-4.6
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/anthropic/claude-sonnet-4.6] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/google/gemini-3.7-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/google/gemini-3.7-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/google/gemini-3.5-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/google/gemini-3.5-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/deepseek-v4-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek-v4-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/moonshotai/kimi-k3
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/moonshotai/kimi-k3] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/xiaomi/mimo-v2.5
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/xiaomi/mimo-v2.5] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/glm-5.3-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/glm-5.3-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/gemini-3.5-flash
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 65,536 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/gemini-3.5-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/kimi-k3
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/kimi-k3] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/x-ai/grok-4.6
+  - Spek: Context Window: 500,000 tokens | Max Output: 500,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/x-ai/grok-4.6] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/th-orchestra
+  - Spek: Context Window: 200,000 tokens | Max Output: 64,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/th-orchestra] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 10s)
+
+Model: th/deepseek-v4.1-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek-v4.1-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/deepseek/deepseek-v4.1-flash
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/deepseek/deepseek-v4.1-flash] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 11s)
+
+Model: th/gpt-6-astra
+  - Spek: Context Window: 272,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/gpt-6-astra] [402 · tokenharbor/gpt-6-astra]: Your Token Harbor balance is at $0. Top up at https://tokenharbor.ai/dashboard to keep using paid models. (reset after 59m 11s)
+
+Model: th/openai/gpt-5.6-sol
+  - Spek: Context Window: 400,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/openai/gpt-5.6-sol] [402 · tokenharbor/openai/gpt-5.6-sol]: Your Token Harbor balance is at $0. Top up at https://tokenharbor.ai/dashboard to keep using paid models. (reset after 59m 11s)
+
+Model: th/deepseek/deepseek-v4-flash:free
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Ya
+  - Ping Latensi: 3.73s (OK 200)
+  - Coding + Tool Call: 0/100 (0.03s, 0 tok)
+    * Tool Call Status: ERROR (Bocor: TIDAK)
+    * Analisis Code: [tokenharbor/deepseek/deepseek-v4-flash:free] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 8s)
+  - Cerita Horor: 0/100 (0.03s, 0 tok)
+    * Analisis Sastra: Output too short
+  - Deductive Logic: 0/100 (0.02s, 0 tok)
+    * Analisis Logika: No output
+  - TOTAL SKOR: 0/300
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Model: th/gpt-5.6-sol
+  - Spek: Context Window: 400,000 tokens | Max Output: 128,000 tokens | Free: Tidak
+  - Status: OFFLINE / GAGAL (HTTP 503)
+  - Pesan Error: [tokenharbor/gpt-5.6-sol] Max rotation attempts (5) reached: [402 · tokenharbor/gpt-5.6-sol]: Your Token Harbor balance is at $0. Top up at https://tokenharbor.ai/dashboard to keep using paid models.
+
+Model: th/mimo-v2.5:free
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Ya
+  - Ping Latensi: 5.37s (OK 200)
+  - Coding + Tool Call: 0/100 (0.01s, 0 tok)
+    * Tool Call Status: ERROR (Bocor: TIDAK)
+    * Analisis Code: [tokenharbor/mimo-v2.5:free] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 7s)
+  - Cerita Horor: 0/100 (0.01s, 0 tok)
+    * Analisis Sastra: Output too short
+  - Deductive Logic: 0/100 (0.01s, 0 tok)
+    * Analisis Logika: No output
+  - TOTAL SKOR: 0/300
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Model: th/deepseek/deepseek-v4.1-flash:free
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Ya
+  - Ping Latensi: 5.62s (OK 200)
+  - Coding + Tool Call: 0/100 (0.02s, 0 tok)
+    * Tool Call Status: ERROR (Bocor: TIDAK)
+    * Analisis Code: [tokenharbor/deepseek/deepseek-v4.1-flash:free] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 8s)
+  - Cerita Horor: 0/100 (0.02s, 0 tok)
+    * Analisis Sastra: Output too short
+  - Deductive Logic: 0/100 (0.02s, 0 tok)
+    * Analisis Logika: No output
+  - TOTAL SKOR: 0/300
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Model: th/xiaomi/mimo-v2.5:free
+  - Spek: Context Window: 1,048,576 tokens | Max Output: 131,072 tokens | Free: Ya
+  - Ping Latensi: 8.08s (OK 200)
+  - Coding + Tool Call: 0/100 (0.02s, 0 tok)
+    * Tool Call Status: ERROR (Bocor: TIDAK)
+    * Analisis Code: [tokenharbor/xiaomi/mimo-v2.5:free] All tokenharbor accounts are exhausted (account quota/credits). (reset after 59m 7s)
+  - Cerita Horor: 0/100 (0.01s, 0 tok)
+    * Analisis Sastra: Output too short
+  - Deductive Logic: 0/100 (0.02s, 0 tok)
+    * Analisis Logika: No output
+  - TOTAL SKOR: 0/300
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Model: th/deepseek-v4.1-flash:free
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Ya
+  - Status: OFFLINE / GAGAL (HTTP 500)
+  - Pesan Error: timed out
+
+Model: th/deepseek-v4-flash:free
+  - Spek: Context Window: 1,000,000 tokens | Max Output: 384,000 tokens | Free: Ya
+  - Status: OFFLINE / GAGAL (HTTP 500)
+  - Pesan Error: timed out
