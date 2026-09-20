@@ -1090,8 +1090,9 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     );
     if (!res || ((res.__error || res.__timeout)) || !res.ok) {
       bumpRoutingMetric("difficultyJudgeFailed");
-      log.warn("DIFFICULTY", "Judge call failed — defaulting to hard", { comboName });
-      return { tier: "hard", source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
+      const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
+      log.warn("DIFFICULTY", `Judge call failed — defaulting to ${fallbackTier}`, { comboName });
+      return { tier: fallbackTier, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
     }
     const txt = await res.clone().text();
     let content = "";
@@ -1116,8 +1117,9 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
 
     if (!diffRaw) {
       bumpRoutingMetric("difficultyJudgeUnparsed");
-      log.warn("DIFFICULTY", "Judge response unparsed — defaulting to hard", { comboName, content: String(content).slice(0, 120) });
-      return { tier: "hard", source: "judge-fallback", domain: domRaw, ambiguity: "high", confidence: 0.0 };
+      const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
+      log.warn("DIFFICULTY", `Judge response unparsed — defaulting to ${fallbackTier}`, { comboName, content: String(content).slice(0, 120) });
+      return { tier: fallbackTier, source: "judge-fallback", domain: domRaw, ambiguity: "high", confidence: 0.0 };
     }
 
     // Low confidence (< 0.5) acts like Morph's needs_info -> escalate to hard
@@ -1129,8 +1131,9 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     return { tier, source: "judge", domain: domRaw, ambiguity: ambRaw, confidence: confRaw };
   } catch (e) {
     bumpRoutingMetric("difficultyJudgeFailed");
-    log.warn("DIFFICULTY", "Judge threw — defaulting to hard", { comboName, error: e?.message });
-    return { tier: "hard", source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
+    const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
+    log.warn("DIFFICULTY", `Judge threw — defaulting to ${fallbackTier}`, { comboName, error: e?.message });
+    return { tier: fallbackTier, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
   }
 }
 

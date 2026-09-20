@@ -1367,9 +1367,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isDailyCap429 = !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isModelDailyLimit = Boolean(model) && /limit reached on model|daily.*limit reached on model/i.test(lowerErrorText);
+    const isDailyCap429 = !isModelDailyLimit && !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
     if (isDailyCap429) {
       lockAll = true;
+    } else if (isModelDailyLimit) {
+      lockAll = false;
+      shouldFallback = true;
     }
     // Every 429 must be cooled down. If the provider did not return a usable
     // reset timestamp, use the stable default instead of the short exponential
@@ -1485,6 +1489,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     cooldownMs = 30 * 24 * 60 * 60 * 1000;
   }
 
+  // Cline Free: "Daily free limit reached on model <x>" locks ONLY that model,
+  // never the whole account, allowing other models (e.g. DeepSeek, Gemma) to keep serving!
+  const isClineFreeModelDailyLimit = providerId === "cline-free"
+    && model
+    && /daily free limit reached on model|limit reached on model/i.test(lowerErr);
+  if (isClineFreeModelDailyLimit) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+  }
   const isQuotaExhausted = /resource_exhausted|quota_exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
   if (providerId === "antigravity" && isQuotaExhausted && model) {
     // A model quota error is always a durable model lock, even when the

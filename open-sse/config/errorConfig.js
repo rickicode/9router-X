@@ -122,13 +122,20 @@ export const ERROR_RULES = [
     lockAll: false,
     shouldFallback: true,
   },
-  // Cline free-tier daily cap: account-wide lock for 24h (defense-in-depth
-  // if resetsAtMs parsing from upstream message body fails). Real reset
-  // duration (8-24h) is applied via the resetsAtMs path in markAccountUnavailable.
+  // Cline free-tier per-model daily cap (e.g. "Daily free limit reached on model z-ai/glm-5.3-flash")
+  // Lock ONLY the specific model, never the entire account, so other free models keep serving.
+  {
+    text: "daily free limit reached on model",
+    cooldownMs: 24 * 60 * 60 * 1000,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  // Cline free-tier daily cap: quota is strictly per-model on Cline Free.
+  // Lock ONLY the affected model for 24h (or until resetsAtMs), never the entire account!
   {
     text: "daily free limit",
     cooldownMs: 24 * 60 * 60 * 1000,
-    lockAll: true,
+    lockAll: false,
     shouldFallback: true,
   },
   // Cloudflare Workers AI free-tier daily neuron quota (account-wide, 24h)

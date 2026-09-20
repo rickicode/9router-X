@@ -69,6 +69,8 @@ const clineFree = {
     // answer correctly on free accounts; vision-exp/r1 hit 402 paid-only)
     { id: "deepseek/deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash (Free)" },
     { id: "deepseek/deepseek-v4-flash-0731:free", name: "DeepSeek V4 Flash (Free)" },
+    // Moonshot AI Free Models
+    { id: "moonshotai/kimi-k3", name: "Kimi K3 (Free)", contextLength: 262144 },
 
     // Free Aggregator
     { id: "openrouter/free", name: "OpenRouter Free" },
