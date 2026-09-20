@@ -1520,6 +1520,17 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       ? resetsAtMs - Date.now()
       : (/daily.*limit|limit.*reached/i.test(lowerErr) ? 24 * 60 * 60 * 1000 : 2 * 60 * 1000);
   }
+  // TokenHarbor: Free allowance exhausted (rolling 7-day period)
+  const isTokenHarborFreeExhausted = providerId === "tokenharbor"
+    && (/used this period's free allowance|free allowance/i.test(lowerErr) || (status === 402 && /balance is at \$0/i.test(lowerErr)));
+  if (isTokenHarborFreeExhausted) {
+    lockAll = true;
+    isExhausted = true;
+    shouldFallback = true;
+    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+      ? resetsAtMs - Date.now()
+      : 7 * 24 * 60 * 60 * 1000;
+  }
   const isQuotaExhausted = /resource.*exhausted|quota.*exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
   if (providerId === "antigravity" && isQuotaExhausted && model) {
     // A model quota error is always a durable model lock, even when the

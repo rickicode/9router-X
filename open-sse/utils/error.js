@@ -141,6 +141,13 @@ export function extractQuotaResetMs(bodyText, response) {
     }
 
     if (!resetsAtMs) {
+      const isoMatch = String(bodyText).match(/(?:starts at|resets? at|period starts at)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}T[^\s,"]+)/i);
+      if (isoMatch) {
+        const t = Date.parse(isoMatch[1]);
+        if (!isNaN(t) && t > now) resetsAtMs = t;
+      }
+    }
+    if (!resetsAtMs) {
       const compoundMatch = String(bodyText).match(/(?:resets?|try again)\s+in\s+(\d+)h\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i);
       if (compoundMatch) {
         const h = parseInt(compoundMatch[1] || "0", 10);
