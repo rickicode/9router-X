@@ -266,7 +266,7 @@ async function refreshOAuthToken(connection) {
       return { accessToken: data.access_token, expiresIn: data.expires_in, refreshToken: data.refresh_token || refreshToken };
     }
 
-    if (provider === "codex" || provider === "grok-cli" || provider === "xai") {
+    if (provider === "codex" || provider === "grok-cli" || provider === "xai" || provider === "cline" || provider === "cline-free" || provider === "clinepass") {
       return await refreshProviderCredentials(provider, connection, console);
     }
 
@@ -311,28 +311,6 @@ async function refreshOAuthToken(connection) {
       return { accessToken: data.accessToken, expiresIn: data.expiresIn || 3600, refreshToken: data.refreshToken || refreshToken };
     }
 
-    if (provider === "cline" || provider === "cline-free") {
-      const response = await fetch(CLINE_CONFIG.refreshUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          refreshToken,
-          grantType: "refresh_token",
-          clientType: "extension",
-        }),
-      });
-      if (!response.ok) return null;
-      const payload = await response.json();
-      const data = payload?.data || payload;
-      const expiresIn = data?.expiresAt
-        ? Math.max(1, Math.floor((new Date(data.expiresAt).getTime() - Date.now()) / 1000))
-        : 3600;
-      return {
-        accessToken: data?.accessToken,
-        expiresIn,
-        refreshToken: data?.refreshToken || refreshToken,
-      };
-    }
 
     return null;
   } catch (err) {

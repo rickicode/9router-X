@@ -83,6 +83,8 @@ const clineFree = {
     authorizeUrl: "https://api.cline.bot/api/v1/auth/authorize",
     tokenExchangeUrl: "https://api.cline.bot/api/v1/auth/token",
     refreshUrl: "https://api.cline.bot/api/v1/auth/refresh",
+    maxRefreshAgeMs: 259_200_000,
+    trackRefreshAt: true,
   },
 };
 

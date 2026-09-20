@@ -1613,7 +1613,17 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (validationData) {
     disableAccount = true;
   }
-  if ((disableAccount || isFatalAuthError(status, candidateText)) && !opencodeZenModelOnlyError) {
+  const isOAuthWithRefreshToken = Boolean(
+    (conn?.authType === "oauth" || conn?.refreshToken) &&
+    !isRefreshBlockedMarker(conn) &&
+    !conn?.providerSpecificData?.refreshBlocked
+  );
+  const fatal = isFatalAuthError(status, candidateText);
+  const shouldDisable = Boolean(
+    disableAccount ||
+    (fatal && !(isOAuthWithRefreshToken && status === 401))
+  );
+  if (shouldDisable && !opencodeZenModelOnlyError) {
     const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Account authentication fatal error");
     await updateProviderConnection(connectionId, {
       isActive: false,

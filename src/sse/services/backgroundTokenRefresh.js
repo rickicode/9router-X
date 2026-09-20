@@ -9,7 +9,7 @@ import { acquireLock, releaseLock, isCacheAvailable } from "@/lib/cache/client.j
 // with `false`) while logging a misleading "finished" line.
 const localRefreshLocks = new Set();
 import { getRefreshLeadMs } from "open-sse/services/tokenRefresh.js";
-import { getCredentialExpiryMs } from "open-sse/services/oauthCredentialManager.js";
+import { getCredentialExpiryMs, shouldRefreshCredentials } from "open-sse/services/oauthCredentialManager.js";
 
 /** Refresh when expiry is within 30 minutes (or the provider on-request lead, whichever larger). */
 export const BACKGROUND_REFRESH_LEAD_MS = 30 * 60 * 1000;
@@ -65,8 +65,16 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
     // every tick; surfaced as "re-login required" instead.
     if (conn.providerSpecificData?.refreshBlocked) continue;
 
+    if (shouldRefreshCredentials(conn.provider, conn, nowMs)) {
+      out.push(conn);
+      continue;
+    }
+
     const expiresAtMs = getCredentialExpiryMs(conn);
-    if (expiresAtMs === null) continue;
+    if (expiresAtMs === null) {
+      out.push(conn);
+      continue;
+    }
 
     const providerLead = getRefreshLeadMs(conn.provider);
     const leadMs = Math.max(

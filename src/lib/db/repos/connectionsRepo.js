@@ -430,10 +430,16 @@ function buildConnectionFilterConditions(filter, params) {
   }
   if (filter.tokenExpiresBefore) {
     params.push(filter.tokenExpiresBefore);
+    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    params.push(threeDaysAgoIso);
     where.push(`(
-      (token_expires_at IS NOT NULL AND token_expires_at <= $${params.length})
+      (token_expires_at IS NOT NULL AND token_expires_at <= $${params.length - 1})
       OR
-      (token_expires_at IS NULL AND data->>'expiresAt' IS NOT NULL AND ${safeTimestampSql("data->>'expiresAt'")} <= $${params.length})
+      (token_expires_at IS NULL AND data->>'expiresAt' IS NOT NULL AND ${safeTimestampSql("data->>'expiresAt'")} <= $${params.length - 1})
+      OR
+      (token_expires_at IS NULL AND (data->>'expiresAt' IS NULL OR data->>'expiresAt' = ''))
+      OR
+      (data->>'lastRefreshAt' IS NOT NULL AND ${safeTimestampSql("data->>'lastRefreshAt'")} <= $${params.length})
     )`);
   }
   if (filter.isActive !== undefined) {

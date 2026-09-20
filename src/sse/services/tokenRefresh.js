@@ -1,6 +1,6 @@
 // Re-export from open-sse with local logger
 import * as log from "../utils/logger.js";
-import { updateProviderConnection, getProviderConnectionById } from "../../lib/localDb.js";
+import { updateProviderConnection, getProviderConnectionById, getProviderConnections } from "../../lib/localDb.js";
 import {
   getProjectIdForConnection,
   invalidateProjectId,
@@ -127,7 +127,34 @@ async function adoptFreshRowTokens(creds) {
     return { adopted: false, creds };
   }
   const freshToken = row?.refreshToken;
-  if (!freshToken || freshToken === usedToken) return { adopted: false, creds };
+  if (!freshToken || freshToken === usedToken) {
+    const provider = creds?.provider || row?.provider;
+    const email = creds?.email || row?.email;
+    if (email && (provider === "cline" || provider === "cline-free")) {
+      try {
+        const siblings = await getProviderConnections({ email });
+        for (const s of siblings) {
+          if (s.id !== connectionId && (s.provider === "cline" || s.provider === "cline-free") && s.refreshToken && s.refreshToken !== usedToken) {
+            log.info("TOKEN_REFRESH", "Adopting fresher Cline token from sibling connection", {
+              connectionId,
+              siblingId: s.id,
+              siblingProvider: s.provider,
+            });
+            return {
+              adopted: true,
+              creds: {
+                ...creds,
+                refreshToken: s.refreshToken,
+                ...(s.accessToken ? { accessToken: s.accessToken } : {}),
+                ...(s.tokenExpiresAt ? { expiresAt: s.tokenExpiresAt } : {}),
+              },
+            };
+          }
+        }
+      } catch {}
+    }
+    return { adopted: false, creds };
+  }
   log.info("TOKEN_REFRESH", "Adopting fresher DB refresh token (in-memory copy was stale)", {
     connectionId,
     provider: creds.provider || row?.provider || null,
@@ -239,6 +266,37 @@ export async function updateProviderCredentials(connectionId, newCredentials) {
       connectionId,
       success: !!result
     });
+
+    // If this is a Cline connection (cline or cline-free) and refreshToken was updated,
+    // sync tokens to sibling connections with the same email to prevent token rotation desync.
+    if (newCredentials.refreshToken) {
+      try {
+        const currentConn = await getProviderConnectionById(connectionId);
+        if (currentConn?.email && (currentConn.provider === "cline" || currentConn.provider === "cline-free")) {
+          const siblings = await getProviderConnections({ email: currentConn.email });
+          for (const sibling of siblings) {
+            if (sibling.id !== connectionId && (sibling.provider === "cline" || sibling.provider === "cline-free")) {
+              await updateProviderConnection(sibling.id, {
+                ...(updates.accessToken ? { accessToken: updates.accessToken } : {}),
+                ...(updates.refreshToken ? { refreshToken: updates.refreshToken } : {}),
+                ...(updates.expiresAt ? { expiresAt: updates.expiresAt } : {}),
+                ...(updates.lastRefreshAt ? { lastRefreshAt: updates.lastRefreshAt } : {}),
+              });
+              log.info("TOKEN_REFRESH", "Synced fresh Cline token to sibling connection", {
+                sourceId: connectionId,
+                targetId: sibling.id,
+                targetProvider: sibling.provider,
+              });
+            }
+          }
+        }
+      } catch (syncErr) {
+        log.warn("TOKEN_REFRESH", "Failed to sync sibling Cline credentials (swallowed)", {
+          connectionId,
+          error: syncErr.message,
+        });
+      }
+    }
     return !!result;
   } catch (error) {
     log.error("TOKEN_REFRESH", "Error updating credentials in localDb", {
