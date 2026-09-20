@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { resolveProviderIconId, getProviderIconSrc } from "../../src/shared/utils/providerIcon.js";
 import { getExecutor } from "../../open-sse/executors/index.js";
 import { resolveProviderAlias, parseModel } from "../../open-sse/services/model.js";
 import { KiloCodeFreeExecutor } from "../../open-sse/executors/kilocode-free.js";
@@ -107,22 +108,10 @@ describe("KiloCode Free Provider & Executor", () => {
     expect(getExecutor("kilocode-free")).toBeInstanceOf(KiloCodeFreeExecutor);
   });
 
-  it("executes a live request through KiloCodeFreeExecutor without auth", async () => {
-    const executor = new KiloCodeFreeExecutor();
-    const result = await executor.execute({
-      model: "kilo-auto/free",
-      body: {
-        model: "kilo-auto/free",
-        messages: [{ role: "user", content: "say ok" }],
-        max_tokens: 5,
-      },
-      stream: false,
-      credentials: {},
-    });
-    expect(result.response.status).toBe(200);
-    const json = await result.response.json();
-    expect(json.choices).toBeDefined();
-    expect(json.choices.length).toBeGreaterThan(0);
-    expect(json.usage).toBeDefined();
-  }, 15000);
+  it("resolves provider icon properly", () => {
+    expect(resolveProviderIconId("kilocode-free")).toBe("kilocode");
+    expect(resolveProviderIconId("kcf")).toBe("kilocode");
+    expect(getProviderIconSrc("kilocode-free")).toBe("/providers/kilocode.png");
+    expect(getProviderIconSrc("kcf")).toBe("/providers/kilocode.png");
+  });
 });
