@@ -33,7 +33,7 @@ import { prefetchRemoteImages } from "../translator/concerns/prefetch.js";
 import { defaultClaudeToolType, shouldDefaultClaudeToolType } from "../translator/concerns/toolCall.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { markPoolUnfit, clearPoolUnfit } from "../services/proxyPoolFitness.js";
-
+import { isFreeTierGateModel } from "../config/opencodeAgentTools.js";
 // Pool-scoped failure retry: when an executor tags an error as belonging to a
 // proxy pool (region gate, dead proxy, …), re-resolve the proxy config
 // excluding that pool and retry instead of failing the whole account.
@@ -128,7 +128,7 @@ if (providerThinking?.mode && providerThinking.mode !== "auto") {
 }
 
 const clientRequestedStreaming = body.stream === true || sourceFormat === FORMATS.ANTIGRAVITY || sourceFormat === FORMATS.GEMINI || sourceFormat === FORMATS.GEMINI_CLI;
-const providerRequiresStreaming = PROVIDERS[provider]?.forceStream === true;
+const providerRequiresStreaming = PROVIDERS[provider]?.forceStream === true || (provider === "opencode-zen" && isFreeTierGateModel(model));
 let stream = providerRequiresStreaming ? true : (body.stream !== false);
 
 // Image generation models require non-streaming (Google v1internal:generateContent)
