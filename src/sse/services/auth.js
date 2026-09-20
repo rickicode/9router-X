@@ -1480,7 +1480,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // and must stay active. Lock ONLY this model for 30 days, never the whole account!
   // Account-wide exhaustion on cline-free is triggered strictly by "daily free limit".
   const isClineFreePaidModel = providerId === "cline-free"
-    && (status === 402 || /credits exhausted|insufficient credits|out of credits|insufficient balance/i.test(lowerErr));
+    && (status === 402 || /credits exhausted|insufficient credits|out of credits|insufficient balance|unavailable for free/i.test(lowerErr));
   if (isClineFreePaidModel) {
     lockAll = false;
     disableAccount = false;
@@ -1489,11 +1489,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     cooldownMs = 30 * 24 * 60 * 60 * 1000;
   }
 
-  // Cline Free: "Daily free limit reached on model <x>" locks ONLY that model,
-  // never the whole account, allowing other models (e.g. DeepSeek, Gemma) to keep serving!
+  // Cline Free: Per-model rate limit / daily free limit / upstream pool overload
+  // locks ONLY that specific model, never the entire account!
   const isClineFreeModelDailyLimit = providerId === "cline-free"
     && model
-    && /daily free limit reached on model|limit reached on model/i.test(lowerErr);
+    && (/daily free limit reached on model|limit reached on model|daily limit reached for|limit_rpd/i.test(lowerErr)
+      || (/status 429|rate-limited upstream|rate.?limit exceeded|too many requests|overloaded/i.test(lowerErr) && (status === 429 || status === 500)));
   if (isClineFreeModelDailyLimit) {
     lockAll = false;
     disableAccount = false;
@@ -1501,7 +1502,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     shouldFallback = true;
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
       ? resetsAtMs - Date.now()
-      : DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+      : (/daily.*limit|limit.*reached/i.test(lowerErr) ? 24 * 60 * 60 * 1000 : 2 * 60 * 1000);
   }
   const isQuotaExhausted = /resource_exhausted|quota_exhausted|exhausted.*capacity|capacity.*exhausted|quota.*reset|daily.*limit|limit reached/i.test(lowerErr);
   if (providerId === "antigravity" && isQuotaExhausted && model) {
