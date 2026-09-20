@@ -12,6 +12,8 @@ export default {
     icon: "smart_toy",
     color: "#FF6900",
     textIcon: "MF",
+    deprecated: true,
+    deprecationNotice: "Xiaomi MiMo free API service has ended and is no longer available.",
   },
   category: "free",
   noAuth: true,

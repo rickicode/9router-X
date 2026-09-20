@@ -52,4 +52,22 @@ export const FILTERS = {
       .filter((m) => (m.tier === "free" || m.id?.endsWith(":free")) && m.supports_chat === true && (!m.media_type || m.media_type === "chat" || m.media_type === "text"))
       .map((m) => ({ id: m.id, name: m.name || m.id, contextLength: m.context_length }))
       .sort((a, b) => String(a.id).localeCompare(String(b.id))),
+
+  "kilocode-free": (models) =>
+    (Array.isArray(models) ? models : [])
+      .filter(
+        (m) =>
+          m.isFree === true ||
+          m.id?.endsWith(":free") ||
+          m.id?.endsWith("-free") ||
+          m.id === "kilo-auto/free" ||
+          m.id === "openrouter/free"
+      )
+      .map((m) => ({
+        id: m.id,
+        name: m.name || m.id,
+        contextLength: m.context_length,
+        maxTokens: m.top_provider?.max_completion_tokens || undefined,
+      }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name))),
 };

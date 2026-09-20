@@ -29,6 +29,7 @@ import { DefaultExecutor } from "./default.js";
 import { DevinCliExecutor } from "./devin-cli.js";
 import { FreebuffExecutor } from "./freebuff.js";
 import { MorphExecutor } from "./morphllm.js";
+import { KiloCodeFreeExecutor } from "./kilocode-free.js";
 const executors = {
   antigravity: new AntigravityExecutor(),
   azure: new AzureExecutor(),
@@ -68,6 +69,9 @@ const executors = {
   freebuff: new FreebuffExecutor(),
   morph: new MorphExecutor(),
   morphllm: new MorphExecutor(),
+  "kilocode-free": new KiloCodeFreeExecutor(),
+  kcf: new KiloCodeFreeExecutor(),
+  kf: new KiloCodeFreeExecutor(),
 };
 
 const defaultCache = new Map();
@@ -113,3 +117,4 @@ export { default as ZedExecutor } from "./zed.js";
 export { default as WindsurfExecutor } from "./windsurf.js";
 export { DevinCliExecutor } from "./devin-cli.js";
 export { MorphExecutor } from "./morphllm.js";
+export { KiloCodeFreeExecutor } from "./kilocode-free.js";

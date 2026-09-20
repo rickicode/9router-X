@@ -42,6 +42,7 @@ export const NEVER_ACCOUNT_EXHAUSTED_PROVIDERS = new Set([
   "opencode",
   "kiro",
   "mimo-free",
+  "kilocode-free",
 
   // registry category "freeTier" — except cloudflare-ai, whose daily neuron
   // budget is pooled across every model (true account-wide exhaustion)
