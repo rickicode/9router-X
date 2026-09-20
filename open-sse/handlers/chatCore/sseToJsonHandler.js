@@ -393,15 +393,11 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
     // a 90%-cached request from a cheap one without this.
     if (usage && Object.keys(usage).length > 0) parsed.usage = usage;
 
-    // Strip reasoning_content only when content is non-empty.
-    // When content is empty (e.g. thinking models that used all tokens for reasoning),
-    // reasoning_content is the only useful output and must be preserved.
-    // Previously this was unconditional, which broke Qwen3.5, Claude extended thinking, etc.
-    if (parsed?.choices) {
-      for (const choice of parsed.choices) {
-        if (choice?.message?.reasoning_content && choice.message.content && choice.message.content !== choice.message.reasoning_content) {
-          delete choice.message.reasoning_content;
-        }
+    // When content is empty but reasoning is present, promote reasoning to content
+    if (parsed?.choices?.[0]?.message) {
+      const msg = parsed.choices[0].message;
+      if (!msg.content && (msg.reasoning_content || msg.reasoning)) {
+        msg.content = msg.reasoning_content || msg.reasoning;
       }
     }
 

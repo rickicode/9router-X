@@ -414,7 +414,10 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
   // reasoning_content is the only useful output and must be preserved.
   if (!isClaudeMessageResponse && !isResponsesResponse && translatedResponse?.choices) {
     for (const choice of translatedResponse.choices) {
-      if (choice?.message?.reasoning_content && choice.message.content) {
+      if (!choice?.message) continue;
+      if (!choice.message.content && (choice.message.reasoning_content || choice.message.reasoning)) {
+        choice.message.content = choice.message.reasoning_content || choice.message.reasoning;
+      } else if (choice.message.reasoning_content && choice.message.content) {
         delete choice.message.reasoning_content;
       }
     }
