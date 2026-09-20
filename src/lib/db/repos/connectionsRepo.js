@@ -489,26 +489,27 @@ function buildConnectionFilterConditions(filter, params) {
 }
 
 export async function getProviderConnections(filter = {}) {
+  const normFilter = typeof filter === "string" ? { provider: filter } : (filter || {});
   const db = await getAdapter();
   const params = [];
-  const where = buildConnectionFilterConditions(filter, params);
+  const where = buildConnectionFilterConditions(normFilter, params);
 
   let limitClause = "";
-  if (filter.limit) {
-    params.push(Math.max(1, Number(filter.limit)));
+  if (normFilter.limit) {
+    params.push(Math.max(1, Number(normFilter.limit)));
     limitClause = ` LIMIT $${params.length}`;
-    if (filter.offset) {
-      params.push(Math.max(0, Number(filter.offset)));
+    if (normFilter.offset) {
+      params.push(Math.max(0, Number(normFilter.offset)));
       limitClause += ` OFFSET $${params.length}`;
     }
   }
 
-  const distinctClause = filter.distinctByProvider ? "DISTINCT ON (provider)" : "";
-  const orderClause = filter.distinctByProvider
+  const distinctClause = normFilter.distinctByProvider ? "DISTINCT ON (provider)" : "";
+  const orderClause = normFilter.distinctByProvider
     ? "ORDER BY provider, is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"
-    : (filter.tokenExpiresBefore
+    : (normFilter.tokenExpiresBefore
       ? `ORDER BY COALESCE(token_expires_at, ${safeTimestampSql("data->>'expiresAt'")}) ASC NULLS FIRST, id ASC`
-      : (filter.routingModel
+      : (normFilter.routingModel
         ? "ORDER BY priority ASC NULLS LAST, last_used_at ASC NULLS FIRST, id ASC"
         : "ORDER BY is_active DESC, priority ASC NULLS LAST, updated_at DESC NULLS LAST"));
 
