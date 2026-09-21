@@ -12,10 +12,10 @@ function buildModelListHeaders(token, isApiKey) {
   if (isApiKey) {
     return {
       Accept: "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token.trim()}`,
     };
   }
-  return buildClineHeaders(token, { Accept: "application/json" });
+  return buildClineHeaders(token, { Accept: "application/json" }, { isApiKey: false });
 }
 
 /**
