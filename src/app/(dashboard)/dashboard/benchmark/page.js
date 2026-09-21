@@ -28,7 +28,7 @@ const REVIEWER_PRESETS = [
 ];
 
 export default function BenchmarkPage() {
-  // 1. Build complete catalog of providers with their respective LLM models
+  // 1. Build catalog of providers with LLM models
   const catalog = useMemo(() => {
     return Object.values(AI_PROVIDERS)
       .filter((provider) => !provider.hidden)
@@ -43,6 +43,7 @@ export default function BenchmarkPage() {
             fullId: `${alias}/${m.id}`,
             alias,
             providerId: provider.id,
+            providerName: provider.name || provider.id,
           }));
         return {
           id: provider.id,
@@ -55,7 +56,7 @@ export default function BenchmarkPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
-  // State: Selection
+  // State: Permanent selection (used in benchmark runs)
   const [selectedModelIds, setSelectedModelIds] = useState(() => {
     const initial = new Set();
     catalog.forEach((p) => {
@@ -66,26 +67,29 @@ export default function BenchmarkPage() {
     return initial;
   });
 
-  const [expandedProviders, setExpandedProviders] = useState(() => {
-    return new Set(["antigravity", "kilocode-free"]);
-  });
+  // State: Modal for Provider & Model Selector (with staging/buffer before pressing OKE)
+  const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
+  const [modalSelectedModelIds, setModalSelectedModelIds] = useState(new Set());
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerExpandedProviders, setPickerExpandedProviders] = useState(() => new Set(["antigravity", "kilocode-free"]));
 
-  const [providerQuery, setProviderQuery] = useState("");
-  const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
-  const [reviewer, setReviewer] = useState("judge-router");
+  // State: Modal for Reviewer AI Model Picker
   const [isReviewerModalOpen, setIsReviewerModalOpen] = useState(false);
   const [reviewerPickerSearch, setReviewerPickerSearch] = useState("");
-  // Reviewer options for Combobox model picker
+
+  const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
+  const [reviewer, setReviewer] = useState("judge-router");
+
+  // Reviewer options for Combobox & Modal
   const reviewerModelOptions = useMemo(() => {
     const list = [
       {
         value: "judge-router",
         label: "judge-router",
-        subtitle: "Internal automated judge router",
+        subtitle: "Internal automated router judge",
         badge: "Default",
       },
     ];
-
     catalog.forEach((p) => {
       p.models.forEach((m) => {
         list.push({
@@ -96,17 +100,16 @@ export default function BenchmarkPage() {
         });
       });
     });
-
     return list;
   }, [catalog]);
 
   // State: Table filters & sorting
-  const [statusFilter, setStatusFilter] = useState("all"); // all | passed | failed | rate_limited | skipped
+  const [statusFilter, setStatusFilter] = useState("all");
   const [searchTableQuery, setSearchTableQuery] = useState("");
-  const [sortField, setSortField] = useState("created_at"); // created_at | score | ttft | total | tps | model
+  const [sortField, setSortField] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // State: Inspector modal
+  // State: Detailed Inspector modal (shows statuscode, error diagnostic, request & response body)
   const [inspectAttempt, setInspectAttempt] = useState(null);
 
   // State: Job & Runtime Data
@@ -124,9 +127,35 @@ export default function BenchmarkPage() {
   const activeIdRef = useRef(null);
   activeIdRef.current = active?.id;
 
-  // Filtered catalog based on search
-  const filteredCatalog = useMemo(() => {
-    const q = providerQuery.toLowerCase().trim();
+  // Active providers derived from selected models
+  const activeProviders = useMemo(() => {
+    const provs = new Set();
+    catalog.forEach((p) => {
+      if (p.models.some((m) => selectedModelIds.has(m.fullId))) {
+        provs.add(p.id);
+      }
+    });
+    return Array.from(provs);
+  }, [catalog, selectedModelIds]);
+
+  // Models grouped by Provider (Tags view on main page)
+  const selectedGroupedByProvider = useMemo(() => {
+    const list = [];
+    catalog.forEach((provider) => {
+      const picked = provider.models.filter((m) => selectedModelIds.has(m.fullId));
+      if (picked.length > 0) {
+        list.push({
+          provider,
+          models: picked,
+        });
+      }
+    });
+    return list;
+  }, [catalog, selectedModelIds]);
+
+  // Filtered catalog for picker modal
+  const pickerCatalog = useMemo(() => {
+    const q = pickerSearch.toLowerCase().trim();
     if (!q) return catalog;
     return catalog
       .map((provider) => {
@@ -139,18 +168,7 @@ export default function BenchmarkPage() {
         return null;
       })
       .filter(Boolean);
-  }, [catalog, providerQuery]);
-
-  // Active providers
-  const activeProviders = useMemo(() => {
-    const provs = new Set();
-    catalog.forEach((p) => {
-      if (p.models.some((m) => selectedModelIds.has(m.fullId))) {
-        provs.add(p.id);
-      }
-    });
-    return Array.from(provs);
-  }, [catalog, selectedModelIds]);
+  }, [catalog, pickerSearch]);
 
   // Refresh data from server
   async function refresh(targetId = null) {
@@ -174,7 +192,7 @@ export default function BenchmarkPage() {
     }
   }
 
-  // Polling with fast tick (1s) when active job is running/queued
+  // Polling with fast tick (1s) when active job is running
   useEffect(() => {
     refresh();
     const isRunning =
@@ -204,8 +222,41 @@ export default function BenchmarkPage() {
     setSuites((prev) => (prev.includes(suiteId) ? prev.filter((s) => s !== suiteId) : [...prev, suiteId]));
   }
 
-  function toggleModel(fullId) {
+  // Tag removal directly on main screen
+  function removeSingleModelTag(fullId) {
     setSelectedModelIds((prev) => {
+      const next = new Set(prev);
+      next.delete(fullId);
+      return next;
+    });
+  }
+
+  function removeWholeProvider(providerId) {
+    const p = catalog.find((item) => item.id === providerId);
+    if (!p) return;
+    setSelectedModelIds((prev) => {
+      const next = new Set(prev);
+      p.models.forEach((m) => next.delete(m.fullId));
+      return next;
+    });
+  }
+
+  // Modal Open Handler: Sync state to modal buffer
+  function openPickerModal() {
+    setModalSelectedModelIds(new Set(selectedModelIds));
+    setPickerSearch("");
+    setIsPickerModalOpen(true);
+  }
+
+  // Modal Apply Handler (Pressing OKE)
+  function applyPickerModal() {
+    setSelectedModelIds(new Set(modalSelectedModelIds));
+    setIsPickerModalOpen(false);
+  }
+
+  // Modal toggle model in staging buffer
+  function toggleModalModel(fullId) {
+    setModalSelectedModelIds((prev) => {
       const next = new Set(prev);
       if (next.has(fullId)) next.delete(fullId);
       else next.add(fullId);
@@ -213,9 +264,10 @@ export default function BenchmarkPage() {
     });
   }
 
-  function toggleProviderModels(provider) {
-    const allSelected = provider.models.every((m) => selectedModelIds.has(m.fullId));
-    setSelectedModelIds((prev) => {
+  // Modal toggle all models of a provider in staging buffer
+  function toggleModalProviderModels(provider) {
+    const allSelected = provider.models.every((m) => modalSelectedModelIds.has(m.fullId));
+    setModalSelectedModelIds((prev) => {
       const next = new Set(prev);
       if (allSelected) {
         provider.models.forEach((m) => next.delete(m.fullId));
@@ -226,25 +278,13 @@ export default function BenchmarkPage() {
     });
   }
 
-  function toggleExpandProvider(providerId) {
-    setExpandedProviders((prev) => {
+  function togglePickerExpand(providerId) {
+    setPickerExpandedProviders((prev) => {
       const next = new Set(prev);
       if (next.has(providerId)) next.delete(providerId);
       else next.add(providerId);
       return next;
     });
-  }
-
-  function selectAllVisibleModels() {
-    setSelectedModelIds((prev) => {
-      const next = new Set(prev);
-      filteredCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
-      return next;
-    });
-  }
-
-  function clearAllModels() {
-    setSelectedModelIds(new Set());
   }
 
   // Start benchmark execution
@@ -295,7 +335,7 @@ export default function BenchmarkPage() {
     }
   }
 
-  // Cancel running benchmark job
+  // Cancel running benchmark
   async function handleCancelBenchmark() {
     if (!active?.id || active.id === "pending") return;
     setCancelling(true);
@@ -313,7 +353,7 @@ export default function BenchmarkPage() {
     }
   }
 
-  // Delete a historical job
+  // Delete historical job
   async function handleDeleteJob(id, e) {
     e.stopPropagation();
     if (!confirm("Hapus riwayat benchmark ini beserta semua detail percobaannya?")) return;
@@ -391,7 +431,9 @@ export default function BenchmarkPage() {
             row.model?.toLowerCase().includes(q) ||
             row.account_name?.toLowerCase().includes(q) ||
             row.provider?.toLowerCase().includes(q) ||
-            row.suite?.toLowerCase().includes(q)
+            row.suite?.toLowerCase().includes(q) ||
+            String(row.http_status || "").includes(q) ||
+            String(row.error || "").toLowerCase().includes(q)
           );
         }
         return true;
@@ -411,6 +453,9 @@ export default function BenchmarkPage() {
         } else if (sortField === "tps") {
           valA = a.tps ?? 0;
           valB = b.tps ?? 0;
+        } else if (sortField === "status") {
+          valA = a.http_status ?? 0;
+          valB = b.http_status ?? 0;
         }
         if (valA < valB) return sortOrder === "asc" ? -1 : 1;
         if (valA > valB) return sortOrder === "asc" ? 1 : -1;
@@ -438,15 +483,13 @@ export default function BenchmarkPage() {
   const progressDone = active?.progress?.done || 0;
   const progressPct = Math.min(100, Math.round((progressDone / Math.max(progressTotal, 1)) * 100));
 
-  // Blast radius calculation
   const totalEstimatedCalls = useMemo(() => {
-    let count = 0;
-    const suitesCount = suites.includes("pong") ? suites.length + 1 : suites.length; // pong counts 2 reps
+    const suitesCount = suites.includes("pong") ? suites.length + 1 : suites.length;
     return selectedModelIds.size * Math.max(1, suitesCount);
   }, [selectedModelIds.size, suites]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-20">
+    <div className="space-y-6 max-w-7xl mx-auto pb-24">
       {/* ─── Page Header ─── */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
         <div>
@@ -455,7 +498,7 @@ export default function BenchmarkPage() {
             <h1 className="text-2xl font-bold tracking-tight text-text-main">AI Model Benchmark</h1>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Uji performa, latensi, liveness (PONG gate), dan kapabilitas model secara terisolasi di server gateway 9router-X.
+            Uji performa, latensi, liveness, dan kapabilitas model secara mandiri di server gateway 9router-X.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -485,17 +528,17 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
 
-      {/* ─── Top Configuration Card ─── */}
+      {/* ─── Top Configuration Card: Suites & Reviewer ─── */}
       <Card
-        title="Konfigurasi Pengujian & Reviewer"
-        subtitle="Atur suite pengujian, reviewer AI, dan target pengujian"
+        title="1. Konfigurasi Pengujian & Reviewer"
+        subtitle="Atur suite pengujian dan reviewer AI untuk merangkum hasil evaluasi"
         icon="tune"
       >
         <div className="space-y-5">
           {/* Suite Selection */}
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">
-              1. Test Suites
+              Pilih Test Suites
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {SUITES.map((s) => {
@@ -539,12 +582,12 @@ export default function BenchmarkPage() {
           {/* Reviewer Configuration */}
           <div className="border-t border-border-subtle pt-4">
             <span className="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">
-              2. Reviewer AI Model (Opsional)
+              Reviewer AI Model (Opsional)
             </span>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex-1 min-w-[280px] max-w-md">
+                  <div className="flex-1 min-w-[260px] max-w-md">
                     <Combobox
                       id="reviewer-model-picker"
                       value={reviewer}
@@ -559,11 +602,11 @@ export default function BenchmarkPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    icon="list"
+                    icon="format_list_bulleted"
                     onClick={() => setIsReviewerModalOpen(true)}
-                    title="Pilih dari daftar lengkap model"
+                    title="Pilih model reviewer dari daftar lengkap"
                   >
-                    Pilih dari Daftar
+                    Pilih Model
                   </Button>
                   {reviewer ? (
                     <button
@@ -603,6 +646,106 @@ export default function BenchmarkPage() {
             </div>
           </div>
         </div>
+      </Card>
+
+      {/* ─── Selected Models Display: Grouped by Provider -> Tags Model ─── */}
+      <Card
+        title="2. Target Model yang Diuji"
+        subtitle="Daftar model yang terpilih untuk diuji, dikelompokkan per provider"
+        icon="checklist"
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              icon="tune"
+              onClick={openPickerModal}
+              className="shadow-xs"
+            >
+              Pilih Provider & Model ({selectedModelIds.size})
+            </Button>
+            {selectedModelIds.size > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => setSelectedModelIds(new Set())}>
+                Kosongkan
+              </Button>
+            ) : null}
+          </div>
+        }
+      >
+        {selectedGroupedByProvider.length > 0 ? (
+          <div className="space-y-4">
+            {selectedGroupedByProvider.map(({ provider, models }) => (
+              <div
+                key={provider.id}
+                className="rounded-xl border border-border-subtle bg-surface-2 p-3.5 transition-all hover:border-border"
+              >
+                {/* Provider Header Bar */}
+                <div className="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-border-subtle">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-text-main">{provider.name}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-brand-400 uppercase tracking-wider">
+                      {provider.alias}
+                    </span>
+                    <span className="text-xs text-text-muted">
+                      ({models.length} model)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeWholeProvider(provider.id)}
+                    className="text-xs text-text-muted hover:text-rose-400 flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-rose-500/10"
+                    title={`Hapus semua model dari ${provider.name}`}
+                  >
+                    <span className="material-symbols-outlined text-sm leading-none">delete</span>
+                    <span>Hapus Provider</span>
+                  </button>
+                </div>
+
+                {/* Model Tags List */}
+                <div className="flex flex-wrap gap-2">
+                  {models.map((m) => (
+                    <span
+                      key={m.fullId}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/25 bg-surface-1 px-2.5 py-1 text-xs text-text-main font-medium shadow-2xs group"
+                    >
+                      <span className="text-text-main">{m.name}</span>
+                      <span className="text-[10px] text-text-muted font-mono opacity-80">
+                        ({m.id})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeSingleModelTag(m.fullId)}
+                        className="text-text-muted hover:text-rose-400 transition-colors p-0.5 rounded-full hover:bg-surface-3 leading-none"
+                        title={`Hapus model ${m.name}`}
+                      >
+                        <span className="material-symbols-outlined text-sm leading-none">close</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-sm text-text-muted">
+            <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+              <span className="material-symbols-outlined text-4xl opacity-30 text-brand-400">add_chart</span>
+              <span className="font-semibold text-text-main text-base">Belum Ada Model yang Dipilih</span>
+              <p className="text-xs text-text-muted leading-relaxed">
+                Klik tombol di bawah untuk membuka modal pemilihan provider dan centang model yang ingin Anda uji performanya.
+              </p>
+              <Button
+                size="md"
+                variant="primary"
+                icon="tune"
+                onClick={openPickerModal}
+                className="mt-2 shadow-sm"
+              >
+                Buka Pemilih Provider & Model
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* ─── Active Job Live Progress Card ─── */}
@@ -731,392 +874,252 @@ export default function BenchmarkPage() {
         </Card>
       ) : null}
 
-      {/* ─── Main Two-Column Work Area ─── */}
-      <div className="grid items-start gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        {/* Left Column: Provider & Model Selection Accordion */}
-        <Card
-          title="Pilih Provider & Model"
-          subtitle={`${selectedModelIds.size} model dari ${activeProviders.length} provider`}
-          icon="dns"
-          action={
-            <div className="flex items-center gap-1">
-              <Button size="xs" variant="ghost" onClick={selectAllVisibleModels}>
-                Semua
-              </Button>
-              <Button size="xs" variant="ghost" onClick={clearAllModels}>
-                Kosongkan
-              </Button>
+      {/* ─── Live Test Results Table with Inline Statuscode, Response & Inspector ─── */}
+      <Card
+        title="3. Hasil Pengujian Terkini"
+        subtitle="Menampilkan HTTP statuscode & respon per percobaan. Klik baris mana saja untuk melihat detail lengkap."
+        icon="table_chart"
+        action={
+          <div className="text-xs text-text-muted">
+            {displayedAttempts.length} dari {rawAttempts.length} data ditampilkan
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          {/* Filter & Search Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-subtle">
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+              <span className="text-text-muted mr-1 font-medium">Filter:</span>
+              {[
+                { id: "all", label: "Semua" },
+                { id: "passed", label: "Lolos" },
+                { id: "failed", label: "Gagal" },
+                { id: "rate_limited", label: "429 Rate Limit" },
+                { id: "skipped", label: "Dilewati" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setStatusFilter(f.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    statusFilter === f.id
+                      ? "bg-brand-500 text-white shadow-xs"
+                      : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
-          }
-        >
-          <div className="space-y-3">
-            <Input
-              placeholder="Cari provider atau model..."
-              value={providerQuery}
-              onChange={(e) => setProviderQuery(e.target.value)}
-            />
 
-            <div className="max-h-[580px] space-y-2 overflow-y-auto pr-1">
-              {filteredCatalog.map((provider) => {
-                const totalInProv = provider.models.length;
-                const selectedInProv = provider.models.filter((m) => selectedModelIds.has(m.fullId)).length;
-                const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
-                const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
-                const isExpanded = expandedProviders.has(provider.id);
-
-                return (
-                  <div
-                    key={provider.id}
-                    className={`rounded-lg border transition-all ${
-                      selectedInProv > 0
-                        ? "border-brand-500/30 bg-surface-2"
-                        : "border-border-subtle bg-surface-1 hover:border-border"
-                    }`}
-                  >
-                    {/* Provider Row */}
-                    <div className="flex items-center justify-between p-2.5 gap-2">
-                      <div
-                        className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer"
-                        onClick={() => toggleProviderModels(provider)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = isPartiallySelected;
-                          }}
-                          onChange={() => toggleProviderModels(provider)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Pilih semua model dari ${provider.name}`}
-                          className="rounded border-border text-brand-500 focus:ring-brand-500"
-                        />
-                        <div className="min-w-0 flex-1 truncate">
-                          <span className="font-semibold text-sm text-text-main truncate block">
-                            {provider.name}
-                          </span>
-                          <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            selectedInProv > 0
-                              ? "bg-brand-500/20 text-brand-400 font-semibold"
-                              : "bg-surface-3 text-text-muted"
-                          }`}
-                        >
-                          {selectedInProv}/{totalInProv}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => toggleExpandProvider(provider.id)}
-                          className="p-1 rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
-                          title={isExpanded ? "Tutup list model" : "Buka list model"}
-                        >
-                          <span className="material-symbols-outlined text-lg leading-none">
-                            {isExpanded ? "expand_less" : "expand_more"}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Model Sub-list (Accordion Content) */}
-                    {isExpanded ? (
-                      <div className="border-t border-border-subtle bg-surface-1/50 px-3 py-2 space-y-1.5">
-                        <div className="flex items-center justify-between pb-1 border-b border-border-subtle text-[11px] text-text-muted">
-                          <span>Daftar Model ({provider.name}):</span>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedModelIds((prev) => {
-                                  const next = new Set(prev);
-                                  provider.models.forEach((m) => next.add(m.fullId));
-                                  return next;
-                                });
-                              }}
-                              className="hover:text-brand-400 underline"
-                            >
-                              Pilih semua
-                            </button>
-                            <span>·</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedModelIds((prev) => {
-                                  const next = new Set(prev);
-                                  provider.models.forEach((m) => next.delete(m.fullId));
-                                  return next;
-                                });
-                              }}
-                              className="hover:text-rose-400 underline"
-                            >
-                              Batal
-                            </button>
-                          </div>
-                        </div>
-
-                        {provider.models.map((model) => {
-                          const isModelChecked = selectedModelIds.has(model.fullId);
-                          return (
-                            <div
-                              key={model.fullId}
-                              onClick={() => toggleModel(model.fullId)}
-                              className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors ${
-                                isModelChecked
-                                  ? "bg-brand-500/10 text-text-main font-medium"
-                                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={isModelChecked}
-                                  onChange={() => toggleModel(model.fullId)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  aria-label={`Pilih model ${model.name}`}
-                                  className="rounded border-border text-brand-500 focus:ring-brand-500"
-                                />
-                                <div className="truncate">
-                                  <div className="truncate">{model.name}</div>
-                                  <div className="font-mono text-[10px] text-text-muted opacity-80 truncate">
-                                    {model.fullId}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-
-              {filteredCatalog.length === 0 ? (
-                <div className="py-6 text-center text-sm text-text-muted">
-                  Tidak ada provider atau model yang sesuai pencarian.
-                </div>
-              ) : null}
+            <div className="w-48">
+              <input
+                type="text"
+                placeholder="Cari di tabel..."
+                value={searchTableQuery}
+                onChange={(e) => setSearchTableQuery(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
+              />
             </div>
           </div>
-        </Card>
 
-        {/* Right Column: Live Test Results Table with Sort, Filter & Inspector */}
-        <Card
-          title="Hasil Pengujian Terkini"
-          subtitle="Klik baris mana saja untuk menginspeksi payload request, error, dan respon upstream"
-          icon="table_chart"
-          action={
-            <div className="text-xs text-text-muted">
-              {displayedAttempts.length} dari {rawAttempts.length} data ditampilkan
-            </div>
-          }
-        >
-          <div className="space-y-3">
-            {/* Filter & Search Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-subtle">
-              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-                <span className="text-text-muted mr-1 font-medium">Filter:</span>
-                {[
-                  { id: "all", label: "Semua" },
-                  { id: "passed", label: "Lolos" },
-                  { id: "failed", label: "Gagal" },
-                  { id: "rate_limited", label: "429 Rate Limit" },
-                  { id: "skipped", label: "Dilewati" },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setStatusFilter(f.id)}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                      statusFilter === f.id
-                        ? "bg-brand-500 text-white shadow-xs"
-                        : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
-                    }`}
+          {/* Data Table */}
+          <div className="overflow-x-auto max-h-[560px]">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-surface-1 z-10 text-xs text-text-muted border-b border-border-subtle select-none">
+                <tr>
+                  <th className="py-2.5 px-3">Akun</th>
+                  <th
+                    className="py-2.5 px-3 cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("model")}
                   >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+                    <div className="flex items-center gap-1">
+                      <span>Model</span>
+                      {sortField === "model" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th className="py-2.5 px-2">Suite</th>
+                  <th
+                    className="py-2.5 px-2 cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("status")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Status / Code</span>
+                      {sortField === "status" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th className="py-2.5 px-3 max-w-[220px]">Pesan Respon / Error</th>
+                  <th
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("score")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Kualitas</span>
+                      {sortField === "score" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("ttft")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>TTFT</span>
+                      {sortField === "ttft" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("total")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Total</span>
+                      {sortField === "total" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                    onClick={() => handleSort("tps")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>tok/s</span>
+                      {sortField === "tps" ? (
+                        <span className="material-symbols-outlined text-xs">
+                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                        </span>
+                      ) : null}
+                    </div>
+                  </th>
+                  <th className="py-2.5 px-2 text-center">Format</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle text-xs">
+                {displayedAttempts.map((row) => {
+                  const cfg = STATUS_CONFIG[row.status] || {
+                    label: row.status,
+                    color: "bg-surface-3 text-text-muted",
+                  };
+                  const isFailedOrLimited = row.status === "failed" || row.status === "rate_limited";
+                  const displayMessage = row.error || row.excerpt || row.response_body || "-";
 
-              <div className="w-48">
-                <input
-                  type="text"
-                  placeholder="Cari di tabel..."
-                  value={searchTableQuery}
-                  onChange={(e) => setSearchTableQuery(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
-                />
-              </div>
-            </div>
-
-            {/* Data Table */}
-            <div className="overflow-x-auto max-h-[520px]">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-surface-1 z-10 text-xs text-text-muted border-b border-border-subtle select-none">
-                  <tr>
-                    <th className="py-2.5 px-3">Akun</th>
-                    <th
-                      className="py-2.5 px-3 cursor-pointer hover:text-text-main"
-                      onClick={() => handleSort("model")}
+                  return (
+                    <tr
+                      key={`${row.id || row.account_name}-${row.model}-${row.suite}-${row.status}-${row.rep}`}
+                      onClick={() => setInspectAttempt(row)}
+                      className="hover:bg-surface-2 transition-colors cursor-pointer group"
                     >
-                      <div className="flex items-center gap-1">
-                        <span>Model</span>
-                        {sortField === "model" ? (
-                          <span className="material-symbols-outlined text-xs">
-                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-2">Suite</th>
-                    <th className="py-2.5 px-2">Status</th>
-                    <th
-                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                      onClick={() => handleSort("score")}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <span>Kualitas</span>
-                        {sortField === "score" ? (
-                          <span className="material-symbols-outlined text-xs">
-                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th
-                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                      onClick={() => handleSort("ttft")}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <span>TTFT</span>
-                        {sortField === "ttft" ? (
-                          <span className="material-symbols-outlined text-xs">
-                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th
-                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                      onClick={() => handleSort("total")}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <span>Total</span>
-                        {sortField === "total" ? (
-                          <span className="material-symbols-outlined text-xs">
-                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th
-                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                      onClick={() => handleSort("tps")}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <span>tok/s</span>
-                        {sortField === "tps" ? (
-                          <span className="material-symbols-outlined text-xs">
-                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-2 text-center">Format</th>
-                    <th className="py-2.5 px-2 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle text-xs">
-                  {displayedAttempts.map((row) => {
-                    const cfg = STATUS_CONFIG[row.status] || {
-                      label: row.status,
-                      color: "bg-surface-3 text-text-muted",
-                    };
-                    return (
-                      <tr
-                        key={`${row.id || row.account_name}-${row.model}-${row.suite}-${row.status}-${row.rep}`}
-                        onClick={() => setInspectAttempt(row)}
-                        className="hover:bg-surface-2 transition-colors cursor-pointer group"
-                      >
-                        <td className="py-2 px-3 font-mono text-[11px] max-w-[110px] truncate" title={row.account_name}>
-                          {row.account_name || "-"}
-                        </td>
-                        <td className="py-2 px-3 font-medium max-w-[150px] truncate" title={row.model}>
-                          {row.model}
-                        </td>
-                        <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
-                          {row.suite}
-                        </td>
-                        <td className="py-2 px-2">
-                          <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
+                      <td className="py-2 px-3 font-mono text-[11px] max-w-[100px] truncate" title={row.account_name}>
+                        {row.account_name || "-"}
+                      </td>
+                      <td className="py-2 px-3 font-medium max-w-[140px] truncate" title={row.model}>
+                        {row.model}
+                      </td>
+                      <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
+                        {row.suite}
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
                             {cfg.label}
                           </span>
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold">
-                          {row.score !== null && row.score !== undefined ? (
+                          {row.http_status ? (
                             <span
-                              className={
-                                row.score >= 80
+                              className={`font-mono text-[10px] font-bold ${
+                                row.http_status === 200
                                   ? "text-emerald-400"
-                                  : row.score >= 50
+                                  : row.http_status === 429
                                   ? "text-amber-400"
                                   : "text-rose-400"
-                              }
+                              }`}
                             >
-                              {row.score}
+                              {row.http_status}
                             </span>
-                          ) : (
-                            <span className="text-text-muted">-</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono">
-                          {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono">
-                          {row.total_ms ? `${row.total_ms}ms` : "-"}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono font-medium">
-                          {row.tps ? `${row.tps}` : "-"}
-                        </td>
-                        <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
-                          {row.format || "-"}
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          <span className="text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] underline">
-                            Detail
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {displayedAttempts.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="py-12 text-center text-text-muted">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <span className="material-symbols-outlined text-3xl opacity-40">
-                            {isJobRunning ? "hourglass_top" : "science"}
-                          </span>
-                          <span>
-                            {isJobRunning
-                              ? "Menjalankan benchmark... data percobaan akan muncul secara langsung."
-                              : rawAttempts.length > 0
-                              ? "Tidak ada baris yang sesuai dengan filter atau pencarian."
-                              : "Belum ada data hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
-                          </span>
+                          ) : null}
                         </div>
                       </td>
+                      <td
+                        className={`py-2 px-3 max-w-[240px] truncate font-mono text-[11px] ${
+                          isFailedOrLimited ? "text-rose-400 font-medium" : "text-text-muted"
+                        }`}
+                        title={displayMessage}
+                      >
+                        {displayMessage}
+                      </td>
+                      <td className="py-2 px-2 text-right font-semibold">
+                        {row.score !== null && row.score !== undefined ? (
+                          <span
+                            className={
+                              row.score >= 80
+                                ? "text-emerald-400"
+                                : row.score >= 50
+                                ? "text-amber-400"
+                                : "text-rose-400"
+                            }
+                          >
+                            {row.score}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">-</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono text-text-muted">
+                        {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono text-text-muted">
+                        {row.total_ms ? `${row.total_ms}ms` : "-"}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono font-medium">
+                        {row.tps ? `${row.tps}` : "-"}
+                      </td>
+                      <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
+                        {row.format || "-"}
+                      </td>
                     </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+
+                {displayedAttempts.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="py-12 text-center text-text-muted">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-3xl opacity-40">
+                          {isJobRunning ? "hourglass_top" : "science"}
+                        </span>
+                        <span>
+                          {isJobRunning
+                            ? "Menjalankan benchmark... data percobaan akan muncul secara langsung."
+                            : rawAttempts.length > 0
+                            ? "Tidak ada baris yang sesuai dengan filter atau pencarian."
+                            : "Belum ada data hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* ─── Bottom Section 1: Daily Median Summary ─── */}
       <Card
@@ -1321,14 +1324,238 @@ export default function BenchmarkPage() {
         </div>
       </Card>
 
-      {/* ─── Detail Attempt Inspector Modal (P1 Fix) ─── */}
+      {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (With OKE button) ─── */}
+      {isPickerModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setIsPickerModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+              <div>
+                <h3 className="font-bold text-text-main text-base flex items-center gap-2">
+                  <span className="material-symbols-outlined text-brand-500">dns</span>
+                  <span>Pilih Provider & Model Benchmark</span>
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Centang model yang ingin diuji, lalu tekan OKE untuk menerapkan ke halaman utama.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPickerModalOpen(false)}
+                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Modal Search & Quick Selection Bar */}
+            <div className="p-3 border-b border-border-subtle flex items-center justify-between gap-3 bg-surface-1">
+              <div className="flex-1 max-w-sm">
+                <Input
+                  placeholder="Cari nama provider atau model..."
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => {
+                    setModalSelectedModelIds((prev) => {
+                      const next = new Set(prev);
+                      pickerCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
+                      return next;
+                    });
+                  }}
+                >
+                  Pilih Semua Tampil
+                </Button>
+                <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
+                  Kosongkan
+                </Button>
+              </div>
+            </div>
+
+            {/* Modal Accordion Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {pickerCatalog.map((provider) => {
+                const totalInProv = provider.models.length;
+                const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
+                const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
+                const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
+                const isExpanded = pickerExpandedProviders.has(provider.id);
+
+                return (
+                  <div
+                    key={provider.id}
+                    className={`rounded-lg border transition-all ${
+                      selectedInProv > 0
+                        ? "border-brand-500/30 bg-surface-2"
+                        : "border-border-subtle bg-surface-1 hover:border-border"
+                    }`}
+                  >
+                    {/* Provider Row */}
+                    <div className="flex items-center justify-between p-2.5 gap-2">
+                      <div
+                        className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer"
+                        onClick={() => toggleModalProviderModels(provider)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = isPartiallySelected;
+                          }}
+                          onChange={() => toggleModalProviderModels(provider)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Pilih semua model dari ${provider.name}`}
+                          className="rounded border-border text-brand-500 focus:ring-brand-500"
+                        />
+                        <div className="min-w-0 flex-1 truncate">
+                          <span className="font-semibold text-sm text-text-main truncate block">
+                            {provider.name}
+                          </span>
+                          <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            selectedInProv > 0
+                              ? "bg-brand-500/20 text-brand-400 font-semibold"
+                              : "bg-surface-3 text-text-muted"
+                          }`}
+                        >
+                          {selectedInProv}/{totalInProv}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePickerExpand(provider.id)}
+                          className="p-1 rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
+                          title={isExpanded ? "Tutup list model" : "Buka list model"}
+                        >
+                          <span className="material-symbols-outlined text-lg leading-none">
+                            {isExpanded ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Model Sub-list (Accordion Content) */}
+                    {isExpanded ? (
+                      <div className="border-t border-border-subtle bg-surface-1/50 px-3 py-2 space-y-1.5">
+                        <div className="flex items-center justify-between pb-1 border-b border-border-subtle text-[11px] text-text-muted">
+                          <span>Daftar Model ({provider.name}):</span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalSelectedModelIds((prev) => {
+                                  const next = new Set(prev);
+                                  provider.models.forEach((m) => next.add(m.fullId));
+                                  return next;
+                                });
+                              }}
+                              className="hover:text-brand-400 underline"
+                            >
+                              Pilih semua
+                            </button>
+                            <span>·</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalSelectedModelIds((prev) => {
+                                  const next = new Set(prev);
+                                  provider.models.forEach((m) => next.delete(m.fullId));
+                                  return next;
+                                });
+                              }}
+                              className="hover:text-rose-400 underline"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                          {provider.models.map((model) => {
+                            const isModelChecked = modalSelectedModelIds.has(model.fullId);
+                            return (
+                              <div
+                                key={model.fullId}
+                                onClick={() => toggleModalModel(model.fullId)}
+                                className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors border ${
+                                  isModelChecked
+                                    ? "border-brand-500/30 bg-brand-500/10 text-text-main font-medium"
+                                    : "border-transparent text-text-muted hover:bg-surface-2 hover:text-text-main"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isModelChecked}
+                                    onChange={() => toggleModalModel(model.fullId)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    aria-label={`Pilih model ${model.name}`}
+                                    className="rounded border-border text-brand-500 focus:ring-brand-500"
+                                  />
+                                  <div className="truncate">
+                                    <div className="truncate">{model.name}</div>
+                                    <div className="font-mono text-[10px] text-text-muted opacity-80 truncate">
+                                      {model.fullId}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+
+              {pickerCatalog.length === 0 ? (
+                <div className="py-8 text-center text-sm text-text-muted">
+                  Tidak ada provider atau model yang cocok dengan pencarian.
+                </div>
+              ) : null}
+            </div>
+
+            {/* Modal Footer with OKE button */}
+            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+              <span className="text-xs text-text-muted">
+                <span className="font-bold text-text-main">{modalSelectedModelIds.size}</span> model terpilih
+              </span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
+                  Batal
+                </Button>
+                <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal}>
+                  Oke, Terapkan Pilihan
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ─── Modal 2: Detail Attempt Inspector Modal (HTTP Statuscode & Raw Response) ─── */}
       {inspectAttempt ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
           onClick={() => setInspectAttempt(null)}
         >
           <div
-            className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+            className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1339,11 +1566,24 @@ export default function BenchmarkPage() {
                   <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
                     {inspectAttempt.status?.toUpperCase()}
                   </Badge>
+                  {inspectAttempt.http_status ? (
+                    <span
+                      className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                        inspectAttempt.http_status === 200
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : inspectAttempt.http_status === 429
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                      }`}
+                    >
+                      HTTP {inspectAttempt.http_status}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="text-xs text-text-muted mt-0.5">
-                  Suite: <span className="font-semibold uppercase">{inspectAttempt.suite}</span> · Akun:{" "}
+                <div className="text-xs text-text-muted mt-1">
+                  Suite: <span className="font-semibold uppercase">{inspectAttempt.suite}</span> (Rep {inspectAttempt.rep || 1}) · Akun:{" "}
                   <span className="font-mono">{inspectAttempt.account_name || inspectAttempt.connection_id || "-"}</span>
-                  {inspectAttempt.http_status ? ` · HTTP ${inspectAttempt.http_status}` : ""}
+                  {inspectAttempt.format ? ` · Format: ${inspectAttempt.format.toUpperCase()}` : ""}
                 </div>
               </div>
               <button
@@ -1387,7 +1627,7 @@ export default function BenchmarkPage() {
                 <div>
                   <div className="text-rose-400 font-bold mb-1 flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">warning</span>
-                    <span>Pesan Error / Upstream Fault:</span>
+                    <span>Pesan Error / Upstream Diagnostic:</span>
                   </div>
                   <pre className="rounded bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px]">
                     {inspectAttempt.error}
@@ -1440,6 +1680,7 @@ export default function BenchmarkPage() {
           </div>
         </div>
       ) : null}
+
       {/* ─── Modal 3: Reviewer Model Selector Modal ─── */}
       {isReviewerModalOpen ? (
         <div
