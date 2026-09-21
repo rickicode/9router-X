@@ -4,7 +4,19 @@ import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/con
 import { formatRetryAfter, checkFallbackError, isFatalAuthError, isModelLockActive, isRefreshBlockedMarker, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS, DEFAULT_RATE_LIMIT_COOLDOWN_MS, DEAD_CIRCUIT_THRESHOLD, DEAD_CIRCUIT_WINDOW_S, LKG_TTL_S } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
-import { getAntigravityQuotaCache, hydrateAntigravityQuotaCache, isAntigravityAccountQuotaExhausted, isAntigravityQuotaMapExhausted, refreshAntigravityQuota } from "./antigravityQuota.js";
+import {
+  getQuotaCacheEntry,
+  hydrateQuotaCacheFromSnapshots,
+  isQuotaExhaustedForRequest,
+  isQuotaMapExhausted,
+  earliestResetAt,
+  refreshQuota,
+  setQuotaCache,
+} from "@/domain/quotaCache.js";
+import {
+  isAntigravityAccountQuotaExhausted,
+  refreshAntigravityQuota,
+} from "./antigravityQuota.js";
 import { getFreebuffQuotaCache, verifyFreebuffAccountDirect } from "open-sse/services/usage/freebuff.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import {
@@ -216,9 +228,8 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
  * provider/model right now. Pure w.r.t. its inputs (no I/O).
  */
 function isConnectionRoutable(c, ctx) {
-  const { excludeSet, locallyExhaustedIds, cooledDownIds, model, providerId, isAntigravity, isFreebuff, antigravityQuotaCache, freebuffQuotaCache } = ctx;
+  const { excludeSet, cooledDownIds, model, providerId, isAntigravity, isFreebuff, freebuffQuotaCache } = ctx;
   if (!c || excludeSet.has(c.id)) return false;
-  if (locallyExhaustedIds?.has(c.id)) return false;
   if (cooledDownIds?.has(c.id)) return false;
   // Background refresh writes string markers ("invalid_grant", …) — use the
   // shared helper instead of a strict boolean check or dead accounts route.
@@ -241,30 +252,15 @@ function isConnectionRoutable(c, ctx) {
     const hasLockWindow = Boolean(c.lockedAllUntil || c.rateLimitedUntil);
     const lockLive = (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now())
       || (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now());
-    if (hasLockWindow && !lockLive) return true; // window lapsed → recoverable
-    return false;
+    if (!hasLockWindow || lockLive) return false;
+    // Expired account lock: continue into quota-cache checks. A fresh snapshot
+    // may still prove this specific request is exhausted.
   }
   if (["error", "expired", "invalid"].includes(c.testStatus)) return false;
   if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
   if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
+  if (isAntigravity && model && (isQuotaExhaustedForRequest(c.id, providerId, model) || isAntigravityAccountQuotaExhausted(c.id))) return false;
   if (isModelLockActive(c, model)) return false;
-  if (isAntigravity && model && antigravityQuotaCache) {
-    let quota = antigravityQuotaCache.get(c.id)?.[model];
-    const modelLower = model.toLowerCase();
-    if (!quota) {
-      // model may arrive provider-qualified (google/gemini-2.5-pro,
-      // antigravity/gemini-...): strip the "vendor/" prefix before matching,
-      // else the weekly-key check silently never fires.
-      const bareModel = modelLower.includes("/") ? modelLower.split("/").pop() : modelLower;
-      const weeklyKey = (bareModel.startsWith("gemini-") && !bareModel.includes("image"))
-        ? "gemini_weekly"
-        : (bareModel.startsWith("claude-") || bareModel.startsWith("gpt-"))
-          ? "claude_gpt_weekly"
-          : null;
-      if (weeklyKey) quota = antigravityQuotaCache.get(c.id)?.[weeklyKey];
-    }
-    if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) return false;
-  }
   if (isFreebuff && model && freebuffQuotaCache) {
     const cacheMap = freebuffQuotaCache.get(c.id);
     const canonical = canonicalFreebuffModel(model);
@@ -377,20 +373,17 @@ export async function checkModelAvailability(provider, model) {
       try {
         const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
         const snapshots = typeof getSnapshots === "function" ? await getSnapshots(providerId).catch(() => []) : [];
-        for (const snapshot of snapshots) {
-          if (snapshot?.connectionId && snapshot.quotas) hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
-        }
+        await hydrateQuotaCacheFromSnapshots(snapshots);
       } catch {}
     }
     const candidateIds = batch.map((c) => c.id);
     const cooldownResult = await getBatchCooldowns(candidateIds, model).catch(() => ({ ids: new Set(), healthy: true }));
     cooledDownIds = cooldownResult?.ids instanceof Set ? cooldownResult.ids : cooldownResult;
     const ctx = {
-      excludeSet: new Set(), locallyExhaustedIds: new Set(), cooledDownIds,
+      excludeSet: new Set(), cooledDownIds,
       model, providerId,
       isAntigravity: providerId === "antigravity",
       isFreebuff: providerId === "freebuff",
-      antigravityQuotaCache: providerId === "antigravity" && model ? getAntigravityQuotaCache() : null,
       freebuffQuotaCache: providerId === "freebuff" && model ? getFreebuffQuotaCache() : null,
     };
     if (batch.some((c) => isConnectionRoutable(c, ctx))) {
@@ -398,9 +391,9 @@ export async function checkModelAvailability(provider, model) {
       return { available: true };
     }
   }
-
   if (connections.length === 0) {
     // Zero active rows: distinguish misconfiguration (provider has no
+    // accounts at all) from exhaustion before reporting a verdict.
     // accounts at all) from exhaustion before reporting a verdict.
     const allConnections = await getProviderConnections({ provider: providerId, limit: 500 }).catch(() => []);
     if (allConnections.length === 0) {
@@ -590,12 +583,10 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         if (lkgRow && lkgRow.provider === providerId) {
           const lkgCool = await getBatchCooldowns([lkgId], model).catch(() => ({ ids: new Set(), healthy: true }));
           const lkgCtx = {
-            excludeSet, locallyExhaustedIds: new Set(),
-            cooledDownIds: lkgCool?.ids instanceof Set ? lkgCool.ids : lkgCool,
+            excludeSet, cooledDownIds: lkgCool?.ids instanceof Set ? lkgCool.ids : lkgCool,
             model, providerId,
             isAntigravity: providerId === "antigravity",
             isFreebuff: providerId === "freebuff",
-            antigravityQuotaCache: getAntigravityQuotaCache(),
             freebuffQuotaCache: getFreebuffQuotaCache(),
           };
           if (isConnectionRoutable(lkgRow, lkgCtx)) {
@@ -619,7 +610,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     let availableConnections = [];
     let cooledDownIds = new Set();
     let cooldownHealthy = true;
-    let locallyExhaustedIds = new Set();
     let lastCandidateIds = [];
     for (let windowIdx = 0; windowIdx < MAX_SELECTION_WINDOWS; windowIdx++) {
       const batch = await getProviderConnections({
@@ -635,24 +625,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       connections = filterConnectionsForModel(providerId, connections, model, settings);
 
       if (isAntigravity && model) {
-        const antigravityQuotaCache = getAntigravityQuotaCache();
         let snapshots = [];
         try {
           const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
-          if (typeof getSnapshots === "function") {
-            snapshots = await getSnapshots(providerId).catch(() => []);
-          }
+          if (typeof getSnapshots === "function") snapshots = await getSnapshots(providerId).catch(() => []);
         } catch {}
-        for (const snapshot of snapshots) {
-          if (snapshot?.connectionId && snapshot.quotas) {
-            hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
-          }
-        }
-        locallyExhaustedIds = new Set(
-          batch
-            .filter((connection) => isAntigravityAccountQuotaExhausted(connection.id))
-            .map((connection) => connection.id),
-        );
+        await hydrateQuotaCacheFromSnapshots(snapshots);
       }
 
       const candidateIds = batch.map(c => c.id).filter(id => !excludeSet.has(id));
@@ -662,9 +640,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       cooldownHealthy = cooldownResult?.healthy !== false;
 
       const ctx = {
-        excludeSet, locallyExhaustedIds, cooledDownIds, model, providerId,
+        excludeSet, cooledDownIds, model, providerId,
         isAntigravity, isFreebuff,
-        antigravityQuotaCache: isAntigravity && model ? getAntigravityQuotaCache() : null,
         freebuffQuotaCache: isFreebuff && model ? getFreebuffQuotaCache() : null,
       };
       availableConnections = batch.filter(c => isConnectionRoutable(c, ctx));
@@ -711,10 +688,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       return null;
     }
 
-    // Live quota-cache maps (RAM, hydrated per window above). Hoisted for the
-    // empty-window diagnostics below; the window loop owns hydration.
-    const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
-    const freebuffQuotaCache = isFreebuff && model ? getFreebuffQuotaCache() : null;
 
     // Freebuff 1-hour dynamic model affinity lock:
     // 1 account can only serve 1 model at a time. If locked to model X, it can only serve model X.
@@ -781,18 +754,25 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // they never live-refresh (refresh otherwise happens only on the
       // 409/429 error path) and top-ups stay invisible until a lock lapses or
       // an admin resets. On a fully-blocked Antigravity selection, kick a
-      // bounded background refresh for snapshot-exhausted candidates so the
-      // NEXT request (seconds later) sees fresh quota. refreshAntigravityQuota
-      // already throttles (30s/conn) and dedups inflight refreshes; this call
-      // never awaits — fail-open, zero added latency on this failed selection.
+      // NEXT request (seconds later) sees fresh quota. refreshQuota already
+      // deduplicates in-flight work; this call never awaits — fail-open, zero
+      // added latency on this failed selection.
       if (isAntigravity && model) {
         try {
-          const quotaCache = getAntigravityQuotaCache();
           const reviveRows = connections
-            .filter((c) => c?.id && isAntigravityQuotaMapExhausted(quotaCache.get(c.id)))
+            .filter((c) => c?.id && (
+              isQuotaMapExhausted(getQuotaCacheEntry(c.id)?.quotas)
+              || isAntigravityAccountQuotaExhausted(c.id)
+            ))
             .slice(0, 5);
           for (const row of reviveRows) {
-            refreshAntigravityQuota(row.id, row.accessToken, row.providerSpecificData).catch(() => {});
+            // HEAD cache owns strike/throttle. Mirror the fresh map into the
+            // domain cache so later requests agree.
+            refreshAntigravityQuota(row.id, row.accessToken, row.providerSpecificData)
+              .then((quotas) => {
+                if (quotas) setQuotaCache(row.id, "antigravity", quotas);
+              })
+              .catch(() => {});
           }
           if (reviveRows.length > 0) {
             log.debug("AG_QUOTA", `${providerId} | fully blocked for ${model} — background revive refresh for ${reviveRows.length} snapshot-exhausted account(s)`);
@@ -805,17 +785,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       if (isAntigravity && model) {
         const readQuotas = getLocalDbFn("getBatchProviderQuotas");
         const agSnapshots = readQuotas ? await readQuotas(providerId).catch(() => []) : [];
-        for (const snapshot of agSnapshots) {
-          if (snapshot?.connectionId && snapshot.quotas) hydrateAntigravityQuotaCache(snapshot.connectionId, snapshot.quotas);
-        }
+        await hydrateQuotaCacheFromSnapshots(agSnapshots);
       }
-      // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
+      // Find earliest persistent lock or lazy quota-cache reset for retry timing.
       const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c, model)).filter(Boolean);
-      if (isAntigravity && model && antigravityQuotaCache) {
+      if (isAntigravity && model) {
         stateConnections.forEach((c) => {
-          const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
-          if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
+          const resetMs = earliestResetAt(getQuotaCacheEntry(c.id)?.quotas);
+          if (resetMs) expiries.push(new Date(resetMs).toISOString());
         });
       }
       if (isFreebuff && model && freebuffQuotaCache) {
@@ -1431,13 +1409,10 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   // Antigravity quota snapshots cover the whole account. Once every tracked
   // non-image bucket is exhausted, expose the account as exhausted instead of
   // leaving it merely model-locked and repeatedly selecting it later.
-  if (providerId === "antigravity" && resetsAtMs && isAntigravityAccountQuotaExhausted(connectionId)) {
+  if (providerId === "antigravity" && resetsAtMs && isQuotaMapExhausted(getQuotaCacheEntry(connectionId)?.quotas)) {
     lockAll = true;
     isExhausted = true;
   }
-
-  // 524 / Gateway timeout: upstream server is temporarily slow or down.
-  // NEVER disable account, NEVER lock all models, cooldown capped at max 5 minutes (default 0).
   if (is524Timeout) {
     lockAll = false;
     disableAccount = false;
@@ -1558,7 +1533,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // treated it as a transient 5xx.
     lockAll = false;
     shouldFallback = true;
-    isExhausted = isAntigravityAccountQuotaExhausted(connectionId);
+    isExhausted = isQuotaMapExhausted(getQuotaCacheEntry(connectionId)?.quotas);
     newBackoffLevel = 0;
     cooldownMs = Math.max(ANTIGRAVITY_MODEL_LOCK_MS, resetsAtMs && resetsAtMs > Date.now()
       ? resetsAtMs - Date.now()
@@ -1613,7 +1588,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     : null;
   const isQuotaFamilyError = status === 429 || status === 409 || status === 402
     || /quota|exhaust|deplet|insufficient|credit|balance|billing|payment|capacity|rate.?limit|too many requests|try again/i.test(lowerErr);
-  if (providerId === "antigravity" && isQuotaFamilyError && (isAntigravityAccountQuotaExhausted(connectionId) || isAntigravityQuotaMapExhausted(durableSnapshot?.quotas))) {
+  if (providerId === "antigravity" && isQuotaFamilyError && (isQuotaMapExhausted(getQuotaCacheEntry(connectionId)?.quotas) || isQuotaMapExhausted(durableSnapshot?.quotas))) {
     lockAll = true;
     isExhausted = true;
     shouldFallback = true;
@@ -1737,11 +1712,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       }
     } else if (providerId === "antigravity") {
       const isDurableSnapshotExhausted = Boolean(
-        isAntigravityAccountQuotaExhausted(connectionId) ||
-        (durableSnapshot && isAntigravityQuotaMapExhausted(durableSnapshot.quotas))
+        isQuotaMapExhausted(getQuotaCacheEntry(connectionId)?.quotas) ||
+        (durableSnapshot && isQuotaMapExhausted(durableSnapshot.quotas))
       );
       if (!isDurableSnapshotExhausted) {
         isExhausted = false;
+        lockAll = false;
       }
     }
   }

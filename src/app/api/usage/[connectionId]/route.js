@@ -6,10 +6,8 @@ import { getUsageForProvider } from "open-sse/services/usage.js";
 import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
-import { upsertUsageSnapshot } from "@/lib/db/repos/usageSnapshotsRepo.js";
-import { publishEvent } from "@/lib/cache/client.js";
-import { autoHealConnectionOnQuotaRestored } from "@/sse/services/accountExhaustionPolicy.js";
-import { syncAntigravityConnectionStatus } from "@/sse/services/antigravityQuota.js";
+
+import { setQuotaCache } from "@/domain/quotaCache.js";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -215,36 +213,15 @@ export async function GET(request, { params }) {
       }
     }
 
-    // Persist usage snapshot to PostgreSQL and emit speed-layer event (Decision #10)
+    // Persist usage snapshot, status, and event through unified quota domain.
     if (usage && !usage.error) {
-      const remainingPct = typeof usage.remainingPercentage === "number" ? usage.remainingPercentage : null;
-      upsertUsageSnapshot({
-        connectionId: connection.id,
+      setQuotaCache(connection.id, usage.quotas || {}, {
         provider: connection.provider,
         plan: usage.plan || null,
-        quotas: usage.quotas || {},
         rateLimits: usage.rateLimits || null,
-        remainingPct,
-        resetAt: usage.resetAt || null,
+        rawDosage: usage.rawDosage || null,
+        persist: true,
       }).catch(() => {});
-
-      publishEvent("9router:events", {
-        type: "quota_updated",
-        connectionId: connection.id,
-        provider: connection.provider,
-        usage,
-      }).catch(() => {});
-      // Sync connection status (exhaust if 0%, auto-heal if restored, sync family locks)
-      if (connection.provider === "antigravity" && usage.quotas) {
-        syncAntigravityConnectionStatus(connection.id, usage.quotas, connection).catch(() => {});
-      } else {
-        autoHealConnectionOnQuotaRestored(connection.id, {
-          provider: connection.provider,
-          quotas: usage.quotas,
-          remainingPct,
-          usage,
-        }, connection).catch(() => {});
-      }
     }
 
     return Response.json(usage);

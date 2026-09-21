@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatchProviderQuotas } from "@/lib/db/repos/usageSnapshotsRepo.js";
 import { autoHealConnectionOnQuotaRestored } from "@/sse/services/accountExhaustionPolicy.js";
-import { syncAntigravityConnectionStatus, isAntigravityQuotaMapExhausted } from "@/sse/services/antigravityQuota.js";
+import { setQuotaCache, isQuotaMapExhausted } from "@/domain/quotaCache.js";
 export const dynamic = "force-dynamic";
 
 /**
@@ -24,24 +24,22 @@ export async function GET(request) {
 
     const quotas = await getBatchProviderQuotas(provider);
 
-    // Sync connection status on view: if snapshot shows quota is fully depleted (0%),
-    // mark exhausted; if restored (>0%), auto-heal; sync family-level locks.
+    // Refresh RAM state and durable status from each persisted snapshot.
     if (Array.isArray(quotas)) {
       for (const item of quotas) {
-        const itemProvider = item.provider || provider;
-        if (itemProvider === "antigravity" && item.quotas) {
-          await syncAntigravityConnectionStatus(item.connectionId, item.quotas).catch(() => {});
-          if (isAntigravityQuotaMapExhausted(item.quotas)) {
-            item.testStatus = "exhausted";
-          }
-        } else if (item.testStatus === "exhausted" || item.lockedAllUntil) {
+        if (!item?.connectionId || !item.quotas) continue;
+        const cached = await setQuotaCache(item.connectionId, item.quotas, {
+          provider: item.provider || provider,
+          plan: item.plan || null,
+          persist: false,
+          persistStatus: true,
+          publish: false,
+        });
+        if (cached?.exhausted) item.testStatus = "exhausted";
+        else if (item.testStatus === "exhausted" || item.lockedAllUntil) {
           const healed = await autoHealConnectionOnQuotaRestored(
             item.connectionId,
-            {
-              provider: itemProvider,
-              quotas: item.quotas,
-              remainingPct: item.remainingPct,
-            }
+            { provider: item.provider || provider, quotas: item.quotas, remainingPct: item.remainingPct },
           ).catch(() => false);
           if (healed) {
             item.testStatus = "active";

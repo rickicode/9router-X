@@ -112,6 +112,9 @@ async function runHeavyStartup() {
   import("@/sse/services/backgroundTokenRefresh.js")
     .then(({ startBackgroundTokenRefresh }) => startBackgroundTokenRefresh())
     .catch((e) => console.log("[BackgroundTokenRefresh] scheduler start failed:", e.message));
+  import("@/domain/quotaCache.js")
+    .then(({ startBackgroundRefresh }) => startBackgroundRefresh())
+    .catch((e) => console.log("[QuotaCache] scheduler start failed:", e.message));
 
   // Pool egress geo probe — fills the Proxy Fitness / Proxy Pools egress column.
   import("@/lib/network/poolEgressProbe.js")

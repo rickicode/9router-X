@@ -14,10 +14,10 @@
  */
 
 import {
-  isAntigravityAccountQuotaExhausted,
-  isAntigravityQuotaMapExhausted,
-  autoHealAntigravityOnQuotaRestored,
-} from "./antigravityQuota.js";
+  getQuotaCacheEntry,
+  isQuotaMapExhausted,
+  setQuotaCache,
+} from "@/domain/quotaCache.js";
 import { isRefreshBlockedMarker } from "open-sse/services/accountFallback.js";
 import { setAccountCooldown, clearModelCooldown } from "@/lib/cache/client.js";
 import * as localDb from "@/lib/localDb";
@@ -116,10 +116,7 @@ export function isAccountFullyExhausted(connectionId, providerId, snapshot = nul
   }
 
   if (providerId === "antigravity") {
-    return (
-      isAntigravityAccountQuotaExhausted(connectionId) ||
-      Boolean(snapshot && isAntigravityQuotaMapExhausted(snapshot.quotas))
-    );
+    return Boolean(getQuotaCacheEntry(connectionId)?.exhausted || (snapshot && isQuotaMapExhausted(snapshot.quotas)));
   }
 
   // Non-antigravity providers that allow exhaustion (e.g. unikey, codebuddy, cloudflare-ai)
@@ -138,11 +135,7 @@ export function isAccountFullyExhausted(connectionId, providerId, snapshot = nul
  */
 export function isQuotaAvailable(provider, { quotas, remainingPct, usage } = {}) {
   if (provider === "antigravity") {
-    return quotas ? !isAntigravityQuotaMapExhausted(quotas) : false;
-  }
-
-  if (typeof remainingPct === "number" && remainingPct > 0) {
-    return true;
+    return quotas ? !isQuotaMapExhausted(quotas) : false;
   }
 
   if (usage && typeof usage === "object") {
@@ -191,9 +184,10 @@ export async function autoHealConnectionOnQuotaRestored(
 ) {
   if (!connectionId) return false;
 
-  // Delegate to Antigravity specialized handler when applicable
   if (provider === "antigravity" && quotas) {
-    return autoHealAntigravityOnQuotaRestored(connectionId, quotas, existingConn);
+    if (!isQuotaAvailable(provider, { quotas, remainingPct, usage })) return false;
+    await setQuotaCache(connectionId, quotas, { provider: "antigravity" });
+    return true;
   }
 
   if (!isQuotaAvailable(provider, { quotas, remainingPct, usage })) {

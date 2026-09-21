@@ -8,8 +8,7 @@ import {
   isValidApiKey,
   checkModelAvailability,
 } from "../services/auth.js";
-import { handleAntigravityQuotaError, clearAntigravityStrikes } from "../services/antigravityQuota.js";
-import { handleFreebuffQuotaError } from "open-sse/services/usage/freebuff.js";
+import { markAccountExhaustedFrom429, markAccountExhaustedFromCredits, refreshQuota } from "@/domain/quotaCache.js";
 import { canonicalFreebuffModel } from "open-sse/executors/freebuff.js";
 import { getSettings, lockAccountToModel, lockProxyPoolForScope } from "@/lib/localDb";
 import { saveFailedRequest, saveRequestDetail } from "@/lib/usageDb.js";
@@ -822,8 +821,8 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
         setLkg(provider, model, credentials.connectionId, LKG_TTL_S).catch(() => {});
         resetDeadCircuit(provider, model).catch(() => {});
         await clearAccountError(credentials.connectionId, credentials, model);
-        // "Consecutive" strikes: a success clears the breaker for this pair.
-        clearAntigravityStrikes(credentials.connectionId, model);
+        // Quota cache is refreshed only on quota errors; successful requests
+        // do not need legacy strike-breaker cleanup.
 
         // Freebuff 1-hour model affinity lock: lock account to the successful model
         if (provider === "freebuff" && model && credentials.connectionId) {
@@ -863,15 +862,26 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       }
     }
 
+    // Preserve upstream status before quota handling; chatCore may wrap it.
+    const upstreamStatus = result.extra?.upstreamStatus || result.status;
+    const effectiveStatus = upstreamStatus;
     // Antigravity 409/429: refresh live quota to get exact resetAt before locking
     let quotaResetMs = null;
     let resetsAtMs = result.resetsAtMs;
-    const upstreamStatus = result.extra?.upstreamStatus || result.status;
     if (provider === "antigravity" && (upstreamStatus === 409 || upstreamStatus === 429)) {
-      quotaResetMs = await handleAntigravityQuotaError(
-        credentials.connectionId, upstreamStatus, model,
-        refreshedCredentials.accessToken, credentials.providerSpecificData
+      const refreshedQuotas = await refreshQuota(
+        credentials.connectionId,
+        refreshedCredentials.accessToken,
+        credentials.providerSpecificData,
+        { force: true },
       );
+      quotaResetMs = await markAccountExhaustedFrom429({
+        connectionId: credentials.connectionId,
+        provider,
+        model,
+        resetAtMs: resetsAtMs,
+        quotas: refreshedQuotas,
+      });
       if (quotaResetMs) resetsAtMs = quotaResetMs;
     }
     // Freebuff 403/429: refresh live quota to get exact resetAt before locking (unless limited tier on proxy IP)
@@ -889,16 +899,14 @@ export async function handleSingleModelChat(body, modelStr, clientRawRequest = n
       );
       if (fbResetMs) resetsAtMs = fbResetMs;
     }
-
-    // Preserve upstream status/kind because chatCore returns thrown upstream
-    // errors as a 502 gateway response.
-    const effectiveStatus = upstreamStatus;
-    // Client abort / disconnect: caller canceled request. Stop fallback immediately without penalizing account.
-    if (effectiveStatus === 499 || result.status === 499 || result.error === "Request aborted" || externalSignal?.aborted) {
-      log.warn("CHAT", `Request aborted by client — stopping fallback without penalizing account`);
-      return errorResponse(499, result.error || "Request aborted");
+    if (!isTestRequest && effectiveStatus === 402) {
+      await markAccountExhaustedFromCredits({
+        connectionId: credentials.connectionId,
+        provider,
+        model,
+        resetAtMs: resetsAtMs,
+      });
     }
-
     // Strict probe pin: report the pinned account's actual upstream outcome
     // without touching ANY routing state — no locks, no cooldowns, no token
     // refresh, no failover counters. The probe verdict must describe exactly
