@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Card, Input } from "@/shared/components";
+import { Badge, Button, Card, Combobox, Input } from "@/shared/components";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 
@@ -73,6 +73,31 @@ export default function BenchmarkPage() {
   const [providerQuery, setProviderQuery] = useState("");
   const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
   const [reviewer, setReviewer] = useState("judge-router");
+
+  // Reviewer options for Combobox model picker
+  const reviewerModelOptions = useMemo(() => {
+    const list = [
+      {
+        value: "judge-router",
+        label: "judge-router",
+        subtitle: "Internal automated judge router",
+        badge: "Default",
+      },
+    ];
+
+    catalog.forEach((p) => {
+      p.models.forEach((m) => {
+        list.push({
+          value: m.fullId,
+          label: `${m.name} (${m.fullId})`,
+          subtitle: p.name,
+          badge: p.alias,
+        });
+      });
+    });
+
+    return list;
+  }, [catalog]);
 
   // State: Table filters & sorting
   const [statusFilter, setStatusFilter] = useState("all"); // all | passed | failed | rate_limited | skipped
