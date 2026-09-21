@@ -139,6 +139,14 @@ def build_plan(out, run):
             },
         },
     }
+    # also create hyphen aliases (e.g. auto-coding)
+    for base in ["auto/coding", "auto/writing", "auto/podcast", "auto/socmed"]:
+        alias = base.replace("/", "-")
+        plan[alias] = {
+            "kind": plan[base]["kind"],
+            "models": list(plan[base]["models"]),
+            "strategy": dict(plan[base]["strategy"]),
+        }
     # de-dup members preserving order
     for name, p in plan.items():
         seen, uniq = set(), []
@@ -215,7 +223,7 @@ def apply_plan(out, plan, dry):
     for name, p in plan.items():
         cs[name] = {k: v for k, v in p["strategy"].items() if v}
     sql_strategy = ("UPDATE settings SET data = jsonb_set(data, '{comboStrategies}', "
-                    f"'{json.dumps(cs)}'::jsonb) WHERE id = 'default';")
+                    f"'{json.dumps(cs)}'::jsonb) WHERE id = 1;")
 
     print("\n" + "=" * 92)
     print("SQL TO APPLY")

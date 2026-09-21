@@ -27,7 +27,7 @@ def load_combo_names():
 
 
 def load_combo_members():
-    """name -> list of member model ids (recursion resolved to leaf models)."""
+    """name -> list of leaf models (nested combo refs resolved)."""
     raw = sh(PSQL + ["SELECT name||'|'||models::text FROM combos ORDER BY name;"])
     direct = {}
     for line in raw.splitlines():
@@ -56,7 +56,26 @@ def load_combo_members():
 
 
 def latest_run_models(out, run):
-    """model -> {alive, liveness, avg_ms, modality} for one run."""
+    """model -> {alive, liveness, avg_ms, modality} for one run.
+    Primary source: per-run p1_summary.json + p2_modality.json (immutable).
+    Falls back to benchmark.db only when the JSON files are missing."""
+    res = {}
+    p1 = os.path.join(out, f"run{run}", "p1_summary.json")
+    p2 = os.path.join(out, f"run{run}", "p2_modality.json")
+    if os.path.exists(p1):
+        d = json.load(open(p1))
+        for m in d.get("alive", []):
+            res[m["model"]] = {"provider": m["provider"], "alive": True,
+                               "liveness": m.get("liveness", 1.0), "avg_ms": m.get("avg_ms", 0),
+                               "modality": "?"}
+        for m in d.get("dead", []):
+            res[m["model"]] = {"provider": m.get("provider", "?"), "alive": False,
+                               "liveness": 0.0, "avg_ms": 0, "modality": "dead"}
+        if os.path.exists(p2):
+            for m in json.load(open(p2)):
+                if m["model"] in res:
+                    res[m["model"]]["modality"] = m.get("modality", "?")
+        return res
     db = sqlite3.connect(os.path.join(out, "benchmark.db"))
     rows = db.execute(
         "SELECT id, provider, alive, liveness, avg_ms, modality FROM models WHERE run=?",

@@ -202,6 +202,58 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Model benchmark history. Attempts are facts. Reports are reviewer text.
+CREATE TABLE IF NOT EXISTS benchmark_jobs (
+  id UUID PRIMARY KEY,
+  status VARCHAR(16) NOT NULL DEFAULT 'queued',
+  providers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  suites JSONB NOT NULL DEFAULT '["pong"]'::jsonb,
+  reviewer VARCHAR(256),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  progress JSONB NOT NULL DEFAULT '{}'::jsonb,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_benchmark_jobs_created ON benchmark_jobs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS benchmark_attempts (
+  id UUID PRIMARY KEY,
+  job_id UUID NOT NULL REFERENCES benchmark_jobs(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  provider VARCHAR(64) NOT NULL,
+  connection_id TEXT,
+  account_name TEXT,
+  model VARCHAR(256) NOT NULL,
+  suite VARCHAR(32) NOT NULL,
+  rep SMALLINT NOT NULL DEFAULT 1,
+  status VARCHAR(32) NOT NULL,
+  http_status INTEGER,
+  format VARCHAR(16),
+  ttft_ms DOUBLE PRECISION,
+  total_ms DOUBLE PRECISION,
+  tokens INTEGER,
+  tps DOUBLE PRECISION,
+  score INTEGER,
+  excerpt TEXT,
+  request_body TEXT,
+  response_body TEXT,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_benchmark_attempts_job ON benchmark_attempts (job_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_benchmark_attempts_day ON benchmark_attempts (created_at DESC, provider, model);
+ALTER TABLE benchmark_attempts ADD COLUMN IF NOT EXISTS request_body TEXT;
+ALTER TABLE benchmark_attempts ADD COLUMN IF NOT EXISTS response_body TEXT;
+
+CREATE TABLE IF NOT EXISTS benchmark_reports (
+  id UUID PRIMARY KEY,
+  job_id UUID NOT NULL REFERENCES benchmark_jobs(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewer VARCHAR(256) NOT NULL,
+  report TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_benchmark_reports_job ON benchmark_reports (job_id, created_at DESC);
+
 -- KV Store
 CREATE TABLE IF NOT EXISTS kv (
   scope VARCHAR(64) NOT NULL,

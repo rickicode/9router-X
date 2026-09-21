@@ -13,7 +13,7 @@ const origCreate = http.createServer.bind(http);
 const PEER_TOKEN = crypto.randomBytes(24).toString("hex");
 process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
 
-let backgroundRefreshStarted = false;
+let quotaCacheStarted = false;
 
 function startBackgroundTokenRefreshFromCustomServer() {
   if (backgroundRefreshStarted) return;
@@ -46,6 +46,32 @@ function startBackgroundTokenRefreshFromCustomServer() {
     });
 }
 
+function startQuotaCacheFromCustomServer() {
+  if (quotaCacheStarted) return;
+  quotaCacheStarted = true;
+  const modPath = path.join(__dirname, "src", "domain", "quotaCache.js");
+  import(pathToFileURL(modPath).href)
+    .then((m) => {
+      try {
+        m.startBackgroundRefresh();
+      } catch (e) {
+        console.error("[QuotaCache] start failed:", e && e.message ? e.message : e);
+      }
+      const stop = () => {
+        try {
+          m.stopBackgroundRefresh();
+        } catch {}
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    })
+    .catch((e) => {
+      if (process.env.DEBUG_QUOTA_CACHE) {
+        console.error("[QuotaCache] import failed:", e && e.message ? e.message : e);
+      }
+    });
+}
+
 // Wrap Next standalone HTTP server: derive client IP from the TCP socket
 // (unspoofable) and strip client-supplied forwarding headers so downstream
 // rate-limiting keys on the real peer address instead of attacker-controlled XFF.
@@ -74,7 +100,7 @@ http.createServer = (...args) => {
   };
   const server = origCreate(...rest, wrapped);
   server.once("listening", () => {
-    startBackgroundTokenRefreshFromCustomServer();
+    startQuotaCacheFromCustomServer();
   });
   const origEmit = server.emit;
   // JBR 25 sends h2c upgrades that the HTTP/1.1 server would otherwise close.

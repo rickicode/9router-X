@@ -19,7 +19,7 @@ export {
   getProviderNodes, getProviderNodeById,
   createProviderNode, updateProviderNode, deleteProviderNode,
   getProxyPools, getProxyPoolById,
-  createProxyPool, updateProxyPool, deleteProxyPool,
+  createProxyPool, updateProxyPool, deleteProxyPool, deleteDisabledProxyPools,
   invalidateProxyPoolCache,
   getProxyGroups, getProxyGroupById, getProxyGroupByName,
   createProxyGroup, updateProxyGroup, deleteProxyGroup,

@@ -63,6 +63,7 @@ const DEFAULT_SETTINGS = {
   pxpipeAutoInstall: true,
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,
+  benchmarkRetentionDays: 30,
 };
 
 let cachedSettings = null;

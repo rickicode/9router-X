@@ -26,6 +26,9 @@ async function sweep() {
     }
     // Periodic database telemetry pruning (fail-open)
     pruneAnalyticsEvents().catch(() => {});
+    import("@/lib/benchmark/runner.js")
+      .then((mod) => mod.pruneBenchmarkHistory())
+      .catch(() => {});
   } catch {
     // fail-open: next tick retries
   }

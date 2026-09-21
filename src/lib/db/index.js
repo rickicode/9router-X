@@ -33,7 +33,7 @@ export {
 // Proxy pools
 export {
   getProxyPools, getProxyPoolById,
-  createProxyPool, updateProxyPool, deleteProxyPool,
+  createProxyPool, updateProxyPool, deleteProxyPool, deleteDisabledProxyPools,
   invalidateProxyPoolCache,
 } from "./repos/proxyPoolsRepo.js";
 

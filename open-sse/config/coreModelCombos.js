@@ -6,31 +6,23 @@
 // routes through handleComboChat over the member list
 // (fallback + health-reorder + dead-member fast-skip already built).
 //
-// Seeded from the audit of healthy provider bindings (2026-09-19): every
-// member below was verified live or via recent traffic. Dead members
-// (freebuff 0/33, workbuddy credits exhausted, orca 429-locked, tokenrouter
-// "no channel") are excluded.
-//
-// General "-latest" combos track each family's newest healthy model and stay
-// alias-free so a client can ask for "claude-latest" / "mimo-latest"
-// without knowing/versioning a specific id. Bump the version when a provider
-// ships a newer generation — never point a -latest entry at a dead binding.
+// Gemini is Antigravity only (`ag/`). Other gemini bindings (gemini/, bai/,
+// orca/, ocz/) are not members: invalid key, 402, or 401 in production logs.
 //
 // Retired 2026-09-21 (combo cleanup): glm-5.3-flash → glm-latest,
 // deepseek-v4.1-flash (as combo name) → deepseek-flash-latest,
 // mimo-v2.5 → mimo-latest, gpt-5.6-luna → gpt-latest,
 // claude-haiku-4-5 → claude-latest, gemini-3.8-flash → gemini-flash-latest,
 // muse-spark → muse-spark-latest, smart-model removed.
+// auto/* uses difficulty routing seeded in seedDefaultCombos.js.
 
 export const CORE_MODEL_COMBOS = {
-  // ── DeepSeek family ───────────────────────────────────────────────────
   "deepseek-v4-flash": [
+    "cline-free/deepseek/deepseek-v4-flash",
     "cline-free/deepseek/deepseek-v4.1-flash",
     "uk/deepseek/deepseek-v4-flash",
     "th/deepseek-v4.1-flash:free",
-    "cline-free/deepseek/deepseek-v4-flash-0731:free",
     "kilocode/deepseek/deepseek-chat",
-    "kilocode/kilo-auto/free",
     "openrouter/deepseek/deepseek-v4-flash-0731:free",
   ],
   "deepseek-v4-pro": [
@@ -41,19 +33,26 @@ export const CORE_MODEL_COMBOS = {
   ],
 };
 
-// General ("no version") combos: newest healthy model per family, alias-free.
 export const GENERAL_LATEST_COMBOS = {
+  "grok-latest": [
+    "gcli/grok-4.7",
+    "gcli/grok-4.6",
+    "gcli/grok-4.6-high",
+  ],
   "mimo-latest": [
+    "oc/mimo-v2.5-free",
+    "ocz/mimo-v2.5-free",
     "mimo/mimo-v2.5",
     "mimo/mimo-v2.5-pro",
     "xmtp/mimo-v2.5",
     "bai/mimo-v2.5",
-    "ocz/mimo-v2.5-free",
     "th/mimo-v2.5:free",
   ],
   "muse-spark-latest": [
-    "oc/muse-spark-1.3-contributor-free",
     "ocz/muse-spark-1.3-contributor-free",
+    "ocz/muse-spark-1.2-contributor-free",
+    "oc/muse-spark-1.3-contributor-free",
+    "oc/muse-spark-1.2-contributor-free",
   ],
   "gemini-flash-latest": [
     "ag/gemini-3.8-flash-high",
@@ -81,12 +80,11 @@ export const GENERAL_LATEST_COMBOS = {
     "kilocode/z-ai/glm-5.2:free",
   ],
   "deepseek-flash-latest": [
+    "cline-free/deepseek/deepseek-v4-flash",
     "cline-free/deepseek/deepseek-v4.1-flash",
     "uk/deepseek/deepseek-v4-flash",
     "th/deepseek-v4.1-flash:free",
-    "cline-free/deepseek/deepseek-v4-flash-0731:free",
     "kilocode/deepseek/deepseek-chat",
-    "kilocode/kilo-auto/free",
     "openrouter/deepseek/deepseek-v4-flash-0731:free",
   ],
   "deepseek-pro-latest": [
@@ -96,29 +94,88 @@ export const GENERAL_LATEST_COMBOS = {
     "kilocode/deepseek/deepseek-reasoner",
   ],
   "gpt-latest": [
+    "cx/gpt-5.5",
     "cx/gpt-5.6-luna",
+    "cx/gpt-5.6-terra",
+    "cx/gpt-5.5-review",
+    "cx/gpt-5.6-terra-review",
+    "cx/gpt-5.6-luna-review",
     "uk/gpt-5.6-luna",
   ],
-  // Frontier open-weight coding models — every binding below PASSED a live
-  // code-execution benchmark (2026-09-19/20). Combines Cline Free,
-  // Kilo Code Free, OpenCode, and tested flagship open weights.
   "open-weight-latest": [
-    "cline-free/z-ai/glm-5.3-flash",
-    "cline-free/deepseek/deepseek-v4.1-flash",
-    "kilocode/poolside/laguna-s-2.1:free",
-    "kilocode/inclusionai/ling-3.0-flash-sante:free",
-    "kilocode/inclusionai/ling-3.0-flash-fin:free",
-    "kilocode/stepfun/step-3.7-flash:free",
-    "oc/muse-spark-1.3-contributor-free",
-    "cline-free/minimax/minimax-m3",
-    "kilocode/cohere/north-mini-code:free",
-    "kilocode/kilo-auto/free",
+    "cline-free/cohere/north-mini-code:free",
     "cline-free/google/gemma-4-31b-it:free",
-    "cline-free/google/gemma-4-26b-a4b-it:free",
-    "cline-free/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "cline-free/inclusionai/ling-3.0-flash-fin:free",
+    "cline-free/inclusionai/ling-3.0-flash-vl:free",
+    "cline-free/deepseek/deepseek-v4-flash",
+    "cline-free/poolside/laguna-s-2.1:free",
+    "ocz/ling-3.0-flash-fin-free",
+    "cline-free/inclusionai/ling-3.0-flash-sante:free",
     "cline-free/nex-agi/nex-n2.5-pro:free",
-    "kilocode/nex-agi/nex-n2.5-mini:free",
-    "kilocode/dots-studio/dots-3-note-preview:free",
+    "ocz/muse-spark-1.3-contributor-free",
+    "ocz/muse-spark-1.2-contributor-free",
+    "oc/big-pickle",
+    "cline-free/poolside/laguna-xs-2.1:free",
+    "cline-free/nvidia/nemotron-3-super-120b-a12b:free",
+    "kcf/poolside/laguna-s-2.1:free",
+    "kcf/inclusionai/ling-3.0-flash-sante:free",
+    "kcf/inclusionai/ling-3.0-flash-fin:free",
+    "kcf/stepfun/step-3.7-flash:free",
+  ],
+  "auto/coding": [
+    "ag/gemini-3.8-flash-high",
+    "gcli/grok-4.7",
+    "cline-free/deepseek/deepseek-v4-flash",
+    "cline-free/cohere/north-mini-code:free",
+    "cline-free/google/gemma-4-31b-it:free",
+    "cx/gpt-5.5",
+    "cx/gpt-5.6-luna",
+    "cline-free/inclusionai/ling-3.0-flash-fin:free",
+    "cline-free/inclusionai/ling-3.0-flash-vl:free",
+    "cline-free/poolside/laguna-s-2.1:free",
+    "ocz/muse-spark-1.3-contributor-free",
+    "cline-free/nex-agi/nex-n2.5-pro:free",
+    "kcf/poolside/laguna-s-2.1:free",
+    "kcf/cohere/north-mini-code:free",
+    "kcf/inclusionai/ling-3.0-flash-fin:free",
+    "kcf/inclusionai/ling-3.0-flash-vl:free",
+  ],
+  "auto/writing": [
+    "ag/gemini-3.8-flash-high",
+    "gcli/grok-4.7",
+    "cx/gpt-5.6-luna",
+    "cx/gpt-5.5",
+    "ocz/muse-spark-1.3-contributor-free",
+    "ocz/muse-spark-1.2-contributor-free",
+    "oc/muse-spark-1.2-contributor-free",
+    "oc/big-pickle",
+    "oc/mimo-v2.5-free",
+    "cline-free/google/gemma-4-31b-it:free",
+    "cline-free/inclusionai/ling-3.0-flash-fin:free",
+    "cline-free/deepseek/deepseek-v4-flash",
+    "cline-free/nvidia/nemotron-3-super-120b-a12b:free",
+    "kcf/inclusionai/ling-3.0-flash-fin:free",
+    "kcf/stepfun/step-3.7-flash:free",
+    "kcf/kilo-auto/free",
+  ],
+  "auto/socmed": [
+    "ag/gemini-3.8-flash-high",
+    "gcli/grok-4.7",
+    "cline-free/google/gemma-4-31b-it:free",
+    "cline-free/inclusionai/ling-3.0-flash-fin:free",
+    "cline-free/inclusionai/ling-3.0-flash-vl:free",
+    "cline-free/cohere/north-mini-code:free",
+    "cx/gpt-5.5",
+    "cx/gpt-5.6-luna",
+    "ocz/ling-3.0-flash-fin-free",
+    "oc/big-pickle",
+    "oc/mimo-v2.5-free",
+    "ocz/muse-spark-1.3-contributor-free",
+    "cline-free/poolside/laguna-s-2.1:free",
+    "kcf/cohere/north-mini-code:free",
+    "kcf/inclusionai/ling-3.0-flash-fin:free",
+    "kcf/inclusionai/ling-3.0-flash-vl:free",
+    "kcf/kilo-auto/free",
   ],
 };
 

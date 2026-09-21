@@ -84,13 +84,12 @@ export async function getModelInfo(modelStr) {
  * @returns {Promise<string[]|null>} Array of models or null if not a combo
  */
 export async function getComboModels(modelStr) {
-  // Only check if it's not in provider/model format
-  if (modelStr.includes("/")) return null;
-
   const combo = await getComboByName(modelStr);
   if (combo && combo.models && combo.models.length > 0) {
     return combo.models;
   }
+  // Only check core-model fallback if it's not in provider/model format
+  if (modelStr.includes("/")) return null;
   // Core-model family: bare canonical model name (e.g. "glm-5.3-flash",
   // "deepseek-v4.1-flash") routes as a virtual combo over provider bindings.
   const coreMembers = getCoreComboMembers(modelStr);

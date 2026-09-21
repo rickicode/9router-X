@@ -32,11 +32,10 @@ export class KiloCodeFreeExecutor extends BaseExecutor {
       ...this.config.headers,
     };
 
-    // Optional BYOK / user key if present, otherwise omit for anonymous free tier
-    if (credentials?.apiKey) {
+    // noAuth free tier rejects any Authorization header, including the
+    // virtual "public" token. A real user key is opt-in only.
+    if (credentials?.apiKey && credentials.apiKey !== "public") {
       headers["Authorization"] = `Bearer ${credentials.apiKey}`;
-    } else if (credentials?.accessToken) {
-      headers["Authorization"] = `Bearer ${credentials.accessToken}`;
     }
 
     return headers;
