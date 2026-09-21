@@ -76,7 +76,7 @@ export default function BenchmarkPage() {
   // State: Reviewer Model Selector Modal
   const [isReviewerModalOpen, setIsReviewerModalOpen] = useState(false);
   const [reviewerPickerSearch, setReviewerPickerSearch] = useState("");
-
+  const [expandedSelectedProviders, setExpandedSelectedProviders] = useState(() => new Set());
   const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
   const [reviewer, setReviewer] = useState("judge-router");
 
@@ -240,6 +240,15 @@ export default function BenchmarkPage() {
       return next;
     });
   }
+  function toggleSelectedProviderExpand(providerId) {
+    setExpandedSelectedProviders((prev) => {
+      const next = new Set(prev);
+      if (next.has(providerId)) next.delete(providerId);
+      else next.add(providerId);
+      return next;
+    });
+  }
+
 
   // Modal Open Handler: sync current selection to staging buffer
   function openPickerModal() {
@@ -651,10 +660,26 @@ export default function BenchmarkPage() {
       {/* ─── 2. Selected Models Display: Grouped by Provider -> Tags Model ─── */}
       <Card
         title="2. Target Model yang Diuji"
-        subtitle="Model yang dipilih akan tampil di sini sebagai tag per provider. Klik tombol untuk memilih."
+        subtitle={`${selectedModelIds.size} model dari ${selectedGroupedByProvider.length} provider terpilih. Buka dropdown provider untuk melihat atau mengelola model spesifik.`}
         icon="checklist"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedGroupedByProvider.length > 0 ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={expandedSelectedProviders.size === selectedGroupedByProvider.length ? "unfold_less" : "unfold_more"}
+                onClick={() => {
+                  if (expandedSelectedProviders.size === selectedGroupedByProvider.length) {
+                    setExpandedSelectedProviders(new Set());
+                  } else {
+                    setExpandedSelectedProviders(new Set(selectedGroupedByProvider.map((item) => item.provider.id)));
+                  }
+                }}
+              >
+                {expandedSelectedProviders.size === selectedGroupedByProvider.length ? "Tutup Semua" : "Buka Semua"}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="primary"
@@ -673,58 +698,83 @@ export default function BenchmarkPage() {
         }
       >
         {selectedGroupedByProvider.length > 0 ? (
-          <div className="space-y-4">
-            {selectedGroupedByProvider.map(({ provider, models }) => (
-              <div
-                key={provider.id}
-                className="rounded-xl border border-border-subtle bg-surface-2 p-3.5 transition-all hover:border-border"
-              >
-                {/* Provider Header Bar */}
-                <div className="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-border-subtle">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-text-main">{provider.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-brand-500 uppercase tracking-wider">
-                      {provider.alias}
-                    </span>
-                    <span className="text-xs text-text-muted">
-                      ({models.length} model)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeWholeProvider(provider.id)}
-                    className="text-xs text-text-muted hover:text-rose-400 flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-rose-500/10"
-                    title={`Hapus semua model dari ${provider.name}`}
+          <div className="space-y-2.5">
+            {selectedGroupedByProvider.map(({ provider, models }) => {
+              const isExpanded = expandedSelectedProviders.has(provider.id);
+              return (
+                <div
+                  key={provider.id}
+                  className="rounded-xl border border-border-subtle bg-surface-2 transition-all hover:border-border overflow-hidden"
+                >
+                  {/* Clickable Header Dropdown Bar */}
+                  <div
+                    className="flex items-center justify-between gap-3 p-3 cursor-pointer select-none bg-surface-2 hover:bg-surface-3/60 transition-colors"
+                    onClick={() => toggleSelectedProviderExpand(provider.id)}
                   >
-                    <span className="material-symbols-outlined text-sm leading-none">delete</span>
-                    <span>Hapus Provider</span>
-                  </button>
-                </div>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className="material-symbols-outlined text-lg text-text-muted transition-transform duration-200"
+                        style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                      >
+                        expand_more
+                      </span>
+                      <span className="font-bold text-sm text-text-main truncate">{provider.name}</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-brand-500 uppercase tracking-wider">
+                        {provider.alias}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/10 text-brand-500">
+                        {models.length} model
+                      </span>
+                    </div>
 
-                {/* Model Tags List */}
-                <div className="flex flex-wrap gap-2">
-                  {models.map((m) => (
-                    <span
-                      key={m.fullId}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/25 bg-surface px-2.5 py-1 text-xs text-text-main font-medium shadow-2xs group"
-                    >
-                      <span className="text-text-main">{m.name}</span>
-                      <span className="text-[10px] text-text-muted font-mono opacity-80">
-                        ({m.id})
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-brand-500 font-medium hidden sm:inline">
+                        {isExpanded ? "Tutup detail" : "Lihat detail model"}
                       </span>
                       <button
                         type="button"
-                        onClick={() => removeSingleModelTag(m.fullId)}
-                        className="text-text-muted hover:text-rose-400 transition-colors p-0.5 rounded-full hover:bg-surface-3 leading-none"
-                        title={`Hapus model ${m.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeWholeProvider(provider.id);
+                        }}
+                        className="text-xs text-text-muted hover:text-rose-400 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-rose-500/10"
+                        title={`Hapus semua model dari ${provider.name}`}
                       >
-                        <span className="material-symbols-outlined text-sm leading-none">close</span>
+                        <span className="material-symbols-outlined text-sm leading-none">delete</span>
+                        <span className="hidden sm:inline">Hapus</span>
                       </button>
-                    </span>
-                  ))}
+                    </div>
+                  </div>
+
+                  {/* Dropdown Content with Model Tags */}
+                  {isExpanded ? (
+                    <div className="p-3.5 pt-2 border-t border-border-subtle bg-surface">
+                      <div className="flex flex-wrap gap-2">
+                        {models.map((m) => (
+                          <span
+                            key={m.fullId}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/25 bg-surface-2 px-2.5 py-1 text-xs text-text-main font-medium shadow-2xs group"
+                          >
+                            <span className="text-text-main font-medium">{m.name}</span>
+                            <span className="text-[10px] text-text-muted font-mono opacity-80">
+                              ({m.id})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeSingleModelTag(m.fullId)}
+                              className="text-text-muted hover:text-rose-400 transition-colors p-0.5 rounded-full hover:bg-surface-3 leading-none"
+                              title={`Hapus model ${m.name}`}
+                            >
+                              <span className="material-symbols-outlined text-sm leading-none">close</span>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="py-12 text-center text-sm text-text-muted">
