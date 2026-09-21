@@ -21,9 +21,10 @@ export async function POST(request) {
     }
   }
   const providers = Array.isArray(body.providers) ? body.providers : [];
+  const models = Array.isArray(body.models) && body.models.length ? body.models : null;
   const suites = Array.isArray(body.suites) && body.suites.length ? body.suites : ["pong"];
   try {
-    const job = await startBenchmark({ providers, suites, reviewer: body.reviewer || null });
+    const job = await startBenchmark({ providers, models, suites, reviewer: body.reviewer || null });
     return NextResponse.json(job, { status: 202 });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

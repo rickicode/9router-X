@@ -231,6 +231,20 @@ function providerModels(providerId) {
     .filter(Boolean)
     .map((id) => `${alias}/${id}`);
 }
+function getSelectedModelsForProvider(providerId, modelsFilter) {
+  const allModels = providerModels(providerId);
+  if (!modelsFilter || !Array.isArray(modelsFilter) || modelsFilter.length === 0) {
+    return allModels;
+  }
+  const set = new Set(modelsFilter);
+  const alias = PROVIDER_ID_TO_ALIAS[providerId] || providerId;
+  return allModels.filter((m) =>
+    set.has(m) ||
+    set.has(`${alias}/${m}`) ||
+    set.has(m.replace(`${alias}/`, "")) ||
+    set.has(m.replace(`${providerId}/`, ""))
+  );
+}
 
 async function accountsFor(providerId) {
   const provider = PROVIDERS[providerId];
@@ -274,11 +288,29 @@ async function runJob(job) {
   const db = await getAdapter();
   const key = await gatewayKey();
   await recoverInterruptedJobs(db, job.id);
-  await updateJob(db, job.id, { status: "running", started_at: new Date().toISOString() });
+  await updateJob(db, job.id, {
+    status: "running",
+    started_at: new Date().toISOString(),
+    progress: { done: 0, total: job.total, phase: "Memulai pengujian benchmark..." },
+  });
   const retries = [];
   const deferred = [];
   let done = 0;
   const record = async (providerId, account, model, suite, rep) => {
+    await updateJob(db, job.id, {
+      status: "running",
+      progress: {
+        done,
+        total: job.total,
+        retrying: retries.length,
+        currentModel: model,
+        currentProvider: providerId,
+        currentSuite: suite,
+        currentRep: rep,
+        currentAccount: account.name,
+        phase: `Menguji ${model} · ${suite.toUpperCase()} (Rep ${rep}/${suite === "pong" ? PONG_REPS : 1})`,
+      },
+    }).catch(() => {});
     const result = await callGateway({ model, connectionId: account.id, suite, key }).catch((error) => ({
       httpStatus: 0, format: null, ttft: null, total: null, tokens: 0, tps: 0,
       content: "", toolCalls: [], is429: false, error: error.message,
@@ -292,7 +324,7 @@ async function runJob(job) {
   };
   for (const providerId of job.providers) {
     const accounts = await accountsFor(providerId);
-    const models = providerModels(providerId);
+    const models = getSelectedModelsForProvider(providerId, job.models);
     for (const account of accounts) {
       for (const model of models) {
         let pongPassed = false;
@@ -313,7 +345,14 @@ async function runJob(job) {
           }
         }
         done += 1;
-        await updateJob(db, job.id, { progress: { done, total: job.total, retrying: retries.length } });
+        await updateJob(db, job.id, {
+          progress: {
+            done,
+            total: job.total,
+            retrying: retries.length,
+            phase: done < job.total ? `Selesai ${model} (${done}/${job.total})` : "Menyelesaikan putaran utama...",
+          },
+        });
       }
     }
   }
@@ -331,6 +370,13 @@ async function runJob(job) {
   }
   let reviewError = null;
   if (job.reviewer) {
+    await updateJob(db, job.id, {
+      progress: {
+        done: job.total,
+        total: job.total,
+        phase: `Menyusun kesimpulan analisis dengan reviewer (${job.reviewer})...`,
+      },
+    }).catch(() => {});
     try {
       const wrote = await writeReview(db, job, key);
       if (!wrote) reviewError = "Reviewer tidak mengembalikan teks";
@@ -378,22 +424,23 @@ async function writeReview(db, job, key) {
   return true;
 }
 
-export async function startBenchmark({ providers, suites = ["pong"], reviewer = null }) {
+export async function startBenchmark({ providers, models = null, suites = ["pong"], reviewer = null }) {
   const db = await getAdapter();
   const id = randomUUID();
   const uniqueProviders = [...new Set(providers.filter((provider) => PROVIDERS[provider]))];
-  if (uniqueProviders.length === 0) throw new Error("No known providers selected");
+  if (uniqueProviders.length === 0) throw new Error("Tidak ada provider yang valid dipilih");
   let total = 0;
   for (const providerId of uniqueProviders) {
-    total += (await accountsFor(providerId)).length * providerModels(providerId).length;
+    const pModels = getSelectedModelsForProvider(providerId, models);
+    total += (await accountsFor(providerId)).length * pModels.length;
   }
-  if (total === 0) throw new Error("Tidak ada akun aktif atau model untuk provider yang dipilih");
+  if (total === 0) throw new Error("Tidak ada akun aktif atau model untuk provider/model yang dipilih");
   await db.run(
     `INSERT INTO benchmark_jobs (id, status, providers, suites, reviewer, progress)
      VALUES ($1, 'queued', $2::jsonb, $3::jsonb, $4, $5::jsonb)`,
-    [id, uniqueProviders, suites, reviewer, JSON.stringify({ done: 0, total })],
+    [id, uniqueProviders, suites, reviewer, JSON.stringify({ done: 0, total, phase: "Menyiapkan benchmark..." })],
   );
-  const job = { id, providers: uniqueProviders, suites, reviewer, total };
+  const job = { id, providers: uniqueProviders, models, suites, reviewer, total };
   jobs.set(id, runJob(job).catch(async (error) => {
     await updateJob(db, id, { status: "failed", error: error.message, finished_at: new Date().toISOString() });
     jobs.delete(id);
