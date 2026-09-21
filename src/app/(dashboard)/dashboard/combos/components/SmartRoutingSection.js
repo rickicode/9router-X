@@ -354,29 +354,29 @@ export default function SmartRoutingSection({
       )}
 
       {/* 3-Tier Grid Overview Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
         {TIER_CONFIG.map((tier) => {
           const tierModels = getTierModels(tier.key);
 
           return (
             <div
               key={tier.key}
-              className={`flex flex-col gap-2.5 rounded-xl border ${tier.cardBorder} ${tier.cardBg} p-3.5 shadow-2xs transition-all`}
+              onClick={() => handleOpenTierModal(tier.key)}
+              className={`group flex flex-col justify-between gap-3 rounded-xl border ${tier.cardBorder} ${tier.cardBg} p-3.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer`}
             >
-              {/* Tier Header */}
-              <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${tier.headerBg}`}>
-                    <span className="material-symbols-outlined text-[16px]">{tier.icon}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${tier.headerBg}`}>
+                    <span className="material-symbols-outlined text-[18px]">{tier.icon}</span>
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-text-main truncate">{tier.label}</span>
                       <span className="rounded-full bg-black/5 dark:bg-white/10 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-text-muted">
-                        {tierModels.length}
+                        {tierModels.length} model
                       </span>
                     </div>
-                    <p className="text-[10px] text-text-muted truncate leading-tight" title={tier.subtitle}>
+                    <p className="text-[11px] font-medium text-text-muted truncate mt-0.5" title={tier.title}>
                       {tier.title}
                     </p>
                   </div>
@@ -386,57 +386,19 @@ export default function SmartRoutingSection({
                   size="xs"
                   variant="secondary"
                   icon="tune"
-                  onClick={() => handleOpenTierModal(tier.key)}
-                  className="shadow-2xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenTierModal(tier.key);
+                  }}
+                  className="shadow-2xs shrink-0"
                 >
                   Pilih & Urutkan
                 </Button>
               </div>
 
-              {/* Models List in Tier */}
-              {tierModels.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/80 bg-surface/50 p-4 text-center">
-                  <span className="material-symbols-outlined text-text-muted/40 text-[24px] mb-1">
-                    {tier.icon}
-                  </span>
-                  <p className="text-xs font-medium text-text-muted">Belum ada model di {tier.shortLabel}</p>
-                  <p className="text-[10px] text-text-muted/70 mt-0.5 mb-2.5">
-                    Model akan dipanggil saat prompt terdeteksi tingkat {tier.shortLabel.toLowerCase()}
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="primary"
-                    icon="add"
-                    onClick={() => handleOpenTierModal(tier.key)}
-                  >
-                    Atur Model
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-0.5">
-                  {tierModels.map((model, index) => (
-                    <div
-                      key={`${model}-${index}`}
-                      className="group flex items-center justify-between gap-1.5 rounded-lg border border-border/70 bg-surface p-2 shadow-2xs hover:border-border transition-all"
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                        <span
-                          className="flex size-4.5 shrink-0 items-center justify-center rounded bg-black/5 dark:bg-white/10 font-mono text-[10px] font-bold text-text-muted"
-                          title={`Prioritas #${index + 1}`}
-                        >
-                          #{index + 1}
-                        </span>
-                        <code className="truncate font-mono text-xs font-medium text-text-main" title={model}>
-                          {model}
-                        </code>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-1">
-                        <CapacityBadges caps={getCaps?.(model)} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-[11px] text-text-muted/80 line-clamp-2 leading-relaxed">
+                {tier.subtitle}
+              </p>
             </div>
           );
         })}

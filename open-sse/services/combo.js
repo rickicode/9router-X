@@ -835,50 +835,55 @@ const CONTEXT_ACTION_REGEX = /\b(?:fix|perbaiki|benerin|debug|patch|error|gagal|
 
 function heuristicDifficulty(body, policy = "balanced") {
   const arr = Array.isArray(body.messages) ? body.messages : (Array.isArray(body.input) ? body.input : null);
-  let hasImages = false;
   let activeToolTurns = 0;
   if (arr) {
     for (const m of arr) {
       if (m?.role === "tool" || (m?.tool_calls && (!Array.isArray(m.tool_calls) || m.tool_calls.length > 0))) {
         activeToolTurns++;
       }
-      if (Array.isArray(m?.content)) {
-        for (const p of m.content) {
-          const type = p?.type;
-          if (type === "image_url" || type === "image" || p?.image_url) hasImages = true;
-        }
-      }
     }
   }
+
+  // History images are stripped downstream. Only the current user turn can
+  // require a vision model, so older screenshots must not lock the tier.
+  let hasCurrentTurnImages = false;
+  for (const m of trailingUserItems(arr)) {
+    if (Array.isArray(m?.content)) {
+      for (const p of m.content) {
+        const type = p?.type;
+        if (type === "image_url" || type === "image" || p?.image_url) hasCurrentTurnImages = true;
+      }
+    }
+    if (m?.image_url || m?.image) hasCurrentTurnImages = true;
+    if (Array.isArray(m?.images) && m.images.length > 0) hasCurrentTurnImages = true;
+  }
+
   const domain = detectDomain(body);
   const userText = extractJudgeInput(body);
   const userTokens = Math.ceil((userText || "").length / 4);
 
-  // Vision multimodal request -> hard tier
-  if (hasImages) {
-    return { tier: "hard", source: "heuristic-vision", domain, ambiguity: "low", confidence: 1.0 };
-  }
-  // Clear-cut complex engineering / architecture keywords bypass judge directly to hard
   if (COMPLEX_CODING_REGEX.test(userText)) {
     return { tier: "hard", source: "heuristic-complex", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  // Ongoing agentic work (tool calls / tool results in history) needs the
-  // strongest tier: the task already proved it is not answerable directly.
-  if (activeToolTurns > 0) {
-    return { tier: "hard", source: "heuristic-tool-history", domain, ambiguity: "low", confidence: 0.9 };
-  }
-  // Genuine greetings, smalltalk, ping (< 15 tokens and matches smalltalk pattern)
   if (userTokens <= 15 && CASUAL_OR_GREETING_REGEX.test(userText.trim())) {
     const tier = policy === "capability_heavy" ? "medium" : "easy";
     return { tier, source: "heuristic-smalltalk", domain: "general", ambiguity: "low", confidence: 1.0 };
   }
-  // Zero-latency trivial queries & small edits (< 150 tokens) bypass judge directly to easy
   if (userTokens <= 150 && TRIVIAL_CODING_REGEX.test(userText)) {
     const tier = policy === "capability_heavy" ? "medium" : "easy";
     return { tier, source: "heuristic-trivial", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
-  // All contextual commands (e.g. "fix kode tersebut", "coba benerin", "error ini")
-  // pass to judgeModel with recent context snippet so judge determines if the code is easy or hard!
+  if (hasCurrentTurnImages) {
+    return { tier: "hard", source: "heuristic-vision", domain, ambiguity: "low", confidence: 1.0 };
+  }
+
+  // A tool session is normal for a coding agent. Only an explicit failure in
+  // the latest user text keeps the hard shortcut; everything else is judged.
+  const ERROR_ACTION_RE = /\b(?:error|gagal|fail(?:ed|ure)?|crash|exception|bug|timeout|traceback|stacktrace|fatal)\b/i;
+  if (activeToolTurns > 0 && ERROR_ACTION_RE.test(userText)) {
+    return { tier: "hard", source: "heuristic-tool-error", domain, ambiguity: "low", confidence: 0.9 };
+  }
+
   return null;
 }
 
@@ -941,8 +946,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   // Session cache is read on every path: the winning model (sticky
   // affinity) must survive even when the heuristic resolves the tier.
   const cached = sKey ? difficultyCacheGet(sKey) : null;
-
-  // Check heuristic on latest user message first
+  const cachedTier = (cached && typeof cached === "object" ? cached.tier : cached) || null;
   const h = heuristicDifficulty(body, policy);
 
   if (h) {
@@ -950,30 +954,31 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
     domain = h.domain;
     source = h.source;
     confidence = h.confidence;
+  } else if (cachedTier && bodyTokens >= cfg.contextLockTokens) {
+    // Large follow-up keeps the last tier. Hard signals above still win.
+    tier = cachedTier;
+    source = "context-lock";
+    domain = typeof cached === "object" ? cached.domain : "general";
+    ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
+    confidence = typeof cached === "object" ? cached.confidence : 1.0;
+  } else if (judgeModel) {
+    const jr = await classifyWithJudge(body, judgeModel, handleSingleModel, cfg.judgeTimeoutMs, log, comboName, policy, cachedTier);
+    tier = jr?.tier || cachedTier || (policy === "cost_efficient" ? "easy" : "medium");
+    source = jr?.source || "judge";
+    domain = jr?.domain || detectDomain(body);
+    ambiguity = jr?.ambiguity || "low";
+    confidence = jr?.confidence ?? 0.8;
+  } else if (cachedTier) {
+    tier = cachedTier;
+    source = "session-cache";
+    domain = typeof cached === "object" ? cached.domain : "general";
+    ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
+    confidence = typeof cached === "object" ? cached.confidence : 1.0;
   } else {
-    const cachedTier = (cached && typeof cached === "object" ? cached.tier : cached) || null;
-    if (cachedTier) {
-      // Ambiguous turns are judged once per session; later turns pin the
-      // route so the upstream KV prefix cache keeps hitting.
-      tier = cachedTier;
-      source = "session-cache";
-      domain = typeof cached === "object" ? cached.domain : "general";
-      ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
-      confidence = typeof cached === "object" ? cached.confidence : 1.0;
-    } else if (judgeModel) {
-      const jr = await classifyWithJudge(body, judgeModel, handleSingleModel, cfg.judgeTimeoutMs, log, comboName, policy);
-      tier = jr?.tier || (policy === "cost_efficient" ? "easy" : "medium");
-      source = jr?.source || "judge";
-      domain = jr?.domain || detectDomain(body);
-      ambiguity = jr?.ambiguity || "low";
-      confidence = jr?.confidence ?? 0.8;
-    } else {
-      // Fallback matrix when judgeModel is absent
-      tier = policy === "cost_efficient" ? "easy" : policy === "capability_heavy" ? "hard" : "medium";
-      domain = detectDomain(body);
-    }
-    if (sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy, ...(cached?.winningModel ? { winningModel: cached.winningModel } : {}) });
+    tier = policy === "cost_efficient" ? "easy" : policy === "capability_heavy" ? "hard" : "medium";
+    domain = detectDomain(body);
   }
+  if (!h && sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy, ...(cached?.winningModel ? { winningModel: cached.winningModel } : {}) });
   log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | domain=${domain} | policy=${policy} | ~${bodyTokens} tok`);
   notify({
     tier,
@@ -1144,10 +1149,9 @@ function normalizeJudgeOutput(content, fallbackDomain = "general") {
 }
 
 // Call the judge LLM; returns { tier, source, domain, ambiguity, confidence } or fallback.
-async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs, log, comboName, policy = "balanced") {
+async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs, log, comboName, policy = "balanced", stickyTier = null) {
   const prompt = `${DIFFICULTY_JUDGE_PROMPT}\n${extractJudgeInput(body)}`;
-  // Thinking/reasoning models (stepfun, haiku-thinking, gemini-thinking) need
-  // headroom: 60 tokens truncates chain-of-thought before the JSON lands.
+  const policyFallback = stickyTier || (policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium");
   const judgeBody = {
     messages: [
       { role: "system", content: "You are a classifier. Output ONLY a valid JSON object. No explanation, no thinking, no markdown." },
@@ -1163,9 +1167,8 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     );
     if (!res || ((res.__error || res.__timeout)) || !res.ok) {
       bumpRoutingMetric("difficultyJudgeFailed");
-      const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
-      log.warn("DIFFICULTY", `Judge call failed — defaulting to ${fallbackTier}`, { comboName });
-      return { tier: fallbackTier, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
+      log.warn("DIFFICULTY", `Judge call failed — defaulting to ${policyFallback}`, { comboName });
+      return { tier: policyFallback, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
     }
     const txt = await res.clone().text();
     let content = "";
@@ -1184,12 +1187,10 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
 
     if (!diffRaw) {
       bumpRoutingMetric("difficultyJudgeUnparsed");
-      const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
-      log.warn("DIFFICULTY", `Judge response unparsed — defaulting to ${fallbackTier}`, { comboName, content: String(content).slice(0, 120) });
-      return { tier: fallbackTier, source: "judge-fallback", domain: domRaw, ambiguity: "high", confidence: 0.0 };
+      log.warn("DIFFICULTY", `Judge response unparsed — defaulting to ${policyFallback}`, { comboName, content: String(content).slice(0, 120) });
+      return { tier: policyFallback, source: "judge-fallback", domain: domRaw, ambiguity: "high", confidence: 0.0 };
     }
 
-    // Low confidence (< 0.5) acts like Morph's needs_info -> escalate to hard
     if (confRaw < 0.5) {
       return { tier: "hard", source: "judge-low-conf", domain: domRaw, ambiguity: ambRaw, confidence: confRaw };
     }
@@ -1198,9 +1199,8 @@ async function classifyWithJudge(body, judgeModel, handleSingleModel, timeoutMs,
     return { tier, source: "judge", domain: domRaw, ambiguity: ambRaw, confidence: confRaw };
   } catch (e) {
     bumpRoutingMetric("difficultyJudgeFailed");
-    const fallbackTier = policy === "cost_efficient" ? "medium" : policy === "capability_heavy" ? "hard" : "medium";
-    log.warn("DIFFICULTY", `Judge threw — defaulting to ${fallbackTier}`, { comboName, error: e?.message });
-    return { tier: fallbackTier, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
+    log.warn("DIFFICULTY", `Judge threw — defaulting to ${policyFallback}`, { comboName, error: e?.message });
+    return { tier: policyFallback, source: "judge-fallback", domain: detectDomain(body), ambiguity: "high", confidence: 0.0 };
   }
 }
 

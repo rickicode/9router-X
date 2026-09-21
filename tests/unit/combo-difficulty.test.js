@@ -57,7 +57,38 @@ describe("handleDifficultyChat (smart routing)", () => {
     expect(calls).toEqual(["easy-a"]); // judge never called
   });
 
-  it("obvious-hard body (tool history) runs the hard tier", async () => {
+  it("tool history without an error asks the judge", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      if (m === "judge-model") return judgeRes('{"difficulty":"medium","ambiguity":"low","domain":"coding","confidence":0.9}');
+      return okRes("pong");
+    });
+    const body = {
+      messages: [
+        { role: "user", content: "do things" },
+        { role: "assistant", tool_calls: [{ id: "1", type: "function", function: { name: "x", arguments: "{}" } }] },
+        { role: "tool", tool_call_id: "1", content: "done" },
+        { role: "user", content: "now write the next helper" },
+      ],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"] },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls[0]).toBe("judge-model");
+    expect(calls).toContain("med-a");
+    expect(calls).not.toContain("hard-a");
+  });
+
+  it("tool history plus an explicit error stays hard without the judge", async () => {
     const calls = [];
     const handleSingleModel = vi.fn(async (b, m) => {
       calls.push(m);
@@ -68,7 +99,7 @@ describe("handleDifficultyChat (smart routing)", () => {
         { role: "user", content: "do things" },
         { role: "assistant", tool_calls: [{ id: "1", type: "function", function: { name: "x", arguments: "{}" } }] },
         { role: "tool", tool_call_id: "1", content: "done" },
-        { role: "user", content: "now another" },
+        { role: "user", content: "the last command crashed with an exception" },
       ],
       stream: false,
     };
@@ -83,6 +114,66 @@ describe("handleDifficultyChat (smart routing)", () => {
     });
     expect(res.ok).toBe(true);
     expect(calls).toEqual(["hard-a"]);
+  });
+
+  it("an old screenshot does not lock a later text turn to hard", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      if (m === "judge-model") return judgeRes('{"difficulty":"easy","ambiguity":"low","domain":"general","confidence":0.9}');
+      return okRes("pong");
+    });
+    const body = {
+      messages: [
+        { role: "user", content: [{ type: "text", text: "lihat ini" }, { type: "image_url", image_url: { url: "data:image/png;base64,aa" } }] },
+        { role: "assistant", content: "sudah" },
+        { role: "user", content: "tulis ringkasan singkat dari hasil itu untuk catatan" },
+      ],
+      stream: false,
+    };
+    const res = await handleDifficultyChat({
+      body,
+      models: ["easy-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], hardModels: ["hard-a"] },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls[0]).toBe("judge-model");
+    expect(calls).toContain("easy-a");
+  });
+
+  it("a large follow-up keeps the cached tier without calling the judge", async () => {
+    const calls = [];
+    const handleSingleModel = vi.fn(async (b, m) => {
+      calls.push(m);
+      if (m === "judge-model") return judgeRes('{"difficulty":"medium","ambiguity":"low","domain":"coding","confidence":0.9}');
+      return okRes("pong");
+    });
+    const big = "x".repeat(250000);
+    await handleDifficultyChat({
+      body: { session_id: "lock-session", messages: [{ role: "user", content: "Help me design the pagination contract for this API." }], stream: false },
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"] },
+    });
+    calls.length = 0;
+    const res = await handleDifficultyChat({
+      body: { session_id: "lock-session", messages: [{ role: "user", content: big }], stream: false },
+      models: ["easy-a", "med-a", "hard-a"],
+      handleSingleModel,
+      log: quietLog,
+      comboName: "smart-model",
+      judgeModel: "judge-model",
+      tuning: { easyModels: ["easy-a"], mediumModels: ["med-a"], hardModels: ["hard-a"] },
+    });
+    expect(res.ok).toBe(true);
+    expect(calls).toEqual(["med-a"]);
   });
 
   it("ambiguous body asks the judge, then runs the judged tier", async () => {
