@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBenchmarkJob, listBenchmarkJobs, requestBenchmarkAdvice, startBenchmark } from "@/lib/benchmark/runner.js";
+import { getBenchmarkJob, listBenchmarkJobs, requestBenchmarkAdvice, startBenchmark, cancelBenchmark, deleteBenchmarkJob } from "@/lib/benchmark/runner.js";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,22 @@ export async function GET(request) {
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
+  if (body.action === "cancel") {
+    try {
+      const result = await cancelBenchmark(body.id);
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+  }
+  if (body.action === "delete") {
+    try {
+      const result = await deleteBenchmarkJob(body.id);
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+  }
   if (body.action === "advice") {
     try {
       const advice = await requestBenchmarkAdvice({ reviewer: body.reviewer, jobIds: body.jobIds || [] });

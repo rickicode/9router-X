@@ -6,10 +6,10 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 
 const SUITES = [
-  { id: "pong", label: "PONG Gate", subtitle: "Uji koneksi & respon singkat (Gerbang)", icon: "bolt" },
-  { id: "coding", label: "Coding Test", subtitle: "TokenBucketRateLimiter Python (Thread-safe)", icon: "code" },
-  { id: "logic", label: "Logic Puzzle", subtitle: "Teka-teki deduksi logika 4 profesi & mobil", icon: "psychology" },
-  { id: "tool", label: "Tool Calling", subtitle: "Native function calling cuaca Jakarta", icon: "build" },
+  { id: "pong", label: "PONG Gate", subtitle: "Liveness test (Must respond PONG to unlock suites)", icon: "bolt" },
+  { id: "coding", label: "Coding Benchmark", subtitle: "TokenBucketRateLimiter Python (Thread-safe Lock)", icon: "code" },
+  { id: "logic", label: "Logic Deduction", subtitle: "4-Person profession & car deduction puzzle", icon: "psychology" },
+  { id: "tool", label: "Tool Calling", subtitle: "Native function calling (Jakarta weather query)", icon: "build" },
 ];
 
 const STATUS_CONFIG = {
@@ -17,6 +17,7 @@ const STATUS_CONFIG = {
   failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
   rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
   skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
 };
 
 const REVIEWER_PRESETS = [
@@ -56,7 +57,6 @@ export default function BenchmarkPage() {
 
   // State: Selection
   const [selectedModelIds, setSelectedModelIds] = useState(() => {
-    // Default select models for antigravity and kilocode-free
     const initial = new Set();
     catalog.forEach((p) => {
       if (p.id === "antigravity" || p.id === "kilocode-free") {
@@ -67,13 +67,21 @@ export default function BenchmarkPage() {
   });
 
   const [expandedProviders, setExpandedProviders] = useState(() => {
-    const initial = new Set(["antigravity", "kilocode-free"]);
-    return initial;
+    return new Set(["antigravity", "kilocode-free"]);
   });
 
   const [providerQuery, setProviderQuery] = useState("");
   const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
   const [reviewer, setReviewer] = useState("judge-router");
+
+  // State: Table filters & sorting
+  const [statusFilter, setStatusFilter] = useState("all"); // all | passed | failed | rate_limited | skipped
+  const [searchTableQuery, setSearchTableQuery] = useState("");
+  const [sortField, setSortField] = useState("created_at"); // created_at | score | ttft | total | tps | model
+  const [sortOrder, setSortOrder] = useState("asc");
+
+  // State: Inspector modal
+  const [inspectAttempt, setInspectAttempt] = useState(null);
 
   // State: Job & Runtime Data
   const [jobs, setJobs] = useState([]);
@@ -82,13 +90,15 @@ export default function BenchmarkPage() {
   const [active, setActive] = useState(null);
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [advising, setAdvising] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
+  const [savedRetentionToast, setSavedRetentionToast] = useState(false);
 
   const activeIdRef = useRef(null);
   activeIdRef.current = active?.id;
 
-  // Derived: Filtered catalog based on search
+  // Filtered catalog based on search
   const filteredCatalog = useMemo(() => {
     const q = providerQuery.toLowerCase().trim();
     if (!q) return catalog;
@@ -105,7 +115,7 @@ export default function BenchmarkPage() {
       .filter(Boolean);
   }, [catalog, providerQuery]);
 
-  // Derived: active providers
+  // Active providers
   const activeProviders = useMemo(() => {
     const provs = new Set();
     catalog.forEach((p) => {
@@ -164,7 +174,6 @@ export default function BenchmarkPage() {
       .catch(() => {});
   }, []);
 
-  // Selection toggles
   function toggleSuite(suiteId) {
     setSuites((prev) => (prev.includes(suiteId) ? prev.filter((s) => s !== suiteId) : [...prev, suiteId]));
   }
@@ -212,7 +221,7 @@ export default function BenchmarkPage() {
     setSelectedModelIds(new Set());
   }
 
-  // Start benchmark execution with immediate UI feedback
+  // Start benchmark execution
   async function handleStartBenchmark() {
     if (selectedModelIds.size === 0 || suites.length === 0) return;
     setError("");
@@ -220,7 +229,7 @@ export default function BenchmarkPage() {
 
     const modelsList = Array.from(selectedModelIds);
 
-    // Instant local state update: zero lag visual transition
+    // Instant optimistic status display
     setActive({
       id: "pending",
       status: "starting",
@@ -260,7 +269,45 @@ export default function BenchmarkPage() {
     }
   }
 
-  // Ask AI reviewer advice from selected history
+  // Cancel running benchmark job
+  async function handleCancelBenchmark() {
+    if (!active?.id || active.id === "pending") return;
+    setCancelling(true);
+    try {
+      await fetch("/api/benchmark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", id: active.id }),
+      });
+      await refresh(active.id);
+    } catch (err) {
+      setError(err.message || "Gagal membatalkan benchmark");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  // Delete a historical job
+  async function handleDeleteJob(id, e) {
+    e.stopPropagation();
+    if (!confirm("Hapus riwayat benchmark ini beserta semua detail percobaannya?")) return;
+    try {
+      await fetch("/api/benchmark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      });
+      if (active?.id === id) {
+        setActive(null);
+        activeIdRef.current = null;
+      }
+      await refresh();
+    } catch (err) {
+      setError(err.message || "Gagal menghapus riwayat");
+    }
+  }
+
+  // Ask AI advice
   async function handleAskAdvice() {
     if (selectedHistoryJobs.length === 0) return;
     setError("");
@@ -293,17 +340,66 @@ export default function BenchmarkPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ benchmarkRetentionDays: days }),
     });
+    setSavedRetentionToast(true);
+    setTimeout(() => setSavedRetentionToast(false), 2500);
   }
 
   // Active attempts & metrics
-  const attempts = active?.attempts || [];
-  const counts = attempts.reduce(
+  const rawAttempts = active?.attempts || [];
+  const counts = rawAttempts.reduce(
     (acc, row) => {
-      acc[row.status] = (acc[row.status] || 0) + Number(row.n || 0);
+      acc[row.status] = (acc[row.status] || 0) + Number(row.n || 1);
       return acc;
     },
-    { passed: 0, failed: 0, rate_limited: 0, skipped: 0 }
+    { passed: 0, failed: 0, rate_limited: 0, skipped: 0, cancelled: 0 }
   );
+
+  // Filter and sort attempts for table
+  const displayedAttempts = useMemo(() => {
+    return rawAttempts
+      .filter((row) => {
+        if (statusFilter !== "all" && row.status !== statusFilter) return false;
+        if (searchTableQuery) {
+          const q = searchTableQuery.toLowerCase();
+          return (
+            row.model?.toLowerCase().includes(q) ||
+            row.account_name?.toLowerCase().includes(q) ||
+            row.provider?.toLowerCase().includes(q) ||
+            row.suite?.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+        if (sortField === "score") {
+          valA = a.score ?? -1;
+          valB = b.score ?? -1;
+        } else if (sortField === "ttft") {
+          valA = a.ttft_ms ?? 999999;
+          valB = b.ttft_ms ?? 999999;
+        } else if (sortField === "total") {
+          valA = a.total_ms ?? 999999;
+          valB = b.total_ms ?? 999999;
+        } else if (sortField === "tps") {
+          valA = a.tps ?? 0;
+          valB = b.tps ?? 0;
+        }
+        if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+        if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [rawAttempts, statusFilter, searchTableQuery, sortField, sortOrder]);
+
+  function handleSort(field) {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder(field === "score" || field === "tps" ? "desc" : "asc");
+    }
+  }
 
   const report = active?.reports?.[0];
   const isJobRunning =
@@ -316,8 +412,15 @@ export default function BenchmarkPage() {
   const progressDone = active?.progress?.done || 0;
   const progressPct = Math.min(100, Math.round((progressDone / Math.max(progressTotal, 1)) * 100));
 
+  // Blast radius calculation
+  const totalEstimatedCalls = useMemo(() => {
+    let count = 0;
+    const suitesCount = suites.includes("pong") ? suites.length + 1 : suites.length; // pong counts 2 reps
+    return selectedModelIds.size * Math.max(1, suitesCount);
+  }, [selectedModelIds.size, suites]);
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto pb-20">
       {/* ─── Page Header ─── */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
         <div>
@@ -326,7 +429,7 @@ export default function BenchmarkPage() {
             <h1 className="text-2xl font-bold tracking-tight text-text-main">AI Model Benchmark</h1>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Uji performa, latensi, liveness (PONG gate), dan kapabilitas model secara mandiri di server lokal.
+            Uji performa, latensi, liveness (PONG gate), dan kapabilitas model secara terisolasi di server gateway 9router-X.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -335,7 +438,7 @@ export default function BenchmarkPage() {
             variant="primary"
             icon="play_arrow"
             loading={starting || (isJobRunning && active?.id === "pending")}
-            disabled={selectedModelIds.size === 0 || suites.length === 0}
+            disabled={selectedModelIds.size === 0 || suites.length === 0 || isJobRunning}
             onClick={handleStartBenchmark}
             className="shadow-sm"
           >
@@ -366,17 +469,21 @@ export default function BenchmarkPage() {
           {/* Suite Selection */}
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">
-              1. Pilih Test Suites
+              1. Test Suites
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {SUITES.map((s) => {
                 const checked = suites.includes(s.id);
                 return (
-                  <button
+                  <div
                     key={s.id}
-                    type="button"
                     onClick={() => toggleSuite(s.id)}
-                    className={`relative flex items-start gap-3 rounded-lg border p-3 text-left transition-all ${
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === " " || e.key === "Enter") toggleSuite(s.id);
+                    }}
+                    className={`relative flex items-start gap-3 rounded-lg border p-3 text-left cursor-pointer transition-all ${
                       checked
                         ? "border-brand-500/50 bg-brand-500/5 shadow-sm"
                         : "border-border-subtle bg-surface-1 hover:border-border"
@@ -385,7 +492,9 @@ export default function BenchmarkPage() {
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => {}}
+                      onChange={() => toggleSuite(s.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Pilih ${s.label}`}
                       className="mt-1 rounded border-border text-brand-500 focus:ring-brand-500"
                     />
                     <div className="min-w-0 flex-1">
@@ -395,7 +504,7 @@ export default function BenchmarkPage() {
                       </div>
                       <p className="mt-0.5 text-xs text-text-muted leading-relaxed line-clamp-2">{s.subtitle}</p>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -404,7 +513,7 @@ export default function BenchmarkPage() {
           {/* Reviewer Configuration */}
           <div className="border-t border-border-subtle pt-4">
             <span className="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">
-              2. Reviewer AI (Opsional)
+              2. Reviewer AI Model (Opsional)
             </span>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="space-y-1.5">
@@ -447,7 +556,9 @@ export default function BenchmarkPage() {
 
               <div className="text-right lg:border-l lg:border-border-subtle lg:pl-6 text-sm text-text-muted">
                 <div className="text-text-main font-semibold text-base">{selectedModelIds.size} Model Terpilih</div>
-                <div className="text-xs">Dari {activeProviders.length} provider aktif</div>
+                <div className="text-xs">
+                  Estimasi ~{totalEstimatedCalls} panggilan ke {activeProviders.length} provider
+                </div>
               </div>
             </div>
           </div>
@@ -464,6 +575,17 @@ export default function BenchmarkPage() {
           icon="monitoring"
           action={
             <div className="flex items-center gap-2">
+              {isJobRunning && active.id !== "pending" ? (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  icon="cancel"
+                  loading={cancelling}
+                  onClick={handleCancelBenchmark}
+                >
+                  Batalkan Pengujian
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
@@ -479,8 +601,10 @@ export default function BenchmarkPage() {
                 </Badge>
               ) : active.status === "completed" ? (
                 <Badge variant="success">Selesai</Badge>
+              ) : active.status === "cancelled" ? (
+                <Badge variant="warning">Dibatalkan</Badge>
               ) : active.status === "review_failed" ? (
-                <Badge variant="warning">Selesai (Review Gagal)</Badge>
+                <Badge variant="warning">Selesai (Reviewer Gagal)</Badge>
               ) : (
                 <Badge variant="error">{active.status || "Gagal"}</Badge>
               )}
@@ -509,6 +633,8 @@ export default function BenchmarkPage() {
                   className={`h-full transition-all duration-300 ${
                     active.status === "failed"
                       ? "bg-rose-500"
+                      : active.status === "cancelled"
+                      ? "bg-orange-500"
                       : isJobRunning
                       ? "bg-gradient-to-r from-brand-500 to-emerald-400"
                       : "bg-emerald-500"
@@ -521,7 +647,9 @@ export default function BenchmarkPage() {
                   <span className="material-symbols-outlined text-sm">badge</span>
                   <span>Akun: {active.progress.currentAccount}</span>
                   {active.progress.retrying ? (
-                    <span className="text-amber-400">· {active.progress.retrying} dalam antrean retry 429</span>
+                    <span className="text-amber-400 font-medium">
+                      · {active.progress.retrying} dalam antrean retry 429
+                    </span>
                   ) : null}
                 </div>
               ) : null}
@@ -588,7 +716,7 @@ export default function BenchmarkPage() {
               onChange={(e) => setProviderQuery(e.target.value)}
             />
 
-            <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[580px] space-y-2 overflow-y-auto pr-1">
               {filteredCatalog.map((provider) => {
                 const totalInProv = provider.models.length;
                 const selectedInProv = provider.models.filter((m) => selectedModelIds.has(m.fullId)).length;
@@ -607,7 +735,10 @@ export default function BenchmarkPage() {
                   >
                     {/* Provider Row */}
                     <div className="flex items-center justify-between p-2.5 gap-2">
-                      <label className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer">
+                      <div
+                        className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer"
+                        onClick={() => toggleProviderModels(provider)}
+                      >
                         <input
                           type="checkbox"
                           checked={isAllSelected}
@@ -615,6 +746,8 @@ export default function BenchmarkPage() {
                             if (el) el.indeterminate = isPartiallySelected;
                           }}
                           onChange={() => toggleProviderModels(provider)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Pilih semua model dari ${provider.name}`}
                           className="rounded border-border text-brand-500 focus:ring-brand-500"
                         />
                         <div className="min-w-0 flex-1 truncate">
@@ -623,7 +756,7 @@ export default function BenchmarkPage() {
                           </span>
                           <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
                         </div>
-                      </label>
+                      </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span
@@ -687,11 +820,12 @@ export default function BenchmarkPage() {
                         {provider.models.map((model) => {
                           const isModelChecked = selectedModelIds.has(model.fullId);
                           return (
-                            <label
+                            <div
                               key={model.fullId}
+                              onClick={() => toggleModel(model.fullId)}
                               className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors ${
                                 isModelChecked
-                                  ? "bg-brand-500/10 text-text-main"
+                                  ? "bg-brand-500/10 text-text-main font-medium"
                                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                               }`}
                             >
@@ -700,16 +834,18 @@ export default function BenchmarkPage() {
                                   type="checkbox"
                                   checked={isModelChecked}
                                   onChange={() => toggleModel(model.fullId)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Pilih model ${model.name}`}
                                   className="rounded border-border text-brand-500 focus:ring-brand-500"
                                 />
                                 <div className="truncate">
-                                  <div className="font-medium truncate">{model.name}</div>
+                                  <div className="truncate">{model.name}</div>
                                   <div className="font-mono text-[10px] text-text-muted opacity-80 truncate">
                                     {model.fullId}
                                   </div>
                                 </div>
                               </div>
-                            </label>
+                            </div>
                           );
                         })}
                       </div>
@@ -727,108 +863,217 @@ export default function BenchmarkPage() {
           </div>
         </Card>
 
-        {/* Right Column: Live Test Results Table */}
+        {/* Right Column: Live Test Results Table with Sort, Filter & Inspector */}
         <Card
           title="Hasil Pengujian Terkini"
-          subtitle="Satu baris per model, suite pengujian, dan status"
+          subtitle="Klik baris mana saja untuk menginspeksi payload request, error, dan respon upstream"
           icon="table_chart"
           action={
             <div className="text-xs text-text-muted">
-              {attempts.length} data percobaan tercatat
+              {displayedAttempts.length} dari {rawAttempts.length} data ditampilkan
             </div>
           }
         >
-          <div className="overflow-x-auto max-h-[620px]">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-surface-1 z-10 text-xs text-text-muted border-b border-border-subtle">
-                <tr>
-                  <th className="py-2.5 px-3">Akun</th>
-                  <th className="py-2.5 px-3">Model</th>
-                  <th className="py-2.5 px-2">Suite</th>
-                  <th className="py-2.5 px-2">Status</th>
-                  <th className="py-2.5 px-2 text-right">Skor Kualitas</th>
-                  <th className="py-2.5 px-2 text-right">TTFT</th>
-                  <th className="py-2.5 px-2 text-right">Total</th>
-                  <th className="py-2.5 px-2 text-right">tok/s</th>
-                  <th className="py-2.5 px-2 text-center">Format</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-subtle text-xs">
-                {attempts.map((row) => {
-                  const cfg = STATUS_CONFIG[row.status] || {
-                    label: row.status,
-                    color: "bg-surface-3 text-text-muted",
-                  };
-                  return (
-                    <tr
-                      key={`${row.account_name}-${row.model}-${row.suite}-${row.status}-${row.format}`}
-                      className="hover:bg-surface-2 transition-colors"
+          <div className="space-y-3">
+            {/* Filter & Search Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-subtle">
+              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+                <span className="text-text-muted mr-1 font-medium">Filter:</span>
+                {[
+                  { id: "all", label: "Semua" },
+                  { id: "passed", label: "Lolos" },
+                  { id: "failed", label: "Gagal" },
+                  { id: "rate_limited", label: "429 Rate Limit" },
+                  { id: "skipped", label: "Dilewati" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setStatusFilter(f.id)}
+                    className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                      statusFilter === f.id
+                        ? "bg-brand-500 text-white shadow-xs"
+                        : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-48">
+                <input
+                  type="text"
+                  placeholder="Cari di tabel..."
+                  value={searchTableQuery}
+                  onChange={(e) => setSearchTableQuery(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            {/* Data Table */}
+            <div className="overflow-x-auto max-h-[520px]">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-surface-1 z-10 text-xs text-text-muted border-b border-border-subtle select-none">
+                  <tr>
+                    <th className="py-2.5 px-3">Akun</th>
+                    <th
+                      className="py-2.5 px-3 cursor-pointer hover:text-text-main"
+                      onClick={() => handleSort("model")}
                     >
-                      <td className="py-2 px-3 font-mono text-[11px] max-w-[120px] truncate" title={row.account_name}>
-                        {row.account_name || "-"}
-                      </td>
-                      <td className="py-2 px-3 font-medium max-w-[160px] truncate" title={row.model}>
-                        {row.model}
-                      </td>
-                      <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
-                        {row.suite}
-                      </td>
-                      <td className="py-2 px-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="py-2 px-2 text-right font-semibold">
-                        {row.median_score !== null && row.median_score !== undefined ? (
-                          <span
-                            className={
-                              row.median_score >= 80
-                                ? "text-emerald-400"
-                                : row.median_score >= 50
-                                ? "text-amber-400"
-                                : "text-rose-400"
-                            }
-                          >
-                            {row.median_score}
+                      <div className="flex items-center gap-1">
+                        <span>Model</span>
+                        {sortField === "model" ? (
+                          <span className="material-symbols-outlined text-xs">
+                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
                           </span>
-                        ) : (
-                          <span className="text-text-muted">-</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono">
-                        {row.median_ttft ? `${row.median_ttft}ms` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono">
-                        {row.median_ms ? `${row.median_ms}ms` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono font-medium">
-                        {row.median_tps ? `${row.median_tps}` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
-                        {row.format || "-"}
+                        ) : null}
+                      </div>
+                    </th>
+                    <th className="py-2.5 px-2">Suite</th>
+                    <th className="py-2.5 px-2">Status</th>
+                    <th
+                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                      onClick={() => handleSort("score")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Kualitas</span>
+                        {sortField === "score" ? (
+                          <span className="material-symbols-outlined text-xs">
+                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                    <th
+                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                      onClick={() => handleSort("ttft")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>TTFT</span>
+                        {sortField === "ttft" ? (
+                          <span className="material-symbols-outlined text-xs">
+                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                    <th
+                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                      onClick={() => handleSort("total")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Total</span>
+                        {sortField === "total" ? (
+                          <span className="material-symbols-outlined text-xs">
+                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                    <th
+                      className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
+                      onClick={() => handleSort("tps")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>tok/s</span>
+                        {sortField === "tps" ? (
+                          <span className="material-symbols-outlined text-xs">
+                            {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                    <th className="py-2.5 px-2 text-center">Format</th>
+                    <th className="py-2.5 px-2 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle text-xs">
+                  {displayedAttempts.map((row) => {
+                    const cfg = STATUS_CONFIG[row.status] || {
+                      label: row.status,
+                      color: "bg-surface-3 text-text-muted",
+                    };
+                    return (
+                      <tr
+                        key={`${row.id || row.account_name}-${row.model}-${row.suite}-${row.status}-${row.rep}`}
+                        onClick={() => setInspectAttempt(row)}
+                        className="hover:bg-surface-2 transition-colors cursor-pointer group"
+                      >
+                        <td className="py-2 px-3 font-mono text-[11px] max-w-[110px] truncate" title={row.account_name}>
+                          {row.account_name || "-"}
+                        </td>
+                        <td className="py-2 px-3 font-medium max-w-[150px] truncate" title={row.model}>
+                          {row.model}
+                        </td>
+                        <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
+                          {row.suite}
+                        </td>
+                        <td className="py-2 px-2">
+                          <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right font-semibold">
+                          {row.score !== null && row.score !== undefined ? (
+                            <span
+                              className={
+                                row.score >= 80
+                                  ? "text-emerald-400"
+                                  : row.score >= 50
+                                  ? "text-amber-400"
+                                  : "text-rose-400"
+                              }
+                            >
+                              {row.score}
+                            </span>
+                          ) : (
+                            <span className="text-text-muted">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono">
+                          {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono">
+                          {row.total_ms ? `${row.total_ms}ms` : "-"}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono font-medium">
+                          {row.tps ? `${row.tps}` : "-"}
+                        </td>
+                        <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
+                          {row.format || "-"}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <span className="text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] underline">
+                            Detail
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {displayedAttempts.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" className="py-12 text-center text-text-muted">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <span className="material-symbols-outlined text-3xl opacity-40">
+                            {isJobRunning ? "hourglass_top" : "science"}
+                          </span>
+                          <span>
+                            {isJobRunning
+                              ? "Menjalankan benchmark... data percobaan akan muncul secara langsung."
+                              : rawAttempts.length > 0
+                              ? "Tidak ada baris yang sesuai dengan filter atau pencarian."
+                              : "Belum ada data hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
+                          </span>
+                        </div>
                       </td>
                     </tr>
-                  );
-                })}
-
-                {attempts.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="py-12 text-center text-text-muted">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-3xl opacity-40">
-                          {isJobRunning ? "hourglass_top" : "science"}
-                        </span>
-                        <span>
-                          {isJobRunning
-                            ? "Menjalankan benchmark... hasil percobaan akan muncul secara langsung."
-                            : "Belum ada hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Card>
       </div>
@@ -857,7 +1102,7 @@ export default function BenchmarkPage() {
                   <td className="py-2 px-3">
                     {row.pong_total ? (
                       <span className="inline-flex items-center gap-1 font-mono">
-                        <span className={row.pong_passed === row.pong_total ? "text-emerald-400" : "text-amber-400"}>
+                        <span className={row.pong_passed === row.pong_total ? "text-emerald-400 font-semibold" : "text-amber-400"}>
                           {row.pong_passed}/{row.pong_total}
                         </span>
                         <span className="text-[10px] text-text-muted">
@@ -939,9 +1184,14 @@ export default function BenchmarkPage() {
               />
               <span>hari.</span>
             </div>
-            <Button size="xs" variant="secondary" onClick={handleSaveRetention}>
-              Simpan Retensi
-            </Button>
+            <div className="flex items-center gap-2">
+              {savedRetentionToast ? (
+                <span className="text-emerald-400 font-medium animate-fade-in">Tersimpan!</span>
+              ) : null}
+              <Button size="xs" variant="secondary" onClick={handleSaveRetention}>
+                Simpan Retensi
+              </Button>
+            </div>
           </div>
 
           {/* History List */}
@@ -952,58 +1202,71 @@ export default function BenchmarkPage() {
               return (
                 <div
                   key={job.id}
-                  className={`flex items-center gap-3 p-3 text-xs transition-colors ${
+                  className={`flex items-center justify-between gap-3 p-3 text-xs transition-colors ${
                     isCurrent ? "bg-brand-500/10" : "hover:bg-surface-2"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => {
-                      setSelectedHistoryJobs((prev) =>
-                        prev.includes(job.id) ? prev.filter((id) => id !== job.id) : [...prev, job.id]
-                      );
-                    }}
-                    aria-label="Pilih riwayat untuk evaluasi saran"
-                    className="rounded border-border text-brand-500 focus:ring-brand-500"
-                  />
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        setSelectedHistoryJobs((prev) =>
+                          prev.includes(job.id) ? prev.filter((id) => id !== job.id) : [...prev, job.id]
+                        );
+                      }}
+                      aria-label="Pilih riwayat untuk evaluasi saran"
+                      className="rounded border-border text-brand-500 focus:ring-brand-500"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        activeIdRef.current = job.id;
+                        refresh(job.id);
+                      }}
+                      className="flex flex-1 items-center justify-between gap-3 text-left min-w-0"
+                    >
+                      <div className="truncate">
+                        <div className="font-semibold text-text-main flex items-center gap-2 truncate">
+                          <span>{new Date(job.created_at).toLocaleString()}</span>
+                          {isCurrent ? (
+                            <span className="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 font-bold text-[10px]">
+                              SEDANG DILIHAT
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-text-muted mt-0.5 truncate">
+                          {(job.providers || []).length} Provider · Suites: {(job.suites || []).join(", ")}
+                          {job.reviewer ? ` · Reviewer: ${job.reviewer}` : ""}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                            job.status === "completed"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                              : job.status === "running"
+                              ? "border-amber-500/20 bg-amber-500/10 text-amber-400 animate-pulse"
+                              : job.status === "cancelled"
+                              ? "border-orange-500/20 bg-orange-500/10 text-orange-400"
+                              : "border-border bg-surface-3 text-text-muted"
+                          }`}
+                        >
+                          {job.status}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      activeIdRef.current = job.id;
-                      refresh(job.id);
-                    }}
-                    className="flex flex-1 items-center justify-between gap-3 text-left"
+                    onClick={(e) => handleDeleteJob(job.id, e)}
+                    className="p-1.5 text-text-muted hover:text-rose-400 hover:bg-surface-3 rounded transition-colors shrink-0"
+                    title="Hapus riwayat ini"
                   >
-                    <div>
-                      <div className="font-semibold text-text-main flex items-center gap-2">
-                        <span>{new Date(job.created_at).toLocaleString()}</span>
-                        {isCurrent ? (
-                          <span className="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 font-bold text-[10px]">
-                            SEDANG DILIHAT
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-text-muted mt-0.5">
-                        {(job.providers || []).length} Provider · Suites: {(job.suites || []).join(", ")}
-                        {job.reviewer ? ` · Reviewer: ${job.reviewer}` : ""}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${
-                          job.status === "completed"
-                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                            : job.status === "running"
-                            ? "border-amber-500/20 bg-amber-500/10 text-amber-400 animate-pulse"
-                            : "border-border bg-surface-3 text-text-muted"
-                        }`}
-                      >
-                        {job.status}
-                      </span>
-                    </div>
+                    <span className="material-symbols-outlined text-base">delete</span>
                   </button>
                 </div>
               );
@@ -1017,6 +1280,126 @@ export default function BenchmarkPage() {
           </div>
         </div>
       </Card>
+
+      {/* ─── Detail Attempt Inspector Modal (P1 Fix) ─── */}
+      {inspectAttempt ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setInspectAttempt(null)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+              <div>
+                <div className="flex items-center gap-2 font-bold text-text-main text-base">
+                  <span>{inspectAttempt.model}</span>
+                  <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
+                    {inspectAttempt.status?.toUpperCase()}
+                  </Badge>
+                </div>
+                <div className="text-xs text-text-muted mt-0.5">
+                  Suite: <span className="font-semibold uppercase">{inspectAttempt.suite}</span> · Akun:{" "}
+                  <span className="font-mono">{inspectAttempt.account_name || inspectAttempt.connection_id || "-"}</span>
+                  {inspectAttempt.http_status ? ` · HTTP ${inspectAttempt.http_status}` : ""}
+                </div>
+              </div>
+              <button
+                onClick={() => setInspectAttempt(null)}
+                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-mono">
+              {/* Telemetry Chips */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                  <div className="text-text-muted text-[10px]">Skor Kualitas</div>
+                  <div className="text-sm font-bold text-text-main">{inspectAttempt.score ?? "-"} / 100</div>
+                </div>
+                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                  <div className="text-text-muted text-[10px]">TTFT (Byte Pertama)</div>
+                  <div className="text-sm font-bold text-text-main">
+                    {inspectAttempt.ttft_ms ? `${inspectAttempt.ttft_ms}ms` : "-"}
+                  </div>
+                </div>
+                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                  <div className="text-text-muted text-[10px]">Total Waktu</div>
+                  <div className="text-sm font-bold text-text-main">
+                    {inspectAttempt.total_ms ? `${inspectAttempt.total_ms}ms` : "-"}
+                  </div>
+                </div>
+                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                  <div className="text-text-muted text-[10px]">Throughput (tok/s)</div>
+                  <div className="text-sm font-bold text-text-main">
+                    {inspectAttempt.tps ?? "-"} tok/s
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Box if any */}
+              {inspectAttempt.error ? (
+                <div>
+                  <div className="text-rose-400 font-bold mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    <span>Pesan Error / Upstream Fault:</span>
+                  </div>
+                  <pre className="rounded bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px]">
+                    {inspectAttempt.error}
+                  </pre>
+                </div>
+              ) : null}
+
+              {/* Request Payload */}
+              <div>
+                <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
+                  <span>Request Payload:</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(inspectAttempt.request_body || "")}
+                    className="text-brand-400 hover:underline text-[10px]"
+                  >
+                    Salin Request
+                  </button>
+                </div>
+                <pre className="rounded bg-surface-2 border border-border-subtle p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-48 overflow-y-auto">
+                  {inspectAttempt.request_body || "Tidak ada body request tersimpan."}
+                </pre>
+              </div>
+
+              {/* Response Body */}
+              <div>
+                <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
+                  <span>Upstream Response Body:</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(inspectAttempt.response_body || inspectAttempt.excerpt || "")}
+                    className="text-brand-400 hover:underline text-[10px]"
+                  >
+                    Salin Respon
+                  </button>
+                </div>
+                <pre className="rounded bg-surface-2 border border-border-subtle p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-60 overflow-y-auto">
+                  {inspectAttempt.response_body || inspectAttempt.excerpt || "Tidak ada respon body tersimpan."}
+                </pre>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+              <span className="text-[11px] text-text-muted">
+                Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

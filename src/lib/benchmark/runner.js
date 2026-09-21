@@ -7,6 +7,7 @@ import { getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from "open-sse/config/pro
 import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
 
 const jobs = new Map();
+const jobAbortControllers = new Map();
 const PONG_REPS = 2;
 const PONG_TIMEOUT_MS = 20000;
 const SUITE_TIMEOUT_MS = 45000;
@@ -119,7 +120,7 @@ async function readGatewayResponse(response, started) {
   return { raw: new TextDecoder().decode(bytes), ttft: ttft ?? total, total };
 }
 
-async function callGateway({ model, connectionId, suite, key }) {
+async function callGateway({ model, connectionId, suite, key, signal = null }) {
   const started = Date.now();
   const body = {
     model,
@@ -145,11 +146,15 @@ async function callGateway({ model, connectionId, suite, key }) {
     headers["x-connection-id"] = connectionId;
     headers["x-connection-pin"] = "strict";
   }
+  const signals = [AbortSignal.timeout(suite === "pong" ? PONG_TIMEOUT_MS : SUITE_TIMEOUT_MS)];
+  if (signal) signals.push(signal);
+  const combinedSignal = AbortSignal.any ? AbortSignal.any(signals) : signals[0];
+
   const response = await fetch(`${gatewayBase()}/v1/chat/completions`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(suite === "pong" ? PONG_TIMEOUT_MS : SUITE_TIMEOUT_MS),
+    signal: combinedSignal,
   });
   const { raw, ttft, total } = await readGatewayResponse(response, started);
   const parsed = parseGatewayBody(raw);
@@ -296,7 +301,11 @@ async function runJob(job) {
   const retries = [];
   const deferred = [];
   let done = 0;
+  const abortCtrl = jobAbortControllers.get(job.id);
+  const isAborted = () => Boolean(abortCtrl?.signal?.aborted);
+
   const record = async (providerId, account, model, suite, rep) => {
+    if (isAborted()) return "failed";
     await updateJob(db, job.id, {
       status: "running",
       progress: {
@@ -311,7 +320,7 @@ async function runJob(job) {
         phase: `Menguji ${model} · ${suite.toUpperCase()} (Rep ${rep}/${suite === "pong" ? PONG_REPS : 1})`,
       },
     }).catch(() => {});
-    const result = await callGateway({ model, connectionId: account.id, suite, key }).catch((error) => ({
+    const result = await callGateway({ model, connectionId: account.id, suite, key, signal: abortCtrl?.signal }).catch((error) => ({
       httpStatus: 0, format: null, ttft: null, total: null, tokens: 0, tps: 0,
       content: "", toolCalls: [], is429: false, error: error.message,
     }));
@@ -323,13 +332,17 @@ async function runJob(job) {
     return scored.status;
   };
   for (const providerId of job.providers) {
+    if (isAborted()) break;
     const accounts = await accountsFor(providerId);
     const models = getSelectedModelsForProvider(providerId, job.models);
     for (const account of accounts) {
+      if (isAborted()) break;
       for (const model of models) {
+        if (isAborted()) break;
         let pongPassed = false;
         let pongLimited = false;
         for (let rep = 1; rep <= PONG_REPS; rep += 1) {
+          if (isAborted()) break;
           const status = await record(providerId, account, model, "pong", rep);
           if (status === "passed") pongPassed = true;
           if (status === "rate_limited") {
@@ -340,6 +353,7 @@ async function runJob(job) {
         if (!pongPassed && pongLimited) deferred.push([providerId, account, model]);
         if (pongPassed) {
           for (const suite of job.suites.filter((suite) => suite !== "pong")) {
+            if (isAborted()) break;
             const status = await record(providerId, account, model, suite, 1);
             if (status === "rate_limited") retries.push([providerId, account, model, suite, 1]);
           }
@@ -356,20 +370,25 @@ async function runJob(job) {
       }
     }
   }
-  for (const [providerId, account, model, suite, rep] of retries) {
-    const status = await record(providerId, account, model, suite, rep);
-    if (suite === "pong" && status === "passed") {
-      const pending = deferred.find((item) => item[0] === providerId && item[1] === account && item[2] === model);
-      if (pending) pending.passed = true;
+  if (!isAborted()) {
+    for (const [providerId, account, model, suite, rep] of retries) {
+      if (isAborted()) break;
+      const status = await record(providerId, account, model, suite, rep);
+      if (suite === "pong" && status === "passed") {
+        const pending = deferred.find((item) => item[0] === providerId && item[1] === account && item[2] === model);
+        if (pending) pending.passed = true;
+      }
     }
-  }
-  for (const [providerId, account, model] of deferred.filter((item) => item.passed)) {
-    for (const suite of job.suites.filter((suite) => suite !== "pong")) {
-      await record(providerId, account, model, suite, 1);
+    for (const [providerId, account, model] of deferred.filter((item) => item.passed)) {
+      if (isAborted()) break;
+      for (const suite of job.suites.filter((suite) => suite !== "pong")) {
+        if (isAborted()) break;
+        await record(providerId, account, model, suite, 1);
+      }
     }
   }
   let reviewError = null;
-  if (job.reviewer) {
+  if (job.reviewer && !isAborted()) {
     await updateJob(db, job.id, {
       progress: {
         done: job.total,
@@ -384,10 +403,15 @@ async function runJob(job) {
       reviewError = error.message;
     }
   }
-  await updateJob(db, job.id, reviewError
-    ? { status: "review_failed", error: reviewError, finished_at: new Date().toISOString() }
-    : { status: "completed", error: null, finished_at: new Date().toISOString() });
+  const finalStatus = isAborted() ? "cancelled" : (reviewError ? "review_failed" : "completed");
+  const finalError = isAborted() ? "Dibatalkan oleh pengguna" : reviewError;
+  await updateJob(db, job.id, {
+    status: finalStatus,
+    error: finalError,
+    finished_at: new Date().toISOString(),
+  });
   jobs.delete(job.id);
+  jobAbortControllers.delete(job.id);
 }
 
 async function writeReview(db, job, key) {
@@ -441,11 +465,38 @@ export async function startBenchmark({ providers, models = null, suites = ["pong
     [id, uniqueProviders, suites, reviewer, JSON.stringify({ done: 0, total, phase: "Menyiapkan benchmark..." })],
   );
   const job = { id, providers: uniqueProviders, models, suites, reviewer, total };
+  const abortCtrl = new AbortController();
+  jobAbortControllers.set(id, abortCtrl);
   jobs.set(id, runJob(job).catch(async (error) => {
     await updateJob(db, id, { status: "failed", error: error.message, finished_at: new Date().toISOString() });
     jobs.delete(id);
+    jobAbortControllers.delete(id);
   }));
   return { id, total };
+}
+
+export async function cancelBenchmark(id) {
+  const ctrl = jobAbortControllers.get(id);
+  if (ctrl) {
+    ctrl.abort();
+  }
+  const db = await getAdapter();
+  await updateJob(db, id, {
+    status: "cancelled",
+    error: "Dibatalkan oleh pengguna",
+    finished_at: new Date().toISOString(),
+  });
+  jobs.delete(id);
+  jobAbortControllers.delete(id);
+  return { ok: true };
+}
+
+export async function deleteBenchmarkJob(id) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ""))) return { ok: false };
+  cancelBenchmark(id).catch(() => {});
+  const db = await getAdapter();
+  await db.run(`DELETE FROM benchmark_jobs WHERE id = $1`, [id]);
+  return { ok: true };
 }
 
 export async function requestBenchmarkAdvice({ reviewer, jobIds = [] }) {
@@ -565,15 +616,11 @@ export async function getBenchmarkJob(id) {
   const job = await db.get(`SELECT * FROM benchmark_jobs WHERE id = $1`, [id]);
   if (!job) return null;
   const attempts = await db.all(
-    `SELECT provider, account_name, model, suite, status, format,
-            COUNT(*)::int AS n,
-            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ttft_ms))::numeric, 1) AS median_ttft,
-            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_ms))::numeric, 1) AS median_ms,
-            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tps) FILTER (WHERE tps > 0))::numeric, 1) AS median_tps,
-            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) FILTER (WHERE score IS NOT NULL))::numeric, 1) AS median_score
+    `SELECT id, provider, account_name, model, suite, status, format, rep,
+            http_status, ttft_ms, total_ms, tokens, tps, score, error, excerpt,
+            request_body, response_body, created_at
      FROM benchmark_attempts WHERE job_id = $1
-     GROUP BY provider, account_name, model, suite, status, format
-     ORDER BY provider, model, account_name, suite`,
+     ORDER BY created_at ASC`,
     [id],
   );
   const reports = await db.all(
