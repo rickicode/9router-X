@@ -481,10 +481,13 @@ export async function handleAntigravityQuotaError(connectionId, status, model, a
   strikeCounts.delete(`${connectionId}|${model}`);
   if (!quota.resetAt) return null;
 
-  const resetMs = new Date(quota.resetAt).getTime();
-  if (resetMs <= Date.now()) return null;
+  const now = Date.now();
+  let resetMs = new Date(quota.resetAt).getTime();
+  if (resetMs <= now) return null;
+  // Cap upstream reported reset time to at most 24h (1 day) so accounts don't stay locked for 6-7d
+  resetMs = Math.min(resetMs, now + 24 * 60 * 60 * 1000);
 
-  log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | UPSTREAM_${status} ${model} — quota exhausted; CACHE_BLOCK until ${quota.resetAt}`);
+  log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | UPSTREAM_${status} ${model} — quota exhausted; CACHE_BLOCK until ${new Date(resetMs).toISOString()} (capped at 24h)`);
   return resetMs;
 }
 

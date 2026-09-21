@@ -1263,7 +1263,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     lockAll = true;
   } else if (resetsAtMs && resetsAtMs > Date.now()) {
     shouldFallback = true;
-    cooldownMs = Math.min(resetsAtMs - Date.now(), resolveProviderId(provider) === "freebuff" ? 26 * 60 * 60 * 1000 : MAX_RATE_LIMIT_COOLDOWN_MS);
+    const resolvedProv = resolveProviderId(provider);
+    const maxAllowedCooldown = resolvedProv === "antigravity"
+      ? 24 * 60 * 60 * 1000
+      : (resolvedProv === "freebuff" ? 26 * 60 * 60 * 1000 : MAX_RATE_LIMIT_COOLDOWN_MS);
+    cooldownMs = Math.min(resetsAtMs - Date.now(), maxAllowedCooldown);
     newBackoffLevel = 0;
     // Explicit frequency-limit reset ("usage exceeds frequency limit, ...
     // usage will reset at <time>, ... switch to the other models") is a
@@ -1381,8 +1385,10 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // throttle, 7-day credit exhaustion), as does the B.ai 2-min TPM throttle —
     // never overwrite them with the 30-min default.
     // isDailyCap429 keeps max() semantics (larger of rule/default).
+    const resolvedProv = resolveProviderId(provider);
+    const maxAllowedCooldown = resolvedProv === "antigravity" ? 24 * 60 * 60 * 1000 : MAX_RATE_LIMIT_COOLDOWN_MS;
     cooldownMs = resetsAtMs && resetsAtMs > Date.now()
-      ? Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS)
+      ? Math.min(resetsAtMs - Date.now(), maxAllowedCooldown)
       : isCodebuddyThrottle || isCodebuddyCreditExhausted || isBaiThrottle || isClineFreeThrottle
         ? (cooldownMs || 0)
         : Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, isDailyCap429 ? (cooldownMs || 0) : 0);
@@ -1592,9 +1598,8 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     lockAll = true;
     isExhausted = true;
     shouldFallback = true;
-    cooldownMs = Math.max(1000, resetsAtMs && resetsAtMs > Date.now()
-      ? resetsAtMs - Date.now()
-      : DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+    const agExhaustedReset = resetsAtMs && resetsAtMs > Date.now() ? resetsAtMs - Date.now() : DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+    cooldownMs = Math.max(1000, Math.min(agExhaustedReset, 24 * 60 * 60 * 1000));
   }
 
   // A positive quota snapshot cannot prove that an arbitrary requested model
@@ -1604,12 +1609,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (providerId === "antigravity" && isQuotaExhausted && model && !isExhausted) {
     lockAll = false;
     shouldFallback = true;
-    cooldownMs = resetsAtMs && resetsAtMs > Date.now()
+    const rawCooldown = resetsAtMs && resetsAtMs > Date.now()
       ? resetsAtMs - Date.now()
       : Math.max(ANTIGRAVITY_MODEL_LOCK_MS, cooldownMs || 0);
+    cooldownMs = Math.min(rawCooldown, 24 * 60 * 60 * 1000);
   }
-
-
   // WorkBuddy/CodeBuddy 403 insufficient_quota (code 11140) = credit/quota
   // exhaustion. Same treatment as 429 credit exhaustion: lock account-wide
   // for 7 days, never disable. Without this the 403 falls through to generic

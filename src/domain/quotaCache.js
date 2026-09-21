@@ -291,7 +291,11 @@ export function markAccountExhaustedFrom429(connectionId, provider, resetAtMs = 
   if (!connectionId || !provider) return null;
   const state = getState();
   const now = Date.now();
-  const resetIso = resetAtMs && resetAtMs > now ? new Date(resetAtMs).toISOString() : null;
+  let effectiveResetAtMs = resetAtMs;
+  if ((provider === "antigravity" || provider === "agy") && effectiveResetAtMs && effectiveResetAtMs > now) {
+    effectiveResetAtMs = Math.min(effectiveResetAtMs, now + 24 * 60 * 60 * 1000);
+  }
+  const resetIso = effectiveResetAtMs && effectiveResetAtMs > now ? new Date(effectiveResetAtMs).toISOString() : null;
   // Cache is pre-hydrated by the routing window scan (hydrateQuotaCacheFromSnapshots),
   // so a snapshot merge here would only double-persist. Single-model 429 merges
   // into the existing entry; uncached connections get a bare exhausted entry.
