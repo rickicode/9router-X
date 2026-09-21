@@ -15,7 +15,7 @@ export {
   getBatchProviderQuotas, getUsageSnapshotByConnectionId,
   deleteProviderConnection, deleteProviderConnectionsByIds, deleteProviderConnectionsByProvider,
   reorderProviderConnections, cleanupProviderConnections,
-  bulkResetProviderConnectionsStatus, bulkUpdateProviderProxy,
+  bulkResetProviderConnectionsStatus, autoRecoverExpiredExhaustedConnections, bulkUpdateProviderProxy,
   getProviderNodes, getProviderNodeById,
   createProviderNode, updateProviderNode, deleteProviderNode,
   getProxyPools, getProxyPoolById,

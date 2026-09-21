@@ -29,6 +29,9 @@ async function sweep() {
     import("@/lib/benchmark/runner.js")
       .then((mod) => mod.pruneBenchmarkHistory())
       .catch(() => {});
+    import("@/lib/localDb")
+      .then((mod) => mod.autoRecoverExpiredExhaustedConnections?.())
+      .catch(() => {});
   } catch {
     // fail-open: next tick retries
   }

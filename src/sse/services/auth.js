@@ -1727,6 +1727,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   }
 
   const reason = typeof errorText === "string" ? errorText : (errorText ? String(errorText) : "Provider error");
+  if (providerId === "antigravity") {
+    cooldownMs = Math.min(cooldownMs, 24 * 60 * 60 * 1000);
+  }
   const isAccountWideLock = Boolean(lockAll || githubResetAtMs);
   const lockTargetModel = isAccountWideLock ? null : model;
   const lockUpdate = buildModelLockUpdate(lockTargetModel, cooldownMs);

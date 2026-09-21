@@ -1221,6 +1221,33 @@ export async function bulkResetProviderConnectionsStatus({ provider, ids } = {})
   return { ok: true, count: rows.length };
 }
 
+export async function autoRecoverExpiredExhaustedConnections() {
+  const db = await getAdapter();
+  const rows = await db.all(
+    `UPDATE provider_connections
+        SET test_status = 'active',
+            locked_all_until = NULL,
+            rate_limited_until = NULL,
+            last_error = NULL,
+            error_code = NULL,
+            updated_at = NOW()
+      WHERE is_active = true
+        AND test_status IN ('exhausted', 'unavailable')
+        AND locked_all_until IS NOT NULL
+        AND locked_all_until <= NOW()
+        AND (rate_limited_until IS NULL OR rate_limited_until <= NOW())
+      RETURNING id, provider`
+  );
+  if (rows && rows.length > 0) {
+    const affectedProviders = new Set(rows.map((r) => r.provider));
+    for (const p of affectedProviders) {
+      invalidateCachedConnections(p).catch(() => {});
+    }
+    clearBatchAccountCooldown(rows.map((r) => r.id)).catch(() => {});
+  }
+  return Number(rows?.length || 0);
+}
+
 export async function bulkUpdateProviderProxy({
   provider,
   ids,

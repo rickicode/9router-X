@@ -244,18 +244,18 @@ export async function autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas
     if (!conn) return false;
     if (conn.isActive === false || conn.testStatus === "disabled") return false;
 
-    let earliestResetIso = null;
     let earliestResetMs = null;
     for (const q of Object.values(quotas)) {
       if (q?.resetAt) {
         const ms = new Date(q.resetAt).getTime();
         if (Number.isFinite(ms) && ms > now && (!earliestResetMs || ms < earliestResetMs)) {
           earliestResetMs = ms;
-          earliestResetIso = q.resetAt;
         }
       }
     }
-    const lockExpiryIso = earliestResetIso || new Date(now + 24 * 60 * 60 * 1000).toISOString();
+    const maxLockMs = now + 24 * 60 * 60 * 1000;
+    const cappedResetMs = earliestResetMs ? Math.min(earliestResetMs, maxLockMs) : maxLockMs;
+    const lockExpiryIso = new Date(cappedResetMs).toISOString();
 
     if (conn.testStatus !== "exhausted" || !conn.lockedAllUntil) {
       await updateConn(connectionId, {
@@ -266,7 +266,7 @@ export async function autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas
         errorCode: 429,
         lastErrorAt: new Date().toISOString(),
       });
-      const ttlSec = earliestResetMs ? Math.max(300, Math.ceil((earliestResetMs - now) / 1000)) : 86400;
+      const ttlSec = Math.max(300, Math.min(Math.ceil((cappedResetMs - now) / 1000), 86400));
       setAccountCooldown(connectionId, ttlSec).catch(() => {});
       log.info("AG_QUOTA", `${connectionId.slice(0, 8)} | quota fully exhausted upstream (0%) — marked connection exhausted & locked until ${lockExpiryIso}`);
       return true;
@@ -310,11 +310,13 @@ export async function syncAntigravityConnectionStatus(connectionId, quotas, exis
     const now = Date.now();
     const updates = {};
 
+    const maxLockMs = now + 24 * 60 * 60 * 1000;
     const geminiWeekly = quotas.gemini_weekly;
     if (geminiWeekly && typeof geminiWeekly.remainingPercentage === "number" && geminiWeekly.remainingPercentage <= 0) {
-      const lockIso = (geminiWeekly.resetAt && new Date(geminiWeekly.resetAt).getTime() > now)
-        ? geminiWeekly.resetAt
-        : new Date(now + 24 * 60 * 60 * 1000).toISOString();
+      const resetMs = geminiWeekly.resetAt ? new Date(geminiWeekly.resetAt).getTime() : 0;
+      const lockIso = (resetMs > now)
+        ? new Date(Math.min(resetMs, maxLockMs)).toISOString()
+        : new Date(maxLockMs).toISOString();
       updates["modelLock_gemini_weekly"] = lockIso;
       for (const m of IMPORTANT_GEMINI_MODELS) {
         updates[`modelLock_${m}`] = lockIso;
@@ -323,9 +325,10 @@ export async function syncAntigravityConnectionStatus(connectionId, quotas, exis
 
     const claudeWeekly = quotas.claude_gpt_weekly;
     if (claudeWeekly && typeof claudeWeekly.remainingPercentage === "number" && claudeWeekly.remainingPercentage <= 0) {
-      const lockIso = (claudeWeekly.resetAt && new Date(claudeWeekly.resetAt).getTime() > now)
-        ? claudeWeekly.resetAt
-        : new Date(now + 24 * 60 * 60 * 1000).toISOString();
+      const resetMs = claudeWeekly.resetAt ? new Date(claudeWeekly.resetAt).getTime() : 0;
+      const lockIso = (resetMs > now)
+        ? new Date(Math.min(resetMs, maxLockMs)).toISOString()
+        : new Date(maxLockMs).toISOString();
       updates["modelLock_claude_gpt_weekly"] = lockIso;
       for (const m of IMPORTANT_CLAUDE_MODELS) {
         updates[`modelLock_${m}`] = lockIso;
