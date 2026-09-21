@@ -171,41 +171,59 @@ export default function BenchmarkPage() {
   }, [catalog, pickerSearch]);
 
   // Refresh data from server
+  // Refresh data from server with automatic background job adoption
   async function refresh(targetId = null) {
-    const idToFetch = targetId !== null ? targetId : activeIdRef.current;
+    let idToFetch = targetId !== null ? targetId : activeIdRef.current;
     try {
-      const [listRes, jobRes] = await Promise.all([
-        fetch("/api/benchmark", { cache: "no-store" }),
-        idToFetch && idToFetch !== "pending" ? fetch(`/api/benchmark?id=${idToFetch}`, { cache: "no-store" }) : null,
-      ]);
+      const listRes = await fetch("/api/benchmark", { cache: "no-store" });
       if (listRes.ok) {
         const listData = await listRes.json();
-        setJobs(listData.jobs || []);
+        const serverJobs = listData.jobs || [];
+        setJobs(serverJobs);
         setDaily(listData.daily || []);
+
+        // Auto-adopt any currently running or queued job so page refresh preserves progress
+        if (!idToFetch || idToFetch === "pending" || !activeIdRef.current) {
+          const ongoing = serverJobs.find((j) => j.status === "running" || j.status === "queued");
+          if (ongoing) {
+            idToFetch = ongoing.id;
+            activeIdRef.current = ongoing.id;
+          }
+        }
       }
-      if (jobRes && jobRes.ok) {
-        const jobData = await jobRes.json();
-        setActive(jobData);
+
+      if (idToFetch && idToFetch !== "pending") {
+        const jobRes = await fetch(`/api/benchmark?id=${idToFetch}`, { cache: "no-store" });
+        if (jobRes.ok) {
+          const jobData = await jobRes.json();
+          setActive(jobData);
+        }
       }
     } catch (err) {
       console.warn("[benchmark] refresh error:", err.message);
     }
   }
 
-  // Polling with fast tick (1s) when active job is running
-  useEffect(() => {
-    refresh();
-    const isRunning =
+  // Check if any job is running in background
+  const isAnyJobRunning = useMemo(() => {
+    return (
       starting ||
       active?.status === "running" ||
       active?.status === "queued" ||
-      active?.status === "starting";
-    const intervalMs = isRunning ? 1000 : 4000;
+      active?.status === "starting" ||
+      jobs.some((j) => j.status === "running" || j.status === "queued")
+    );
+  }, [starting, active?.status, jobs]);
+
+  // Polling with fast tick (1s) when active job is running
+  useEffect(() => {
+    refresh();
+    const intervalMs = isAnyJobRunning ? 1000 : 4000;
     const timer = setInterval(() => {
       refresh();
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [active?.status, starting]);
+  }, [isAnyJobRunning]);
 
   // Load settings on mount
   useEffect(() => {
@@ -482,11 +500,7 @@ export default function BenchmarkPage() {
   }
 
   const report = active?.reports?.[0];
-  const isJobRunning =
-    starting ||
-    active?.status === "running" ||
-    active?.status === "queued" ||
-    active?.status === "starting";
+  const isJobRunning = isAnyJobRunning;
 
   const progressTotal = active?.progress?.total || selectedModelIds.size || 1;
   const progressDone = active?.progress?.done || 0;
@@ -520,7 +534,7 @@ export default function BenchmarkPage() {
             onClick={handleStartBenchmark}
             className="shadow-sm"
           >
-            Jalankan Benchmark ({selectedModelIds.size} Model)
+            {isJobRunning ? "Benchmark Sedang Berjalan..." : `Jalankan Benchmark (${selectedModelIds.size} Model)`}
           </Button>
         </div>
       </div>
