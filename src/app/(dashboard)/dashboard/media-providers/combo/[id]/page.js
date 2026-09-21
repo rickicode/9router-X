@@ -18,7 +18,7 @@ function parseModelEntry(entry) {
   return { providerId: entry.slice(0, idx), model: entry.slice(idx + 1) };
 }
 
-const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
+const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-/]+$/;
 
 const KIND_LABELS = {
   webSearch: "Web Search",
@@ -101,7 +101,7 @@ export default function ComboDetailPage() {
 
   const validateName = (v) => {
     if (!v.trim()) { setNameError("Name is required"); return false; }
-    if (!VALID_NAME_REGEX.test(v)) { setNameError("Only letters, numbers, -, _ and ."); return false; }
+    if (!VALID_NAME_REGEX.test(v)) { setNameError("Only letters, numbers, -, _, . and /"); return false; }
     setNameError("");
     return true;
   };
@@ -280,7 +280,7 @@ export default function ComboDetailPage() {
         <div className="flex flex-col gap-4">
           <div>
             <Input label="Combo Name" value={name} onChange={(e) => { setName(e.target.value); validateName(e.target.value); }} onBlur={handleSaveName} error={nameError} />
-            <p className="text-[10px] text-text-muted mt-0.5">Only letters, numbers, -, _ and .</p>
+            <p className="text-[10px] text-text-muted mt-0.5">Only letters, numbers, -, _, . and /</p>
           </div>
           <div className="flex items-center justify-between">
             <div>

@@ -21,7 +21,7 @@ import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/sha
 import { getComboBadge, isBuiltinCombo, BUILTIN_COMBO_NAMES } from "@/shared/utils/comboBadge";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
-const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
+const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-/]+$/;
 
 // Capacity adapter: global fallback pools of models per input-modality capability.
 // A request needing a capability the target model/combo lacks switches straight
@@ -1110,7 +1110,7 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
       return false;
     }
     if (!VALID_NAME_REGEX.test(value)) {
-      setNameError("Only letters, numbers, -, _ and . allowed");
+      setNameError("Only letters, numbers, -, _, . and / allowed");
       return false;
     }
     setNameError("");
@@ -1182,7 +1182,7 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
             <p className="text-[10px] text-text-muted mt-0.5">
               {isBuiltin
                 ? "Built-in preset name is fixed and cannot be changed"
-                : "Only letters, numbers, -, _ and . allowed"}
+                : "Only letters, numbers, -, _, . and / allowed"}
             </p>
           </div>
           {/* Smart Routing Notice */}

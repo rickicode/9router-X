@@ -5,7 +5,7 @@ import { seedDefaultCombos } from "@/lib/seed/seedDefaultCombos";
 export const dynamic = "force-dynamic";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
-const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
+const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-/]+$/;
 
 // GET /api/combos - Get all combos (lazily seeds built-ins on first load;
 // seed only inserts names that don't exist — user edits/deletes win).
@@ -32,7 +32,7 @@ export async function POST(request) {
 
     // Validate name format
     if (!VALID_NAME_REGEX.test(name)) {
-      return NextResponse.json({ error: "Name can only contain letters, numbers, -, _ and ." }, { status: 400 });
+      return NextResponse.json({ error: "Name can only contain letters, numbers, -, _, . and /" }, { status: 400 });
     }
 
     // Check if name already exists

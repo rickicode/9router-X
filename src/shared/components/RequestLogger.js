@@ -69,8 +69,8 @@ export default function RequestLogger() {
   }, []);
 
   useEffect(() => {
-    fetchLogs();
-    return () => abortRef.current?.abort();
+    const t = setTimeout(() => fetchLogs(), 0);
+    return () => { clearTimeout(t); abortRef.current?.abort(); };
   }, [fetchLogs]);
 
   // Auto-refresh: paused while the tab is hidden (background polls waste CPU +
@@ -122,7 +122,7 @@ export default function RequestLogger() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2 items-center justify-between">
-        <h2 className="text-xl font-semibold">Request Logs</h2>
+        <h2 className="text-xl font-semibold">Request Logs {logs.length > 0 ? `(${logs.length})` : ""}</h2>
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm font-medium text-text-muted flex items-center gap-2 cursor-pointer">
             <span>Auto Refresh (3s)</span>
@@ -258,9 +258,9 @@ export default function RequestLogger() {
             </div>
 
             {/* Desktop Table (sm+) */}
-            <div className="hidden sm:block p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
+            <div className="hidden sm:block p-0 overflow-x-auto font-mono text-xs">
               <table className="data-table w-full text-left" aria-label="Request logs">
-                <thead className="sticky top-0 z-10">
+                <thead>
                   <tr>
                     <th scope="col" className="px-3 py-2 whitespace-nowrap">DateTime</th>
                     <th scope="col" className="px-3 py-2">Model</th>

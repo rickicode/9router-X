@@ -116,6 +116,21 @@ const OAUTH_TEST_CONFIG = {
     authPrefix: "Bearer ",
     refreshable: true,
   },
+  // WorkBuddy access tokens are also Keycloak JWTs (iss https://www.workbuddy.ai/auth/realms/copilot);
+  // probe the realm's userinfo endpoint so revoked/expired tokens are caught.
+  workbuddy: {
+    buildUrl: (token) => {
+      const iss = decodeJwtPayload(token)?.iss;
+      const base = typeof iss === "string" && iss.startsWith("https://")
+        ? iss.replace(/\/$/, "")
+        : "https://www.workbuddy.ai/auth/realms/copilot";
+      return `${base}/protocol/openid-connect/userinfo`;
+    },
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    refreshable: true,
+  },
   kimchi: {
     url: KIMCHI_CONFIG.validationUrl || "https://api.cast.ai/v1/llm/openai/supported-providers",
     method: "GET",
