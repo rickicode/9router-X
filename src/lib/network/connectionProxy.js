@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import {
   getProxyPoolById,
   getProxyPools,
@@ -6,9 +5,6 @@ import {
   getProxyGroupById,
   getSettings,
 } from "@/models";
-=======
-import { getProxyPoolById } from "@/models";
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
 import { ensurePoolFitnessHydrated, fitPoolIds } from "open-sse/services/proxyPoolFitness.js";
 
 // Safely normalize any value into a trimmed string.
@@ -73,18 +69,10 @@ export function pickProxyPoolId(poolIds, strategy, providerId, opts = {}) {
   }
 
   if (eligible.length === 0) {
-<<<<<<< HEAD
     // If every pool is marked unfit, Freebuff, OpenCode & Kilocode-Free fail fast so caller
     // can rotate or direct-fallback cleanly rather than hammering bad pools.
     if (isFreebuff || isOpenCode || isKilocodeFree) return null;
     eligible = uniquePoolIds.filter((id) => !excludeSet.has(id));
-=======
-    // Freebuff must never reuse a limited-IP egress. Other providers retain
-    // the previous fail-open behavior when every smart candidate is marked
-    // unfit; their executors may have their own pool fallback semantics.
-    if (providerId === "freebuff" && strategy === "smart") return null;
-    eligible = poolIds.filter((id) => !(excludeIds || []).includes(id));
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
     if (eligible.length === 0) return null;
   }
   if (eligible.length === 1) return eligible[0];
@@ -190,7 +178,6 @@ export async function resolveConnectionProxyConfig(
 ) {
   try {
     await ensurePoolFitnessHydrated();
-<<<<<<< HEAD
     // Handle new multi-proxy format & proxy group
     let proxyPoolIds = providerSpecificData?.proxyPoolIds ? [...providerSpecificData.proxyPoolIds] : [];
     let proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
@@ -269,11 +256,6 @@ export async function resolveConnectionProxyConfig(
         }
       }
     }
-=======
-    // Handle new multi-proxy format
-    const proxyPoolIds = providerSpecificData?.proxyPoolIds || [];
-    const proxyRotationStrategy = providerSpecificData?.proxyRotationStrategy || "none";
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
     
     // Handle legacy single-proxy format
     const legacyProxyPoolId = normalizeString(providerSpecificData?.proxyPoolId);
@@ -289,7 +271,6 @@ export async function resolveConnectionProxyConfig(
      * -----------------------------
      */
     if (proxyPoolIds.length > 0) {
-<<<<<<< HEAD
       let candidateIds = proxyPoolIds.filter((id) => !(excludePoolIds || []).includes(id));
       while (candidateIds.length > 0) {
         selectedPoolId = pickProxyPoolId(candidateIds, proxyRotationStrategy, connectionId, {
@@ -302,12 +283,6 @@ export async function resolveConnectionProxyConfig(
         if (!selectedPoolId) break;
 
         const proxyPool = groupPoolMap?.get(selectedPoolId) || await getProxyPoolById(selectedPoolId);
-=======
-      selectedPoolId = pickProxyPoolId(proxyPoolIds, proxyRotationStrategy, connectionId, { scope: multiPoolScope, excludeIds: excludePoolIds });
-      
-    if (selectedPoolId) {
-        const proxyPool = await getProxyPoolById(selectedPoolId);
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
         const proxyUrl = normalizeString(proxyPool?.proxyUrl);
         const noProxy = normalizeString(proxyPool?.noProxy);
 
@@ -357,10 +332,7 @@ export async function resolveConnectionProxyConfig(
       proxyRotationStrategy === "smart" &&
       multiPoolScope?.startsWith("freebuff::")
     ) {
-<<<<<<< HEAD
       const isStrict = providerSpecificData?.strictProxy === true;
-=======
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
       return {
         source: "pool",
         proxyPoolId: null,
@@ -369,11 +341,7 @@ export async function resolveConnectionProxyConfig(
         connectionProxyEnabled: false,
         connectionProxyUrl: "",
         connectionNoProxy: "",
-<<<<<<< HEAD
         strictProxy: isStrict,
-=======
-        strictProxy: true,
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
       };
     }
 

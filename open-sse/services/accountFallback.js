@@ -17,7 +17,7 @@ export function getQuotaCooldown(backoffLevel = 0) {
  * Config-driven: matches ERROR_RULES top-to-bottom (text rules first, then status)
  * @param {number} status - HTTP status code
  * @param {string} errorText - Error message text
- * @param {number} backoffLevel - Current backoff level for exponential backoff
+ * @param {number} backoffLevel - Current backoff level
  * @returns {{ shouldFallback: boolean, cooldownMs: number, newBackoffLevel?: number, lockAll?: boolean }}
  */
 export function checkFallbackError(status, errorText, backoffLevel = 0) {
@@ -31,19 +31,6 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
   }
   // 499 / Client Disconnected / AbortError — client aborted request, never lock account or model, never fallback
   if (status === 499 || lowerError.includes("request aborted") || lowerError.includes("client disconnected") || lowerError.includes("client closed request")) {
-    return { shouldFallback: false, cooldownMs: 0, lockAll: false, disableAccount: false };
-  }
-  // Request-scoped client errors that matched no rule above: a 400 caused by the
-  // request itself (context overflow, malformed body, unsupported parameter) says
-  // nothing about the credential, so cooling the account down only removes a
-  // healthy connection from rotation. With a single connection it is worse: every
-  // later request in the window fails with a copy of this very error
-  // ("all 1 accounts locked for <model> | lastError=[400]: ..."), which hides the
-  // real cause from the caller and makes unrelated sessions look like they hit the
-  // same limit. Hand the upstream error back for this request instead.
-  // Account-scoped statuses keep their rules above (401/402/403/404/429), and the
-  // text rules still win for rate-limit / quota / capacity wording.
-  if (status >= 400 && status < 500 && status !== 401 && status !== 402 && status !== 403 && status !== 429) {
     return { shouldFallback: false, cooldownMs: 0, lockAll: false, disableAccount: false };
   }
 
@@ -76,9 +63,16 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     return { shouldFallback: true, cooldownMs: TRANSIENT_COOLDOWN_MS, disableAccount: false };
   }
 
+  // 404 indicates the route or resource does not exist upstream (not transient
+  // downtime). Treat it like other request-scoped 4xx so the account is not
+  // penalised, but still hand it back for the caller.
+  if (status === 404) {
+    return { shouldFallback: false, cooldownMs: 0, lockAll: false, disableAccount: false };
+  }
+
   // Default: do NOT lock for any other unmatched status (e.g. 400/413 from
   // custom providers). The account is fine; the request was bad.
-  return { shouldFallback: false, cooldownMs: 0, disableAccount: false };
+  return { shouldFallback: false, cooldownMs: 0, lockAll: false, disableAccount: false };
 }
 
 /**
@@ -157,10 +151,6 @@ export function getModelLockKey(model) {
   return model ? `${MODEL_LOCK_PREFIX}${model}` : MODEL_LOCK_ALL;
 }
 
-/**
- * Check if a model lock on a connection is still active.
- * Reads flat field `modelLock_${model}` (or `modelLock___all` when model=null).
- */
 /**
  * Normalized refreshBlocked check. Background writes the raw error string
  * (e.g. "invalid_grant"), request paths write true — every consumer must

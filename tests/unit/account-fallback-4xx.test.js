@@ -19,9 +19,13 @@ describe("checkFallbackError — request-scoped vs account-scoped failures", () 
   });
 
   it("still falls back for account-scoped statuses", () => {
-    for (const status of [401, 402, 403, 404, 429]) {
+    for (const status of [401, 402, 403, 429]) {
       expect(checkFallbackError(status, "nope").shouldFallback).toBe(true);
     }
+  });
+
+  it("treats 404 as request-scoped (route missing, not account fault)", () => {
+    expect(checkFallbackError(404, "nope")).toMatchObject({ shouldFallback: false, cooldownMs: 0 });
   });
 
   it("still honours rate-limit / quota wording on any 4xx", () => {

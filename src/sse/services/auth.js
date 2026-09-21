@@ -35,18 +35,6 @@ import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 const selectionMutexes = new Map();
 const ANTIGRAVITY_MODEL_LOCK_MS = 24 * 60 * 60 * 1000;
 
-export function filterConnectionsForModel(providerId, connections, model, settings = {}) {
-  const override = (settings.providerStrategies || {})[providerId] || {};
-  if (override.strictModelAssignment !== true || !model) {
-    return connections;
-  }
-  return connections.filter((connection) => {
-    const assignedModel = connection.providerSpecificData?.assignedModel
-      || (providerId === "freebuff" ? connection.providerSpecificData?.freebuffModel : null);
-    return assignedModel === model;
-  });
-}
-
 const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
 
 function githubMonthlyResetMs(status, errorText, provider) {
@@ -556,7 +544,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       };
     }
 
-<<<<<<< HEAD
     // Query a bounded candidate window from PostgreSQL. The previous path
     // loaded every active credential for a provider into memory, which
     // is unsafe for providers with tens of thousands of accounts.
@@ -672,12 +659,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     }
     let connectionsFromCache = false;
 
-=======
-    let connections = await getProviderConnections({ provider: providerId, isActive: true });
-    const settings = await getSettings();
-    const providerOverride = (settings.providerStrategies || {})[providerId] || {};
-    connections = filterConnectionsForModel(providerId, connections, model, settings);
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
 
     if (connections.length === 0) {
@@ -875,13 +856,10 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       return null;
     }
 
-<<<<<<< HEAD
     // A routable account exists — the provider/model has capacity; make sure
     // a previously opened dead-circuit is closed.
     if (excludeSet.size === 0) resetDeadCircuit(providerId, model).catch(() => {});
 
-=======
->>>>>>> df8c4ccb (fix: improve provider routing and assignments)
     // Per-provider strategy overrides global setting
     const strategy = providerOverride.fallbackStrategy || settings.fallbackStrategy || "fill-first";
 
