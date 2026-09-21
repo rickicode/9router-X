@@ -33,6 +33,18 @@ import { bumpRoutingMetric } from "open-sse/services/routingMetrics.js";
 
 // Per-provider mutex map to prevent race conditions during account selection without blocking unrelated providers
 const selectionMutexes = new Map();
+
+export function filterConnectionsForModel(providerId, connections, model, settings = {}) {
+  const override = (settings.providerStrategies || {})[providerId] || {};
+  if (override.strictModelAssignment !== true || !model) {
+    return connections;
+  }
+  return connections.filter((connection) => {
+    const assignedModel = connection.providerSpecificData?.assignedModel
+      || (providerId === "freebuff" ? connection.providerSpecificData?.freebuffModel : null);
+    return assignedModel === model;
+  });
+}
 const ANTIGRAVITY_MODEL_LOCK_MS = 24 * 60 * 60 * 1000;
 
 const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
@@ -620,6 +632,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       });
       if (batch.length === 0) break;
       connections = connections.concat(batch);
+      connections = filterConnectionsForModel(providerId, connections, model, settings);
 
       if (isAntigravity && model) {
         const antigravityQuotaCache = getAntigravityQuotaCache();
