@@ -73,7 +73,8 @@ export default function BenchmarkPage() {
   const [providerQuery, setProviderQuery] = useState("");
   const [suites, setSuites] = useState(["pong", "coding", "logic", "tool"]);
   const [reviewer, setReviewer] = useState("judge-router");
-
+  const [isReviewerModalOpen, setIsReviewerModalOpen] = useState(false);
+  const [reviewerPickerSearch, setReviewerPickerSearch] = useState("");
   // Reviewer options for Combobox model picker
   const reviewerModelOptions = useMemo(() => {
     const list = [
@@ -541,15 +542,29 @@ export default function BenchmarkPage() {
               2. Reviewer AI Model (Opsional)
             </span>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-center">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 max-w-md">
-                    <Input
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex-1 min-w-[280px] max-w-md">
+                    <Combobox
+                      id="reviewer-model-picker"
                       value={reviewer}
-                      onChange={(e) => setReviewer(e.target.value)}
-                      placeholder="e.g. judge-router atau provider/model"
+                      onChange={(val) => setReviewer(val)}
+                      options={reviewerModelOptions}
+                      placeholder="Pilih model reviewer atau ketik custom..."
+                      allowCustom
+                      clearable
+                      icon="psychology"
                     />
                   </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon="list"
+                    onClick={() => setIsReviewerModalOpen(true)}
+                    title="Pilih dari daftar lengkap model"
+                  >
+                    Pilih dari Daftar
+                  </Button>
                   {reviewer ? (
                     <button
                       type="button"
@@ -1419,6 +1434,104 @@ export default function BenchmarkPage() {
                 Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
               </span>
               <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {/* ─── Modal 3: Reviewer Model Selector Modal ─── */}
+      {isReviewerModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setIsReviewerModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+              <div>
+                <h3 className="font-bold text-text-main text-base flex items-center gap-2">
+                  <span className="material-symbols-outlined text-brand-500">psychology</span>
+                  <span>Pilih Model Reviewer AI</span>
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Pilih 1 model yang akan membaca dan merangkum hasil benchmark setelah selesai.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsReviewerModalOpen(false)}
+                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="p-3 border-b border-border-subtle bg-surface-1">
+              <Input
+                placeholder="Cari model reviewer (e.g. flash, deepseek, claude)..."
+                value={reviewerPickerSearch}
+                onChange={(e) => setReviewerPickerSearch(e.target.value)}
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div
+                onClick={() => {
+                  setReviewer("judge-router");
+                  setIsReviewerModalOpen(false);
+                }}
+                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                  reviewer === "judge-router"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-400 font-bold"
+                    : "border-border-subtle hover:bg-surface-2 text-text-main"
+                }`}
+              >
+                <div>
+                  <div className="font-semibold text-sm">judge-router</div>
+                  <div className="text-xs text-text-muted">Internal automated router judge</div>
+                </div>
+                <Badge variant="default">Default</Badge>
+              </div>
+
+              {reviewerModelOptions
+                .filter((opt) => opt.value !== "judge-router")
+                .filter((opt) => {
+                  if (!reviewerPickerSearch) return true;
+                  const q = reviewerPickerSearch.toLowerCase();
+                  return opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || opt.subtitle?.toLowerCase().includes(q);
+                })
+                .map((opt) => {
+                  const isSelected = reviewer === opt.value;
+                  return (
+                    <div
+                      key={opt.value}
+                      onClick={() => {
+                        setReviewer(opt.value);
+                        setIsReviewerModalOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                        isSelected
+                          ? "border-brand-500 bg-brand-500/10 text-brand-400 font-semibold"
+                          : "border-border-subtle hover:bg-surface-2 text-text-main"
+                      }`}
+                    >
+                      <div className="truncate">
+                        <div className="font-medium text-xs truncate">{opt.label}</div>
+                        <div className="text-[10px] text-text-muted font-mono">{opt.value}</div>
+                      </div>
+                      <Badge variant="secondary">{opt.badge}</Badge>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+              <span className="text-xs text-text-muted truncate max-w-sm">
+                Terpilih: <span className="font-bold text-text-main">{reviewer || "Tanpa Reviewer"}</span>
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
                 Tutup
               </Button>
             </div>
