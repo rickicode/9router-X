@@ -18,6 +18,11 @@ for (const entry of REGISTRY) {
 }
 
 const BUILTIN_MODEL_ALIASES = {
+  "grok-4.7": "gcli/grok-4.7",
+  "grok-4.7-xhigh": "gcli/grok-4.7-xhigh",
+  "grok-4.7-high": "gcli/grok-4.7-high",
+  "grok-4.7-medium": "gcli/grok-4.7-medium",
+  "grok-4.7-low": "gcli/grok-4.7-low",
   "grok-build": "gcli/grok-build",
   "grok-4.6": "gcli/grok-4.6",
   "grok-4.6-xhigh": "gcli/grok-4.6-xhigh",

@@ -68,6 +68,16 @@ export default {
   },
   models: [
     {
+      id: "grok-4.7",
+      name: "Grok 4.7",
+      contextLength: 500000,
+      maxOutputTokens: 500000,
+    },
+    { id: "grok-4.7-xhigh", name: "Grok 4.7 (Extra High)", upstreamModelId: "grok-4.7" },
+    { id: "grok-4.7-high", name: "Grok 4.7 (High)", upstreamModelId: "grok-4.7" },
+    { id: "grok-4.7-medium", name: "Grok 4.7 (Medium)", upstreamModelId: "grok-4.7" },
+    { id: "grok-4.7-low", name: "Grok 4.7 (Low)", upstreamModelId: "grok-4.7" },
+    {
       id: "grok-4.6",
       name: "Grok 4.6",
       contextLength: 500000,

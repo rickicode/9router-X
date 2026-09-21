@@ -36,6 +36,8 @@ export const CORE_MODEL_COMBOS = {
 export const GENERAL_LATEST_COMBOS = {
   "grok-latest": [
     "gcli/grok-4.7",
+    "gcli/grok-4.7-high",
+    "gcli/grok-4.7-xhigh",
     "gcli/grok-4.6",
     "gcli/grok-4.6-high",
   ],

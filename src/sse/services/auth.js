@@ -1366,10 +1366,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       cooldownMs = 7 * 24 * 60 * 60 * 1000;
     }
 
-    const isModelDailyLimit = Boolean(model) && !isPooledQuotaProvider && /limit reached on model|daily.*limit reached on model|daily limit reached for model|limit_rpd|credits don't affect this cap/i.test(lowerErrorText);
-    const isDailyCap429 = !isModelDailyLimit && !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText);
+    const isGrokCliDailyRolling429 = providerId === "grok-cli" && /used all the included free usage|rolling 24-hour window/i.test(lowerErrorText);
+    const isModelDailyLimit = !isGrokCliDailyRolling429 && Boolean(model) && !isPooledQuotaProvider && /limit reached on model|daily.*limit reached on model|daily limit reached for model|limit_rpd|credits don't affect this cap/i.test(lowerErrorText);
+    const isDailyCap429 = isGrokCliDailyRolling429 || (!isModelDailyLimit && !isZen429 && !isCodebuddyThrottle && !isCodebuddyCreditExhausted && !isBaiThrottle && !isClineFreeThrottle && /daily|limit reached|try again in \d+h|individual quota|exhausted.*capacity|quota.*r[e\i]set|quota.*reset/i.test(lowerErrorText));
     if (isDailyCap429) {
       lockAll = true;
+      if (isGrokCliDailyRolling429) {
+        cooldownMs = 24 * 60 * 60 * 1000;
+      }
     } else if (isModelDailyLimit) {
       lockAll = false;
       shouldFallback = true;
@@ -1396,9 +1400,12 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     // throttle. A 429 without quota/credit words (pure rate limit, daily cap
     // without credit wording) rides a timed lock as "unavailable" instead, so
     // it recovers and never pollutes the exhausted fleet signal.
-    const isCreditQuota429 = /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|allocation|neurons|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
+    const isCreditQuota429 = isGrokCliDailyRolling429 || /credit|balance|insufficient|exhaust|deplet|billing|payment|quota|allocation|neurons|预扣费额度失败|剩余额度|额度不足/i.test(lowerErrorText);
     const isAccountWideLock = Boolean(lockAll);
     isExhausted = lockAll && isAccountWideLock && (isCreditQuota429 || isCodebuddyCreditExhausted);
+    if (isGrokCliDailyRolling429) {
+      cooldownMs = 24 * 60 * 60 * 1000;
+    }
   }
   // Provider circuit breaker: repeated 5xx storms (systematic upstream
   // outage) open a 10-minute provider-wide circuit so rotation stops
