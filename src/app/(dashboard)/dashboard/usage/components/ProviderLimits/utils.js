@@ -128,7 +128,7 @@ export function getConnectionsPageRange(pagination) {
   return { start, end };
 }
 
-export function getEffectiveConnectionStatus(connection, now = Date.now()) {
+export function getEffectiveConnectionStatus(connection, now = Date.now(), quotas = null) {
   if (connection.isActive === false) return "disabled";
 
   const hasFatalError = Boolean(
@@ -156,9 +156,38 @@ export function getEffectiveConnectionStatus(connection, now = Date.now()) {
   const dictLocks = Object.entries(connection.modelLocks || {})
     .map(([k, v]) => ({ model: k || "__all", until: v }));
 
-  const hasModelLock = [...flatLocks, ...dictLocks].some(
+  const liveModelLocks = [...flatLocks, ...dictLocks].filter(
     (item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now
   );
+  const hasModelLock = liveModelLocks.length > 0;
+
+  // Antigravity pools are independent. Exhausted only when the Gemini family
+  // AND the Claude family are both at 0%. One live model lock, or a stale
+  // test_status, must not paint the account exhausted while the other family
+  // still has quota. GPT shares the Claude weekly pool.
+  if (connection.provider === "antigravity") {
+    const rows = Array.isArray(quotas) ? quotas : [];
+    const familyRemaining = (keys) => {
+      const matched = rows.filter((q) => keys.includes(q.modelKey));
+      if (matched.length === 0) return null;
+      return matched.some((q) => Number(q.remainingPercentage) > 0);
+    };
+    const geminiLeft = familyRemaining(["gemini", "gemini_weekly"]);
+    const claudeLeft = familyRemaining(["claude", "claude_gpt_weekly"]);
+    if (geminiLeft === true || claudeLeft === true) return "active";
+    if (geminiLeft === false && claudeLeft === false) return "exhausted";
+    const familyOf = (model) => {
+      const name = String(model || "").toLowerCase();
+      if (name.startsWith("gemini")) return "gemini";
+      if (name.startsWith("claude") || name.startsWith("gpt-")) return "claude";
+      return null;
+    };
+    const lockedFamilies = new Set(liveModelLocks.map((item) => familyOf(item.model)).filter(Boolean));
+    if (connection.testStatus === "exhausted" || (lockedFamilies.has("gemini") && lockedFamilies.has("claude"))) {
+      return "exhausted";
+    }
+    return "active";
+  }
 
   if (connection.testStatus === "exhausted" || hasModelLock) {
     return "exhausted";

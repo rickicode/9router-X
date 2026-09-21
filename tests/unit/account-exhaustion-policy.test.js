@@ -52,6 +52,8 @@ vi.mock("@/lib/localDb", () => ({
         quotas: {
           "gemini-2.5-flash": { remainingPercentage: 0, resetAt: new Date(Date.now() + 3600000).toISOString() },
           "gemini-2.5-pro": { remainingPercentage: 0, resetAt: new Date(Date.now() + 3600000).toISOString() },
+          "claude-sonnet-4-6": { remainingPercentage: 0, resetAt: new Date(Date.now() + 3600000).toISOString() },
+          "claude_gpt_weekly": { remainingPercentage: 0, resetAt: new Date(Date.now() + 3600000).toISOString() },
         },
       };
     }
@@ -61,6 +63,8 @@ vi.mock("@/lib/localDb", () => ({
         quotas: {
           "gemini-2.5-flash": { remainingPercentage: 0, resetAt: new Date(Date.now() + 3600000).toISOString() },
           "gemini-2.5-pro": { remainingPercentage: 80, resetAt: new Date(Date.now() + 3600000).toISOString() },
+          "claude-sonnet-4-6": { remainingPercentage: 100, resetAt: new Date(Date.now() + 3600000).toISOString() },
+          "claude_gpt_weekly": { remainingPercentage: 100, resetAt: new Date(Date.now() + 3600000).toISOString() },
         },
       };
     }
@@ -183,6 +187,8 @@ describe("Account Exhaustion Policy", () => {
       quotas: {
         "gemini-2.5-flash": { remainingPercentage: 0, resetAt: future },
         "gemini-2.5-pro": { remainingPercentage: 0, resetAt: future },
+        "claude-sonnet-4-6": { remainingPercentage: 0, resetAt: future },
+        "claude_gpt_weekly": { remainingPercentage: 0, resetAt: future },
       },
     };
     expect(isAccountFullyExhausted("conn-ag-2", "antigravity", fullExhaustSnapshot)).toBe(true);
@@ -244,8 +250,8 @@ describe("Account Exhaustion Policy", () => {
     expect(patch["modelLock_gemini-2.5-flash"]).toBeTruthy();
   });
 
-  it("marks antigravity exhausted when snapshot proves every model bucket is 0%", async () => {
-    // conn-ag-2 has 0% on all models
+  it("marks antigravity exhausted only when gemini and claude families are both 0%", async () => {
+    // conn-ag-2 has 0% on gemini and claude
     await markAccountUnavailable(
       "conn-ag-2",
       429,

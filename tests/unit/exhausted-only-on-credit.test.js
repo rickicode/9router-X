@@ -8,7 +8,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const FUTURE = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 const exhaustedSnapshot = {
   connectionId: "ag-snap",
-  quotas: { "testmodel-flash": { remainingPercentage: 0, resetAt: FUTURE } },
+  quotas: {
+    "testmodel-flash": { remainingPercentage: 0, resetAt: FUTURE },
+    "claude-sonnet-4-6": { remainingPercentage: 0, resetAt: FUTURE },
+  },
 };
 
 const mocks = vi.hoisted(() => ({

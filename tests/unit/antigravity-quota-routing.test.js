@@ -14,6 +14,7 @@ vi.mock("@/lib/localDb", () => ({
   getProxyPools: vi.fn(async () => []),
   validateApiKey: vi.fn(),
   updateProviderConnection: vi.fn(async () => {}),
+  getProviderConnectionById: vi.fn(async (id) => ({ id, isActive: true, testStatus: "active", modelLocks: {} })),
   getBatchProviderQuotas: mocks.getBatchProviderQuotas,
 }));
 vi.mock("@/lib/network/connectionProxy", () => ({
@@ -49,12 +50,13 @@ vi.mock("@/lib/cache/client.js", () => ({
 vi.mock("@/sse/utils/logger.js", () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn() }));
 
 const { getAntigravityQuotaCache, handleAntigravityQuotaError, refreshAntigravityQuota, clearAntigravityStrikes } = await import("@/sse/services/antigravityQuota.js");
-const { getProviderCredentials } = await import("@/sse/services/auth.js");
+const { getProviderCredentials, clearAvailabilityMemo } = await import("@/sse/services/auth.js");
 
 const MODEL = "claude-opus-4-6-thinking";
-const FUTURE_RESET = "2026-09-01T00:00:00.000Z";
+const FUTURE_RESET = "2026-08-26T12:00:00.000Z";
 
 beforeEach(() => {
+  clearAvailabilityMemo();
   vi.clearAllMocks();
   getAntigravityQuotaCache().clear();
   mocks.resolveConnectionProxyConfig.mockResolvedValue({});
@@ -122,12 +124,11 @@ describe("Antigravity quota-aware routing", () => {
 
   it("lets account back into rotation once reset time has passed", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-01T00:00:01.000Z"));
+    vi.setSystemTime(new Date("2026-08-26T12:00:01.000Z"));
     mocks.getProviderConnections.mockResolvedValue([{ id: "ag-a", email: "a@example.com", isActive: true }]);
     getAntigravityQuotaCache().set("ag-a", {
       [MODEL]: { remainingPercentage: 0, resetAt: FUTURE_RESET },
     });
-
     try {
       await expect(getProviderCredentials("antigravity", null, MODEL)).resolves.toMatchObject({
         connectionId: "ag-a",

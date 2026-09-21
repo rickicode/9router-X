@@ -368,9 +368,12 @@ const FUTURE_MODEL_LOCK_SQL = `EXISTS (
 )`;
 // Status semantics:
 // - "exhausted": global terminal state (test_status = 'exhausted') where all
-//   models/quota on the account are fully depleted.
+//   models/quota on the account are fully depleted. Antigravity is the
+//   exception: Gemini and Claude are separate pools, so the account is
+//   exhausted only when the latest snapshot shows BOTH families at 0%.
 // - "unavailable": transient cooldowns (account-wide lock or per-model lock) or
 //   permanent failures (fatal errors, bad test_status, refreshBlocked).
+//   Antigravity model locks stay on the model; they do not move the account.
 // - "active": healthy and free of any locks.
 // Buckets partition every row: DISABLED is purely is_active=false.
 const BAD_TEST_STATUS_SQL = "COALESCE(test_status, 'active') IN ('unavailable', 'error', 'expired', 'invalid', 'disabled')";
@@ -381,21 +384,48 @@ const PERMANENT_UNAVAILABLE_SQL = `(
   OR ${CONNECTION_UNAVAILABLE_DATA_SQL}
   OR ${FATAL_CONNECTION_ERROR_SQL}
 )`;
+const ANTIGRAVITY_FAMILY_ZERO_SQL = (prefix) => `EXISTS (
+  SELECT 1 FROM usage_snapshots us
+  WHERE us.connection_id = provider_connections.id
+    AND us.provider = 'antigravity'
+    AND EXISTS (
+      SELECT 1 FROM jsonb_each(COALESCE(us.quotas, '{}'::jsonb)) q(k, v)
+      WHERE q.k LIKE '${prefix}%'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM jsonb_each(COALESCE(us.quotas, '{}'::jsonb)) q(k, v)
+      WHERE q.k LIKE '${prefix}%'
+        AND COALESCE((q.v->>'remainingPercentage')::numeric, 0) > 0
+    )
+)`;
+const ANTIGRAVITY_BOTH_FAMILIES_EXHAUSTED_SQL = `(
+  provider = 'antigravity'
+  AND ${ANTIGRAVITY_FAMILY_ZERO_SQL("gemini")}
+  AND ${ANTIGRAVITY_FAMILY_ZERO_SQL("claude")}
+)`;
 const ACTIVE_CONNECTION_SQL = `(
   is_active = true
   AND NOT ${PERMANENT_UNAVAILABLE_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
-  AND NOT ${FUTURE_MODEL_LOCK_SQL}
-  AND COALESCE(test_status, 'active') <> 'exhausted'
+  AND NOT (provider <> 'antigravity' AND ${FUTURE_MODEL_LOCK_SQL})
+  AND NOT (
+    COALESCE(test_status, 'active') = 'exhausted'
+    AND (provider <> 'antigravity' OR ${ANTIGRAVITY_BOTH_FAMILIES_EXHAUSTED_SQL})
+  )
 )`;
 const EXHAUSTED_CONNECTION_SQL = `(
   is_active = true
   AND COALESCE(test_status, 'active') = 'exhausted'
+  AND (provider <> 'antigravity' OR ${ANTIGRAVITY_BOTH_FAMILIES_EXHAUSTED_SQL})
 )`;
 const UNAVAILABLE_CONNECTION_SQL = `(
   is_active = true
-  AND COALESCE(test_status, 'active') <> 'exhausted'
-  AND (${PERMANENT_UNAVAILABLE_SQL} OR ${FUTURE_ACCOUNT_LOCK_SQL} OR ${FUTURE_MODEL_LOCK_SQL})
+  AND NOT ${EXHAUSTED_CONNECTION_SQL}
+  AND (
+    ${PERMANENT_UNAVAILABLE_SQL}
+    OR ${FUTURE_ACCOUNT_LOCK_SQL}
+    OR (provider <> 'antigravity' AND ${FUTURE_MODEL_LOCK_SQL})
+  )
 )`;
 const ROUTABLE_CONNECTION_SQL = `(
   is_active = true
@@ -403,7 +433,10 @@ const ROUTABLE_CONNECTION_SQL = `(
   AND NOT ${CONNECTION_UNAVAILABLE_DATA_SQL}
   AND NOT ${FATAL_CONNECTION_ERROR_SQL}
   AND NOT ${FUTURE_ACCOUNT_LOCK_SQL}
-  AND COALESCE(test_status, 'active') <> 'exhausted'
+  AND (
+    COALESCE(test_status, 'active') <> 'exhausted'
+    OR (provider = 'antigravity' AND NOT ${ANTIGRAVITY_BOTH_FAMILIES_EXHAUSTED_SQL})
+  )
 )`;
 
 function buildConnectionFilterConditions(filter, params) {

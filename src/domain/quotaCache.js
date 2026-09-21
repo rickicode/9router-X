@@ -41,10 +41,29 @@ function safePercentage(v) {
   return clampPercent(Math.round(n));
 }
 
+function familyAlive(entries, matches) {
+  const matched = entries.filter(([, key]) => matches(key));
+  if (matched.length === 0) return null;
+  return matched.some(([, , q]) => Number(q.remainingPercentage) > 0
+    || (q.resetAt && new Date(q.resetAt).getTime() <= Date.now()));
+}
+
 function isExhausted(quotas) {
-  const entries = Object.values(quotas || {});
+  const entries = Object.entries(quotas || {})
+    .filter(([, q]) => q && q.fractionReported !== false && Number.isFinite(Number(q.remainingPercentage)))
+    .map(([key, q]) => [key, String(key).toLowerCase(), q]);
   if (entries.length === 0) return false;
-  return entries.every((q) => q.fractionReported !== false && Number(q.remainingPercentage) <= 0);
+  const isAntigravity = entries.some(([, key]) =>
+    key.startsWith("gemini") || key.startsWith("claude") || key === "claude_gpt_weekly"
+  );
+  if (!isAntigravity) {
+    return entries.every(([, , q]) => Number(q.remainingPercentage) <= 0);
+  }
+  // Independent pools. One family still serving must not exhaust the account.
+  const gemini = familyAlive(entries, (key) => !key.startsWith("claude") && !key.startsWith("gpt-"));
+  const claude = familyAlive(entries, (key) => key.startsWith("claude") || key.startsWith("gpt-"));
+  if (gemini === null || claude === null) return false;
+  return gemini === false && claude === false;
 }
 
 function advancedWindowResetAt(entry, now) {
@@ -151,7 +170,10 @@ function isAntigravityQuotaExhausted(entry, requestedModel) {
   if (scoped.length === 0) return entry.exhausted;
   return scoped.every((w) => {
     const q = entry.quotas[w];
-    return q && q.fractionReported !== false && Number(q.remainingPercentage) <= 0;
+    if (!q || q.fractionReported === false) return false;
+    if (Number(q.remainingPercentage) > 0) return false;
+    if (q.resetAt && new Date(q.resetAt).getTime() <= new Date().getTime()) return false;
+    return true;
   });
 }
 
@@ -202,7 +224,10 @@ function persistAsync(connectionId, provider, quotas, exhausted, nextResetAt, ex
       await upsertUsageSnapshot(snapPatch).catch((e) => console.warn("[quotaCache] snapshot write failed:", e?.message));
     } catch (e) { console.warn("[quotaCache] snapshot write failed:", e?.message); }
     try {
-      const { getProviderConnectionById, updateProviderConnection } = await import("@/lib/localDb");
+      const db = await import("@/lib/localDb").catch(() => null);
+      const getProviderConnectionById = db?.getProviderConnectionById;
+      const updateProviderConnection = db?.updateProviderConnection;
+      if (typeof getProviderConnectionById !== "function" || typeof updateProviderConnection !== "function") return;
       const conn = await getProviderConnectionById(connectionId).catch(() => null);
       if (!conn) return;
       const patch = {};

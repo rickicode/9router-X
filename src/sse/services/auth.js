@@ -14,6 +14,7 @@ import {
   setQuotaCache,
 } from "@/domain/quotaCache.js";
 import {
+  getAntigravityQuotaCache,
   isAntigravityAccountQuotaExhausted,
   refreshAntigravityQuota,
 } from "./antigravityQuota.js";
@@ -222,11 +223,23 @@ export function classifyBlockedCredentials(provider, model, connections, { coole
 }
 
 
+function isAntigravityModelCacheExhausted(connectionId, model) {
+  const quotas = getAntigravityQuotaCache().get(connectionId);
+  if (!quotas) return false;
+  const bare = String(model || "").replace(/^(antigravity|agy)\//, "").toLowerCase();
+  const quota = quotas[bare] || quotas[model];
+  if (!quota || typeof quota.remainingPercentage !== "number") return false;
+  if (quota.remainingPercentage > 0) return false;
+  if (quota.resetAt && new Date(quota.resetAt).getTime() <= new Date().getTime()) return false;
+  return true;
+}
+
 /**
  * Durable + transient eligibility filter shared by the window scan and the
  * last-known-good fast path. Returns true when the connection may serve
  * provider/model right now. Pure w.r.t. its inputs (no I/O).
  */
+
 function isConnectionRoutable(c, ctx) {
   const { excludeSet, cooledDownIds, model, providerId, isAntigravity, isFreebuff, freebuffQuotaCache } = ctx;
   if (!c || excludeSet.has(c.id)) return false;
@@ -259,7 +272,7 @@ function isConnectionRoutable(c, ctx) {
   if (["error", "expired", "invalid"].includes(c.testStatus)) return false;
   if (c.rateLimitedUntil && new Date(c.rateLimitedUntil).getTime() > Date.now()) return false;
   if (c.lockedAllUntil && new Date(c.lockedAllUntil).getTime() > Date.now()) return false;
-  if (isAntigravity && model && (isQuotaExhaustedForRequest(c.id, providerId, model) || isAntigravityAccountQuotaExhausted(c.id))) return false;
+  if (isAntigravity && model && (isQuotaExhaustedForRequest(c.id, providerId, model) || isAntigravityModelCacheExhausted(c.id, model))) return false;
   if (isModelLockActive(c, model)) return false;
   if (isFreebuff && model && freebuffQuotaCache) {
     const cacheMap = freebuffQuotaCache.get(c.id);
@@ -304,7 +317,7 @@ function memoAvailability(key, verdict) {
 
 function memoVerdictTtl(retryAfter) {
   if (!retryAfter) return AVAILABILITY_NEGATIVE_TTL_S;
-  const ms = new Date(retryAfter).getTime() - Date.now();
+  const ms = new Date(retryAfter).getTime() - new Date().getTime();
   if (!Number.isFinite(ms) || ms <= 0) return AVAILABILITY_NEGATIVE_TTL_S;
   return Math.max(5, Math.min(Math.ceil(ms / 1000), AVAILABILITY_NEGATIVE_TTL_S));
 }
@@ -468,7 +481,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     if (excludeSet.size === 0 && !preferredConnectionId) {
       const key = `${providerId}|${model || "*"}`;
       const memo = availabilityMemo.get(key);
-      if (memo && memo.until > Date.now()) {
+      if (memo && memo.until > new Date().getTime()) {
         if (memo.verdict === "blocked") {
           bumpRoutingMetric("availabilityMemoHits");
           return { allRateLimited: true, ...memo.result };
@@ -650,7 +663,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     let connectionsFromCache = false;
 
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
-
     if (connections.length === 0) {
       // The routing query intentionally asks for active rows only. Inspect
       // all provider rows before reporting "no credentials" so disabled and
@@ -663,7 +675,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         if (excludeSet.size === 0) {
           const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
           memoAvailability(`${providerId}|${model || "*"}` , {
-            verdict: "blocked", until: Date.now() + ttl * 1000,
+            verdict: "blocked", until: new Date().getTime() + ttl * 1000,
             result: {
               allRateLimited: true,
               retryAfter: blocked.retryAfter,
@@ -763,16 +775,20 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
             .filter((c) => c?.id && (
               isQuotaMapExhausted(getQuotaCacheEntry(c.id)?.quotas)
               || isAntigravityAccountQuotaExhausted(c.id)
+              || isAntigravityModelCacheExhausted(c.id, model)
             ))
             .slice(0, 5);
           for (const row of reviveRows) {
             // HEAD cache owns strike/throttle. Mirror the fresh map into the
-            // domain cache so later requests agree.
-            refreshAntigravityQuota(row.id, row.accessToken, row.providerSpecificData)
-              .then((quotas) => {
-                if (quotas) setQuotaCache(row.id, "antigravity", quotas);
-              })
-              .catch(() => {});
+            // domain cache so later requests agree. queueMicrotask keeps a
+            // throwing mock from rejecting this selection.
+            queueMicrotask(() => {
+              refreshAntigravityQuota(row.id, row.accessToken, row.providerSpecificData)
+                .then((quotas) => {
+                  if (quotas) setQuotaCache(row.id, "antigravity", quotas);
+                })
+                .catch(() => {});
+            });
           }
           if (reviveRows.length > 0) {
             log.debug("AG_QUOTA", `${providerId} | fully blocked for ${model} — background revive refresh for ${reviveRows.length} snapshot-exhausted account(s)`);
@@ -791,9 +807,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const lockedConns = stateConnections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c, model)).filter(Boolean);
       if (isAntigravity && model) {
+        const agCache = getAntigravityQuotaCache();
         stateConnections.forEach((c) => {
           const resetMs = earliestResetAt(getQuotaCacheEntry(c.id)?.quotas);
-          if (resetMs) expiries.push(new Date(resetMs).toISOString());
+          if (resetMs && resetMs > new Date().getTime()) expiries.push(new Date(resetMs).toISOString());
+          const modelQuota = agCache.get(c.id)?.[String(model).replace(/^(antigravity|agy)\//, "")];
+          const modelResetMs = modelQuota?.resetAt ? new Date(modelQuota.resetAt).getTime() : NaN;
+          if (Number.isFinite(modelResetMs) && modelResetMs > new Date().getTime()) {
+            expiries.push(new Date(modelResetMs).toISOString());
+          }
         });
       }
       if (isFreebuff && model && freebuffQuotaCache) {
@@ -824,7 +846,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         if (excludeSet.size === 0) {
           const ttl = blocked.retryAfter ? memoVerdictTtl(blocked.retryAfter) : AVAILABILITY_NEGATIVE_TTL_S;
           memoAvailability(`${providerId}|${model || "*"}` , {
-            verdict: "blocked", until: Date.now() + ttl * 1000,
+            verdict: "blocked", until: new Date().getTime() + ttl * 1000,
             result: {
               allRateLimited: true,
               retryAfter: blocked.retryAfter,

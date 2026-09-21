@@ -95,12 +95,19 @@ export function hydrateAntigravityQuotaCache(connectionId, quotas) {
 }
 
 /**
- * Return the persisted/in-process quota snapshot for routing decisions.
- * An account is exhausted when every quota bucket reported by Antigravity is
- * empty and has a future reset. Image quota is intentionally included: it is
- * an upstream quota bucket too, and excluding it left accounts with every
- * model exhausted incorrectly marked active.
+ * Account is exhausted only when the Gemini family AND the Claude family are
+ * both empty with a future reset. GPT shares the Claude weekly pool.
+ * A single family at 0% is a model lock, not an account verdict.
  */
+function familyStillServing(entries, matches, now) {
+  const matched = entries.filter(([key]) => matches(key));
+  if (matched.length === 0) return null;
+  return matched.some(([, quota]) =>
+    quota.remainingPercentage > 0
+    || (quota.resetAt && new Date(quota.resetAt).getTime() <= now)
+  );
+}
+
 export function isAntigravityQuotaMapExhausted(quotas) {
   if (!quotas || typeof quotas !== "object") return false;
   const entries = Object.entries(quotas).filter(([, quota]) =>
@@ -108,14 +115,14 @@ export function isAntigravityQuotaMapExhausted(quotas) {
   );
   if (entries.length === 0) return false;
   const now = Date.now();
-  // Quota is exhausted when every reported bucket is empty (<= 0) AND
-  // its reset time has not yet passed. Once reset time passes, the account
-  // is eligible for selection again so a fresh request can discover restored quota.
-  return entries.every(([, quota]) => {
-    if (quota.remainingPercentage > 0) return false;
-    if (quota.resetAt && new Date(quota.resetAt).getTime() <= now) return false;
-    return true;
-  });
+  const gemini = familyStillServing(entries, (key) => !key.startsWith("claude") && !key.startsWith("gpt-"), now);
+  const claude = familyStillServing(
+    entries,
+    (key) => key.startsWith("claude") || key.startsWith("gpt-"),
+    now,
+  );
+  if (gemini === null || claude === null) return false;
+  return gemini === false && claude === false;
 }
 
 export function isAntigravityAccountQuotaExhausted(connectionId) {
@@ -185,7 +192,8 @@ export async function autoHealAntigravityOnQuotaRestored(connectionId, quotas, e
     }
 
     const hasExhaustedLock = conn.testStatus === "exhausted"
-      || (conn.lockedAllUntil && new Date(conn.lockedAllUntil).getTime() > now);
+      || (conn.lockedAllUntil && new Date(conn.lockedAllUntil).getTime() > now)
+      || (conn.modelLock___all && new Date(conn.modelLock___all).getTime() > now);
     const modelUpdates = {};
     const jsonLocks = { ...(conn.modelLocks || {}) };
     let modelLocksChanged = false;
@@ -211,8 +219,6 @@ export async function autoHealAntigravityOnQuotaRestored(connectionId, quotas, e
           lockedAllUntil: null,
           modelLock___all: null,
           rateLimitedUntil: null,
-          lastError: null,
-          errorCode: null,
         } : {}),
         ...(modelLocksChanged ? { modelLocks: jsonLocks } : {}),
       };
@@ -225,12 +231,6 @@ export async function autoHealAntigravityOnQuotaRestored(connectionId, quotas, e
     log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | auto-heal on quota restore failed: ${err.message}`);
   }
   return false;
-}
-export function hasAnyAntigravityQuota(quotas) {
-  if (!quotas || typeof quotas !== "object") return false;
-  return Object.values(quotas).some((quota) =>
-    quota && typeof quota.remainingPercentage === "number" && quota.remainingPercentage > 0
-  );
 }
 
 export async function autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas, existingConn = null) {
@@ -293,15 +293,15 @@ const IMPORTANT_CLAUDE_MODELS = [
 export async function syncAntigravityConnectionStatus(connectionId, quotas, existingConn = null) {
   if (!quotas || typeof quotas !== "object") return false;
 
-  // 1. If ALL quota buckets are exhausted (0%), mark account-wide exhausted
+  // 1. Both families at 0% with a future reset → account exhausted.
+  //    One family still serving is not an account verdict.
   if (isAntigravityQuotaMapExhausted(quotas)) {
     return await autoExhaustAntigravityOnQuotaDepleted(connectionId, quotas, existingConn);
   }
 
-  // 2. If any quota was restored, heal available models
-  if (hasAnyAntigravityQuota(quotas)) {
-    await autoHealAntigravityOnQuotaRestored(connectionId, quotas, existingConn);
-  }
+  // 2. A family still has quota, or its reset already passed. Drop a stale
+  //    account-wide exhausted flag. Model locks for buckets still at 0% stay.
+  await autoHealAntigravityOnQuotaRestored(connectionId, quotas, existingConn).catch(() => false);
 
   // 3. Sync family-level locks for 0% weekly buckets (e.g. gemini_weekly 0% locks all Gemini models)
   try {
@@ -403,9 +403,11 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       quotas: finalQuotas,
     }).catch(() => {});
 
-    // Sync connection status: if upstream reports quota is fully depleted (0%),
-    // mark exhausted; if restored (>0%), auto-heal; sync weekly family locks.
-    await syncAntigravityConnectionStatus(connectionId, finalQuotas);
+    // Status sync is best-effort. A missing DB helper must not discard the
+    // fresh quota map that routing just read.
+    await syncAntigravityConnectionStatus(connectionId, finalQuotas).catch((err) => {
+      log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | status sync failed: ${err.message}`);
+    });
     return finalQuotas;
   } catch (e) {
     log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | refresh failed: ${e.message}`);

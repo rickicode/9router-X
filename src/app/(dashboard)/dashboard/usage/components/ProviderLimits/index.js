@@ -1486,14 +1486,14 @@ export default function ProviderLimits() {
                           </>
                         )}
                         <Badge
-                          variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn))}
+                          variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas))}
                           size="sm"
                           dot
                           title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString("en-US")}` : ""}` : undefined}
                         >
                           {conn.isActive === false
                             ? (conn.previousStatus && conn.previousStatus !== "disabled" ? `disabled (was: ${conn.previousStatus})` : "disabled")
-                            : getEffectiveConnectionStatus(conn)}
+                            : getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas)}
                         </Badge>
                         {conn.isActive === false && (conn.disabledReason || conn.lastError) && (
                           <span
