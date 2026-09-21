@@ -1,11 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Card from "./Card";
 import Button from "./Button";
 import Modal from "./Modal";
+import Input from "./Input";
+import { cn } from "@/shared/utils/cn";
 
 const LOGS_POLL_MS = 3000;
+
+const STATUS_FILTERS = [
+  { value: "all", label: "Semua", icon: "list" },
+  { value: "ok", label: "OK", icon: "check_circle" },
+  { value: "failed", label: "Gagal", icon: "cancel" },
+  { value: "pending", label: "Pending", icon: "hourglass_empty" },
+];
+
+function classifyStatus(status) {
+  const s = String(status || "").toUpperCase();
+  if (s.includes("PENDING")) return "pending";
+  if (s.includes("FAILED") || s.includes("ERROR")) return "failed";
+  if (s.includes("OK")) return "ok";
+  return "other";
+}
+
+const STATUS_META = {
+  ok: { label: "OK", icon: "check_circle", chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", row: "", badge: "success" },
+  failed: { label: "GAGAL", icon: "cancel", chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30", row: "row-failed", badge: "error" },
+  pending: { label: "PENDING", icon: "hourglass_empty", chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30", row: "row-pending", badge: "warning" },
+  other: { label: "-", icon: "help", chip: "bg-surface-3 text-text-muted border-border", row: "", badge: "default" },
+};
 
 /**
  * Normalize a log entry into a structured object.
@@ -31,6 +55,34 @@ function parseLogEntry(entry) {
   return null;
 }
 
+function relativeTime(datetimeStr) {
+  if (!datetimeStr) return "";
+  const d = new Date(datetimeStr.replace(/-/g, "/"));
+  if (Number.isNaN(d.getTime())) return "";
+  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diff < 60) return "baru saja";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m lalu`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}j lalu`;
+  return `${Math.floor(diff / 86400)}h lalu`;
+}
+
+function StatusChip({ status, size = "md" }) {
+  const kind = classifyStatus(status);
+  const meta = STATUS_META[kind];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md border font-bold",
+        size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-[11px]",
+        meta.chip
+      )}
+    >
+      <span className={cn("material-symbols-outlined leading-none", size === "sm" ? "!text-[12px]" : "!text-[13px]")}>{meta.icon}</span>
+      {String(status || meta.label).toUpperCase()}
+    </span>
+  );
+}
+
 export default function RequestLogger() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +90,8 @@ export default function RequestLogger() {
   const [fetchError, setFetchError] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const abortRef = useRef(null);
 
   const fetchLogs = useCallback(async (showLoading = true) => {
@@ -100,7 +154,6 @@ export default function RequestLogger() {
   }, [autoRefresh, fetchLogs]);
 
   const handleOpenDetail = (log) => {
-    // `log` is already a structured object from parseLogEntry
     setSelectedLog({
       raw: log.raw || `${log.datetime} | ${log.model} | ${log.provider} | ${log.account} | ${log.sent} | ${log.received} | ${log.status}`,
       datetime: log.datetime || "-",
@@ -119,32 +172,111 @@ export default function RequestLogger() {
     setSelectedLog(null);
   };
 
+  // Derived: counts + filtered list (memoized so renders stay cheap at 200 rows)
+  const { counts, filtered } = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const counts = { ok: 0, failed: 0, pending: 0 };
+    for (const log of logs) {
+      const kind = classifyStatus(log.status);
+      if (kind in counts) counts[kind] += 1;
+    }
+    const filtered = logs.filter((log) => {
+      if (statusFilter !== "all" && classifyStatus(log.status) !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        log.model?.toLowerCase().includes(q) ||
+        log.provider?.toLowerCase().includes(q) ||
+        log.account?.toLowerCase().includes(q) ||
+        String(log.status || "").toLowerCase().includes(q) ||
+        String(log.datetime || "").includes(q)
+      );
+    });
+    return { counts, filtered };
+  }, [logs, search, statusFilter]);
+
+  const statusText = (log) => classifyStatus(log.status);
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <h2 className="text-xl font-semibold">Request Logs {logs.length > 0 ? `(${logs.length})` : ""}</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-sm font-medium text-text-muted flex items-center gap-2 cursor-pointer">
-            <span>Auto Refresh (3s)</span>
+    <div className="flex min-w-0 flex-col gap-4">
+      {/* Header: title + controls */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h2 className="text-xl font-semibold text-text-main shrink-0">Request Logs</h2>
+          <span className="px-2 py-0.5 rounded-full bg-surface-2 border border-border-subtle text-[11px] font-mono font-semibold text-text-muted">
+            {logs.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text-muted flex items-center gap-2 cursor-pointer select-none">
+            <span className="hidden sm:inline">Auto Refresh (3s)</span>
+            <span className="sm:hidden">Auto (3s)</span>
             <button
               type="button"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${autoRefresh ? "bg-primary" : "bg-bg-subtle border border-border"
-                }`}
+              className={cn(
+                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer",
+                autoRefresh ? "bg-primary" : "bg-bg-subtle border border-border"
+              )}
               role="switch"
               aria-checked={autoRefresh}
               aria-label="Auto refresh logs"
             >
               <span
-                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoRefresh ? "translate-x-5" : "translate-x-1"
-                  }`}
+                className={cn(
+                  "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                  autoRefresh ? "translate-x-5" : "translate-x-1"
+                )}
               />
             </button>
           </label>
-          <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} aria-label="Refresh logs">
-            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">refresh</span>
-            Refresh
+          <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} icon="refresh" aria-label="Refresh logs">
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
+        </div>
+      </div>
+
+      {/* Filter bar: search + status filter */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <div className="w-full sm:max-w-xs">
+          <Input
+            type="search"
+            placeholder="Cari model, provider, akun…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            icon="search"
+            inputClassName="h-9 py-2"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="Filter status">
+          {STATUS_FILTERS.map((f) => {
+            const active = statusFilter === f.value;
+            const count = f.value === "all" ? logs.length : counts[f.value] ?? 0;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setStatusFilter(f.value)}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                  active
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-surface-2 border-border-subtle text-text-muted hover:text-text-main hover:bg-surface-3"
+                )}
+              >
+                <span className="material-symbols-outlined !text-[14px] leading-none">{f.icon}</span>
+                {f.label}
+                {count > 0 && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-mono font-bold leading-none",
+                    active ? "bg-primary/20 text-primary" : "bg-surface-3 text-text-muted"
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -163,161 +295,120 @@ export default function RequestLogger() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-surface-2">
+      <Card padding="none" className="overflow-hidden bg-surface-2">
         {loading && logs.length === 0 ? (
-          <div className="p-8 text-center text-text-muted text-xs">Loading logs...</div>
-        ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-text-muted text-xs">No logs recorded yet.</div>
+          <div className="p-10 text-center text-text-muted text-xs flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined text-3xl opacity-40 animate-spin">progress_activity</span>
+            Memuat log…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-text-muted text-xs flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined text-3xl opacity-40">
+              {logs.length === 0 ? "receipt_long" : "search_off"}
+            </span>
+            {logs.length === 0 ? "Belum ada log tercatat." : `Tidak ada log yang cocok dengan filter${search ? ` "${search}"` : ""}.`}
+          </div>
         ) : (
           <>
             {/* Mobile Card List (< sm) */}
-            <div className="sm:hidden data-cards">
-              {logs.map((log, i) => {
-                const status = log.status;
-                const isPending = status.includes("PENDING");
-                const isFailed = status.includes("FAILED") || status.includes("ERROR");
-                const isSuccess = status.includes("OK");
-
+            <div className="sm:hidden divide-y divide-border-subtle" role="list">
+              {filtered.map((log, i) => {
+                const kind = statusText(log);
                 return (
-                  <div
+                  <button
                     key={`mob-${i}`}
-                    className={`p-3.5 space-y-2.5 transition-colors ${
-                      isPending ? "bg-primary/5" : isFailed ? "bg-error/[0.04]" : ""
-                    }`}
+                    type="button"
+                    onClick={() => handleOpenDetail(log)}
+                    aria-label={`Detail log ${log.model} status ${log.status}`}
+                    className={cn(
+                      "w-full text-left p-3.5 space-y-2.5 transition-colors hover:bg-surface-3/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:relative",
+                      kind === "pending" ? "bg-primary/[0.04]" : kind === "failed" ? "bg-error/[0.04]" : ""
+                    )}
                   >
-                    {/* Status badge, Provider badge, DateTime */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                            isSuccess
-                              ? "bg-success/10 text-success border-success/30"
-                              : isFailed
-                              ? "bg-error/10 text-error border-error/30"
-                              : "bg-primary/10 text-primary border-primary/30 animate-pulse"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[12px] leading-none">
-                            {isSuccess ? "check_circle" : isFailed ? "error" : "hourglass_empty"}
-                          </span>
-                          {status}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold text-text-muted">
-                          {log.provider}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-text-muted font-mono whitespace-nowrap">
-                        {log.datetime}
+                    {/* Model + time */}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-xs font-semibold text-text-main break-all min-w-0 flex-1">
+                        {log.model}
+                      </span>
+                      <span className="text-[10px] text-text-muted font-mono whitespace-nowrap shrink-0 text-right">
+                        {relativeTime(log.datetime) || log.datetime}
                       </span>
                     </div>
 
-                    {/* Model */}
-                    <div className="font-mono text-xs font-medium text-text-main break-all">
-                      {log.model}
-                    </div>
-
-                    {/* Footer: Account, In/Out tokens, View/Detail button */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
-                      <div className="flex flex-col text-[11px]">
-                        {log.account && log.account !== "-" && (
-                          <span className="text-text-muted truncate max-w-[150px]" title={log.account}>
-                            {log.account}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                          <span className="text-primary">In: {log.sent}</span>
-                          <span className="text-text-muted">/</span>
-                          <span className="text-success">Out: {log.received}</span>
-                        </div>
-                      </div>
-
-                      {isFailed ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(log)}
-                          aria-label={`View error detail for ${log.model} ${status}`}
-                          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[15px] mr-1" aria-hidden="true">error</span>
-                          Detail
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(log)}
-                          aria-label={`View detail for ${log.model} ${status}`}
-                          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
-                        >
-                          View
-                        </button>
+                    {/* Provider + account + tokens */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold text-text-muted">
+                        {log.provider}
+                      </span>
+                      {log.account && log.account !== "-" && (
+                        <span className="text-text-muted truncate max-w-[140px]" title={log.account}>
+                          {log.account}
+                        </span>
                       )}
+                      <span className="ml-auto font-mono">
+                        <span className="text-primary font-semibold">{log.sent}↑</span>
+                        <span className="text-text-muted mx-0.5">/</span>
+                        <span className="text-success font-semibold">{log.received}↓</span>
+                      </span>
                     </div>
-                  </div>
+
+                    {/* Status */}
+                    <div className="pt-0.5">
+                      <StatusChip status={log.status} size="sm" />
+                    </div>
+                  </button>
                 );
               })}
             </div>
 
-            {/* Desktop Table (sm+) */}
-            <div className="hidden sm:block p-0 overflow-x-auto font-mono text-xs">
+            {/* Desktop Table (sm+) — page scroll, no inner scrollbar */}
+            <div className="hidden sm:block font-mono text-xs">
               <table className="data-table w-full text-left" aria-label="Request logs">
                 <thead>
                   <tr>
-                    <th scope="col" className="px-3 py-2 whitespace-nowrap">DateTime</th>
-                    <th scope="col" className="px-3 py-2">Model</th>
-                    <th scope="col" className="px-3 py-2 whitespace-nowrap">Provider</th>
-                    <th scope="col" className="px-3 py-2">Account</th>
-                    <th scope="col" className="px-3 py-2 text-right whitespace-nowrap">In</th>
-                    <th scope="col" className="px-3 py-2 text-right whitespace-nowrap">Out</th>
-                    <th scope="col" className="px-3 py-2 whitespace-nowrap">Status</th>
-                    <th scope="col" className="px-3 py-2 text-center whitespace-nowrap">Detail</th>
+                    <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Waktu</th>
+                    <th scope="col" className="px-3 py-2.5">Model</th>
+                    <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Provider</th>
+                    <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Akun</th>
+                    <th scope="col" className="px-3 py-2.5 text-right whitespace-nowrap">Token In/Out</th>
+                    <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map((log, i) => {
-                    const status = log.status;
-                    const isPending = status.includes("PENDING");
-                    const isFailed = status.includes("FAILED") || status.includes("ERROR");
-                    const isSuccess = status.includes("OK");
-
+                  {filtered.map((log, i) => {
+                    const kind = statusText(log);
+                    const meta = STATUS_META[kind];
                     return (
-                      <tr key={i} className={`transition-colors ${isPending ? 'row-pending' : ''} ${isFailed ? 'row-failed' : ''}`}>
-                        <td className="px-3 py-1.5 text-text-muted whitespace-nowrap">{log.datetime}</td>
-                        <td className="px-3 py-1.5 font-medium break-all max-w-[220px]">{log.model}</td>
-                        <td className="px-3 py-1.5 whitespace-nowrap">
-                          <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
+                      <tr
+                        key={i}
+                        onClick={() => handleOpenDetail(log)}
+                        className={cn("cursor-pointer transition-colors", meta.row)}
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleOpenDetail(log); }}
+                        aria-label={`Detail log ${log.model}`}
+                      >
+                        <td className="px-3 py-2 text-text-muted whitespace-nowrap">
+                          <div className="flex flex-col leading-tight">
+                            <span>{log.datetime}</span>
+                            <span className="text-[10px] text-text-muted/70">{relativeTime(log.datetime)}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 font-semibold break-all max-w-[260px]">
+                          {log.model}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold text-text-muted">
                             {log.provider}
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 truncate max-w-[150px]" title={log.account}>{log.account}</td>
-                        <td className="px-3 py-1.5 text-right text-primary whitespace-nowrap">{log.sent}</td>
-                        <td className="px-3 py-1.5 text-right text-success whitespace-nowrap">{log.received}</td>
-                        <td className={`px-3 py-1.5 font-bold whitespace-nowrap ${isSuccess ? 'text-success' :
-                            isFailed ? 'text-error' :
-                              'text-primary animate-pulse'
-                          }`}>
-                          {status}
+                        <td className="px-3 py-2 truncate max-w-[160px]" title={log.account}>{log.account}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <span className="text-primary font-semibold">{log.sent}↑</span>
+                          <span className="text-text-muted mx-1">/</span>
+                          <span className="text-success font-semibold">{log.received}↓</span>
                         </td>
-                        <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                          {isFailed ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDetail(log)}
-                              aria-label={`View error detail for ${log.model} ${status}`}
-                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-error/30 bg-error/10 px-2 py-1 text-[11px] font-semibold text-error hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">error</span>
-                              Detail
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDetail(log)}
-                              aria-label={`View detail for ${log.model} ${status}`}
-                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-muted hover:text-text-main hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors"
-                            >
-                              View
-                            </button>
-                          )}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <StatusChip status={log.status} size="sm" />
                         </td>
                       </tr>
                     );
@@ -328,67 +419,76 @@ export default function RequestLogger() {
           </>
         )}
       </Card>
-      <div className="text-[10px] text-text-muted italic">
-        Logs are loaded from the request history database.
+
+      {/* Footer summary */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-muted">
+        <span>
+          Menampilkan <span className="font-semibold text-text-main">{filtered.length}</span> dari {logs.length} log · dimuat dari database riwayat request
+        </span>
+        {autoRefresh && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+            Auto-refresh aktif (3s)
+          </span>
+        )}
       </div>
 
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={selectedLog?.status?.includes("FAILED") || selectedLog?.status?.includes("ERROR") ? "Request Error Detail" : "Request Log Detail"}
-        size="lg"
+        title={selectedLog?.status?.includes("FAILED") || selectedLog?.status?.includes("ERROR") ? "Detail Error Request" : "Detail Log Request"}
+        size="full"
       >
         {selectedLog && (
           <div className="flex flex-col gap-4">
-            <div className={`rounded-lg border px-4 py-3 text-sm font-medium flex items-center gap-2 ${selectedLog.status.includes("FAILED") || selectedLog.status.includes("ERROR")
-                ? "border-error/30 bg-error/10 text-error"
-                : selectedLog.status.includes("OK")
-                  ? "border-success/30 bg-success/10 text-success"
-                  : "border-primary/30 bg-primary/10 text-primary"
-              }`}>
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-                {selectedLog.status.includes("FAILED") || selectedLog.status.includes("ERROR") ? "error" : selectedLog.status.includes("OK") ? "check_circle" : "hourglass_empty"}
-              </span>
-              {selectedLog.status}
-            </div>
+            <StatusChip status={selectedLog.status} />
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">DateTime</span>
-                <span className="font-mono text-text-main">{selectedLog.datetime}</span>
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Waktu</span>
+                <span className="font-mono text-text-main text-sm">{selectedLog.datetime}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Provider</span>
-                <span className="font-mono text-text-main">{selectedLog.provider}</span>
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Provider</span>
+                <span className="font-mono text-text-main text-sm">{selectedLog.provider}</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Model</span>
+                <span className="font-mono font-medium text-text-main break-all text-sm">{selectedLog.model}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Model</span>
-                <span className="font-mono font-medium text-text-main break-all">{selectedLog.model}</span>
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Akun</span>
+                <span className="font-mono text-text-main break-all text-sm" title={selectedLog.account}>{selectedLog.account}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Account</span>
-                <span className="font-mono text-text-main truncate" title={selectedLog.account}>{selectedLog.account}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Input Tokens</span>
-                <span className="font-mono text-primary">{selectedLog.sent}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Output Tokens</span>
-                <span className="font-mono text-success">{selectedLog.received}</span>
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Token In / Out</span>
+                <span className="font-mono text-sm">
+                  <span className="text-primary font-semibold">{selectedLog.sent}↑</span>
+                  <span className="text-text-muted mx-1">/</span>
+                  <span className="text-success font-semibold">{selectedLog.received}↓</span>
+                </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Raw Log</span>
-              <pre className="rounded-lg border border-border bg-bg-subtle p-3 text-xs font-mono text-text-main whitespace-pre-wrap break-all overflow-x-auto">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Raw Log</span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(selectedLog.raw || "")}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Salin
+                </button>
+              </div>
+              <pre className="rounded-lg border border-border bg-bg-subtle p-3 text-xs font-mono text-text-main whitespace-pre-wrap break-all">
                 {selectedLog.raw}
               </pre>
             </div>
 
             {(selectedLog.status.includes("FAILED") || selectedLog.status.includes("ERROR")) && (
               <p className="text-xs text-text-muted">
-                Tip: Check <span className="font-mono">/dashboard/providers</span> for provider health and retry the request. Use the log timestamp to correlate with server console.
+                Tip: Cek <span className="font-mono">/dashboard/providers</span> untuk kesehatan provider dan coba ulang request-nya. Gunakan timestamp log untuk korelasi dengan console server.
               </p>
             )}
           </div>
