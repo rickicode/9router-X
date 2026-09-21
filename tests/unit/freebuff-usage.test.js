@@ -149,7 +149,7 @@ describe("getUsageForProvider(freebuff)", () => {
       recurring: true,
       unlimited: false,
       price: 15,
-      displayName: "DeepSeek V4 Flash",
+      displayName: "DeepSeek V4.1 Flash",
     });
     expect(usage.quotas["z-ai/glm-5.3-flash"]).toMatchObject({
       used: 15,

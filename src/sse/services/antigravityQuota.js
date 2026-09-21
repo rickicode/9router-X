@@ -107,10 +107,15 @@ export function isAntigravityQuotaMapExhausted(quotas) {
     quota && typeof quota.remainingPercentage === "number"
   );
   if (entries.length === 0) return false;
-  // Quota is exhausted when every reported bucket has remainingPercentage <= 0.
-  // Do NOT require a future resetAt — 0% is exhausted regardless of whether
-  // Google sent a future reset date or omitted it.
-  return entries.every(([, quota]) => quota.remainingPercentage <= 0);
+  const now = Date.now();
+  // Quota is exhausted when every reported bucket is empty (<= 0) AND
+  // its reset time has not yet passed. Once reset time passes, the account
+  // is eligible for selection again so a fresh request can discover restored quota.
+  return entries.every(([, quota]) => {
+    if (quota.remainingPercentage > 0) return false;
+    if (quota.resetAt && new Date(quota.resetAt).getTime() <= now) return false;
+    return true;
+  });
 }
 
 export function isAntigravityAccountQuotaExhausted(connectionId) {

@@ -17,13 +17,17 @@ vi.mock("@/lib/cache/client.js", () => ({
 vi.mock("open-sse/services/tokenRefresh.js", () => ({
   getRefreshLeadMs: () => 5 * 60 * 1000,
 }));
-vi.mock("open-sse/services/oauthCredentialManager.js", () => ({
-  getCredentialExpiryMs: (credentials) => {
-    if (credentials?.expiresAt == null) return null;
-    const ms = new Date(credentials.expiresAt).getTime();
-    return Number.isFinite(ms) ? ms : null;
-  },
-}));
+vi.mock("open-sse/services/oauthCredentialManager.js", async () => {
+  const actual = await vi.importActual("open-sse/services/oauthCredentialManager.js");
+  return {
+    ...actual,
+    getCredentialExpiryMs: (credentials) => {
+      if (credentials?.expiresAt == null) return null;
+      const ms = new Date(credentials.expiresAt).getTime();
+      return Number.isFinite(ms) ? ms : null;
+    },
+  };
+});
 
 describe("refreshOne unrecoverable refresh error disables connection", () => {
   beforeEach(() => {

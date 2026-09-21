@@ -47,7 +47,7 @@ describe("OrcaRouter & Token Harbor providers", () => {
     const models = getModelsByProviderId("tokenharbor");
     expect(models.length).toBeGreaterThan(0);
     expect(models.map((m) => m.id)).toContain("deepseek/deepseek-v4-flash");
-    expect(getDefaultModel("tokenharbor")).toBe("openai/gpt-5.6-sol");
+    expect(getDefaultModel("tokenharbor")).toBe("deepseek-v4.1-flash:free");
   });
 
   it("resolves icon paths for both providers and their aliases", () => {
@@ -81,12 +81,12 @@ describe("OrcaRouter & Token Harbor providers", () => {
 
     // Token Harbor: bare model -> vendor namespaced
     const p5 = parseModel("tokenharbor/gpt-5.6-sol");
-    expect(getModelUpstreamId(p5.provider, p5.model)).toBe("openai/gpt-5.6-sol");
+    expect(getModelUpstreamId(p5.provider, p5.model)).toBe("gpt-5.6-sol");
 
     const p6 = parseModel("th/deepseek-v4-flash");
-    expect(getModelUpstreamId(p6.provider, p6.model)).toBe("deepseek/deepseek-v4-flash");
+    expect(getModelUpstreamId(p6.provider, p6.model)).toBe("deepseek-v4-flash");
 
     const p7 = parseModel("th/deepseek/deepseek-v4-flash");
-    expect(getModelUpstreamId(p7.provider, p7.model)).toBe("deepseek/deepseek-v4-flash");
+    expect(getModelUpstreamId(p7.provider, p7.model)).toBe("deepseek-v4-flash");
   });
 });

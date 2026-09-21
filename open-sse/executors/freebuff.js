@@ -580,12 +580,13 @@ async function requestSession(token, rawModel, proxyOptions) {
       const gateMessage = data?.message ? `${GATE_MESSAGES[gateStatus]} ${data.message}` : GATE_MESSAGES[gateStatus];
       const gateErr = new Error(gateMessage);
       if (gateStatus === "rate_limited" || gateStatus === "spend_limited") {
-        gateErr.status = 429;
         const resetAt = Date.parse(data?.resetAt || "");
         const retryAfter = Number(data?.retryAfterMs);
         if (Number.isFinite(resetAt) && resetAt > Date.now()) {
+          gateErr.status = 429;
           gateErr.resetsAtMs = resetAt;
         } else if (Number.isFinite(retryAfter) && retryAfter > 0) {
+          gateErr.status = 429;
           gateErr.resetsAtMs = Date.now() + Math.min(retryAfter, 26 * 60 * 60 * 1000);
         }
       }
@@ -637,12 +638,13 @@ async function requestSession(token, rawModel, proxyOptions) {
     const message = data?.message ? `${GATE_MESSAGES[status]} ${data.message}` : GATE_MESSAGES[status];
     const err = new Error(message);
     if (status === "rate_limited" || status === "spend_limited") {
-      err.status = 429;
       const resetAtMs = Date.parse(data?.resetAt || "");
       const retryAfterMs = Number(data?.retryAfterMs);
       if (Number.isFinite(resetAtMs) && resetAtMs > Date.now()) {
+        err.status = 429;
         err.resetsAtMs = resetAtMs;
       } else if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+        err.status = 429;
         err.resetsAtMs = Date.now() + Math.min(retryAfterMs, 26 * 60 * 60 * 1000);
       }
     }

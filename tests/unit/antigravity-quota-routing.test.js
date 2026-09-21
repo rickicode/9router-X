@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/localDb", () => ({
   getProviderConnections: mocks.getProviderConnections,
   getSettings: mocks.getSettings,
-  getProxyPools: vi.fn(),
+  getProxyPools: vi.fn(async () => []),
   validateApiKey: vi.fn(),
-  updateProviderConnection: vi.fn(),
+  updateProviderConnection: vi.fn(async () => {}),
   getBatchProviderQuotas: mocks.getBatchProviderQuotas,
 }));
 vi.mock("@/lib/network/connectionProxy", () => ({
@@ -26,6 +26,25 @@ vi.mock("@/shared/constants/providers.js", () => ({
 }));
 vi.mock("open-sse/services/usage/google.js", () => ({
   getAntigravityUsage: mocks.getAntigravityUsage,
+}));
+vi.mock("@/lib/db/repos/usageSnapshotsRepo.js", () => ({
+  upsertUsageSnapshot: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/cache/client.js", () => ({
+  publishEvent: vi.fn(async () => {}),
+  setModelCooldown: vi.fn(async () => {}),
+  clearModelCooldown: vi.fn(async () => {}),
+  setAccountCooldown: vi.fn(async () => {}),
+  getDeadCircuit: vi.fn(async () => 0),
+  incrDeadCircuit: vi.fn(async () => 0),
+  resetDeadCircuit: vi.fn(async () => true),
+  getBatchCooldowns: vi.fn(async () => new Set()),
+  getCachedConnections: vi.fn(async () => null),
+  setCachedConnections: vi.fn(async () => {}),
+  invalidateCachedConnections: vi.fn(async () => {}),
+  getLkg: vi.fn(async () => null),
+  setLkg: vi.fn(async () => true),
+  delLkg: vi.fn(async () => true),
 }));
 vi.mock("@/sse/utils/logger.js", () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn() }));
 

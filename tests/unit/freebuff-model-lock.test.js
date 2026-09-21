@@ -60,7 +60,7 @@ vi.mock("@/lib/network/connectionProxy", () => ({
   pickProxyPoolId: vi.fn(() => null),
 }));
 
-import { getProviderCredentials, markAccountUnavailable } from "../../src/sse/services/auth.js";
+import { getProviderCredentials, markAccountUnavailable, clearAvailabilityMemo } from "../../src/sse/services/auth.js";
 import { getFreebuffQuotaCache } from "open-sse/services/usage/freebuff.js";
 
 describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
@@ -68,6 +68,9 @@ describe("Freebuff 1-Hour Dynamic Model Affinity Lock", () => {
     connectionsDb.clear();
     settingsDb = {};
     getFreebuffQuotaCache().clear();
+    // Negative-availability memo lives 60s in module state. Without a reset,
+    // one test's blocked verdict leaks into the next test for the same pair.
+    clearAvailabilityMemo();
     vi.clearAllMocks();
   });
 

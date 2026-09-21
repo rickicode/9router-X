@@ -277,16 +277,14 @@ export function resetComboRotation(comboName) {
  * @returns {string[]|null} Array of models or null if not a combo
  */
 export function getComboModelsFromData(modelStr, combosData) {
-  // Don't check if it's in provider/model format
-  if (modelStr.includes("/")) return null;
-  
   // Handle both array and object formats
   const combos = Array.isArray(combosData) ? combosData : (combosData?.combos || []);
-  
   const combo = combos.find(c => c.name === modelStr);
   if (combo && combo.models && combo.models.length > 0) {
     return combo.models;
   }
+  // Don't check core family if it's in provider/model format
+  if (modelStr.includes("/")) return null;
   return null;
 }
 
@@ -864,6 +862,11 @@ function heuristicDifficulty(body, policy = "balanced") {
   if (COMPLEX_CODING_REGEX.test(userText)) {
     return { tier: "hard", source: "heuristic-complex", domain: "coding", ambiguity: "low", confidence: 0.95 };
   }
+  // Ongoing agentic work (tool calls / tool results in history) needs the
+  // strongest tier: the task already proved it is not answerable directly.
+  if (activeToolTurns > 0) {
+    return { tier: "hard", source: "heuristic-tool-history", domain, ambiguity: "low", confidence: 0.9 };
+  }
   // Genuine greetings, smalltalk, ping (< 15 tokens and matches smalltalk pattern)
   if (userTokens <= 15 && CASUAL_OR_GREETING_REGEX.test(userText.trim())) {
     const tier = policy === "capability_heavy" ? "medium" : "easy";
@@ -935,6 +938,10 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
   let ambiguity = "low";
   let confidence = 1.0;
 
+  // Session cache is read on every path: the winning model (sticky
+  // affinity) must survive even when the heuristic resolves the tier.
+  const cached = sKey ? difficultyCacheGet(sKey) : null;
+
   // Check heuristic on latest user message first
   const h = heuristicDifficulty(body, policy);
 
@@ -944,9 +951,11 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
     source = h.source;
     confidence = h.confidence;
   } else {
-    const cached = sKey ? difficultyCacheGet(sKey) : null;
-    if (cached && policy === "capability_heavy" && (typeof cached === "object" ? cached.tier : cached) === "hard") {
-      tier = "hard";
+    const cachedTier = (cached && typeof cached === "object" ? cached.tier : cached) || null;
+    if (cachedTier) {
+      // Ambiguous turns are judged once per session; later turns pin the
+      // route so the upstream KV prefix cache keeps hitting.
+      tier = cachedTier;
       source = "session-cache";
       domain = typeof cached === "object" ? cached.domain : "general";
       ambiguity = typeof cached === "object" ? cached.ambiguity : "low";
@@ -963,7 +972,7 @@ export async function handleDifficultyChat({ body, models = [], handleSingleMode
       tier = policy === "cost_efficient" ? "easy" : policy === "capability_heavy" ? "hard" : "medium";
       domain = detectDomain(body);
     }
-    if (sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy });
+    if (sKey) difficultyCacheSet(sKey, { tier, domain, ambiguity, confidence, policy, ...(cached?.winningModel ? { winningModel: cached.winningModel } : {}) });
   }
   log.info("DIFFICULTY", `Combo "${comboName}" | tier=${tier} (${source}) | domain=${domain} | policy=${policy} | ~${bodyTokens} tok`);
   notify({

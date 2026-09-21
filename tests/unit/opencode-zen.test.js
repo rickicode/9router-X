@@ -100,7 +100,8 @@ describe("OpenCode Zen executor", () => {
       { connectionId: "zen-test", rawHeaders: {} },
     );
 
-    expect(transformed.stream).toBe(false);
+    // Free-tier gate rejects non-streaming with 403: executor forces stream upstream.
+    expect(transformed.stream).toBe(true);
     expect(transformed.max_output_tokens).toBe(200000);
     expect(transformed.max_tokens).toBeUndefined();
   });

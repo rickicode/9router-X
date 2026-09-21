@@ -187,6 +187,9 @@ export const PROVIDER_CAPABILITIES = {
     // Token limits remain the generic floor until Intl metadata is available.
     "claude-opus-5": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
     "claude-sonnet-4.6": { tools: false, vision: false, search: false, reasoning: false, thinkingFormat: "openai" },
+    // Same gateway catalog as CN. openai-style reasoning_effort matters:
+    // the generic *deepseek-v4* pattern would pick vendor-native "deepseek".
+    "deepseek-v4.1-flash": { vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1000000, maxOutput: 128000 },
   },
   // WorkBuddy rides the same Intl gateway generation as CodeBuddy Intl, so
   // mirror its overrides until a workbuddy.ai product-config is confirmed.
@@ -265,13 +268,6 @@ export const PROVIDER_CAPABILITIES = {
     // deepseek-v4.1-flash replaces v4-flash (dropped from the server list;
     // the old endpoint still answers 200 but the published list is the
     // contract). maxOutput 128000 per the server's product-config payload.
-    "deepseek-v4.1-flash": { vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1000000, maxOutput: 128000 },
-  },
-  // CodeBuddy intl — same gateway catalog as CN, so deepseek-v4.1-flash mirrors
-  // the codebuddy-cn entry (the openai-style reasoning_effort format matters:
-  // the generic *deepseek-v4* pattern would otherwise pick the vendor-native
-  // "deepseek" thinking shape, which the CodeBuddy gateway does not accept).
-  "codebuddy-intl": {
     "deepseek-v4.1-flash": { vision: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1000000, maxOutput: 128000 },
   },
   // Qoder — upstream exposes opaque internal ids (dfmodel, kmodel, …); the
@@ -549,6 +545,10 @@ export function getCapabilitiesForModel(provider, model) {
 
   // Canonical exact lookup strips vendor prefix: "anthropic/claude-opus-4.7" -> "claude-opus-4.7".
   const baseModel = model.includes("/") ? model.split("/").pop() : model;
+  const dottedModel = baseModel.replace(
+    /^(claude-(?:opus|sonnet|fable))-(\d+)-(\d+)(?=$|-)/,
+    "$1-$2.$3",
+  );
 
   // 1. Provider-specific override (accepts the provider id or its routing alias)
   if (provider) {
@@ -556,11 +556,12 @@ export function getCapabilitiesForModel(provider, model) {
     const providerCaps = PROVIDER_CAPABILITIES[providerId];
     if (providerCaps?.[model]) return { ...DEFAULT_CAPABILITIES, ...providerCaps[model] };
     if (providerCaps?.[baseModel]) return { ...DEFAULT_CAPABILITIES, ...providerCaps[baseModel] };
+    if (dottedModel !== baseModel && providerCaps?.[dottedModel]) return { ...DEFAULT_CAPABILITIES, ...providerCaps[dottedModel] };
   }
 
   // 2. Canonical exact
   if (MODEL_CAPABILITIES[baseModel]) return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[baseModel] };
-  if (MODEL_CAPABILITIES[model]) return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[model] };
+  if (dottedModel !== baseModel && MODEL_CAPABILITIES[dottedModel]) return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[dottedModel] };
 
   // 3. Pattern match (first match wins), refined by catalog + name heuristic
   for (const { pattern, caps } of PATTERN_CAPABILITIES) {

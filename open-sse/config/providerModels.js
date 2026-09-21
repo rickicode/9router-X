@@ -73,21 +73,27 @@ export function findModelName(aliasOrId, modelId) {
   return found?.name || modelId;
 }
 
+function stripThinkingSuffix(modelId) {
+  if (typeof modelId !== "string") return modelId;
+  const sufMatch = modelId.match(/\([^()]+\)\s*$/);
+  return sufMatch ? modelId.slice(0, sufMatch.index).trim() : modelId;
+}
+
 export function getModelTargetFormat(aliasOrId, modelId) {
   if ((!aliasOrId || aliasOrId === "oc" || aliasOrId === "opencode" || aliasOrId === "ocg" || aliasOrId === "opencode-go" || aliasOrId === "ocz" || aliasOrId === "opencode-zen" || aliasOrId === "zen") && isMuseSparkModel(modelId)) {
     return FORMATS.OPENAI_RESPONSES;
   }
-  const models = PROVIDER_MODELS[aliasOrId];
+  const models = PROVIDER_MODELS[aliasOrId] || PROVIDER_MODELS[resolveProviderAlias(aliasOrId)];
   if (!models) return null;
-  return modelTargetFormat(findModel(models, modelId, aliasOrId));
+  return modelTargetFormat(findModel(models, stripThinkingSuffix(modelId), aliasOrId));
 }
 
 // Declared upstream formats for a model (registry `supportedFormats`). Drives the
 // per-model guard on the sourceFormat-matched transport; null when undeclared.
 export function getModelSupportedFormats(aliasOrId, modelId) {
-  const models = PROVIDER_MODELS[aliasOrId];
+  const models = PROVIDER_MODELS[aliasOrId] || PROVIDER_MODELS[resolveProviderAlias(aliasOrId)];
   if (!models) return null;
-  return modelSupportedFormats(findModel(models, modelId, aliasOrId));
+  return modelSupportedFormats(findModel(models, stripThinkingSuffix(modelId), aliasOrId));
 }
 
 export function getModelType(aliasOrId, modelId) {

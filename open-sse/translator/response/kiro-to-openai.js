@@ -11,6 +11,12 @@ import { fallbackToolCallId } from "../concerns/toolCall.js";
 import { reasoningDelta } from "../concerns/reasoning.js";
 import { toOpenAIFinish } from "../concerns/finishReason.js";
 
+
+function restoreToolName(state, name) {
+  const raw = name || "";
+  const map = state?.toolNameMap || state?._toolNameMap;
+  return map && typeof map.get === "function" && map.has(raw) ? map.get(raw) : raw;
+}
 // Build chunk meta for current kiro state
 function chunkMeta(state) {
   return { id: state.responseId, created: state.created, model: state.model || "kiro" };
@@ -24,9 +30,27 @@ export function kiroToOpenAIResponse(chunk, state) {
   
   if (!chunk) return null;
 
-  // If chunk is already in OpenAI format (from executor transform), return as-is
+  // Executor already emitted an OpenAI chunk. Still reverse the Kiro
+  // sanitized name when the request left a map on the stream state.
   if (chunk.object === "chat.completion.chunk" && chunk.choices) {
-    return chunk;
+    const map = state?.toolNameMap || state?._toolNameMap;
+    if (!(map && typeof map.get === "function")) return chunk;
+    const calls = chunk.choices[0]?.delta?.tool_calls;
+    if (!Array.isArray(calls) || calls.length === 0) return chunk;
+    let changed = false;
+    const nextCalls = calls.map((tc) => {
+      const raw = tc?.function?.name;
+      if (!raw || !map.has(raw)) return tc;
+      changed = true;
+      return { ...tc, function: { ...tc.function, name: map.get(raw) } };
+    });
+    if (!changed) return chunk;
+    return {
+      ...chunk,
+      choices: chunk.choices.map((choice, i) => i === 0
+        ? { ...choice, delta: { ...choice.delta, tool_calls: nextCalls } }
+        : choice),
+    };
   }
   
   // Handle string chunk (raw SSE data)
@@ -122,7 +146,7 @@ export function kiroToOpenAIResponse(chunk, state) {
         id: toolCallId,
         type: OPENAI_BLOCK.FUNCTION,
         function: {
-          name: toolName,
+          name: restoreToolName(state, toolName),
           arguments: JSON.stringify(toolInput)
         }
       }]
