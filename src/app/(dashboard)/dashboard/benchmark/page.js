@@ -6,18 +6,18 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 
 const SUITES = [
-  { id: "pong", label: "PONG Gate", subtitle: "Liveness test (Must respond PONG to unlock suites)", icon: "bolt" },
+  { id: "pong", label: "PONG Gate", subtitle: "Liveness test (Wajib lulus PONG untuk membuka suite pengujian)", icon: "bolt" },
   { id: "coding", label: "Coding Benchmark", subtitle: "TokenBucketRateLimiter Python (Thread-safe Lock)", icon: "code" },
-  { id: "logic", label: "Logic Deduction", subtitle: "4-Person profession & car deduction puzzle", icon: "psychology" },
-  { id: "tool", label: "Tool Calling", subtitle: "Native function calling (Jakarta weather query)", icon: "build" },
+  { id: "logic", label: "Logic Deduction", subtitle: "Teka-teki deduksi 4 profesi & mobil", icon: "psychology" },
+  { id: "tool", label: "Tool Calling", subtitle: "Native function calling (Panggilan cuaca Jakarta)", icon: "build" },
 ];
 
 const STATUS_CONFIG = {
-  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
-  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
-  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30" },
+  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/30" },
+  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30" },
+  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/30" },
+  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/30" },
 };
 
 const REVIEWER_PRESETS = [
@@ -56,7 +56,7 @@ export default function BenchmarkPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
-  // State: Permanent selection (used in benchmark runs)
+  // State: Permanent active selection for benchmark execution
   const [selectedModelIds, setSelectedModelIds] = useState(() => {
     const initial = new Set();
     catalog.forEach((p) => {
@@ -67,13 +67,13 @@ export default function BenchmarkPage() {
     return initial;
   });
 
-  // State: Modal for Provider & Model Selector (with staging/buffer before pressing OKE)
+  // State: Modal Staging (buffer selection before user clicks OKE)
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
   const [modalSelectedModelIds, setModalSelectedModelIds] = useState(new Set());
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerExpandedProviders, setPickerExpandedProviders] = useState(() => new Set(["antigravity", "kilocode-free"]));
 
-  // State: Modal for Reviewer AI Model Picker
+  // State: Reviewer Model Selector Modal
   const [isReviewerModalOpen, setIsReviewerModalOpen] = useState(false);
   const [reviewerPickerSearch, setReviewerPickerSearch] = useState("");
 
@@ -109,7 +109,7 @@ export default function BenchmarkPage() {
   const [sortField, setSortField] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // State: Detailed Inspector modal (shows statuscode, error diagnostic, request & response body)
+  // State: Detailed Inspector modal
   const [inspectAttempt, setInspectAttempt] = useState(null);
 
   // State: Job & Runtime Data
@@ -138,7 +138,7 @@ export default function BenchmarkPage() {
     return Array.from(provs);
   }, [catalog, selectedModelIds]);
 
-  // Models grouped by Provider (Tags view on main page)
+  // Models grouped by Provider for displaying as tags on main page
   const selectedGroupedByProvider = useMemo(() => {
     const list = [];
     catalog.forEach((provider) => {
@@ -222,7 +222,7 @@ export default function BenchmarkPage() {
     setSuites((prev) => (prev.includes(suiteId) ? prev.filter((s) => s !== suiteId) : [...prev, suiteId]));
   }
 
-  // Tag removal directly on main screen
+  // Direct tag removal on main screen
   function removeSingleModelTag(fullId) {
     setSelectedModelIds((prev) => {
       const next = new Set(prev);
@@ -241,14 +241,14 @@ export default function BenchmarkPage() {
     });
   }
 
-  // Modal Open Handler: Sync state to modal buffer
+  // Modal Open Handler: sync current selection to staging buffer
   function openPickerModal() {
     setModalSelectedModelIds(new Set(selectedModelIds));
     setPickerSearch("");
     setIsPickerModalOpen(true);
   }
 
-  // Modal Apply Handler (Pressing OKE)
+  // Modal Apply Handler: commit staging buffer when pressing OKE
   function applyPickerModal() {
     setSelectedModelIds(new Set(modalSelectedModelIds));
     setIsPickerModalOpen(false);
@@ -528,7 +528,7 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
 
-      {/* ─── Top Configuration Card: Suites & Reviewer ─── */}
+      {/* ─── 1. Suites & Reviewer Card ─── */}
       <Card
         title="1. Konfigurasi Pengujian & Reviewer"
         subtitle="Atur suite pengujian dan reviewer AI untuk merangkum hasil evaluasi"
@@ -555,7 +555,7 @@ export default function BenchmarkPage() {
                     className={`relative flex items-start gap-3 rounded-lg border p-3 text-left cursor-pointer transition-all ${
                       checked
                         ? "border-brand-500/50 bg-brand-500/5 shadow-sm"
-                        : "border-border-subtle bg-surface-1 hover:border-border"
+                        : "border-border-subtle bg-surface hover:border-border"
                     }`}
                   >
                     <input
@@ -604,7 +604,7 @@ export default function BenchmarkPage() {
                     variant="secondary"
                     icon="format_list_bulleted"
                     onClick={() => setIsReviewerModalOpen(true)}
-                    title="Pilih model reviewer dari daftar lengkap"
+                    title="Pilih model reviewer dari modal lengkap"
                   >
                     Pilih Model
                   </Button>
@@ -648,10 +648,10 @@ export default function BenchmarkPage() {
         </div>
       </Card>
 
-      {/* ─── Selected Models Display: Grouped by Provider -> Tags Model ─── */}
+      {/* ─── 2. Selected Models Display: Grouped by Provider -> Tags Model ─── */}
       <Card
         title="2. Target Model yang Diuji"
-        subtitle="Daftar model yang terpilih untuk diuji, dikelompokkan per provider"
+        subtitle="Model yang dipilih akan tampil di sini sebagai tag per provider. Klik tombol untuk memilih."
         icon="checklist"
         action={
           <div className="flex items-center gap-2">
@@ -683,7 +683,7 @@ export default function BenchmarkPage() {
                 <div className="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-border-subtle">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-text-main">{provider.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-brand-400 uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-brand-500 uppercase tracking-wider">
                       {provider.alias}
                     </span>
                     <span className="text-xs text-text-muted">
@@ -706,7 +706,7 @@ export default function BenchmarkPage() {
                   {models.map((m) => (
                     <span
                       key={m.fullId}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/25 bg-surface-1 px-2.5 py-1 text-xs text-text-main font-medium shadow-2xs group"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/25 bg-surface px-2.5 py-1 text-xs text-text-main font-medium shadow-2xs group"
                     >
                       <span className="text-text-main">{m.name}</span>
                       <span className="text-[10px] text-text-muted font-mono opacity-80">
@@ -842,26 +842,26 @@ export default function BenchmarkPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border-subtle text-center">
               <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2">
                 <div className="text-xs text-text-muted">Lolos</div>
-                <div className="text-lg font-bold text-emerald-400">{counts.passed || 0}</div>
+                <div className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{counts.passed || 0}</div>
               </div>
               <div className="rounded-md bg-rose-500/5 border border-rose-500/20 p-2">
                 <div className="text-xs text-text-muted">Gagal</div>
-                <div className="text-lg font-bold text-rose-400">{counts.failed || 0}</div>
+                <div className="text-lg font-bold text-rose-500 dark:text-rose-400">{counts.failed || 0}</div>
               </div>
               <div className="rounded-md bg-amber-500/5 border border-amber-500/20 p-2">
                 <div className="text-xs text-text-muted">Rate Limit (429)</div>
-                <div className="text-lg font-bold text-amber-400">{counts.rate_limited || 0}</div>
+                <div className="text-lg font-bold text-amber-500 dark:text-amber-400">{counts.rate_limited || 0}</div>
               </div>
               <div className="rounded-md bg-slate-500/5 border border-slate-500/20 p-2">
                 <div className="text-xs text-text-muted">Dilewati</div>
-                <div className="text-lg font-bold text-slate-400">{counts.skipped || 0}</div>
+                <div className="text-lg font-bold text-slate-500 dark:text-slate-400">{counts.skipped || 0}</div>
               </div>
             </div>
 
             {/* Reviewer Output */}
             {report ? (
               <div className="mt-4 rounded-lg border border-border-subtle bg-surface-2 p-4">
-                <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-brand-400">
+                <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-brand-500">
                   <span className="material-symbols-outlined text-base">psychology</span>
                   <span>Kesimpulan Reviewer ({report.reviewer})</span>
                 </div>
@@ -874,7 +874,7 @@ export default function BenchmarkPage() {
         </Card>
       ) : null}
 
-      {/* ─── Live Test Results Table with Inline Statuscode, Response & Inspector ─── */}
+      {/* ─── 3. Live Test Results Table with Inline Statuscode, Response & Inspector ─── */}
       <Card
         title="3. Hasil Pengujian Terkini"
         subtitle="Menampilkan HTTP statuscode & respon per percobaan. Klik baris mana saja untuk melihat detail lengkap."
@@ -918,7 +918,7 @@ export default function BenchmarkPage() {
                 placeholder="Cari di tabel..."
                 value={searchTableQuery}
                 onChange={(e) => setSearchTableQuery(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
+                className="w-full rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
               />
             </div>
           </div>
@@ -926,7 +926,7 @@ export default function BenchmarkPage() {
           {/* Data Table */}
           <div className="overflow-x-auto max-h-[560px]">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-surface-1 z-10 text-xs text-text-muted border-b border-border-subtle select-none">
+              <thead className="sticky top-0 bg-surface z-10 text-xs text-text-muted border-b border-border-subtle select-none">
                 <tr>
                   <th className="py-2.5 px-3">Akun</th>
                   <th
@@ -1045,10 +1045,10 @@ export default function BenchmarkPage() {
                             <span
                               className={`font-mono text-[10px] font-bold ${
                                 row.http_status === 200
-                                  ? "text-emerald-400"
+                                  ? "text-emerald-500 dark:text-emerald-400"
                                   : row.http_status === 429
-                                  ? "text-amber-400"
-                                  : "text-rose-400"
+                                  ? "text-amber-500 dark:text-amber-400"
+                                  : "text-rose-500 dark:text-rose-400"
                               }`}
                             >
                               {row.http_status}
@@ -1058,7 +1058,7 @@ export default function BenchmarkPage() {
                       </td>
                       <td
                         className={`py-2 px-3 max-w-[240px] truncate font-mono text-[11px] ${
-                          isFailedOrLimited ? "text-rose-400 font-medium" : "text-text-muted"
+                          isFailedOrLimited ? "text-rose-500 dark:text-rose-400 font-medium" : "text-text-muted"
                         }`}
                         title={displayMessage}
                       >
@@ -1069,10 +1069,10 @@ export default function BenchmarkPage() {
                           <span
                             className={
                               row.score >= 80
-                                ? "text-emerald-400"
+                                ? "text-emerald-500 dark:text-emerald-400"
                                 : row.score >= 50
-                                ? "text-amber-400"
-                                : "text-rose-400"
+                                ? "text-amber-500 dark:text-amber-400"
+                                : "text-rose-500 dark:text-rose-400"
                             }
                           >
                             {row.score}
@@ -1145,7 +1145,7 @@ export default function BenchmarkPage() {
                   <td className="py-2 px-3">
                     {row.pong_total ? (
                       <span className="inline-flex items-center gap-1 font-mono">
-                        <span className={row.pong_passed === row.pong_total ? "text-emerald-400 font-semibold" : "text-amber-400"}>
+                        <span className={row.pong_passed === row.pong_total ? "text-emerald-500 dark:text-emerald-400 font-semibold" : "text-amber-500 dark:text-amber-400"}>
                           {row.pong_passed}/{row.pong_total}
                         </span>
                         <span className="text-[10px] text-text-muted">
@@ -1161,10 +1161,10 @@ export default function BenchmarkPage() {
                       <span
                         className={
                           row.median_score >= 80
-                            ? "text-emerald-400"
+                            ? "text-emerald-500 dark:text-emerald-400"
                             : row.median_score >= 50
-                            ? "text-amber-400"
-                            : "text-rose-400"
+                            ? "text-amber-500 dark:text-amber-400"
+                            : "text-rose-500 dark:text-rose-400"
                         }
                       >
                         {row.median_score}
@@ -1223,13 +1223,13 @@ export default function BenchmarkPage() {
                 max="365"
                 value={retentionDays}
                 onChange={(e) => setRetentionDays(e.target.value)}
-                className="w-16 rounded border border-border bg-surface-1 px-2 py-1 text-center font-mono text-xs focus:ring-brand-500"
+                className="w-16 rounded border border-border bg-surface px-2 py-1 text-center font-mono text-xs focus:ring-brand-500"
               />
               <span>hari.</span>
             </div>
             <div className="flex items-center gap-2">
               {savedRetentionToast ? (
-                <span className="text-emerald-400 font-medium animate-fade-in">Tersimpan!</span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-medium animate-fade-in">Tersimpan!</span>
               ) : null}
               <Button size="xs" variant="secondary" onClick={handleSaveRetention}>
                 Simpan Retensi
@@ -1274,7 +1274,7 @@ export default function BenchmarkPage() {
                         <div className="font-semibold text-text-main flex items-center gap-2 truncate">
                           <span>{new Date(job.created_at).toLocaleString()}</span>
                           {isCurrent ? (
-                            <span className="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 font-bold text-[10px]">
+                            <span className="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-500 font-bold text-[10px]">
                               SEDANG DILIHAT
                             </span>
                           ) : null}
@@ -1289,11 +1289,11 @@ export default function BenchmarkPage() {
                         <span
                           className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${
                             job.status === "completed"
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
                               : job.status === "running"
-                              ? "border-amber-500/20 bg-amber-500/10 text-amber-400 animate-pulse"
+                              ? "border-amber-500/20 bg-amber-500/10 text-amber-500 dark:text-amber-400 animate-pulse"
                               : job.status === "cancelled"
-                              ? "border-orange-500/20 bg-orange-500/10 text-orange-400"
+                              ? "border-orange-500/20 bg-orange-500/10 text-orange-500 dark:text-orange-400"
                               : "border-border bg-surface-3 text-text-muted"
                           }`}
                         >
@@ -1324,40 +1324,40 @@ export default function BenchmarkPage() {
         </div>
       </Card>
 
-      {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (With OKE button) ─── */}
+      {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (100% Solid, Non-Transparent) ─── */}
       {isPickerModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setIsPickerModalOpen(false)}
         >
           <div
-            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <div>
                 <h3 className="font-bold text-text-main text-base flex items-center gap-2">
                   <span className="material-symbols-outlined text-brand-500">dns</span>
                   <span>Pilih Provider & Model Benchmark</span>
                 </h3>
                 <p className="text-xs text-text-muted mt-0.5">
-                  Centang model yang ingin diuji, lalu tekan OKE untuk menerapkan ke halaman utama.
+                  Centang model yang ingin Anda uji, lalu klik tombol Oke di bawah untuk menerapkan.
                 </p>
               </div>
               <button
                 onClick={() => setIsPickerModalOpen(false)}
-                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+                className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <span className="material-symbols-outlined text-xl leading-none">close</span>
               </button>
             </div>
 
             {/* Modal Search & Quick Selection Bar */}
-            <div className="p-3 border-b border-border-subtle flex items-center justify-between gap-3 bg-surface-1">
+            <div className="px-6 py-3 border-b border-border flex items-center justify-between gap-3 bg-white dark:bg-[#202020]">
               <div className="flex-1 max-w-sm">
                 <Input
-                  placeholder="Cari nama provider atau model..."
+                  placeholder="Cari provider atau nama model..."
                   value={pickerSearch}
                   onChange={(e) => setPickerSearch(e.target.value)}
                 />
@@ -1374,7 +1374,7 @@ export default function BenchmarkPage() {
                     });
                   }}
                 >
-                  Pilih Semua Tampil
+                  Pilih Semua
                 </Button>
                 <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
                   Kosongkan
@@ -1383,7 +1383,7 @@ export default function BenchmarkPage() {
             </div>
 
             {/* Modal Accordion Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-[#faf7f2] dark:bg-[#1a1a1a]">
               {pickerCatalog.map((provider) => {
                 const totalInProv = provider.models.length;
                 const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
@@ -1394,16 +1394,16 @@ export default function BenchmarkPage() {
                 return (
                   <div
                     key={provider.id}
-                    className={`rounded-lg border transition-all ${
+                    className={`rounded-xl border transition-all overflow-hidden bg-white dark:bg-[#242424] ${
                       selectedInProv > 0
-                        ? "border-brand-500/30 bg-surface-2"
-                        : "border-border-subtle bg-surface-1 hover:border-border"
+                        ? "border-brand-500/50 shadow-xs"
+                        : "border-border shadow-2xs hover:border-border"
                     }`}
                   >
                     {/* Provider Row */}
-                    <div className="flex items-center justify-between p-2.5 gap-2">
+                    <div className="flex items-center justify-between p-3.5 gap-3 bg-white dark:bg-[#242424]">
                       <div
-                        className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer"
+                        className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
                         onClick={() => toggleModalProviderModels(provider)}
                       >
                         <input
@@ -1415,45 +1415,45 @@ export default function BenchmarkPage() {
                           onChange={() => toggleModalProviderModels(provider)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`Pilih semua model dari ${provider.name}`}
-                          className="rounded border-border text-brand-500 focus:ring-brand-500"
+                          className="w-4 h-4 rounded border-border text-brand-500 focus:ring-brand-500"
                         />
                         <div className="min-w-0 flex-1 truncate">
-                          <span className="font-semibold text-sm text-text-main truncate block">
+                          <span className="font-bold text-sm text-text-main truncate block">
                             {provider.name}
                           </span>
                           <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             selectedInProv > 0
-                              ? "bg-brand-500/20 text-brand-400 font-semibold"
+                              ? "bg-brand-500/20 text-brand-500 dark:text-brand-400"
                               : "bg-surface-3 text-text-muted"
                           }`}
                         >
-                          {selectedInProv}/{totalInProv}
+                          {selectedInProv} / {totalInProv}
                         </span>
                         <button
                           type="button"
                           onClick={() => togglePickerExpand(provider.id)}
-                          className="p-1 rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
-                          title={isExpanded ? "Tutup list model" : "Buka list model"}
+                          className="p-1 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
+                          title={isExpanded ? "Tutup daftar model" : "Buka daftar model"}
                         >
-                          <span className="material-symbols-outlined text-lg leading-none">
+                          <span className="material-symbols-outlined text-xl leading-none">
                             {isExpanded ? "expand_less" : "expand_more"}
                           </span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Model Sub-list (Accordion Content) */}
+                    {/* Model Sub-list (Expanded) */}
                     {isExpanded ? (
-                      <div className="border-t border-border-subtle bg-surface-1/50 px-3 py-2 space-y-1.5">
-                        <div className="flex items-center justify-between pb-1 border-b border-border-subtle text-[11px] text-text-muted">
+                      <div className="border-t border-border bg-[#fdfcf9] dark:bg-[#1e1e1e] p-3 space-y-2">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-border-subtle text-[11px] text-text-muted">
                           <span>Daftar Model ({provider.name}):</span>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 font-medium">
                             <button
                               type="button"
                               onClick={() => {
@@ -1463,9 +1463,9 @@ export default function BenchmarkPage() {
                                   return next;
                                 });
                               }}
-                              className="hover:text-brand-400 underline"
+                              className="text-brand-500 hover:underline"
                             >
-                              Pilih semua
+                              Pilih Semua
                             </button>
                             <span>·</span>
                             <button
@@ -1477,37 +1477,37 @@ export default function BenchmarkPage() {
                                   return next;
                                 });
                               }}
-                              className="hover:text-rose-400 underline"
+                              className="text-rose-500 hover:underline"
                             >
                               Batal
                             </button>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                           {provider.models.map((model) => {
                             const isModelChecked = modalSelectedModelIds.has(model.fullId);
                             return (
                               <div
                                 key={model.fullId}
                                 onClick={() => toggleModalModel(model.fullId)}
-                                className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors border ${
+                                className={`flex items-center justify-between gap-2.5 p-2.5 rounded-lg text-xs cursor-pointer transition-all border ${
                                   isModelChecked
-                                    ? "border-brand-500/30 bg-brand-500/10 text-text-main font-medium"
-                                    : "border-transparent text-text-muted hover:bg-surface-2 hover:text-text-main"
+                                    ? "border-brand-500/60 bg-brand-500/10 text-text-main font-semibold shadow-2xs"
+                                    : "border-border bg-white dark:bg-[#282828] text-text-muted hover:bg-surface-2 hover:text-text-main"
                                 }`}
                               >
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <input
                                     type="checkbox"
                                     checked={isModelChecked}
                                     onChange={() => toggleModalModel(model.fullId)}
                                     onClick={(e) => e.stopPropagation()}
                                     aria-label={`Pilih model ${model.name}`}
-                                    className="rounded border-border text-brand-500 focus:ring-brand-500"
+                                    className="w-4 h-4 rounded border-border text-brand-500 focus:ring-brand-500"
                                   />
                                   <div className="truncate">
-                                    <div className="truncate">{model.name}</div>
+                                    <div className="truncate text-text-main">{model.name}</div>
                                     <div className="font-mono text-[10px] text-text-muted opacity-80 truncate">
                                       {model.fullId}
                                     </div>
@@ -1524,22 +1524,22 @@ export default function BenchmarkPage() {
               })}
 
               {pickerCatalog.length === 0 ? (
-                <div className="py-8 text-center text-sm text-text-muted">
-                  Tidak ada provider atau model yang cocok dengan pencarian.
+                <div className="py-12 text-center text-sm text-text-muted">
+                  Tidak ada provider atau model yang sesuai dengan kata kunci pencarian.
                 </div>
               ) : null}
             </div>
 
-            {/* Modal Footer with OKE button */}
-            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+            {/* Modal Footer with prominent OKE button */}
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <span className="text-xs text-text-muted">
-                <span className="font-bold text-text-main">{modalSelectedModelIds.size}</span> model terpilih
+                Terpilih di modal: <span className="font-bold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
               </span>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
                   Batal
                 </Button>
-                <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal}>
+                <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="shadow-sm font-semibold">
                   Oke, Terapkan Pilihan
                 </Button>
               </div>
@@ -1548,20 +1548,20 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
 
-      {/* ─── Modal 2: Detail Attempt Inspector Modal (HTTP Statuscode & Raw Response) ─── */}
+      {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
       {inspectAttempt ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setInspectAttempt(null)}
         >
           <div
-            className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <div>
-                <div className="flex items-center gap-2 font-bold text-text-main text-base">
+                <div className="flex items-center gap-2.5 font-bold text-text-main text-base">
                   <span>{inspectAttempt.model}</span>
                   <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
                     {inspectAttempt.status?.toUpperCase()}
@@ -1570,10 +1570,10 @@ export default function BenchmarkPage() {
                     <span
                       className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
                         inspectAttempt.http_status === 200
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
                           : inspectAttempt.http_status === 429
-                          ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
-                          : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-500 dark:text-amber-400"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400"
                       }`}
                     >
                       HTTP {inspectAttempt.http_status}
@@ -1588,33 +1588,33 @@ export default function BenchmarkPage() {
               </div>
               <button
                 onClick={() => setInspectAttempt(null)}
-                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+                className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <span className="material-symbols-outlined text-xl leading-none">close</span>
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-mono">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs font-mono bg-white dark:bg-[#202020]">
               {/* Telemetry Chips */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
                   <div className="text-text-muted text-[10px]">Skor Kualitas</div>
                   <div className="text-sm font-bold text-text-main">{inspectAttempt.score ?? "-"} / 100</div>
                 </div>
-                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
                   <div className="text-text-muted text-[10px]">TTFT (Byte Pertama)</div>
                   <div className="text-sm font-bold text-text-main">
                     {inspectAttempt.ttft_ms ? `${inspectAttempt.ttft_ms}ms` : "-"}
                   </div>
                 </div>
-                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
                   <div className="text-text-muted text-[10px]">Total Waktu</div>
                   <div className="text-sm font-bold text-text-main">
                     {inspectAttempt.total_ms ? `${inspectAttempt.total_ms}ms` : "-"}
                   </div>
                 </div>
-                <div className="rounded border border-border-subtle bg-surface-2 p-2">
+                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
                   <div className="text-text-muted text-[10px]">Throughput (tok/s)</div>
                   <div className="text-sm font-bold text-text-main">
                     {inspectAttempt.tps ?? "-"} tok/s
@@ -1625,11 +1625,11 @@ export default function BenchmarkPage() {
               {/* Error Box if any */}
               {inspectAttempt.error ? (
                 <div>
-                  <div className="text-rose-400 font-bold mb-1 flex items-center gap-1">
+                  <div className="text-rose-500 dark:text-rose-400 font-bold mb-1 flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">warning</span>
                     <span>Pesan Error / Upstream Diagnostic:</span>
                   </div>
-                  <pre className="rounded bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px]">
+                  <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-all text-[11px]">
                     {inspectAttempt.error}
                   </pre>
                 </div>
@@ -1641,12 +1641,12 @@ export default function BenchmarkPage() {
                   <span>Request Payload:</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(inspectAttempt.request_body || "")}
-                    className="text-brand-400 hover:underline text-[10px]"
+                    className="text-brand-500 hover:underline text-[10px]"
                   >
                     Salin Request
                   </button>
                 </div>
-                <pre className="rounded bg-surface-2 border border-border-subtle p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-48 overflow-y-auto">
+                <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-48 overflow-y-auto">
                   {inspectAttempt.request_body || "Tidak ada body request tersimpan."}
                 </pre>
               </div>
@@ -1657,19 +1657,19 @@ export default function BenchmarkPage() {
                   <span>Upstream Response Body:</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(inspectAttempt.response_body || inspectAttempt.excerpt || "")}
-                    className="text-brand-400 hover:underline text-[10px]"
+                    className="text-brand-500 hover:underline text-[10px]"
                   >
                     Salin Respon
                   </button>
                 </div>
-                <pre className="rounded bg-surface-2 border border-border-subtle p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-60 overflow-y-auto">
+                <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-60 overflow-y-auto">
                   {inspectAttempt.response_body || inspectAttempt.excerpt || "Tidak ada respon body tersimpan."}
                 </pre>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <span className="text-[11px] text-text-muted">
                 Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
               </span>
@@ -1681,17 +1681,17 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
 
-      {/* ─── Modal 3: Reviewer Model Selector Modal ─── */}
+      {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
       {isReviewerModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setIsReviewerModalOpen(false)}
         >
           <div
-            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border-subtle p-4 bg-surface-2">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <div>
                 <h3 className="font-bold text-text-main text-base flex items-center gap-2">
                   <span className="material-symbols-outlined text-brand-500">psychology</span>
@@ -1703,30 +1703,30 @@ export default function BenchmarkPage() {
               </div>
               <button
                 onClick={() => setIsReviewerModalOpen(false)}
-                className="rounded p-1 text-text-muted hover:bg-surface-3 hover:text-text-main"
+                className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <span className="material-symbols-outlined text-xl leading-none">close</span>
               </button>
             </div>
 
-            <div className="p-3 border-b border-border-subtle bg-surface-1">
+            <div className="px-6 py-3 border-b border-border bg-white dark:bg-[#202020]">
               <Input
-                placeholder="Cari model reviewer (e.g. flash, deepseek, claude)..."
+                placeholder="Cari nama model reviewer..."
                 value={reviewerPickerSearch}
                 onChange={(e) => setReviewerPickerSearch(e.target.value)}
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 bg-[#faf7f2] dark:bg-[#1a1a1a]">
               <div
                 onClick={() => {
                   setReviewer("judge-router");
                   setIsReviewerModalOpen(false);
                 }}
-                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all bg-white dark:bg-[#242424] ${
                   reviewer === "judge-router"
-                    ? "border-brand-500 bg-brand-500/10 text-brand-400 font-bold"
-                    : "border-border-subtle hover:bg-surface-2 text-text-main"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-500 dark:text-brand-400 font-bold"
+                    : "border-border hover:border-border text-text-main"
                 }`}
               >
                 <div>
@@ -1752,14 +1752,14 @@ export default function BenchmarkPage() {
                         setReviewer(opt.value);
                         setIsReviewerModalOpen(false);
                       }}
-                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all bg-white dark:bg-[#242424] ${
                         isSelected
-                          ? "border-brand-500 bg-brand-500/10 text-brand-400 font-semibold"
-                          : "border-border-subtle hover:bg-surface-2 text-text-main"
+                          ? "border-brand-500 bg-brand-500/10 text-brand-500 dark:text-brand-400 font-semibold"
+                          : "border-border hover:border-border text-text-main"
                       }`}
                     >
                       <div className="truncate">
-                        <div className="font-medium text-xs truncate">{opt.label}</div>
+                        <div className="font-medium text-xs truncate text-text-main">{opt.label}</div>
                         <div className="text-[10px] text-text-muted font-mono">{opt.value}</div>
                       </div>
                       <Badge variant="secondary">{opt.badge}</Badge>
@@ -1768,7 +1768,7 @@ export default function BenchmarkPage() {
                 })}
             </div>
 
-            <div className="flex items-center justify-between border-t border-border-subtle p-3 bg-surface-2">
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
               <span className="text-xs text-text-muted truncate max-w-sm">
                 Terpilih: <span className="font-bold text-text-main">{reviewer || "Tanpa Reviewer"}</span>
               </span>
