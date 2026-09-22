@@ -171,7 +171,7 @@ export default function ModelsSection(d) {
  );
  if (notAdded.length === 0) return null;
  return (
- <div className="w-full mt-2">
+            <div className="col-span-full w-full mt-2">
  <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
  {notAdded.map((m) => (
@@ -193,7 +193,7 @@ export default function ModelsSection(d) {
  })()}
 
  {disabledDisplayModels.length > 0 && (
- <div className="w-full mt-2">
+          <div className="col-span-full w-full mt-2">
  <p className="text-xs text-text-muted mb-2">Disabled models ({disabledDisplayModels.length}):</p>
  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
  {disabledDisplayModels.map((m) => (
