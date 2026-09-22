@@ -22,9 +22,8 @@ const navItems = [
  { href: "/dashboard/providers", label: "Providers", icon: "dns" },
  // { href: "/dashboard/basic-chat", label: "Basic Chat", icon: "chat" }, // Hidden
  { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
- { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
- { href: "/dashboard/benchmark", label: "Benchmark", icon: "speed" },
- { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
+  { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
+  { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
  { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
  { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
  // { href: "/dashboard/pxpipe", label: "PXPIPE", icon: "image" },
