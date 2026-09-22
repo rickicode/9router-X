@@ -1703,9 +1703,9 @@ export default function ProviderLimits() {
  </div>
  </div>
 
- <div className="px-2 py-2">
+ <div className="px-4 py-3">
  {quota?.raw?.freebucks && !error && !isLoading && (
- <div className="mb-1.5 rounded-sm bg-surface-2 px-2 py-2 text-[11px] text-text-muted">
+ <div className="mb-2 rounded-sm bg-surface-2 px-3 py-2 text-[11px] text-text-muted">
  {formatFreebucksHeader(quota.raw.freebucks)}
  </div>
  )}
@@ -1743,18 +1743,18 @@ export default function ProviderLimits() {
  </p>
  )}
  {hiddenQuotaRows.length > 0 && (
- <div className="mt-2 flex min-w-0 items-center gap-1 border-t border-border pt-2 text-[11px] text-text-muted h-8">
+ <div className="mt-3 flex min-w-0 items-center gap-2 border-t border-border pt-3 text-[11px] text-text-muted">
  <span className="material-symbols-outlined shrink-0 text-[18px]">
  visibility_off
  </span>
  <span className="shrink-0">Hidden:</span>
- <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap pb-2">
+ <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1">
  {hiddenQuotaRows.map((quotaRow) => (
  <button
  key={getQuotaVisibilityKey(quotaRow)}
  type="button"
  onClick={() => handleShowQuota(conn.provider, quotaRow)}
- className="shrink-0 rounded-sm border border-border px-1.5 py-1 hover:bg-surface-2 hover:text-text-main"
+ className="shrink-0 rounded-sm border border-border px-2 py-1 hover:bg-surface-2 hover:text-text-main transition-colors"
  title="Show this quota row"
  >
  {quotaRow.name}
