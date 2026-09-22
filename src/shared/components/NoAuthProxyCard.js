@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Card from "./Card";
 import Select from "./Select";
 import Badge from "./Badge";
+import { FREE_PROVIDERS } from "@/shared/constants/providers";
 
 const NONE_PROXY_POOL_VALUE = "__none__";
 
@@ -30,6 +31,9 @@ export default function NoAuthProxyCard({ providerId }) {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [trialKey, setTrialKey] = useState("");
+  const [trialKeySaving, setTrialKeySaving] = useState(false);
+  const [trialKeySaved, setTrialKeySaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +62,7 @@ export default function NoAuthProxyCard({ providerId }) {
         setRoutingMode("direct");
         setProxyPoolId(NONE_PROXY_POOL_VALUE);
       }
+      if (override.trialKey) setTrialKey(override.trialKey);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [providerId]);
@@ -123,6 +128,32 @@ export default function NoAuthProxyCard({ providerId }) {
     }
   }, [providerId]);
 
+  const saveTrialKey = useCallback(async (key) => {
+    setTrialKeySaving(true);
+    try {
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      const data = res.ok ? await res.json() : {};
+      const current = data.providerStrategies || {};
+      const override = { ...(current[providerId] || {}) };
+      if (key && key.trim()) override.trialKey = key.trim();
+      else delete override.trialKey;
+      const updated = { ...current };
+      if (Object.keys(override).length === 0) delete updated[providerId];
+      else updated[providerId] = override;
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerStrategies: updated }),
+      });
+      setTrialKeySaved(true);
+      setTimeout(() => setTrialKeySaved(false), 1500);
+    } catch (e) {
+      console.log("Save trial key error:", e);
+    } finally {
+      setTrialKeySaving(false);
+    }
+  }, [providerId]);
+
   const handleModeChange = (newMode) => {
     setRoutingMode(newMode);
     if (newMode === "direct") {
@@ -164,6 +195,7 @@ export default function NoAuthProxyCard({ providerId }) {
   };
 
   const activePoolCount = proxyPools.length;
+  const hasTrialKey = !!FREE_PROVIDERS[providerId]?.trialKey;
 
   return (
     <Card>
@@ -179,6 +211,46 @@ export default function NoAuthProxyCard({ providerId }) {
         </div>
         {savedFlash && <Badge variant="success" size="sm">Saved</Badge>}
       </div>
+
+      {hasTrialKey && (
+      <div className="flex flex-col gap-2 mb-5 rounded-lg border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] p-4">
+        <label className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+          Trial Key <span className="normal-case font-normal text-text-muted">(optional — overrides the built-in key)</span>
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={trialKey}
+            onChange={(e) => setTrialKey(e.target.value)}
+            placeholder="lt-trial-…"
+            disabled={trialKeySaving}
+            className="flex-1 px-3 py-2 text-sm rounded-md border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 text-text-main focus:ring-1 focus:ring-primary/30 focus:border-primary/50 focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => saveTrialKey(trialKey)}
+            disabled={trialKeySaving}
+            className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-white disabled:opacity-50 shrink-0"
+          >
+            {trialKeySaving ? "Saving…" : "Save Key"}
+          </button>
+          {trialKey && (
+            <button
+              type="button"
+              onClick={() => { setTrialKey(""); saveTrialKey(""); }}
+              disabled={trialKeySaving}
+              className="px-4 py-2 text-sm font-medium rounded-md border border-black/10 dark:border-white/10 text-text-main hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 shrink-0"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+        {trialKeySaved && <Badge variant="success" size="sm">Key saved</Badge>}
+        <p className="text-xs text-text-muted">
+          Leave empty to use the shared trial key hardcoded in the registry. Requests use this key when set.
+        </p>
+      </div>
+      )}
 
       {/* Segmented Mode Selector */}
       <div className="flex flex-col gap-2 mb-5">

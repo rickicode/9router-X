@@ -73,13 +73,5 @@ export const FILTERS = {
         name: m.name || m.id,
         contextLength: m.context_length || 131072,
       })),
-
-  "vlmrun-free": (models) =>
-    (Array.isArray(models) ? models : [])
-      .filter((m) => Boolean(m.id))
-      .map((m) => ({
-        id: m.id,
-        name: m.name || m.id,
-        contextLength: m.context_length || 262144,
-      })),
 };
+

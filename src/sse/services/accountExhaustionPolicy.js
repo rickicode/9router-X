@@ -43,7 +43,6 @@ export const NEVER_ACCOUNT_EXHAUSTED_PROVIDERS = new Set([
   "kiro",
   "kilocode-free",
   "ovhcloud-free",
-  "vlmrun-free",
   "llmtech-free",
   "llm7-free",
 
