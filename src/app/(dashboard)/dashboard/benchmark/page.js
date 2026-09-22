@@ -1503,11 +1503,9 @@ export default function BenchmarkPage() {
                     </Button>
                   </div>
                 </div>
- </div>
- </div>
 
- {/* Modal Accordion Body */}
- <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 bg-surface">
+                {/* Modal Accordion Body */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface">
  {pickerCatalog.map((provider) => {
  const totalInProv = provider.models.length;
  const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
