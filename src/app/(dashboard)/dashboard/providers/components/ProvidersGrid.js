@@ -136,7 +136,7 @@ function VirtualCardGrid({ items, renderCard, overscan = 2 }) {
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: ESTIMATE_ROW_HEIGHT,
+    estimateSize: () => ESTIMATE_ROW_HEIGHT,
     overscan,
     scrollMargin,
     gap: ROW_GAP,
