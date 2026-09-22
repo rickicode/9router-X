@@ -30,125 +30,83 @@
    9Router palette — adopted from 9remote_private/web
    Brand cyan, cool slate bases
    ============================================================ */
-:root {
-  /* Brand scale (light) - cyan */
+::root, :root {
+  /* Force dark mode only - remove light mode */
+  /* Brand scale (cyan) - now primary throughout */
   --color-brand-50: #ECFEFF;
   --color-brand-100: #CFFAFE;
   --color-brand-200: #A5F3FC;
   --color-brand-300: #67E8F9;
   --color-brand-400: #22D3EE;
-  --color-brand-500: #0891B2;
-  --color-brand-600: #0E7490;
-  --color-brand-700: #155E75;
-  --color-brand-800: #164E63;
-  --color-brand-900: #083344;
+  --color-brand-500: #06B6D4;
+  --color-brand-600: #0891B2;
+  --color-brand-700: #0E7490;
+  --color-brand-800: #155E75;
+  --color-brand-900: #164E63;
 
-  /* Brand text accessible contrast */
-  --color-brand-text: var(--color-brand-700);
-
-  /* Primary (legacy alias for backward compat with existing components) */
-  --color-primary: var(--color-brand-500);
-  --color-primary-hover: var(--color-brand-600);
-
-  /* Surfaces & backgrounds (light) */
-  --color-bg: #F4F7F8;
-  --color-bg-alt: #E7EEEF;
-  --color-surface: #FFFFFF;
-  --color-surface-2: #F8FBFC;
-  --color-surface-3: #E6EEEF;
-  --color-sidebar: #E7EEEF;
-
-  /* Borders */
-  --color-border: #D5DEE2;
-  --color-border-subtle: #E2E8EC;
-
-  /* Data tables (grid lines, zebra rows, header) */
-  --color-grid-line: #D5DEE2;
-  --color-table-head: #E7EEEF;
-  --color-table-row: #FFFFFF;
-  --color-table-row-alt: #F4F7F8;
-  --color-table-row-hover: #E0F7FA;
-
-  /* Text */
-  --color-text: #0a0a0a;
-  --color-text-main: #0a0a0a;
-  --color-text-muted: #6B7280;
-  --color-text-subtle: #9CA3AF;
-
-  /* Status */
-  --color-danger: #cf222e;
-  --color-error: var(--color-danger); /* alias: error == danger */
-  --color-success: #0F766E;
-  --color-warning: #B45309;
-  --color-info: #0891B2;
-
-  /* Radius */
-  --radius-brand: 2px;
-  --radius-brand-lg: 2px;
-
-  /* Shadows */
-  --shadow-soft: 0 1px 2px 0 rgba(15, 23, 42, 0.06);
-  --shadow-warm: none;
-  --shadow-elevated: 0 8px 24px -8px rgba(15, 23, 42, 0.16);
-  --shadow-elev: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-focus: 0 0 0 3px rgba(8, 145, 178, 0.28);
-
-  color-scheme: light;
-}
-
-.dark {
-  /* Brand text accessible contrast */
+  /* Brand text - cyan accent */
   --color-brand-text: var(--color-brand-400);
 
-  --color-bg: #0B1220;
-  --color-bg-alt: #0E1728;
-  --color-surface: #121A2B;
-  --color-surface-2: #182235;
-  --color-surface-3: #223049;
-  --color-sidebar: #0E1728;
+  /* Primary - vibrant cyan */
+  --color-primary: #06B6D4;
+  --color-primary-hover: #0891B2;
 
-  --color-border: #243044;
-  --color-border-subtle: #1C2940;
+  /* Black backgrounds */
+  --color-bg: #000000;
+  --color-bg-alt: #0A0A0A;
+  --color-surface: #121212;
+  --color-surface-2: #1A1A1A;
+  --color-surface-3: #242424;
+  --color-sidebar: #0A0A0A;
 
-  /* Data tables (grid lines, zebra rows, header) */
-  --color-grid-line: #243044;
-  --color-table-head: #0E1728;
-  --color-table-row: #121A2B;
-  --color-table-row-alt: #162033;
-  --color-table-row-hover: #12323A;
+  /* Borders - subtle on black */
+  --color-border: #2A2A2A;
+  --color-border-subtle: #1F1F1F;
 
-  --color-text: #E6EDF3;
-  --color-text-main: #E6EDF3;
-  --color-text-muted: #93A4B8;
-  --color-text-subtle: #6D8096;
+  /* Data tables */
+  --color-grid-line: #2A2A2A;
+  --color-table-head: #0A0A0A;
+  --color-table-row: #121212;
+  --color-table-row-alt: #161616;
+  --color-table-row-hover: #1A1A1A;
 
-  --color-danger: #F87171;
-  --color-error: var(--color-danger); /* alias: error == danger */
-  --color-success: #34D399;
-  --color-warning: #FBBF24;
-  --color-info: #22D3EE;
+  /* Text - high contrast on black */
+  --color-text: #FFFFFF;
+  --color-text-main: #FFFFFF;
+  --color-text-muted: #A0A0A0;
+  --color-text-subtle: #707070;
 
-  --shadow-soft: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-warm: none;
-  --shadow-elevated: 0 12px 28px -8px rgba(0, 0, 0, 0.55);
-  --shadow-elev: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-focus: 0 0 0 3px rgba(34, 211, 238, 0.28);
+  /* Status colors - vibrant on black */
+  --color-danger: #FF5555;
+  --color-error: var(--color-danger);
+  --color-success: #50FA7B;
+  --color-warning: #FFB86C;
+  --color-info: #06B6D4;
+
+  /* Radius */
+  --radius-brand: 4px;
+  --radius-brand-lg: 6px;
+
+  /* Shadows - deeper for black background */
+  --shadow-soft: 0 2px 8px 0 rgba(0, 0, 0, 0.6);
+  --shadow-warm: 0 4px 12px rgba(6, 182, 212, 0.15);
+  --shadow-elevated: 0 12px 32px -8px rgba(0, 0, 0, 0.8);
+  --shadow-elev: 0 2px 4px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 3px rgba(6, 182, 212, 0.4);
 
   color-scheme: dark;
 }
 
 /* ============================================================
-   Fix native select dropdowns in dark mode
+   Native select dropdowns - dark mode only
    ============================================================ */
 select {
-  color-scheme: light;
-}
-
-.dark select {
   color-scheme: dark;
+  background-color: var(--color-surface);
+  color: var(--color-text-main);
 }
 
-.dark select option {
+select option {
   background-color: var(--color-surface);
   color: var(--color-text-main);
 }
@@ -196,30 +154,22 @@ select {
   --color-warning: var(--color-warning);
   --color-info: var(--color-info);
 
-  /* Static fallbacks (explicit per-mode usage if needed) */
-  --color-bg-light: #F4F7F8;
-  --color-bg-dark: #0B1220;
-  --color-surface-light: #FFFFFF;
-  --color-surface-dark: #121A2B;
-  --color-sidebar-light: #E7EEEF;
-  --color-sidebar-dark: #0E1728;
-  --color-border-light: #D5DEE2;
-  --color-border-dark: #243044;
-  --color-text-main-light: #0F172A;
-  --color-text-main-dark: #E6EDF3;
-  --color-text-muted-light: #64748B;
-  --color-text-muted-dark: #93A4B8;
+  /* Static fallbacks - dark only */
+  --color-bg-dark: #000000;
+  --color-surface-dark: #121212;
+  --color-sidebar-dark: #0A0A0A;
+  --color-border-dark: #2A2A2A;
+  --color-text-main-dark: #FFFFFF;
+  --color-text-muted-dark: #A0A0A0;
 
-  /* Radius */
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 2px;
-  --radius-2xl: 2px;
+  /* Radius - slightly rounded */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
   --radius-brand: var(--radius-brand);
   --radius-brand-lg: var(--radius-brand-lg);
-
-  /* Shadows */
   --shadow-soft: var(--shadow-soft);
   --shadow-warm: var(--shadow-warm);
   --shadow-elevated: var(--shadow-elevated);
@@ -239,14 +189,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Selection - brand-tinted */
+/* Selection - cyan accent */
 ::selection {
-  background-color: rgba(8, 145, 178, 0.25);
-  color: var(--color-primary);
-}
-.dark ::selection {
-  background-color: rgba(8, 145, 178, 0.3);
-  color: var(--color-brand-300);
+  background-color: rgba(6, 182, 212, 0.3);
+  color: #67E8F9;
 }
 
 /* iOS keyboard accent */
@@ -274,26 +220,17 @@ input, textarea {
   scrollbar-width: thin;
   scrollbar-color: rgba(8, 145, 178, 0.55) transparent;
 }
-.dark .scroll-thin-x {
-  scrollbar-color: rgba(8, 145, 178, 0.55) transparent;
-}
 .scroll-thin-x::-webkit-scrollbar { height: 3px; }
 .scroll-thin-x::-webkit-scrollbar-track { background: transparent; }
 .scroll-thin-x::-webkit-scrollbar-thumb {
   background: rgba(8, 145, 178, 0.55);
   border-radius: 3px;
 }
-.dark .scroll-thin-x::-webkit-scrollbar-thumb {
-  background: rgba(8, 145, 178, 0.55);
-}
 
 /* Global thin mac-like scrollbars (overrides clunky Windows/Linux default) */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 120, 120, 0.35) transparent;
-}
-.dark * {
-  scrollbar-color: rgba(180, 180, 180, 0.3) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
@@ -310,12 +247,6 @@ input, textarea {
 }
 *::-webkit-scrollbar-thumb:hover {
   background-color: rgba(120, 120, 120, 0.55);
-}
-.dark *::-webkit-scrollbar-thumb {
-  background-color: rgba(180, 180, 180, 0.3);
-}
-.dark *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(180, 180, 180, 0.5);
 }
 
 /* Tab / segmented-control fade mask for scrollable tab strips on mobile.
@@ -334,9 +265,6 @@ input, textarea {
   -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--tab-fade-width)), transparent);
   mask-size: 100% 100%;
   -webkit-mask-size: 100% 100%;
-}
-.dark .tab-scroll-fade {
-  --tab-fade-color: var(--color-bg);
 }
 
 /* ============================================================
@@ -566,13 +494,8 @@ button:disabled,
 .dot-grid-bg {
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(8, 145, 178, 0.10) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(8, 145, 178, 0.06) 0%, transparent 40%);
-}
-.dark .dot-grid-bg {
-  background-image:
-    radial-gradient(circle at 15% 20%, rgba(8, 145, 178, 0.18) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(8, 145, 178, 0.10) 0%, transparent 40%);
+    radial-gradient(circle at 15% 20%, rgba(6, 182, 212, 0.18) 0%, transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.10) 0%, transparent 40%);
 }
 
 /* Landing-style faint grid overlay (use absolute pos inside relative parent) */
@@ -581,9 +504,6 @@ button:disabled,
     linear-gradient(to right, var(--color-accent) 1px, transparent 1px),
     linear-gradient(to bottom, var(--color-accent) 1px, transparent 1px);
   background-size: 40px 40px;
-  opacity: 0.08;
-}
-.dark .landing-grid {
   opacity: 0.04;
 }
 
