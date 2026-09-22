@@ -12,6 +12,15 @@ import Button from "./Button";
 import { ConfirmModal } from "./Modal";
 import NineRemotePromoModal from "./NineRemotePromoModal";
 
+// Module-level fetch cache: sidebar re-mounts on navigation; these promises
+// persist for the SPA session so /api/settings + /api/version fire once.
+let settingsPromise = null;
+let versionPromise = null;
+const fetchSettingsOnce = () =>
+  (settingsPromise ||= fetch("/api/settings").then((res) => res.json()).catch((e) => { settingsPromise = null; throw e; }));
+const fetchVersionOnce = () =>
+  (versionPromise ||= fetch("/api/version").then((res) => res.json()).catch((e) => { versionPromise = null; throw e; }));
+
 // const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
 // Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web

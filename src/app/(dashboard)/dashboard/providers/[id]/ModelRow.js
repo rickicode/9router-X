@@ -36,6 +36,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
  <button
  onClick={onTest}
  disabled={isTesting}
+ aria-label={isTesting ? `Testing model ${displayModel}` : `Test model ${displayModel}`}
  className={`rounded-sm size-8 text-text-muted transition-opacity hover:bg-surface-2 hover:text-primary ${isTesting ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"}`}
  >
  <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
@@ -48,10 +49,11 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
  </div>
  )}
  <div className="relative shrink-0 group/btn">
- <button
- onClick={() => onCopy(displayModel, `model-${model.id}`)}
- className="rounded-sm size-8 text-text-muted hover:bg-surface-2 hover:text-primary"
- >
+          <button
+            onClick={() => onCopy(displayModel, `model-${model.id}`)}
+            aria-label={`Copy model id ${displayModel}`}
+            className="rounded-sm size-8 text-text-muted hover:bg-surface-2 hover:text-primary"
+          >
  <span className="material-symbols-outlined text-sm">
  {copied === `model-${model.id}` ? "check" : "content_copy"}
  </span>
@@ -63,6 +65,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
  {isCustom ? (
  <button
  onClick={onDeleteAlias}
+ aria-label={`Remove custom model ${model.id}`}
  className="ml-auto rounded-sm size-8 text-text-muted opacity-100 transition-opacity hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
  title="Remove custom model"
  >
@@ -71,6 +74,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
  ) : onDisable ? (
  <button
  onClick={onDisable}
+ aria-label={`Disable model ${model.id}`}
  className="ml-auto rounded-sm size-8 text-text-muted opacity-100 transition-opacity hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
  title="Disable this model"
  >

@@ -33,6 +33,7 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  <div className="relative group/btn">
  <button
  onClick={() => onCopy(fullModel, `model-${modelId}`)}
+ aria-label={`Copy model id ${modelId}`}
  className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
  >
  <span className="material-symbols-outlined text-sm">
@@ -48,6 +49,7 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  <button
  onClick={onTest}
  disabled={isTesting}
+ aria-label={isTesting ? `Testing model ${modelId}` : `Test model ${modelId}`}
  className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
  >
  <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
@@ -63,6 +65,7 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  </div>
  <button
  onClick={onDeleteAlias}
+ aria-label={`Remove model ${modelId}`}
  className="size-8 hover:bg-danger/10 rounded-sm text-danger"
  title="Remove model"
  >

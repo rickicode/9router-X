@@ -2,9 +2,57 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const zlib = require("zlib");
 const { pathToFileURL } = require("url");
 
 const origCreate = http.createServer.bind(http);
+
+// Streaming gzip for compressible text responses (HTML/JS/CSS/JSON/SVG).
+// Skips SSE (event-stream), already-encoded bodies, HEAD, 204/304, and
+// non-text payloads. Data flows chunk-by-chunk (no full-body buffering).
+const COMPRESSIBLE_RE = /^(text\/|application\/(?:json|javascript|x-javascript|xml|svg\+xml))/;
+
+function wrapCompression(req, res) {
+  if (req.method === "HEAD") return;
+  const accept = String(req.headers["accept-encoding"] || "");
+  if (!/\bgzip\b/i.test(accept)) return;
+  if (res.getHeader("content-encoding")) return;
+
+  const origWriteHead = res.writeHead.bind(res);
+  res.writeHead = (status, ...rest) => {
+    const headers = rest[0] && typeof rest[0] === "object" && !Array.isArray(rest[0]) ? rest[0] : {};
+    const contentType = headers["content-type"] || headers["Content-Type"] || res.getHeader("content-type") || "";
+    const alreadyEncoded = headers["content-encoding"] || headers["Content-Encoding"] || res.getHeader("content-encoding");
+    const isCompressible =
+      !alreadyEncoded &&
+      COMPRESSIBLE_RE.test(String(contentType)) &&
+      !/text\/event-stream/i.test(String(contentType));
+    if (isCompressible && status !== 204 && status !== 304) {
+      delete headers["content-length"];
+      res.removeHeader("content-length");
+      const origWrite = res.write.bind(res);
+      const origEnd = res.end.bind(res);
+      const gzip = zlib.createGzip({ level: 6 });
+      gzip.on("data", (chunk) => origWrite(chunk));
+      gzip.on("end", () => origEnd());
+      gzip.on("error", () => { /* best-effort: abort compressed stream */ });
+      res.write = (chunk, enc, cb) => {
+        if (chunk) gzip.write(chunk, enc, cb);
+        return res;
+      };
+      res.end = (chunk, enc, cb) => {
+        if (chunk) gzip.write(chunk, enc, () => gzip.end());
+        else gzip.end();
+        if (cb) res.once("finish", cb);
+        return res;
+      };
+      res.writeHead = origWriteHead;
+      return origWriteHead(status, rest[0] ? { ...headers, "content-encoding": "gzip" } : undefined, ...rest.slice(1));
+    }
+    res.writeHead = origWriteHead;
+    return origWriteHead(status, ...rest);
+  };
+}
 
 // Per-process secret proving x-9r-real-ip was stamped below rather than sent by the client.
 // A bare `next start` / `next dev` never loads this file, so it cannot produce a matching
@@ -96,6 +144,7 @@ http.createServer = (...args) => {
     req.headers["x-9r-real-ip"] = ip;
     req.headers["x-9r-peer-token"] = PEER_TOKEN;
     if (viaProxy) req.headers["x-9r-via-proxy"] = "1";
+    wrapCompression(req, res);
     return handler(req, res);
   };
   const server = origCreate(...rest, wrapped);

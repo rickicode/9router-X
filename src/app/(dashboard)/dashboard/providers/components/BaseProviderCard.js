@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { Card, Badge, Toggle } from "@/shared/components";
@@ -188,3 +189,10 @@ ApiKeyProviderCard.propTypes = {
 };
 
 export { BaseProviderCard, ProviderCard, ApiKeyProviderCard };
+export default ProviderCard;
+
+// Memoized wrappers: card grids re-render on filter changes; memo keeps
+// unchanged cards stable so only the filtered subset re-renders.
+export const MemoProviderCard = memo(ProviderCard);
+export const MemoApiKeyProviderCard = memo(ApiKeyProviderCard);
+export const MemoBaseProviderCard = memo(BaseProviderCard);
