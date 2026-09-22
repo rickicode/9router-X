@@ -134,11 +134,11 @@ import p134 from "./vlmrun.js";
 import p135 from "./llmtech-free.js";
 import p136 from "./llmtech.js";
 import p137 from "./llm7-free.js";
+import p138 from "./atria-asi.js";
 export default [
   p0,
   p1,
   p2,
-  p3,
   p4,
   p5,
   p6,
@@ -270,4 +270,5 @@ export default [
   p135,
   p136,
   p137,
+  p138,
 ];
