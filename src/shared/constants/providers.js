@@ -1,5 +1,5 @@
 // Provider definitions
-import REGISTRY from "open-sse/providers/registry/index.js";
+import { REGISTRY_UI } from "open-sse/providers/registry/ui.js";
 import { RISK_NOTICE } from "@/shared/constants/providersDisplay";
 
 const MEDIA_ENTRY_KEYS = [
@@ -39,7 +39,7 @@ function buildProviderEntry(r) {
 }
 
 const byCategory = (cat) => Object.fromEntries(
-  REGISTRY.filter(r => r.category === cat).map(r => [r.id, buildProviderEntry(r)])
+  REGISTRY_UI.filter(r => r.category === cat).map(r => [r.id, buildProviderEntry(r)])
 );
 
 export const FREE_PROVIDERS = byCategory("free");
@@ -157,10 +157,10 @@ export function getProvidersByKind(kind) {
 }
 
 // Derive từ registry features flags
-export const USAGE_SUPPORTED_PROVIDERS = REGISTRY
+export const USAGE_SUPPORTED_PROVIDERS = REGISTRY_UI
   .filter(r => r.features?.usage)
   .map(r => r.id);
 
-export const USAGE_APIKEY_PROVIDERS = REGISTRY
+export const USAGE_APIKEY_PROVIDERS = REGISTRY_UI
   .filter(r => r.features?.usageApikey)
   .map(r => r.id);
