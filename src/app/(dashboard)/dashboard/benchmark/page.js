@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, Combobox, Input } from "@/shared/components";
+import BenchmarkResults from "./components/BenchmarkResults";
+import BenchmarkLogs from "./components/BenchmarkLogs";
+import BenchmarkInspector from "./components/BenchmarkInspector";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 
@@ -11,14 +14,6 @@ const SUITES = [
   { id: "logic", label: "Logic Deduction", subtitle: "Teka-teki deduksi 4 profesi & mobil", icon: "psychology" },
   { id: "tool", label: "Tool Calling", subtitle: "Native function calling (Panggilan cuaca Jakarta)", icon: "build" },
 ];
-
-const STATUS_CONFIG = {
-  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30" },
-  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/30" },
-  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30" },
-  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/30" },
-  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/30" },
-};
 
 const REVIEWER_PRESETS = [
   { id: "judge-router", label: "judge-router" },
@@ -103,23 +98,11 @@ export default function BenchmarkPage() {
     return list;
   }, [catalog]);
 
-  // State: Table filters & sorting
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchTableQuery, setSearchTableQuery] = useState("");
-  const [sortField, setSortField] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState("asc");
-
   // State: Detailed Inspector modal
   const [inspectAttempt, setInspectAttempt] = useState(null);
 
   // State: Live Logs modal (request + AI response saat benchmark berjalan)
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [logSearch, setLogSearch] = useState("");
-  const [logSuiteFilter, setLogSuiteFilter] = useState("all");
-  const [logAutoScroll, setLogAutoScroll] = useState(true);
-  const [logExpandedId, setLogExpandedId] = useState(null);
-  const logScrollRef = useRef(null);
-
   const [jobs, setJobs] = useState([]);
   const [daily, setDaily] = useState([]);
   const [selectedHistoryJobs, setSelectedHistoryJobs] = useState([]);
@@ -225,7 +208,7 @@ export default function BenchmarkPage() {
   // Polling with fast tick (1s) when active job is running
   useEffect(() => {
     refresh();
-    const intervalMs = isAnyJobRunning ? 1000 : 4000;
+    const intervalMs = isAnyJobRunning ? 3000 : 8000;
     const timer = setInterval(() => {
       refresh();
     }, intervalMs);
@@ -456,98 +439,6 @@ export default function BenchmarkPage() {
       { passed: 0, failed: 0, rate_limited: 0, skipped: 0, cancelled: 0 }
     );
   }, [rawAttempts]);
-
-  // Filter and sort attempts for table
-  const displayedAttempts = useMemo(() => {
-    return rawAttempts
-      .filter((row) => {
-        if (statusFilter !== "all" && row.status !== statusFilter) return false;
-        if (searchTableQuery) {
-          const q = searchTableQuery.toLowerCase();
-          return (
-            row.model?.toLowerCase().includes(q) ||
-            row.account_name?.toLowerCase().includes(q) ||
-            row.provider?.toLowerCase().includes(q) ||
-            row.suite?.toLowerCase().includes(q) ||
-            String(row.http_status || "").includes(q) ||
-            String(row.error || "").toLowerCase().includes(q)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        let valA = a[sortField];
-        let valB = b[sortField];
-        if (sortField === "score") {
-          valA = a.score ?? -1;
-          valB = b.score ?? -1;
-        } else if (sortField === "ttft") {
-          valA = a.ttft_ms ?? 999999;
-          valB = b.ttft_ms ?? 999999;
-        } else if (sortField === "total") {
-          valA = a.total_ms ?? 999999;
-          valB = b.total_ms ?? 999999;
-        } else if (sortField === "tps") {
-          valA = a.tps ?? 0;
-          valB = b.tps ?? 0;
-        } else if (sortField === "status") {
-          valA = a.http_status ?? 0;
-          valB = b.http_status ?? 0;
-        }
-        if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-        if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-        return 0;
-      });
-  }, [rawAttempts, statusFilter, searchTableQuery, sortField, sortOrder]);
-
-  function handleSort(field) {
-    if (sortField === field) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortOrder(field === "score" || field === "tps" ? "desc" : "asc");
-    }
-  }
-
-  // Live log tail: semua request + respons AI, kronologis (lama → baru)
-  const logEntries = useMemo(() => {
-    const q = logSearch.toLowerCase().trim();
-    return [...rawAttempts]
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-      .filter((row) => {
-        if (logSuiteFilter !== "all" && row.suite !== logSuiteFilter) return false;
-        if (!q) return true;
-        return (
-          row.model?.toLowerCase().includes(q) ||
-          row.account_name?.toLowerCase().includes(q) ||
-          row.provider?.toLowerCase().includes(q) ||
-          (row.request_body || "").toLowerCase().includes(q) ||
-          (row.response_body || row.excerpt || "").toLowerCase().includes(q) ||
-          (row.error || "").toLowerCase().includes(q)
-        );
-      });
-  }, [rawAttempts, logSearch, logSuiteFilter]);
-
-  // Pretty-print JSON request body (outside render loop)
-  function prettyJSON(str) {
-    try { return JSON.stringify(JSON.parse(str || "null"), null, 2); }
-    catch { return str || "-"; }
-  }
-
-  // Auto-scroll tail ke bawah saat attempt baru masuk
-  useEffect(() => {
-    if (isLogModalOpen && logAutoScroll && logScrollRef.current) {
-      logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
-    }
-  }, [logEntries.length, isLogModalOpen, logAutoScroll]);
-
-  // ESC key close log modal
-  useEffect(() => {
-    if (!isLogModalOpen) return;
-    const handler = (e) => { if (e.key === "Escape") setIsLogModalOpen(false); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isLogModalOpen]);
 
   const report = active?.reports?.[0];
   const isJobRunning = isAnyJobRunning;
@@ -999,251 +890,11 @@ export default function BenchmarkPage() {
       ) : null}
 
       {/* ─── 3. Live Test Results Table with Inline Statuscode, Response & Inspector ─── */}
-      <Card
-        title="3. Hasil Pengujian Terkini"
-        subtitle="Menampilkan HTTP statuscode & respon per percobaan. Klik baris mana saja untuk melihat detail lengkap."
-        icon="table_chart"
-        action={
-          <div className="text-xs text-text-muted">
-            {displayedAttempts.length} dari {rawAttempts.length} data ditampilkan
-          </div>
-        }
-      >
-        <div className="space-y-3">
-          {/* Filter & Search Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-subtle">
-            <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-              <span className="text-text-muted mr-1 font-medium">Filter:</span>
-              {[
-                { id: "all", label: "Semua" },
-                { id: "passed", label: "Lolos" },
-                { id: "failed", label: "Gagal" },
-                { id: "rate_limited", label: "429 Rate Limit" },
-                { id: "skipped", label: "Dilewati" },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setStatusFilter(f.id)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                    statusFilter === f.id
-                      ? "bg-brand-500 text-white shadow-xs"
-                      : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="w-48">
-              <input
-                type="text"
-                placeholder="Cari di tabel..."
-                value={searchTableQuery}
-                onChange={(e) => setSearchTableQuery(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
-              />
-            </div>
-          </div>
-
-          {/* Data Table */}
-          <div className="overflow-x-auto max-h-[560px]">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-surface z-10 text-xs text-text-muted border-b border-border-subtle select-none">
-                <tr>
-                  <th className="py-2.5 px-3">Akun</th>
-                  <th
-                    className="py-2.5 px-3 cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("model")}
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Model</span>
-                      {sortField === "model" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th className="py-2.5 px-2">Suite</th>
-                  <th
-                    className="py-2.5 px-2 cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("status")}
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Status / Code</span>
-                      {sortField === "status" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th className="py-2.5 px-3 max-w-[220px]">Pesan Respon / Error</th>
-                  <th
-                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("score")}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Kualitas</span>
-                      {sortField === "score" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th
-                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("ttft")}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      <span>TTFT</span>
-                      {sortField === "ttft" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th
-                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("total")}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Total</span>
-                      {sortField === "total" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th
-                    className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
-                    onClick={() => handleSort("tps")}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      <span>tok/s</span>
-                      {sortField === "tps" ? (
-                        <span className="material-symbols-outlined text-xs">
-                          {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </th>
-                  <th className="py-2.5 px-2 text-center">Format</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-subtle text-xs">
-                {displayedAttempts.map((row) => {
-                  const cfg = STATUS_CONFIG[row.status] || {
-                    label: row.status,
-                    color: "bg-surface-3 text-text-muted",
-                  };
-                  const isFailedOrLimited = row.status === "failed" || row.status === "rate_limited";
-                  const displayMessage = row.error || row.excerpt || row.response_body || "-";
-
-                  return (
-                    <tr
-                      key={`${row.id || row.account_name}-${row.model}-${row.suite}-${row.status}-${row.rep}`}
-                      onClick={() => setInspectAttempt(row)}
-                      className="hover:bg-surface-2 transition-colors cursor-pointer group"
-                    >
-                      <td className="py-2 px-3 font-mono text-[11px] max-w-[100px] truncate" title={row.account_name}>
-                        {row.account_name || "-"}
-                      </td>
-                      <td className="py-2 px-3 font-medium max-w-[140px] truncate" title={row.model}>
-                        {row.model}
-                      </td>
-                      <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
-                        {row.suite}
-                      </td>
-                      <td className="py-2 px-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
-                            {cfg.label}
-                          </span>
-                          {row.http_status ? (
-                            <span
-                              className={`font-mono text-[10px] font-bold ${
-                                row.http_status === 200
-                                  ? "text-emerald-500 dark:text-emerald-400"
-                                  : row.http_status === 429
-                                  ? "text-amber-500 dark:text-amber-400"
-                                  : "text-rose-500 dark:text-rose-400"
-                              }`}
-                            >
-                              {row.http_status}
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td
-                        className={`py-2 px-3 max-w-[240px] truncate font-mono text-[11px] ${
-                          isFailedOrLimited ? "text-rose-500 dark:text-rose-400 font-medium" : "text-text-muted"
-                        }`}
-                        title={displayMessage}
-                      >
-                        {displayMessage}
-                      </td>
-                      <td className="py-2 px-2 text-right font-semibold">
-                        {row.score !== null && row.score !== undefined ? (
-                          <span
-                            className={
-                              row.score >= 80
-                                ? "text-emerald-500 dark:text-emerald-400"
-                                : row.score >= 50
-                                ? "text-amber-500 dark:text-amber-400"
-                                : "text-rose-500 dark:text-rose-400"
-                            }
-                          >
-                            {row.score}
-                          </span>
-                        ) : (
-                          <span className="text-text-muted">-</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono text-text-muted">
-                        {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono text-text-muted">
-                        {row.total_ms ? `${row.total_ms}ms` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono font-medium">
-                        {row.tps ? `${row.tps}` : "-"}
-                      </td>
-                      <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
-                        {row.format || "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {displayedAttempts.length === 0 ? (
-                  <tr>
-                    <td colSpan="10" className="py-12 text-center text-text-muted">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-3xl opacity-40">
-                          {isJobRunning ? "hourglass_top" : "science"}
-                        </span>
-                        <span>
-                          {isJobRunning
-                            ? "Menjalankan benchmark... data percobaan akan muncul secara langsung."
-                            : rawAttempts.length > 0
-                            ? "Tidak ada baris yang sesuai dengan filter atau pencarian."
-                            : "Belum ada data hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Card>
+      <BenchmarkResults
+        attempts={rawAttempts}
+        isJobRunning={isJobRunning}
+        onInspect={setInspectAttempt}
+      />
 
       {/* ─── Bottom Section 1: Daily Median Summary ─── */}
       <Card
@@ -1673,137 +1324,7 @@ export default function BenchmarkPage() {
       ) : null}
 
       {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
-      {inspectAttempt ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={() => setInspectAttempt(null)}
-        >
-          <div
-            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
-              <div>
-                <div className="flex items-center gap-2.5 font-bold text-text-main text-base">
-                  <span>{inspectAttempt.model}</span>
-                  <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
-                    {inspectAttempt.status?.toUpperCase()}
-                  </Badge>
-                  {inspectAttempt.http_status ? (
-                    <span
-                      className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                        inspectAttempt.http_status === 200
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
-                          : inspectAttempt.http_status === 429
-                          ? "border-amber-500/30 bg-amber-500/10 text-amber-500 dark:text-amber-400"
-                          : "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400"
-                      }`}
-                    >
-                      HTTP {inspectAttempt.http_status}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-xs text-text-muted mt-1">
-                  Suite: <span className="font-semibold uppercase">{inspectAttempt.suite}</span> (Rep {inspectAttempt.rep || 1}) · Akun:{" "}
-                  <span className="font-mono">{inspectAttempt.account_name || inspectAttempt.connection_id || "-"}</span>
-                  {inspectAttempt.format ? ` · Format: ${inspectAttempt.format.toUpperCase()}` : ""}
-                </div>
-              </div>
-              <button
-                onClick={() => setInspectAttempt(null)}
-                className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
-              >
-                <span className="material-symbols-outlined text-xl leading-none">close</span>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs font-mono bg-white dark:bg-[#202020]">
-              {/* Telemetry Chips */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
-                  <div className="text-text-muted text-[10px]">Skor Kualitas</div>
-                  <div className="text-sm font-bold text-text-main">{inspectAttempt.score ?? "-"} / 100</div>
-                </div>
-                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
-                  <div className="text-text-muted text-[10px]">TTFT (Byte Pertama)</div>
-                  <div className="text-sm font-bold text-text-main">
-                    {inspectAttempt.ttft_ms ? `${inspectAttempt.ttft_ms}ms` : "-"}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
-                  <div className="text-text-muted text-[10px]">Total Waktu</div>
-                  <div className="text-sm font-bold text-text-main">
-                    {inspectAttempt.total_ms ? `${inspectAttempt.total_ms}ms` : "-"}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border bg-[#faf7f2] dark:bg-[#282828] p-2.5">
-                  <div className="text-text-muted text-[10px]">Throughput (tok/s)</div>
-                  <div className="text-sm font-bold text-text-main">
-                    {inspectAttempt.tps ?? "-"} tok/s
-                  </div>
-                </div>
-              </div>
-
-              {/* Error Box if any */}
-              {inspectAttempt.error ? (
-                <div>
-                  <div className="text-rose-500 dark:text-rose-400 font-bold mb-1 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm">warning</span>
-                    <span>Pesan Error / Upstream Diagnostic:</span>
-                  </div>
-                  <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-all text-[11px]">
-                    {inspectAttempt.error}
-                  </pre>
-                </div>
-              ) : null}
-
-              {/* Request Payload */}
-              <div>
-                <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
-                  <span>Request Payload:</span>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(inspectAttempt.request_body || "")}
-                    className="text-brand-500 hover:underline text-[10px]"
-                  >
-                    Salin Request
-                  </button>
-                </div>
-                <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-48 overflow-y-auto">
-                  {inspectAttempt.request_body || "Tidak ada body request tersimpan."}
-                </pre>
-              </div>
-
-              {/* Response Body */}
-              <div>
-                <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
-                  <span>Upstream Response Body:</span>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(inspectAttempt.response_body || inspectAttempt.excerpt || "")}
-                    className="text-brand-500 hover:underline text-[10px]"
-                  >
-                    Salin Respon
-                  </button>
-                </div>
-                <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-60 overflow-y-auto">
-                  {inspectAttempt.response_body || inspectAttempt.excerpt || "Tidak ada respon body tersimpan."}
-                </pre>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
-              <span className="text-[11px] text-text-muted">
-                Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
-              </span>
-              <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
-                Tutup
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <BenchmarkInspector attempt={inspectAttempt} onClose={() => setInspectAttempt(null)} />
 
       {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
       {isReviewerModalOpen ? (
@@ -1904,178 +1425,15 @@ export default function BenchmarkPage() {
         </div>
       ) : null}
       {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
-      {isLogModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={() => setIsLogModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
-            role="dialog"
-            aria-labelledby="log-modal-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
-              <div>
-                <h3 id="log-modal-title" className="font-bold text-text-main text-base flex items-center gap-2">
-                  <span className="material-symbols-outlined text-brand-500">terminal</span>
-                  <span>Live Logs — Request & Respons AI</span>
-                  {isJobRunning ? (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 text-[10px] font-bold animate-pulse">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      LIVE
-                    </span>
-                  ) : null}
-                </h3>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {logEntries.length} dari {rawAttempts.length} log · {active?.progress?.phase || active?.status || "-"}
-                </p>
-              </div>
-              <button
-                onClick={() => setIsLogModalOpen(false)}
-                className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
-              >
-                <span className="material-symbols-outlined text-xl leading-none">close</span>
-              </button>
-            </div>
-
-            {/* Filter bar: search + suite + auto-scroll */}
-            <div className="px-6 py-3 border-b border-border bg-white dark:bg-[#202020] flex flex-wrap items-center gap-2">
-              <div className="flex-1 min-w-[200px]">
-                <Input
-                  placeholder="Cari model, akun, isi request / respons..."
-                  value={logSearch}
-                  onChange={(e) => setLogSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                {["all", "pong", "coding", "logic", "tool"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setLogSuiteFilter(s)}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-colors uppercase ${
-                      logSuiteFilter === s
-                        ? "bg-brand-500 text-white shadow-xs"
-                        : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
-                    }`}
-                  >
-                    {s === "all" ? "Semua" : s}
-                  </button>
-                ))}
-              </div>
-              <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none ml-auto">
-                <input
-                  type="checkbox"
-                  checked={logAutoScroll}
-                  onChange={(e) => setLogAutoScroll(e.target.checked)}
-                  className="rounded border-border text-brand-500 focus:ring-brand-500"
-                />
-                Auto-scroll
-              </label>
-            </div>
-
-            {/* Log tail body */}
-            <div ref={logScrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-2.5 bg-[#faf7f2] dark:bg-[#1a1a1a] font-mono text-[11px]">
-              {logEntries.map((row) => {
-                const id = row.id || `${row.model}-${row.suite}-${row.rep}-${row.created_at}`;
-                const expanded = logExpandedId === id;
-                const reqText = expanded ? prettyJSON(row.request_body) : "";
-                const respText = row.response_body || row.excerpt || row.error || "-";
-                const statusColor =
-                  row.status === "passed"
-                    ? "border-emerald-500/30 text-emerald-500 dark:text-emerald-400"
-                    : row.status === "rate_limited"
-                    ? "border-amber-500/30 text-amber-500 dark:text-amber-400"
-                    : row.status === "skipped"
-                    ? "border-slate-500/30 text-slate-400"
-                    : "border-rose-500/30 text-rose-500 dark:text-rose-400";
-                return (
-                  <div key={id} className="rounded-xl border border-border bg-white dark:bg-[#242424] overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setLogExpandedId(expanded ? null : id)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-2/60 transition-colors"
-                    >
-                      <span className="text-text-muted text-xs w-16 shrink-0">
-                        {row.created_at ? new Date(row.created_at).toLocaleTimeString() : "-"}
-                      </span>
-                      <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase shrink-0 ${statusColor}`}>
-                        {row.http_status || row.status}
-                      </span>
-                      <span className="font-bold text-text-main truncate flex-1 text-[11px]">{row.model}</span>
-                      <span className="text-text-muted uppercase text-[10px] shrink-0">{row.suite} r{row.rep || 1}</span>
-                      <span className="text-text-muted truncate max-w-[140px] hidden sm:inline">{row.account_name || ""}</span>
-                      <span className="material-symbols-outlined text-sm text-text-muted transition-transform" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>
-                        expand_more
-                      </span>
-                    </button>
-                    <div className="px-3 pb-2 text-text-muted truncate text-[10px]">
-                      <span className="text-emerald-500 dark:text-emerald-400 font-bold">RESP:</span> {(row.response_body || row.excerpt || row.error || "-").slice(0, 160)}
-                    </div>
-                    {expanded ? (
-                      <div className="border-t border-border px-3 py-2 space-y-2">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-text-muted font-bold text-[10px]">REQUEST:</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.request_body || ""); }} className="text-brand-500 hover:underline text-[10px]">
-                              Salin
-                            </button>
-                          </div>
-                          <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-96 overflow-y-auto">{reqText}</pre>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-text-muted font-bold text-[10px]">RESPONSE AI:</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(respText); }} className="text-brand-500 hover:underline text-[10px]">
-                              Salin
-                            </button>
-                          </div>
-                          <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-[32rem] overflow-y-auto">{respText}</pre>
-                        </div>
-                        {row.error ? (
-                          <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-all">{row.error}</pre>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2 text-[10px] text-text-muted">
-                          <span>TTFT: {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}</span>
-                          <span>Total: {row.total_ms ? `${row.total_ms}ms` : "-"}</span>
-                          <span>Tokens: {row.tokens ?? "-"}</span>
-                          <span>Score: {row.score ?? "-"}</span>
-                          <button onClick={(e) => { e.stopPropagation(); setInspectAttempt(row); }} className="text-brand-500 hover:underline">
-                            Buka di Inspector →
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-              {logEntries.length === 0 ? (
-                <div className="py-10 text-center text-text-muted font-sans text-xs">
-                  {isJobRunning ? "Menunggu attempt pertama masuk..." : "Tidak ada log yang cocok dengan filter."}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-[#fbf9f6] dark:bg-[#282828]">
-              <span className="text-[11px] text-text-muted">
-                Auto-refresh tiap {isJobRunning ? "1" : "4"} detik · scroll otomatis: {logAutoScroll ? "aktif" : "mati"}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="ghost" onClick={() => refresh(active?.id)} icon="refresh">
-                  Refresh
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => setIsLogModalOpen(false)}>
-                  Tutup
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <BenchmarkLogs
+        open={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        attempts={rawAttempts}
+        isJobRunning={isJobRunning}
+        active={active}
+        onRefresh={() => refresh(active?.id)}
+        onInspect={setInspectAttempt}
+      />
     </div>
   );
 }
