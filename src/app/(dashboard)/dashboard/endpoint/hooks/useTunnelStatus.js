@@ -66,26 +66,25 @@ export function useTunnelStatus() {
  }
  }, []);
 
- // Trust user intent (settingsEnabled): UI stays "enabled" while watchdog restarts process
- const syncTunnelStatus = useCallback(async () => {
- try {
- const statusRes = await fetch("/api/tunnel/status", { cache: "no-store" });
- if (!statusRes.ok) return;
- const data = await statusRes.json();
- const tEnabled = data.tunnel?.settingsEnabled ?? data.tunnel?.enabled ?? false;
- const tUrl = data.tunnel?.tunnelUrl || "";
- setTunnelUrl(tUrl);
- setTunnelPublicUrl(data.tunnel?.publicUrl || "");
- setTunnelEnabled(tEnabled);
- updateReachable(tunnelClientReachableRef, tunnelMissRef, setTunnelReachable, tunnelEverReachableRef, setTunnelEverReachable);
+  const syncTunnelStatus = useCallback(async () => {
+    try {
+      const statusRes = await fetch("/api/tunnel/status", { cache: "no-store" });
+      if (!statusRes.ok) return;
+      const data = await statusRes.json();
+      const tEnabled = Boolean(data.tunnel?.enabled);
+      const tUrl = data.tunnel?.tunnelUrl || "";
+      setTunnelUrl(tUrl);
+      setTunnelPublicUrl(data.tunnel?.publicUrl || "");
+      setTunnelEnabled(tEnabled);
+      updateReachable(tunnelClientReachableRef, tunnelMissRef, setTunnelReachable, tunnelEverReachableRef, setTunnelEverReachable);
 
- const tsEn = data.tailscale?.settingsEnabled ?? data.tailscale?.enabled ?? false;
- const tsUrlVal = data.tailscale?.tunnelUrl || "";
- setTsUrl(tsUrlVal);
- setTsEnabled(tsEn);
- updateReachable(tsClientReachableRef, tsMissRef, setTsReachable, tsEverReachableRef, setTsEverReachable);
- } catch { /* ignore poll errors */ }
- }, [updateReachable]);
+      const tsEn = Boolean(data.tailscale?.enabled);
+      const tsUrlVal = data.tailscale?.tunnelUrl || "";
+      setTsUrl(tsUrlVal);
+      setTsEnabled(tsEn);
+      updateReachable(tsClientReachableRef, tsMissRef, setTsReachable, tsEverReachableRef, setTsEverReachable);
+    } catch { /* ignore poll errors */ }
+  }, [updateReachable]);
 
  // Initial load on mount
  useEffect(() => {

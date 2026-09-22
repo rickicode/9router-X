@@ -3,6 +3,20 @@ import { getAdapter } from "@/lib/db/driver";
 import { memSize } from "@/lib/cache/memoryStore";
 import { getRoutingMetrics } from "open-sse/services/routingMetrics";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+export async function HEAD() {
+  return new Response(null, { status: 200, headers: CORS_HEADERS });
+}
+
 export async function GET() {
   const check = {
     status: "healthy",
@@ -36,5 +50,5 @@ export async function GET() {
   check.routing = getRoutingMetrics();
 
   const httpStatus = check.postgres ? 200 : 503;
-  return NextResponse.json(check, { status: httpStatus });
+  return NextResponse.json(check, { status: httpStatus, headers: CORS_HEADERS });
 }
