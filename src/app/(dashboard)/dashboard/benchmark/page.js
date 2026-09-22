@@ -1249,7 +1249,8 @@ export default function BenchmarkPage() {
  subtitle="Agregasi nilai tengah hasil pengujian hari ini (00:00 - sekarang)"
  icon="leaderboard"
  >
- <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead className="text-xs text-text-muted border-b border-border">
                 <tr>
                   <th className="px-3 py-2 text-xs font-medium text-text-muted">Model</th>
