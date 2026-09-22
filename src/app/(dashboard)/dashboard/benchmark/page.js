@@ -1643,32 +1643,32 @@ export default function BenchmarkPage() {
  ) : null}
  </div>
  );
- })}
+                })}
 
-            {pickerCatalog.length === 0 ? (
-              <div className="py-8 text-center text-sm text-text-muted">
-                Tidak ada provider atau model yang sesuai dengan kata kunci pencarian.
-              </div>
-            ) : null}
- </div>
-
- {/* Modal Footer with prominent OKE button */}
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
-                  <span className="text-xs text-text-muted">
-                    Terpilih di modal: <span className="font-semibold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
-                      Batal
-                    </Button>
-                    <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="font-medium">
-                      Oke, Terapkan Pilihan
-                    </Button>
+                {pickerCatalog.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-text-muted">
+                    Tidak ada provider atau model yang sesuai dengan kata kunci pencarian.
                   </div>
+                ) : null}
+              </div>
+
+              {/* Modal Footer with prominent OKE button */}
+              <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
+                <span className="text-xs text-text-muted">
+                  Terpilih di modal: <span className="font-semibold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
+                    Batal
+                  </Button>
+                  <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="font-medium">
+                    Oke, Terapkan Pilihan
+                  </Button>
                 </div>
- </div>
- </div>
- ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
  {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
  {inspectAttempt ? (
@@ -1891,24 +1891,23 @@ export default function BenchmarkPage() {
                   <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
                     Tutup
                   </Button>
-                </div>
- </div>
- </div>
- ) : null}
- {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
- {isLogModalOpen ? (
- <div
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
- onClick={() => setIsLogModalOpen(false)}
- >
- <div
- className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
- role="dialog"
- aria-labelledby="log-modal-title"
- tabIndex={-1}
- onClick={(e) => e.stopPropagation()}
- >
-                {/* Modal Header */}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
+          {isLogModalOpen ? (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+              onClick={() => setIsLogModalOpen(false)}
+            >
+              <div
+                className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+                role="dialog"
+                aria-labelledby="log-modal-title"
+                tabIndex={-1}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
                   <div>
                     <h3 id="log-modal-title" className="font-semibold text-text-main text-sm flex items-center gap-2">
@@ -2064,10 +2063,9 @@ export default function BenchmarkPage() {
                       Tutup
                     </Button>
                   </div>
-                </div>
- </div>
- </div>
- ) : null}
- </div>
- );
-}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
