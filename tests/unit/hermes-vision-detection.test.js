@@ -5,6 +5,20 @@ import { stripUnsupportedModalities } from "../../open-sse/translator/concerns/m
 import { FORMATS } from "../../open-sse/translator/formats.js";
 
 describe("Hermes Vision Image Detection", () => {
+  it("appends adapter pool as safety net when members already cover vision", () => {
+    const body = {
+      messages: [{ role: "user", content: "Analyze image", images: ["base64data..."] }],
+    };
+    const reqCaps = detectRequiredCapabilities(body);
+    const settings = {
+      capacityAdapter: { vision: { enabled: true, models: ["ag/gemini-3.1-pro-low"] } },
+    };
+    // ag/gemini-3.8-flash-high satisfies vision, so the adapter pool must land
+    // at the tail (normal order unchanged) — it only catches the all-failed case.
+    const augmented = augmentModelsWithCapacityAdapter(["ag/gemini-3.8-flash-high", "kcf/kilo-auto/free"], reqCaps, settings);
+    expect(augmented).toEqual(["ag/gemini-3.8-flash-high", "kcf/kilo-auto/free", "ag/gemini-3.1-pro-low"]);
+  });
+
   it("detects vision from Ollama / Hermes images array", () => {
     const body = {
       messages: [

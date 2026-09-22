@@ -83,16 +83,13 @@ function modelSatisfies(modelStr, requiredHard) {
   return requiredHard.every((c) => caps[c] === true);
 }
 
-// Prepend capacity-adapter models as priority candidates when NONE of the
-// original models (combo members, or the single target model) can satisfy the
-// request's required capabilities. Adapter models go FIRST (priority); the
-// original models follow as fallback. Leaves `models` untouched when the
-// original list already covers it (combo.js's reorderByCapabilities handles
-// that case via autoSwitch).
+// Priority candidates when NONE of the original models can satisfy the
+// request's required capabilities (adapter first); safety net at the tail
+// when members cover it (they can still all fail/skip) — see body.
 export function augmentModelsWithCapacityAdapter(models, requiredCapabilities, settings, options = {}) {
   const hard = [...(requiredCapabilities || [])].filter((c) => HARD_CAPS.has(c));
   if (hard.length === 0 || !Array.isArray(models) || models.length === 0) return models;
-  if (models.some((m) => modelSatisfies(m, hard))) return models;
+  const covered = models.some((m) => modelSatisfies(m, hard));
 
   // Capacity adapters must stay inside the provider ecosystem selected by the
   // request. A global pool used to prepend Cline/OpenCode candidates to an
@@ -106,7 +103,13 @@ export function augmentModelsWithCapacityAdapter(models, requiredCapabilities, s
     return allowedProviders.has(provider) && !models.includes(m) && modelSatisfies(m, hard);
   });
   if (pool.length === 0) return models;
-  return [...pool, ...models];
+  // Nobody covers the capability → adapter models go first (priority).
+  if (!covered) return [...pool, ...models];
+  // Members cover it, but every one of them can still fail, be skipped, or be
+  // rate-limited — then a non-capable member gets the media-stripped request
+  // and returns empty. Keep the adapter pool at the tail as a safety net: it
+  // never changes the normal try order, it only catches the all-failed case.
+  return [...models, ...pool];
 }
 
 const CHARS_PER_TOKEN = 4; // rough estimate; avoids pulling in a tokenizer dependency

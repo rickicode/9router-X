@@ -548,6 +548,19 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
     return unavailableResponse(status, msg, earliestRetryAfter, retryHuman);
   }
 
+  // Empty-content sweep: every tried model answered 200 with no text. Tell the
+  // client WHY it might be (image request vs vision support) instead of a bare
+  // "empty content" that clients re-retry blindly 3x.
+  if (lastError === "Model returned empty content") {
+    const needed = [...detectRequiredCapabilities(body)];
+    const hint = needed.length > 0
+      ? ` Request needs [${needed.join(",")}]: every tried model either lacks it or returned nothing. Check the Vision Adapter pool and member vision support.`
+      : ` ${rotatedModels.length} model(s) tried.`;
+    const out = `${msg}.${hint}`;
+    log.warn("COMBO", `All models failed | ${out}`);
+    return unavailableResponse(status, out, null, null, { code: "COMBO_UNAVAILABLE" });
+  }
+
   log.warn("COMBO", `All models failed | ${msg}`);
   return unavailableResponse(status, msg, null, null, { code: "COMBO_UNAVAILABLE" });
 }
