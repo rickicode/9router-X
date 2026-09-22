@@ -80,15 +80,12 @@ function ProvidersGrid({
  {/* OAuth Providers */}
  {oauthEntries.length > 0 && (
  <div className="flex flex-col gap-3">
- <SectionHeader
- title="OAuth Providers"
- rightContent={
- <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
- <ModelAvailabilityBadge />
- <TestAllButton mode="oauth" testingMode={testingMode} onBatchTest={onBatchTest} />
- </div>
- }
- />
+      <SectionHeader
+        title="OAuth Providers"
+        rightContent={
+          <TestAllButton mode="oauth" testingMode={testingMode} onBatchTest={onBatchTest} />
+        }
+      />
  <div className={gridCls}>
  {oauthEntries.map(([key, info]) => {
  const authTypes = dualAuthTypes(info, key);

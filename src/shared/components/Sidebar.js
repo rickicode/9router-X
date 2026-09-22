@@ -185,8 +185,7 @@ export default function Sidebar({ onClose }) {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {/* Core Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px] text-primary opacity-60">dashboard</span>
+          <div className="px-3 mb-2">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Core</span>
           </div>
           {coreItems.map((item) => (
@@ -216,8 +215,7 @@ export default function Sidebar({ onClose }) {
 
         {/* Routing & Performance Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px] text-success opacity-60">route</span>
+          <div className="px-3 mb-2">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Routing & Performance</span>
           </div>
           {routingItems.map((item) => (
@@ -247,8 +245,7 @@ export default function Sidebar({ onClose }) {
 
         {/* Monitoring Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px] text-warning opacity-60">monitoring</span>
+          <div className="px-3 mb-2">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Monitoring</span>
           </div>
           {monitoringItems.map((item) => (
@@ -278,8 +275,7 @@ export default function Sidebar({ onClose }) {
 
         {/* Tools Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px] text-info opacity-60">build</span>
+          <div className="px-3 mb-2">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Tools</span>
           </div>
           {toolsItems.map((item) => (
@@ -309,8 +305,7 @@ export default function Sidebar({ onClose }) {
 
         {/* System Section */}
         <div className="pt-2 border-t border-border/50">
-          <div className="px-3 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px] text-text-muted opacity-60">settings</span>
+          <div className="px-3 mb-2">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">System</span>
           </div>
 
