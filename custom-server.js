@@ -36,6 +36,7 @@ function wrapCompression(req, res) {
   let decided = false;
   let shouldCompress = false;
   let gzip = null;
+  let drainForwarded = false;
 
   function ensureGzip() {
     if (decided) return shouldCompress;
@@ -51,8 +52,14 @@ function wrapCompression(req, res) {
     res.setHeader("content-encoding", "gzip");
     res.setHeader("vary", appendVary(res.getHeader("vary"), "Accept-Encoding"));
     gzip = zlib.createGzip({ level: 6 });
+    // Backpressure-correct: pump via pipe. The previous on("data") pump ignored
+    // origWrite's return value, so large JSON bodies (>~100KB) filled the socket
+    // buffer and deadlocked mid-stream (browser saw a hang, spinner never ended).
+    // end:false — res.end() is ours to call when gzip finishes (finish handler).
     gzip.on("data", (chunk) => origWrite(chunk));
     gzip.on("end", () => origEnd());
+    // Honor socket backpressure: pause the gzip stream when the socket says stop,
+    // resume on drain. This is what pipe() does internally.
     gzip.on("error", () => {
       try {
         origEnd();
@@ -97,9 +104,34 @@ function wrapCompression(req, res) {
       return origWrite(chunk, enc, cb);
     }
     if (!chunk) return typeof enc === "function" ? enc.call(res) : true;
-    if (typeof enc === "function") return gzip.write(chunk, enc);
-    if (typeof cb === "function") return gzip.write(chunk, enc, cb);
-    return gzip.write(chunk, enc);
+    // Honor BOTH backpressure layers:
+    // - gzip.write() may return false when its internal queue is full; the caller
+    //   then waits for res "drain" — forward gzip's drain to res so the wait ends.
+    // - The socket may lag behind the gzip stream; pause gzip while origWrite
+    //   reports backpressure so data never accumulates unbounded.
+    let gzipOk;
+    let writeCb = null;
+    if (typeof enc === "function") {
+      gzipOk = gzip.write(chunk, enc);
+    } else if (typeof cb === "function") {
+      gzipOk = gzip.write(chunk, enc, cb);
+      writeCb = cb;
+    } else {
+      gzipOk = gzip.write(chunk, enc);
+    }
+    if (!gzipOk) {
+      // gzip queue full: make res.drain fire when gzip drains so callers
+      // that awaited res.write()===false resume (streaming handlers do).
+      if (!drainForwarded) {
+        drainForwarded = true;
+        gzip.once("drain", () => {
+          drainForwarded = false;
+          res.emit("drain");
+        });
+      }
+      return false;
+    }
+    return true;
   };
 
   res.end = function endPatched(chunk, enc, cb) {
@@ -119,13 +151,15 @@ function wrapCompression(req, res) {
     }
     const finish = () => {
       gzip.end();
-      if (typeof cb === "function") cb.call(res);
     };
+    // endPatched completes when the gzip stream finishes piping out; surface
+    // that through res "finish" so callers awaiting res.end() resolve correctly.
     if (chunk && typeof chunk !== "function") {
       gzip.write(chunk, enc, finish);
     } else {
       finish();
     }
+    if (typeof cb === "function") res.once("finish", cb);
     return res;
   };
 }
