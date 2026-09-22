@@ -8,9 +8,20 @@ const { pathToFileURL } = require("url");
 const origCreate = http.createServer.bind(http);
 
 // Streaming gzip for compressible text responses (HTML/JS/CSS/JSON/SVG).
-// Skips SSE (event-stream), already-encoded bodies, HEAD, 204/304, and
-// non-text payloads. Data flows chunk-by-chunk (no full-body buffering).
+// Skips SSE, already-encoded bodies, HEAD, 204/304, and non-text payloads.
+// gzip must be decided and write/end swapped BEFORE any body byte — otherwise
+// the plain body bypasses the stream and an empty gzip trailer is appended
+// (Invalid or unexpected token / 0x8b mid-JS).
 const COMPRESSIBLE_RE = /^(text\/|application\/(?:json|javascript|x-javascript|xml|svg\+xml))/;
+
+function appendVary(value, token) {
+  const parts = String(value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!parts.some((p) => p.toLowerCase() === token.toLowerCase())) parts.push(token);
+  return parts.join(", ");
+}
 
 function wrapCompression(req, res) {
   if (req.method === "HEAD") return;
@@ -18,39 +29,104 @@ function wrapCompression(req, res) {
   if (!/\bgzip\b/i.test(accept)) return;
   if (res.getHeader("content-encoding")) return;
 
+  const origWrite = res.write.bind(res);
+  const origEnd = res.end.bind(res);
   const origWriteHead = res.writeHead.bind(res);
-  res.writeHead = (status, ...rest) => {
-    const headers = rest[0] && typeof rest[0] === "object" && !Array.isArray(rest[0]) ? rest[0] : {};
-    const contentType = headers["content-type"] || headers["Content-Type"] || res.getHeader("content-type") || "";
-    const alreadyEncoded = headers["content-encoding"] || headers["Content-Encoding"] || res.getHeader("content-encoding");
-    const isCompressible =
+
+  let decided = false;
+  let shouldCompress = false;
+  let gzip = null;
+
+  function ensureGzip() {
+    if (decided) return shouldCompress;
+    decided = true;
+    const contentType = String(res.getHeader("content-type") || "");
+    const alreadyEncoded = res.getHeader("content-encoding");
+    shouldCompress =
       !alreadyEncoded &&
-      COMPRESSIBLE_RE.test(String(contentType)) &&
+      COMPRESSIBLE_RE.test(contentType) &&
       !/text\/event-stream/i.test(String(contentType));
-    if (isCompressible && status !== 204 && status !== 304) {
-      delete headers["content-length"];
-      res.removeHeader("content-length");
-      const origWrite = res.write.bind(res);
-      const origEnd = res.end.bind(res);
-      const gzip = zlib.createGzip({ level: 6 });
-      gzip.on("data", (chunk) => origWrite(chunk));
-      gzip.on("end", () => origEnd());
-      gzip.on("error", () => { /* best-effort: abort compressed stream */ });
-      res.write = (chunk, enc, cb) => {
-        if (chunk) gzip.write(chunk, enc, cb);
-        return res;
-      };
-      res.end = (chunk, enc, cb) => {
-        if (chunk) gzip.write(chunk, enc, () => gzip.end());
-        else gzip.end();
-        if (cb) res.once("finish", cb);
-        return res;
-      };
-      res.writeHead = origWriteHead;
-      return origWriteHead(status, rest[0] ? { ...headers, "content-encoding": "gzip" } : undefined, ...rest.slice(1));
+    if (!shouldCompress) return false;
+    res.removeHeader("content-length");
+    res.setHeader("content-encoding", "gzip");
+    res.setHeader("vary", appendVary(res.getHeader("vary"), "Accept-Encoding"));
+    gzip = zlib.createGzip({ level: 6 });
+    gzip.on("data", (chunk) => origWrite(chunk));
+    gzip.on("end", () => origEnd());
+    gzip.on("error", () => {
+      try {
+        origEnd();
+      } catch {
+        /* socket already gone */
+      }
+    });
+    return true;
+  }
+
+  res.writeHead = function writeHeadPatched(status, reason, headers) {
+    let hdrs = headers;
+    if (reason && typeof reason === "object" && !Array.isArray(reason)) {
+      hdrs = reason;
+      reason = undefined;
     }
-    res.writeHead = origWriteHead;
-    return origWriteHead(status, ...rest);
+    if (hdrs && typeof hdrs === "object" && !Array.isArray(hdrs)) {
+      for (const [k, v] of Object.entries(hdrs)) {
+        const lk = String(k).toLowerCase();
+        if (lk === "content-length" || lk === "content-encoding") continue;
+        res.setHeader(k, v);
+      }
+    }
+    ensureGzip();
+    if (shouldCompress) {
+      res.removeHeader("content-length");
+      res.setHeader("content-encoding", "gzip");
+      return reason === undefined ? origWriteHead(status) : origWriteHead(status, reason);
+    }
+    if (hdrs && typeof hdrs === "object" && !Array.isArray(hdrs)) {
+      return reason === undefined ? origWriteHead(status) : origWriteHead(status, reason);
+    }
+    if (reason === undefined) return origWriteHead(status);
+    if (typeof reason === "string") return origWriteHead(status, reason);
+    return origWriteHead(status, reason, headers);
+  };
+
+  res.write = function writePatched(chunk, enc, cb) {
+    ensureGzip();
+    if (!shouldCompress) {
+      if (typeof enc === "function") return origWrite(chunk, enc);
+      return origWrite(chunk, enc, cb);
+    }
+    if (!chunk) return typeof enc === "function" ? enc.call(res) : true;
+    if (typeof enc === "function") return gzip.write(chunk, enc);
+    if (typeof cb === "function") return gzip.write(chunk, enc, cb);
+    return gzip.write(chunk, enc);
+  };
+
+  res.end = function endPatched(chunk, enc, cb) {
+    ensureGzip();
+    if (typeof chunk === "function") {
+      cb = chunk;
+      chunk = null;
+      enc = undefined;
+    } else if (typeof enc === "function") {
+      cb = enc;
+      enc = undefined;
+    }
+    if (!shouldCompress) {
+      if (typeof cb === "function") return origEnd(chunk, cb);
+      if (enc === undefined) return origEnd(chunk);
+      return origEnd(chunk, enc, cb);
+    }
+    const finish = () => {
+      gzip.end();
+      if (typeof cb === "function") cb.call(res);
+    };
+    if (chunk && typeof chunk !== "function") {
+      gzip.write(chunk, enc, finish);
+    } else {
+      finish();
+    }
+    return res;
   };
 }
 
