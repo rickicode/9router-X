@@ -634,6 +634,12 @@ export const ERROR_RULES = [
     cooldownMs: TRANSIENT_COOLDOWN_MS,
     lockAll: false,
   },
+  // Upstream per-minute RPM cap (e.g. Atria "User rate limit reached on requests
+  // per min for model"): the window resets in <=60s. A precise 65s model-scoped
+  // cooldown beats the generic exponential backoff (2s -> 5min cap), which
+  // over-locks single-account providers after a burst. Must sit ABOVE the
+  // generic "rate limit" backoff rules.
+  { text: "requests per min", cooldownMs: 65 * 1000, lockAll: false, shouldFallback: true },
   { text: "rate limit", backoff: true },
   { text: "too many requests", backoff: true },
   { text: "quota exceeded", backoff: true },
