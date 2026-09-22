@@ -166,6 +166,7 @@ export async function getModelInfoCore(modelStr, aliasesOrGetter) {
 const MODEL_PREFIX_PROVIDERS = [
   // Codex CLI sends this bare virtual model for auto-review — keep it on OAuth Codex (#1398).
   [/^codex-auto-review$/, "codex"],
+  [/^atria-/, "atria-asi"],
   [/^claude-/, "anthropic"],
   [/^gemini-/, "gemini"],
   [/^gpt-/, "openai"],
