@@ -49,7 +49,7 @@ function ProvidersGrid({
  <Button size="sm" icon="add" onClick={onAddAnthropic} className="w-full sm:w-auto">
  Add Anthropic Compatible
  </Button>
- <Button size="sm" variant="secondary" icon="add" onClick={onAddOpenAI} className="w-full !bg-surface !text-black hover:!bg-surface-2 sm:w-auto">
+ <Button size="sm" variant="secondary" icon="add" onClick={onAddOpenAI} className="w-full sm:w-auto">
  Add OpenAI Compatible
  </Button>
  </div>
