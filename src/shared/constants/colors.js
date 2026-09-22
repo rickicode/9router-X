@@ -1,56 +1,50 @@
-// Claude-inspired color palette for Endpoint Proxy
-// Light theme: Warm beige/cream tones
-// Dark theme: Deep charcoal/brown tones
+// Dashboard palette. Mirrors src/app/globals.css tokens.
+// Light: cool slate. Dark: navy. Brand: cyan.
 
 export const COLORS = {
-  // Primary - Warm Coral/Terracotta (Claude-like)
   primary: {
-    DEFAULT: "#D97757",
-    hover: "#C56243",
-    light: "#E8A58C",
-    dark: "#B0664D",
+    DEFAULT: "#0891B2",
+    hover: "#0E7490",
+    light: "#22D3EE",
+    dark: "#155E75",
   },
 
-  // Light theme backgrounds
   light: {
-    bg: "#FBF9F6",
-    bgAlt: "#F5F1ED",
+    bg: "#F4F7F8",
+    bgAlt: "#E7EEEF",
     surface: "#FFFFFF",
-    sidebar: "rgba(246, 246, 246, 0.8)",
-    border: "rgba(0, 0, 0, 0.1)",
-    textMain: "#383733",
-    textMuted: "#75736E",
+    sidebar: "#E7EEEF",
+    border: "#D5DEE2",
+    textMain: "#0a0a0a",
+    textMuted: "#6B7280",
   },
 
-  // Dark theme backgrounds
   dark: {
-    bg: "#191918",
-    bgAlt: "#1F1F1E",
-    surface: "#242423",
-    sidebar: "rgba(30, 30, 30, 0.8)",
-    border: "rgba(255, 255, 255, 0.1)",
-    textMain: "#ECEBE8",
-    textMuted: "#9E9D99",
+    bg: "#0B1220",
+    bgAlt: "#0E1728",
+    surface: "#121A2B",
+    sidebar: "#0E1728",
+    border: "#243044",
+    textMain: "#E6EDF3",
+    textMuted: "#93A4B8",
   },
 
-  // Status colors
   status: {
-    success: "#22C55E",
-    successLight: "#DCFCE7",
-    successDark: "#166534",
-    warning: "#F59E0B",
+    success: "#0F766E",
+    successLight: "#CCFBF1",
+    successDark: "#115E59",
+    warning: "#B45309",
     warningLight: "#FEF3C7",
     warningDark: "#92400E",
-    error: "#EF4444",
+    error: "#cf222e",
     errorLight: "#FEE2E2",
     errorDark: "#991B1B",
-    info: "#3B82F6",
-    infoLight: "#DBEAFE",
-    infoDark: "#1E40AF",
+    info: "#0891B2",
+    infoLight: "#CFFAFE",
+    infoDark: "#155E75",
   },
 };
 
-// CSS Variables mapping for Tailwind
 export const CSS_VARIABLES = {
   light: {
     "--color-primary": COLORS.primary.DEFAULT,

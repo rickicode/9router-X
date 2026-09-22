@@ -9,204 +9,202 @@ import { Modal, Button, Input } from "@/shared/components";
  * Auto-detect and import token from Cursor IDE's local SQLite database
  */
 export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
-  const [accessToken, setAccessToken] = useState("");
-  const [machineId, setMachineId] = useState("");
-  const [error, setError] = useState(null);
-  const [importing, setImporting] = useState(false);
-  const [autoDetecting, setAutoDetecting] = useState(false);
-  const [autoDetected, setAutoDetected] = useState(false);
-  const [windowsManual, setWindowsManual] = useState(false);
+ const [accessToken, setAccessToken] = useState("");
+ const [machineId, setMachineId] = useState("");
+ const [error, setError] = useState(null);
+ const [importing, setImporting] = useState(false);
+ const [autoDetecting, setAutoDetecting] = useState(false);
+ const [autoDetected, setAutoDetected] = useState(false);
+ const [windowsManual, setWindowsManual] = useState(false);
 
-  const runAutoDetect = async () => {
-    setAutoDetecting(true);
-    setError(null);
-    setAutoDetected(false);
-    setWindowsManual(false);
+ const runAutoDetect = async () => {
+ setAutoDetecting(true);
+ setError(null);
+ setAutoDetected(false);
+ setWindowsManual(false);
 
-    try {
-      const res = await fetch("/api/oauth/cursor/auto-import");
-      const data = await res.json();
+ try {
+ const res = await fetch("/api/oauth/cursor/auto-import");
+ const data = await res.json();
 
-      if (data.found) {
-        setAccessToken(data.accessToken);
-        setMachineId(data.machineId);
-        setAutoDetected(true);
-      } else if (data.windowsManual) {
-        setWindowsManual(true);
-      } else {
-        setError(data.error || "Could not auto-detect tokens");
-      }
-    } catch (err) {
-      setError("Failed to auto-detect tokens");
-    } finally {
-      setAutoDetecting(false);
-    }
-  };
+ if (data.found) {
+ setAccessToken(data.accessToken);
+ setMachineId(data.machineId);
+ setAutoDetected(true);
+ } else if (data.windowsManual) {
+ setWindowsManual(true);
+ } else {
+ setError(data.error || "Could not auto-detect tokens");
+ }
+ } catch (err) {
+ setError("Failed to auto-detect tokens");
+ } finally {
+ setAutoDetecting(false);
+ }
+ };
 
-  // Auto-detect tokens when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
-    runAutoDetect();
-  }, [isOpen]);
+ // Auto-detect tokens when modal opens
+ useEffect(() => {
+ if (!isOpen) return;
+ runAutoDetect();
+ }, [isOpen]);
 
-  const handleImportToken = async () => {
-    if (!accessToken.trim()) {
-      setError("Please enter an access token");
-      return;
-    }
+ const handleImportToken = async () => {
+ if (!accessToken.trim()) {
+ setError("Please enter an access token");
+ return;
+ }
 
-    if (!machineId.trim()) {
-      setError("Please enter a machine ID");
-      return;
-    }
+ if (!machineId.trim()) {
+ setError("Please enter a machine ID");
+ return;
+ }
 
-    setImporting(true);
-    setError(null);
+ setImporting(true);
+ setError(null);
 
-    try {
-      const res = await fetch("/api/oauth/cursor/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessToken: accessToken.trim(),
-          machineId: machineId.trim(),
-        }),
-      });
+ try {
+ const res = await fetch("/api/oauth/cursor/import", {
+ method: "POST",
+ headers: { "Content-Type": "application/json" },
+ body: JSON.stringify({
+ accessToken: accessToken.trim(),
+ machineId: machineId.trim(),
+ }),
+ });
 
-      const data = await res.json();
+ const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Import failed");
-      }
+ if (!res.ok) {
+ throw new Error(data.error || "Import failed");
+ }
 
-      onSuccess?.();
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setImporting(false);
-    }
-  };
+ onSuccess?.();
+ onClose();
+ } catch (err) {
+ setError(err.message);
+ } finally {
+ setImporting(false);
+ }
+ };
 
-  return (
-    <Modal isOpen={isOpen} title="Connect Cursor IDE" onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        {/* Auto-detecting state */}
-        {autoDetecting && (
-          <div className="text-center py-6">
-            <div className="size-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-primary animate-spin">
-                progress_activity
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Auto-detecting tokens...</h3>
-            <p className="text-sm text-text-muted">
-              Reading from Cursor IDE database
-            </p>
-          </div>
-        )}
+ return (
+ <Modal isOpen={isOpen} title="Connect Cursor IDE" onClose={onClose}>
+ <div className="flex flex-col gap-3">
+ {/* Auto-detecting state */}
+ {autoDetecting && (
+ <div className="text-center py-3">
+ <div className="flex items-center gap-2 text-primary">
+ <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+ </div>
+ <h3 className="text-sm font-semibold mb-2">Auto-detecting tokens...</h3>
+ <p className="text-sm text-text-muted">
+ Reading from Cursor IDE database
+ </p>
+ </div>
+ )}
 
-        {/* Form (shown after auto-detect completes) */}
-        {!autoDetecting && (
-          <>
-            {/* Success message if auto-detected */}
-            {autoDetected && (
-              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="flex gap-2">
-                  <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-                  <p className="text-sm text-green-800 dark:text-green-200">
-                    Tokens auto-detected from Cursor IDE successfully!
-                  </p>
-                </div>
-              </div>
-            )}
+ {/* Form (shown after auto-detect completes) */}
+ {!autoDetecting && (
+ <>
+ {/* Success message if auto-detected */}
+ {autoDetected && (
+ <div className="bg-success/10 p-3 rounded-sm border border-success/30">
+ <div className="flex gap-2">
+ <span className="material-symbols-outlined text-success">check_circle</span>
+ <p className="text-sm text-success">
+ Tokens auto-detected from Cursor IDE successfully!
+ </p>
+ </div>
+ </div>
+ )}
 
-            {/* Windows manual instructions */}
-            {windowsManual && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800 flex flex-col gap-2">
-                <div className="flex gap-2 items-center">
-                  <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">info</span>
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Could not read Cursor database automatically.
-                  </p>
-                </div>
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Make sure Cursor IDE has been opened at least once, then click <strong>Retry</strong>. If the problem persists, paste your tokens manually below.
-                </p>
-                <Button onClick={runAutoDetect} variant="outline" fullWidth>
-                  Retry
-                </Button>
-              </div>
-            )}
+ {/* Windows manual instructions */}
+ {windowsManual && (
+ <div className="bg-warning/10 p-3 rounded-sm border border-warning/30 flex flex-col gap-2">
+ <div className="flex gap-2 items-center">
+ <span className="material-symbols-outlined text-warning">info</span>
+ <p className="text-sm font-medium text-warning">
+ Could not read Cursor database automatically.
+ </p>
+ </div>
+ <p className="text-xs text-warning">
+ Make sure Cursor IDE has been opened at least once, then click <strong>Retry</strong>. If the problem persists, paste your tokens manually below.
+ </p>
+ <Button onClick={runAutoDetect} variant="outline" fullWidth>
+ Retry
+ </Button>
+ </div>
+ )}
 
-            {/* Info message if not auto-detected */}
-            {!autoDetected && !windowsManual && !error && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex gap-2">
-                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    Cursor IDE not detected. Please paste your tokens manually.
-                  </p>
-                </div>
-              </div>
-            )}
+ {/* Info message if not auto-detected */}
+ {!autoDetected && !windowsManual && !error && (
+ <div className="bg-primary/10 p-3 rounded-sm border border-primary/30">
+ <div className="flex gap-2">
+ <span className="material-symbols-outlined text-primary">info</span>
+ <p className="text-sm text-primary">
+ Cursor IDE not detected. Please paste your tokens manually.
+ </p>
+ </div>
+ </div>
+ )}
 
-            {/* Access Token Input */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Access Token <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                placeholder="Access token will be auto-filled..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg bg-background focus:outline-none focus:border-primary resize-none"
-              />
-            </div>
+ {/* Access Token Input */}
+ <div>
+ <label className="block font-medium mb-2 text-xs text-text-muted">
+ Access Token <span className="text-danger">*</span>
+ </label>
+ <textarea
+ value={accessToken}
+ onChange={(e) => setAccessToken(e.target.value)}
+ placeholder="Access token will be auto-filled..."
+ rows={3}
+ className="w-full px-3 h-8 text-sm font-mono border border-border rounded-sm bg-surface focus:outline-none focus:border-primary resize-none"
+ />
+ </div>
 
-            {/* Machine ID Input */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Machine ID <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={machineId}
-                onChange={(e) => setMachineId(e.target.value)}
-                placeholder="Machine ID will be auto-filled..."
-                className="font-mono text-sm"
-              />
-            </div>
+ {/* Machine ID Input */}
+ <div>
+ <label className="block font-medium mb-2 text-xs text-text-muted">
+ Machine ID <span className="text-danger">*</span>
+ </label>
+ <Input
+ value={machineId}
+ onChange={(e) => setMachineId(e.target.value)}
+ placeholder="Machine ID will be auto-filled..."
+ className="font-mono text-sm"
+ />
+ </div>
 
-            {/* Error Display */}
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
+ {/* Error Display */}
+ {error && (
+ <div className="bg-danger/10 p-3 rounded-sm border border-danger/30">
+ <p className="text-sm text-danger">{error}</p>
+ </div>
+ )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button
-                onClick={handleImportToken}
-                fullWidth
-                disabled={importing || !accessToken.trim() || !machineId.trim()}
-              >
-                {importing ? "Importing..." : "Import Token"}
-              </Button>
-              <Button onClick={onClose} variant="ghost" fullWidth>
-                Cancel
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </Modal>
-  );
+ {/* Action Buttons */}
+ <div className="flex gap-2">
+ <Button
+ onClick={handleImportToken}
+ fullWidth
+ disabled={importing || !accessToken.trim() || !machineId.trim()}
+ >
+ {importing ? "Importing..." : "Import Token"}
+ </Button>
+ <Button onClick={onClose} variant="ghost" fullWidth>
+ Cancel
+ </Button>
+ </div>
+ </>
+ )}
+ </div>
+ </Modal>
+ );
 }
 
 CursorAuthModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onSuccess: PropTypes.func,
-  onClose: PropTypes.func.isRequired,
+ isOpen: PropTypes.bool.isRequired,
+ onSuccess: PropTypes.func,
+ onClose: PropTypes.func.isRequired,
 };

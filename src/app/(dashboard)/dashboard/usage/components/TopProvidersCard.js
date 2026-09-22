@@ -6,266 +6,266 @@ import Badge from "@/shared/components/Badge";
 import { cn } from "@/shared/utils/cn";
 
 const ERROR_CATEGORY_LABELS = {
-  upstream: { label: "Upstream 5xx", color: "bg-rose-500", textColor: "text-rose-600 dark:text-rose-400" },
-  rate_limit: { label: "Rate Limit 429", color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400" },
-  auth: { label: "Auth 401/403", color: "bg-purple-500", textColor: "text-purple-600 dark:text-purple-400" },
-  timeout: { label: "Timeout 408/504", color: "bg-sky-500", textColor: "text-sky-600 dark:text-sky-400" },
-  cancelled: { label: "Cancelled 499", color: "bg-slate-500", textColor: "text-slate-500 dark:text-slate-400" },
-  stream: { label: "Stream Error", color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400" },
-  internal: { label: "Internal 500", color: "bg-red-600", textColor: "text-red-600 dark:text-red-400" },
-  unknown: { label: "Unknown", color: "bg-zinc-500", textColor: "text-zinc-500 dark:text-zinc-400" },
+ upstream: { label: "Upstream 5xx", color: "bg-danger", textColor: "text-danger" },
+ rate_limit: { label: "Rate Limit 429", color: "bg-warning", textColor: "text-warning" },
+ auth: { label: "Auth 401/403", color: "bg-primary", textColor: "text-primary" },
+ timeout: { label: "Timeout 408/504", color: "bg-info", textColor: "text-info" },
+ cancelled: { label: "Cancelled 499", color: "bg-text-muted", textColor: "text-text-muted" },
+ stream: { label: "Stream Error", color: "bg-warning", textColor: "text-warning" },
+ internal: { label: "Internal 500", color: "bg-danger", textColor: "text-danger" },
+ unknown: { label: "Unknown", color: "bg-text-muted", textColor: "text-text-muted" },
 };
 
 const fmt = (n) => {
-  const num = Number(n) || 0;
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return String(num);
+ const num = Number(n) || 0;
+ if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+ if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+ return String(num);
 };
 
 const fmtMs = (ms) => {
-  if (!ms && ms !== 0) return "—";
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.round(ms)}ms`;
+ if (!ms && ms !== 0) return "—";
+ if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+ return `${Math.round(ms)}ms`;
 };
 
 function SuccessBar({ rate }) {
-  const pct = Math.min(100, Math.max(0, Number(rate) || 0));
-  const color =
-    pct >= 95 ? "bg-emerald-500" : pct >= 80 ? "bg-amber-500" : "bg-rose-500";
-  return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="flex-1 h-1.5 rounded-full bg-surface-3 overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all", color)}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span
-        className={cn(
-          "text-[11px] font-bold tabular-nums shrink-0",
-          pct >= 95
-            ? "text-success"
-            : pct >= 80
-            ? "text-warning"
-            : "text-danger",
-        )}
-      >
-        {pct.toFixed(1)}%
-      </span>
-    </div>
-  );
+ const pct = Math.min(100, Math.max(0, Number(rate) || 0));
+ const color =
+ pct >= 95 ? "bg-success" : pct >= 80 ? "bg-warning" : "bg-danger";
+ return (
+ <div className="flex items-center gap-2 min-w-0">
+ <div className="flex-1 h-1.5 rounded-full bg-surface-3 overflow-hidden">
+ <div
+ className={cn("h-full rounded-sm", color)}
+ style={{ width: `${pct}%` }}
+ />
+ </div>
+ <span
+ className={cn(
+ "text-[11px] font-medium tabular-nums shrink-0",
+ pct >= 95
+ ? "text-success"
+ : pct >= 80
+ ? "text-warning"
+ : "text-danger",
+ )}
+ >
+ {pct.toFixed(1)}%
+ </span>
+ </div>
+ );
 }
 
 function ErrorBreakdownRow({ errorBreakdown, totalFailures }) {
-  const entries = Object.entries(errorBreakdown).sort((a, b) => b[1] - a[1]);
-  if (!entries.length) return <span className="text-text-muted text-[11px]">—</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {entries.map(([cat, count]) => {
-        const meta = ERROR_CATEGORY_LABELS[cat] || ERROR_CATEGORY_LABELS.unknown;
-        return (
-          <span
-            key={cat}
-            className={cn(
-              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border",
-              cat === "upstream" ? "bg-rose-500/10 border-rose-500/20 text-rose-500" :
-              cat === "rate_limit" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
-              cat === "auth" ? "bg-purple-500/10 border-purple-500/20 text-purple-500" :
-              cat === "timeout" ? "bg-sky-500/10 border-sky-500/20 text-sky-500" :
-              cat === "cancelled" ? "bg-slate-500/10 border-slate-500/20 text-slate-400" :
-              cat === "stream" ? "bg-orange-500/10 border-orange-500/20 text-orange-500" :
-              cat === "internal" ? "bg-red-600/10 border-red-600/20 text-red-500" :
-              "bg-zinc-500/10 border-zinc-500/20 text-zinc-400"
-            )}
-            title={`${meta.label}: ${count} errors`}
-          >
-            {meta.label}
-            <span className="opacity-80">×{count}</span>
-          </span>
-        );
-      })}
-    </div>
-  );
+ const entries = Object.entries(errorBreakdown).sort((a, b) => b[1] - a[1]);
+ if (!entries.length) return <span className="text-text-muted text-[11px]">—</span>;
+ return (
+ <div className="flex flex-wrap gap-1">
+ {entries.map(([cat, count]) => {
+ const meta = ERROR_CATEGORY_LABELS[cat] || ERROR_CATEGORY_LABELS.unknown;
+ return (
+ <span
+ key={cat}
+ className={cn(
+ "inline-flex items-center gap-1 rounded-sm px-1.5 py-1 text-[11px] font-medium border",
+ cat === "upstream" ? "bg-danger/10 border-danger/30 text-danger" :
+ cat === "rate_limit" ? "bg-warning/10 border-warning/30 text-warning" :
+ cat === "auth" ? "bg-primary/10 border-primary/30 text-primary" :
+ cat === "timeout" ? "bg-info/10 border-info/30 text-info" :
+ cat === "cancelled" ? "bg-text-muted/10 border-border text-text-muted" :
+ cat === "stream" ? "bg-warning/10 border-warning/30 text-warning" :
+ cat === "internal" ? "bg-danger/10 border-danger/30 text-danger" :
+ "bg-text-muted/10 border-border text-text-muted"
+ )}
+ title={`${meta.label}: ${count} errors`}
+ >
+ {meta.label}
+ <span className="opacity-80">×{count}</span>
+ </span>
+ );
+ })}
+ </div>
+ );
 }
 
 export default function TopProvidersCard({ byProvider = [], onProviderClick, onInspectFailures, className }) {
-  const [sortBy, setSortBy] = useState("count");
+ const [sortBy, setSortBy] = useState("count");
 
-  const sorted = useMemo(() => {
-    return [...byProvider].sort((a, b) => {
-      if (sortBy === "count") return b.count - a.count;
-      if (sortBy === "success_rate") return b.successRate - a.successRate;
-      if (sortBy === "failures") return b.failureCount - a.failureCount;
-      if (sortBy === "latency") return (a.p50LatencyMs ?? Infinity) - (b.p50LatencyMs ?? Infinity);
-      if (sortBy === "tokens") return (b.totalInputTokens + b.totalOutputTokens) - (a.totalInputTokens + a.totalOutputTokens);
-      return b.count - a.count;
-    });
-  }, [byProvider, sortBy]);
+ const sorted = useMemo(() => {
+ return [...byProvider].sort((a, b) => {
+ if (sortBy === "count") return b.count - a.count;
+ if (sortBy === "success_rate") return b.successRate - a.successRate;
+ if (sortBy === "failures") return b.failureCount - a.failureCount;
+ if (sortBy === "latency") return (a.p50LatencyMs ?? Infinity) - (b.p50LatencyMs ?? Infinity);
+ if (sortBy === "tokens") return (b.totalInputTokens + b.totalOutputTokens) - (a.totalInputTokens + a.totalOutputTokens);
+ return b.count - a.count;
+ });
+ }, [byProvider, sortBy]);
 
-  const maxCount = useMemo(() => Math.max(...byProvider.map((r) => r.count), 1), [byProvider]);
+ const maxCount = useMemo(() => Math.max(...byProvider.map((r) => r.count), 1), [byProvider]);
 
-  const sortOptions = [
-    { id: "count", label: "Requests" },
-    { id: "success_rate", label: "Success Rate" },
-    { id: "failures", label: "Failed" },
-    { id: "latency", label: "Latency" },
-    { id: "tokens", label: "Tokens" },
-  ];
+ const sortOptions = [
+ { id: "count", label: "Requests" },
+ { id: "success_rate", label: "Success Rate" },
+ { id: "failures", label: "Failed" },
+ { id: "latency", label: "Latency" },
+ { id: "tokens", label: "Tokens" },
+ ];
 
-  if (!byProvider.length) {
-    return (
-      <Card
-        title="Top Providers"
-        icon="hub"
-        padding="md"
-        className={cn("flex min-w-0 flex-col gap-4", className)}
-      >
-        <div className="flex h-32 items-center justify-center text-xs text-text-muted">
-          No provider data in selected time range.
-        </div>
-      </Card>
-    );
-  }
+ if (!byProvider.length) {
+ return (
+ <Card
+ title="Top Providers"
+ icon="hub"
+ padding="md"
+ className={cn("flex min-w-0 flex-col gap-3", className)}
+ >
+ <div className="flex h-32 items-center justify-center text-xs text-text-muted">
+ No provider data in selected time range.
+ </div>
+ </Card>
+ );
+ }
 
-  return (
-    <Card
-      title="Top Providers"
-      subtitle="Request volume, success rate, latency, and error breakdown per provider"
-      icon="hub"
-      padding="md"
-      className={cn("flex min-w-0 flex-col gap-4 overflow-hidden", className)}
-      action={
-        <div className="flex items-center gap-1 flex-wrap">
-          {sortOptions.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setSortBy(opt.id)}
-              className={cn(
-                "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer",
-                sortBy === opt.id
-                  ? "bg-surface-3 text-text-main font-semibold border border-border shadow-xs"
-                  : "text-text-muted hover:text-text-main",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      }
-    >
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="data-table w-full min-w-[760px] text-left text-xs" aria-label="Top providers breakdown">
-          <thead>
-            <tr className="text-text-muted font-semibold text-[11px]">
-              <th scope="col" className="py-2.5 px-3 w-8 text-center">#</th>
-              <th scope="col" className="py-2.5 px-3">Provider</th>
-              <th scope="col" className="py-2.5 px-3 w-24 text-right">Requests</th>
-              <th scope="col" className="py-2.5 px-3 w-40">Success Rate</th>
-              <th scope="col" className="py-2.5 px-3 w-28 text-right">Success / Failed</th>
-              <th scope="col" className="py-2.5 px-3 w-20 text-right">P50</th>
-              <th scope="col" className="py-2.5 px-3 w-20 text-right">P95</th>
-              <th scope="col" className="py-2.5 px-3 w-24 text-right">Tokens</th>
-              <th scope="col" className="py-2.5 px-3">Error Breakdown</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((row, i) => {
-              const barWidth = Math.round((row.count / maxCount) * 100);
-              return (
-                <tr
-                  key={row.provider}
-                  className="hover:bg-surface-2/60 transition-colors group"
-                >
-                  {/* Rank */}
-                  <th scope="row" className="py-2.5 px-3 text-center text-text-muted font-mono text-[11px] font-normal">
-                    {i + 1}
-                  </th>
+ return (
+ <Card
+ title="Top Providers"
+ subtitle="Request volume, success rate, latency, and error breakdown per provider"
+ icon="hub"
+ padding="md"
+ className={cn("flex min-w-0 flex-col gap-3 overflow-hidden", className)}
+ action={
+ <div className="flex items-center gap-1 flex-wrap">
+ {sortOptions.map((opt) => (
+ <button
+ key={opt.id}
+ type="button"
+ onClick={() => setSortBy(opt.id)}
+ className={cn(
+ "px-2 py-1 rounded-sm text-[11px] font-medium cursor-pointer",
+ sortBy === opt.id
+ ? "bg-surface-3 text-text-main font-semibold border border-border"
+ : "text-text-muted hover:text-text-main",
+ )}
+ >
+ {opt.label}
+ </button>
+ ))}
+ </div>
+ }
+ >
+ <div className="overflow-x-auto rounded-sm border border-border">
+ <table className="data-table w-full min-w-[760px] text-left text-xs" aria-label="Top providers breakdown">
+ <thead>
+ <tr className="text-text-muted font-medium text-[11px]">
+ <th scope="col" className="h-8 px-3 w-8 text-center text-xs font-medium text-text-muted">#</th>
+ <th scope="col" className="h-8 px-3 text-xs font-medium text-text-muted">Provider</th>
+ <th scope="col" className="h-8 px-3 w-24 text-right text-xs font-medium text-text-muted">Requests</th>
+ <th scope="col" className="h-8 px-3 w-40 text-xs font-medium text-text-muted">Success Rate</th>
+ <th scope="col" className="h-8 px-3 w-28 text-right text-xs font-medium text-text-muted">Success / Failed</th>
+ <th scope="col" className="h-8 px-3 w-20 text-right text-xs font-medium text-text-muted">P50</th>
+ <th scope="col" className="h-8 px-3 w-20 text-right text-xs font-medium text-text-muted">P95</th>
+ <th scope="col" className="h-8 px-3 w-24 text-right text-xs font-medium text-text-muted">Tokens</th>
+ <th scope="col" className="h-8 px-3 text-xs font-medium text-text-muted">Error Breakdown</th>
+ </tr>
+ </thead>
+ <tbody>
+ {sorted.map((row, i) => {
+ const barWidth = Math.round((row.count / maxCount) * 100);
+ return (
+ <tr
+ key={row.provider}
+ className="hover:bg-surface-2/60 group"
+ >
+ {/* Rank */}
+ <th scope="row" className="h-8 px-3 text-center text-text-muted font-mono text-[11px] font-normal text-xs font-medium">
+ {i + 1}
+ </th>
 
-                  {/* Provider name + volume bar */}
-                  <td className="py-2.5 px-3">
-                    <button
-                      type="button"
-                      onClick={() => onProviderClick?.(row.provider)}
-                      className="flex flex-col gap-1 min-w-0 w-full text-left cursor-pointer"
-                      title={`Filter by ${row.provider}`}
-                      aria-label={`Filter by ${row.provider}`}
-                    >
-                      <span className="font-semibold text-text-main group-hover:text-primary transition-colors truncate">
-                        {row.provider}
-                      </span>
-                      <div className="h-1 rounded-full bg-surface-3 overflow-hidden w-full max-w-[140px]">
-                        <div
-                          className="h-full rounded-full bg-brand-500/50"
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
-                    </button>
-                  </td>
+ {/* Provider name + volume bar */}
+ <td className="h-8 px-3 text-sm">
+ <button
+ type="button"
+ onClick={() => onProviderClick?.(row.provider)}
+ className="flex flex-col gap-1 min-w-0 w-full text-left cursor-pointer"
+ title={`Filter by ${row.provider}`}
+ aria-label={`Filter by ${row.provider}`}
+ >
+ <span className="font-medium text-text-main group-hover:text-primary truncate">
+ {row.provider}
+ </span>
+ <div className="h-1 rounded-sm bg-surface-3 overflow-hidden w-full max-w-[140px]">
+ <div
+ className="h-full rounded-sm bg-primary/50"
+ style={{ width: `${barWidth}%` }}
+ />
+ </div>
+ </button>
+ </td>
 
-                  {/* Requests */}
-                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-text-main">
-                    {fmt(row.count)}
-                  </td>
+ {/* Requests */}
+ <td className="h-8 px-3 text-right font-mono font-semibold text-text-main text-sm">
+ {fmt(row.count)}
+ </td>
 
-                  {/* Success Rate bar */}
-                  <td className="py-2.5 px-3">
-                    <SuccessBar rate={row.successRate} />
-                  </td>
+ {/* Success Rate bar */}
+ <td className="h-8 px-3 text-sm">
+ <SuccessBar rate={row.successRate} />
+ </td>
 
-                  {/* Success / Failed */}
-                  <td className="py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap">
-                    <span className="text-success font-semibold">{fmt(row.successCount)}</span>
-                    <span className="text-text-muted mx-1">/</span>
-                    {row.failureCount > 0 && onInspectFailures ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onInspectFailures(row);
-                        }}
-                        className="text-danger font-semibold hover:underline cursor-pointer inline-flex items-center gap-0.5"
-                        title="Inspect failure responses for this provider"
-                      >
-                        <span className="material-symbols-outlined text-[12px]">bug_report</span>
-                        {fmt(row.failureCount)}
-                      </button>
-                    ) : (
-                      <span className={row.failureCount > 0 ? "text-danger font-semibold" : "text-text-muted"}>
-                        {fmt(row.failureCount)}
-                      </span>
-                    )}
-                  </td>
+ {/* Success / Failed */}
+ <td className="h-8 px-3 text-right font-mono text-xs whitespace-nowrap text-sm">
+ <span className="text-success font-medium">{fmt(row.successCount)}</span>
+ <span className="text-text-muted mx-1">/</span>
+ {row.failureCount > 0 && onInspectFailures ? (
+ <button
+ type="button"
+ onClick={(e) => {
+ e.stopPropagation();
+ onInspectFailures(row);
+ }}
+ className="text-danger font-medium hover:underline cursor-pointer inline-flex items-center gap-0.5"
+ title="Inspect failure responses for this provider"
+ >
+ <span className="material-symbols-outlined text-[18px]">bug_report</span>
+ {fmt(row.failureCount)}
+ </button>
+ ) : (
+ <span className={row.failureCount > 0 ? "text-danger font-medium" : "text-text-muted"}>
+ {fmt(row.failureCount)}
+ </span>
+ )}
+ </td>
 
-                  {/* P50 latency */}
-                  <td className="py-2.5 px-3 text-right font-mono text-text-muted text-[11px]">
-                    {fmtMs(row.p50LatencyMs)}
-                  </td>
+ {/* P50 latency */}
+ <td className="h-8 px-3 text-right font-mono text-text-muted text-[11px] text-sm">
+ {fmtMs(row.p50LatencyMs)}
+ </td>
 
-                  {/* P95 latency */}
-                  <td className="py-2.5 px-3 text-right font-mono text-text-muted text-[11px]">
-                    {fmtMs(row.p95LatencyMs)}
-                  </td>
+ {/* P95 latency */}
+ <td className="h-8 px-3 text-right font-mono text-text-muted text-[11px] text-sm">
+ {fmtMs(row.p95LatencyMs)}
+ </td>
 
-                  {/* Tokens */}
-                  <td className="py-2.5 px-3 text-right font-mono text-text-muted text-[11px]">
-                    {fmt(row.totalInputTokens + row.totalOutputTokens)}
-                  </td>
+ {/* Tokens */}
+ <td className="h-8 px-3 text-right font-mono text-text-muted text-[11px] text-sm">
+ {fmt(row.totalInputTokens + row.totalOutputTokens)}
+ </td>
 
-                  {/* Error breakdown */}
-                  <td className="py-2.5 px-3">
-                    <ErrorBreakdownRow
-                      errorBreakdown={row.errorBreakdown}
-                      totalFailures={row.failureCount}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
+ {/* Error breakdown */}
+ <td className="h-8 px-3 text-sm">
+ <ErrorBreakdownRow
+ errorBreakdown={row.errorBreakdown}
+ totalFailures={row.failureCount}
+ />
+ </td>
+ </tr>
+ );
+ })}
+ </tbody>
+ </table>
+ </div>
+ </Card>
+ );
 }

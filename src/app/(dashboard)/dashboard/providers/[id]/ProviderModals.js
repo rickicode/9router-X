@@ -19,116 +19,116 @@ const BulkImportGrokCliModal = dynamic(() => import("./BulkImportGrokCliModal"),
 const BulkImportJwtModal = dynamic(() => import("./BulkImportJwtModal"), { ssr: false });
 
 export default function ProviderModals(d) {
-  const {
-    providerId, providerInfo, isCompatible, isOAuth, isAnthropicCompatible,
-    showOAuthModal, setShowOAuthModal, showXiaomiMimoModal, setShowXiaomiMimoModal,
-    showIFlowCookieModal, setShowIFlowCookieModal, showAddApiKeyModal, setShowAddApiKeyModal,
-    addConnectionError, setAddConnectionError, showEditModal, setShowEditModal,
-    showEditNodeModal, setShowEditNodeModal, showAddCustomModel, setShowAddCustomModel,
-    showBulkImportCodex, setShowBulkImportCodex, showBulkImportGrokCli, setShowBulkImportGrokCli,
-    showBulkImportJwt, setShowBulkImportJwt, showAgRiskModal, setShowAgRiskModal,
-    confirmState, setConfirmState, selectedConnection, providerStorageAlias,
-    providerDisplayAlias, proxyPools, connections,
-    handleOAuthSuccess, handleIFlowCookieSuccess, handleSaveApiKey,
-    handleUpdateConnection, handleUpdateNode, handleAddCustomModel, handleAgRiskConfirm,
-    fetchConnections,
-  } = d;
+ const {
+ providerId, providerInfo, isCompatible, isOAuth, isAnthropicCompatible,
+ showOAuthModal, setShowOAuthModal, showXiaomiMimoModal, setShowXiaomiMimoModal,
+ showIFlowCookieModal, setShowIFlowCookieModal, showAddApiKeyModal, setShowAddApiKeyModal,
+ addConnectionError, setAddConnectionError, showEditModal, setShowEditModal,
+ showEditNodeModal, setShowEditNodeModal, showAddCustomModel, setShowAddCustomModel,
+ showBulkImportCodex, setShowBulkImportCodex, showBulkImportGrokCli, setShowBulkImportGrokCli,
+ showBulkImportJwt, setShowBulkImportJwt, showAgRiskModal, setShowAgRiskModal,
+ confirmState, setConfirmState, selectedConnection, providerStorageAlias,
+ providerDisplayAlias, proxyPools, connections,
+ handleOAuthSuccess, handleIFlowCookieSuccess, handleSaveApiKey,
+ handleUpdateConnection, handleUpdateNode, handleAddCustomModel, handleAgRiskConfirm,
+ fetchConnections,
+ } = d;
 
-  return (
-    <>
-      {providerId === "kiro" ? (
-        <KiroOAuthWrapper isOpen={showOAuthModal} providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
-      ) : providerId === "cursor" ? (
-        <CursorAuthModal isOpen={showOAuthModal}
-          onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
-      ) : providerId === "gitlab" ? (
-        <GitLabAuthModal isOpen={showOAuthModal} providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
-      ) : (
-        <OAuthModal isOpen={showOAuthModal} provider={providerId} providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
-      )}
+ return (
+ <>
+ {providerId === "kiro" ? (
+ <KiroOAuthWrapper isOpen={showOAuthModal} providerInfo={providerInfo}
+ onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
+ ) : providerId === "cursor" ? (
+ <CursorAuthModal isOpen={showOAuthModal}
+ onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
+ ) : providerId === "gitlab" ? (
+ <GitLabAuthModal isOpen={showOAuthModal} providerInfo={providerInfo}
+ onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
+ ) : (
+ <OAuthModal isOpen={showOAuthModal} provider={providerId} providerInfo={providerInfo}
+ onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
+ )}
 
-      <XiaomiMimoAuthModal isOpen={showXiaomiMimoModal}
-        onSuccess={handleOAuthSuccess} onClose={() => setShowXiaomiMimoModal(false)} />
+ <XiaomiMimoAuthModal isOpen={showXiaomiMimoModal}
+ onSuccess={handleOAuthSuccess} onClose={() => setShowXiaomiMimoModal(false)} />
 
-      {providerId === "iflow" && (
-        <IFlowCookieModal isOpen={showIFlowCookieModal}
-          onSuccess={handleIFlowCookieSuccess} onClose={() => setShowIFlowCookieModal(false)} />
-      )}
+ {providerId === "iflow" && (
+ <IFlowCookieModal isOpen={showIFlowCookieModal}
+ onSuccess={handleIFlowCookieSuccess} onClose={() => setShowIFlowCookieModal(false)} />
+ )}
 
-      <AddApiKeyModal
-        isOpen={showAddApiKeyModal} provider={providerId}
-        providerName={providerInfo.name} isCompatible={isCompatible}
-        isAnthropic={isAnthropicCompatible} authType={providerInfo?.authType}
-        authHint={providerInfo?.authHint} website={providerInfo?.website}
-        proxyPools={proxyPools} error={addConnectionError}
-        existingNames={connections.map((c) => c.name).filter(Boolean)}
-        onSave={handleSaveApiKey} onBulkDone={fetchConnections}
-        onClose={() => { setAddConnectionError(""); setShowAddApiKeyModal(false); }}
-      />
+ <AddApiKeyModal
+ isOpen={showAddApiKeyModal} provider={providerId}
+ providerName={providerInfo.name} isCompatible={isCompatible}
+ isAnthropic={isAnthropicCompatible} authType={providerInfo?.authType}
+ authHint={providerInfo?.authHint} website={providerInfo?.website}
+ proxyPools={proxyPools} error={addConnectionError}
+ existingNames={connections.map((c) => c.name).filter(Boolean)}
+ onSave={handleSaveApiKey} onBulkDone={fetchConnections}
+ onClose={() => { setAddConnectionError(""); setShowAddApiKeyModal(false); }}
+ />
 
-      <EditConnectionModal
-        isOpen={showEditModal} connection={selectedConnection}
-        proxyPools={proxyPools} onSave={handleUpdateConnection}
-        onClose={() => setShowEditModal(false)}
-      />
+ <EditConnectionModal
+ isOpen={showEditModal} connection={selectedConnection}
+ proxyPools={proxyPools} onSave={handleUpdateConnection}
+ onClose={() => setShowEditModal(false)}
+ />
 
-      {isCompatible && (
-        <EditCompatibleNodeModal
-          isOpen={showEditNodeModal} node={d.providerNode}
-          onSave={handleUpdateNode} onClose={() => setShowEditNodeModal(false)}
-          isAnthropic={isAnthropicCompatible}
-        />
-      )}
+ {isCompatible && (
+ <EditCompatibleNodeModal
+ isOpen={showEditNodeModal} node={d.providerNode}
+ onSave={handleUpdateNode} onClose={() => setShowEditNodeModal(false)}
+ isAnthropic={isAnthropicCompatible}
+ />
+ )}
 
-      {!isCompatible && (
-        <AddCustomModelModal
-          isOpen={showAddCustomModel} providerAlias={providerStorageAlias}
-          providerDisplayAlias={providerDisplayAlias}
-          onSave={async (modelId, caps) => {
-            await handleAddCustomModel(modelId, "llm", providerStorageAlias, caps);
-            setShowAddCustomModel(false);
-          }}
-          onClose={() => setShowAddCustomModel(false)}
-        />
-      )}
+ {!isCompatible && (
+ <AddCustomModelModal
+ isOpen={showAddCustomModel} providerAlias={providerStorageAlias}
+ providerDisplayAlias={providerDisplayAlias}
+ onSave={async (modelId, caps) => {
+ await handleAddCustomModel(modelId, "llm", providerStorageAlias, caps);
+ setShowAddCustomModel(false);
+ }}
+ onClose={() => setShowAddCustomModel(false)}
+ />
+ )}
 
-      {providerId === "codex" && (
-        <BulkImportCodexModal isOpen={showBulkImportCodex}
-          onClose={() => setShowBulkImportCodex(false)} onSuccess={fetchConnections} />
-      )}
+ {providerId === "codex" && (
+ <BulkImportCodexModal isOpen={showBulkImportCodex}
+ onClose={() => setShowBulkImportCodex(false)} onSuccess={fetchConnections} />
+ )}
 
-      {providerId === "grok-cli" && (
-        <BulkImportGrokCliModal isOpen={showBulkImportGrokCli}
-          onClose={() => setShowBulkImportGrokCli(false)} onSuccess={fetchConnections} />
-      )}
+ {providerId === "grok-cli" && (
+ <BulkImportGrokCliModal isOpen={showBulkImportGrokCli}
+ onClose={() => setShowBulkImportGrokCli(false)} onSuccess={fetchConnections} />
+ )}
 
-      {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
-        <BulkImportJwtModal providerId={providerId} isOpen={showBulkImportJwt}
-          onClose={() => setShowBulkImportJwt(false)} onSuccess={fetchConnections} />
-      )}
+ {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
+ <BulkImportJwtModal providerId={providerId} isOpen={showBulkImportJwt}
+ onClose={() => setShowBulkImportJwt(false)} onSuccess={fetchConnections} />
+ )}
 
-      <ConfirmModal
-        isOpen={showAgRiskModal}
-        onClose={() => setShowAgRiskModal(false)}
-        onConfirm={handleAgRiskConfirm}
-        title="Risk Notice"
-        message={providerInfo?.deprecationNotice}
-        confirmText="I Understand, Continue"
-        cancelText="Cancel"
-        variant="danger"
-      />
+ <ConfirmModal
+ isOpen={showAgRiskModal}
+ onClose={() => setShowAgRiskModal(false)}
+ onConfirm={handleAgRiskConfirm}
+ title="Risk Notice"
+ message={providerInfo?.deprecationNotice}
+ confirmText="I Understand, Continue"
+ cancelText="Cancel"
+ variant="danger"
+ />
 
-      <ConfirmModal
-        isOpen={!!confirmState}
-        onClose={() => setConfirmState(null)}
-        onConfirm={confirmState?.onConfirm}
-        title={confirmState?.title || "Confirm"}
-        message={confirmState?.message}
-        variant="danger"
-      />
-    </>
-  );
+ <ConfirmModal
+ isOpen={!!confirmState}
+ onClose={() => setConfirmState(null)}
+ onConfirm={confirmState?.onConfirm}
+ title={confirmState?.title || "Confirm"}
+ message={confirmState?.message}
+ variant="danger"
+ />
+ </>
+ );
 }

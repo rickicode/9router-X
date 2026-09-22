@@ -31,9 +31,9 @@ export function getComboBadge(combo, strategy = null) {
       icon: "auto_awesome",
       label: "Smart Routing",
       type: "difficulty",
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-400",
-      border: "border-emerald-500/20",
+      bg: "bg-success/10",
+      text: "text-success",
+      border: "border-success/20",
       title: "Smart Routing Combo",
     };
   }
@@ -43,9 +43,9 @@ export function getComboBadge(combo, strategy = null) {
       icon: "hub",
       label: "Fusion",
       type: "fusion",
-      bg: "bg-purple-500/10",
-      text: "text-purple-600 dark:text-purple-400",
-      border: "border-purple-500/20",
+      bg: "bg-info/10",
+      text: "text-info",
+      border: "border-info/20",
       title: "Fusion Combo",
     };
   }
@@ -55,9 +55,9 @@ export function getComboBadge(combo, strategy = null) {
       icon: "travel_explore",
       label: "Web Search",
       type: "webSearch",
-      bg: "bg-amber-500/10",
-      text: "text-amber-600 dark:text-amber-400",
-      border: "border-amber-500/20",
+      bg: "bg-warning/10",
+      text: "text-warning",
+      border: "border-warning/20",
       title: "Web Search Combo",
     };
   }
@@ -67,12 +67,13 @@ export function getComboBadge(combo, strategy = null) {
       icon: "public",
       label: "Web Fetch",
       type: "webFetch",
-      bg: "bg-cyan-500/10",
-      text: "text-cyan-600 dark:text-cyan-400",
-      border: "border-cyan-500/20",
+      bg: "bg-primary/10",
+      text: "text-primary",
+      border: "border-primary/20",
       title: "Web Fetch Combo",
     };
   }
+
 
   if (isBuiltin) {
     return {
@@ -90,9 +91,9 @@ export function getComboBadge(combo, strategy = null) {
     icon: "person",
     label: "Custom",
     type: "custom",
-    bg: "bg-blue-500/10",
-    text: "text-blue-600 dark:text-blue-400",
-    border: "border-blue-500/20",
+    bg: "bg-primary/10",
+    text: "text-primary",
+    border: "border-primary/20",
     title: "Custom Combo",
   };
 }

@@ -3,113 +3,113 @@
 import { useState, useEffect, useId, useRef } from "react";
 
 export default function Tooltip({
-  text,
-  children,
-  position = "top",
-  color,
-  className = "",
+ text,
+ children,
+ position = "top",
+ color,
+ className = "",
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const id = useId();
-  const containerRef = useRef(null);
+ const [isOpen, setIsOpen] = useState(false);
+ const [dismissed, setDismissed] = useState(false);
+ const id = useId();
+ const containerRef = useRef(null);
 
-  const posClass = {
-    top: "bottom-full left-1/2 -translate-x-1/2 mb-1.5",
-    bottom: "top-full left-1/2 -translate-x-1/2 mt-1.5",
-    left: "right-full top-1/2 -translate-y-1/2 mr-1.5",
-    right: "left-full top-1/2 -translate-y-1/2 ml-1.5",
-  }[position] || "bottom-full left-1/2 -translate-x-1/2 mb-1.5";
+ const posClass = {
+ top: "bottom-full left-1/2 -translate-x-1/2 mb-1.5",
+ bottom: "top-full left-1/2 -translate-x-1/2 mt-1.5",
+ left: "right-full top-1/2 -translate-y-1/2 mr-1.5",
+ right: "left-full top-1/2 -translate-y-1/2 ml-1.5",
+ }[position] || "bottom-full left-1/2 -translate-x-1/2 mb-1.5";
 
-  const bgStyle = color ? { backgroundColor: color } : {};
-  const bgClass = color ? "" : "bg-gray-900 dark:bg-gray-800";
+ const bgStyle = color ? { backgroundColor: color } : {};
+ const bgClass = color ? "" : "border border-border bg-surface text-text-main";
 
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-        setDismissed(false);
-      }
-    };
-    const handleEsc = (e) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-        setDismissed(true);
-      }
-    };
-    document.addEventListener("pointerdown", handleOutside);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("pointerdown", handleOutside);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, []);
+ useEffect(() => {
+ const handleOutside = (e) => {
+ if (containerRef.current && !containerRef.current.contains(e.target)) {
+ setIsOpen(false);
+ setDismissed(false);
+ }
+ };
+ const handleEsc = (e) => {
+ if (e.key === "Escape") {
+ setIsOpen(false);
+ setDismissed(true);
+ }
+ };
+ document.addEventListener("pointerdown", handleOutside);
+ document.addEventListener("keydown", handleEsc);
+ return () => {
+ document.removeEventListener("pointerdown", handleOutside);
+ document.removeEventListener("keydown", handleEsc);
+ };
+ }, []);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      setIsOpen(false);
-      setDismissed(true);
-    } else if (!children && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      setDismissed(false);
-      setIsOpen((prev) => !prev);
-    }
-  };
+ const handleKeyDown = (e) => {
+ if (e.key === "Escape") {
+ e.stopPropagation();
+ setIsOpen(false);
+ setDismissed(true);
+ } else if (!children && (e.key === "Enter" || e.key === " ")) {
+ e.preventDefault();
+ setDismissed(false);
+ setIsOpen((prev) => !prev);
+ }
+ };
 
-  const handleFocus = () => {
-    setDismissed(false);
-  };
+ const handleFocus = () => {
+ setDismissed(false);
+ };
 
-  const handleBlur = (e) => {
-    if (containerRef.current && !containerRef.current.contains(e.relatedTarget)) {
-      setDismissed(false);
-    }
-  };
+ const handleBlur = (e) => {
+ if (containerRef.current && !containerRef.current.contains(e.relatedTarget)) {
+ setDismissed(false);
+ }
+ };
 
-  const visibleClass = dismissed
-    ? "opacity-0"
-    : isOpen
-    ? "opacity-100"
-    : "opacity-0 group-hover/tt:opacity-100 focus-within:opacity-100";
+ const visibleClass = dismissed
+ ? "opacity-0"
+ : isOpen
+ ? "opacity-100"
+ : "opacity-0 group-hover/tt:opacity-100 focus-within:opacity-100";
 
-  return (
-    <span
-      ref={containerRef}
-      className={`relative inline-flex ${
-        children ? "" : "items-center cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 rounded"
-      } group/tt ${className}`.trim()}
-      aria-describedby={text ? id : undefined}
-      tabIndex={children ? undefined : 0}
-      role={children ? undefined : "button"}
-      aria-label={children ? undefined : "More information"}
-      aria-expanded={children ? undefined : isOpen}
-      onClick={() => {
-        setDismissed(false);
-        setIsOpen((prev) => !prev);
-      }}
-      onKeyDown={handleKeyDown}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onPointerLeave={() => setDismissed(false)}
-    >
-      {children || (
-        <span
-          className="material-symbols-outlined text-[14px] text-text-muted"
-          aria-hidden="true"
-        >
-          help
-        </span>
-      )}
-      <span
-        id={id}
-        role="tooltip"
-        aria-hidden={dismissed ? true : undefined}
-        className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-64 rounded px-2.5 py-1.5 text-xs leading-snug ${bgClass} text-white shadow-lg transition-opacity duration-150 whitespace-normal ${visibleClass}`}
-        style={bgStyle}
-      >
-        {text}
-      </span>
-    </span>
-  );
+ return (
+ <span
+ ref={containerRef}
+ className={`relative inline-flex ${
+ children ? "" : "items-center cursor-help focus-visible:outline-none rounded-sm"
+ } group/tt ${className}`.trim()}
+ aria-describedby={text ? id : undefined}
+ tabIndex={children ? undefined : 0}
+ role={children ? undefined : "button"}
+ aria-label={children ? undefined : "More information"}
+ aria-expanded={children ? undefined : isOpen}
+ onClick={() => {
+ setDismissed(false);
+ setIsOpen((prev) => !prev);
+ }}
+ onKeyDown={handleKeyDown}
+ onFocus={handleFocus}
+ onBlur={handleBlur}
+ onPointerLeave={() => setDismissed(false)}
+ >
+ {children || (
+ <span
+ className="material-symbols-outlined text-[18px] text-text-muted"
+ aria-hidden="true"
+ >
+ help
+ </span>
+ )}
+ <span
+ id={id}
+ role="tooltip"
+ aria-hidden={dismissed ? true : undefined}
+ className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-64 rounded-sm px-2 py-1 text-xs ${bgClass} transition-opacity whitespace-normal ${visibleClass}`}
+ style={bgStyle}
+ >
+ {text}
+ </span>
+ </span>
+ );
 }

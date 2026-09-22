@@ -11,169 +11,169 @@ import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl }) {
-  const [codexStatus, setCodexStatus] = useState(initialStatus || null);
-  const [checkingCodex, setCheckingCodex] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [message, setMessage] = useState(null);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const [selectedApiKey, setSelectedApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("");
-  const [subagentModel, setSubagentModel] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [subagentModalOpen, setSubagentModalOpen] = useState(false);
-  const [modelAliases, setModelAliases] = useState({});
-  const [showManualConfigModal, setShowManualConfigModal] = useState(false);
-  const [customBaseUrl, setCustomBaseUrl] = useState("");
+ const [codexStatus, setCodexStatus] = useState(initialStatus || null);
+ const [checkingCodex, setCheckingCodex] = useState(false);
+ const [applying, setApplying] = useState(false);
+ const [restoring, setRestoring] = useState(false);
+ const [message, setMessage] = useState(null);
+ const [showInstallGuide, setShowInstallGuide] = useState(false);
+ const [selectedApiKey, setSelectedApiKey] = useState("");
+ const [selectedModel, setSelectedModel] = useState("");
+ const [subagentModel, setSubagentModel] = useState("");
+ const [modalOpen, setModalOpen] = useState(false);
+ const [subagentModalOpen, setSubagentModalOpen] = useState(false);
+ const [modelAliases, setModelAliases] = useState({});
+ const [showManualConfigModal, setShowManualConfigModal] = useState(false);
+ const [customBaseUrl, setCustomBaseUrl] = useState("");
 
-  useEffect(() => {
-    if (apiKeys?.length > 0 && !selectedApiKey) {
-      setSelectedApiKey(apiKeys[0].key);
-    }
-  }, [apiKeys, selectedApiKey]);
+ useEffect(() => {
+ if (apiKeys?.length > 0 && !selectedApiKey) {
+ setSelectedApiKey(apiKeys[0].key);
+ }
+ }, [apiKeys, selectedApiKey]);
 
-  useEffect(() => {
-    if (initialStatus) setCodexStatus(initialStatus);
-  }, [initialStatus]);
+ useEffect(() => {
+ if (initialStatus) setCodexStatus(initialStatus);
+ }, [initialStatus]);
 
-  useEffect(() => {
-    if (isExpanded) {
-      if (!codexStatus) checkCodexStatus();
-      fetchModelAliases();
-    }
-  }, [isExpanded]);
+ useEffect(() => {
+ if (isExpanded) {
+ if (!codexStatus) checkCodexStatus();
+ fetchModelAliases();
+ }
+ }, [isExpanded]);
 
-  const fetchModelAliases = async () => {
-    try {
-      const res = await fetch("/api/models/alias");
-      const data = await res.json();
-      if (res.ok) setModelAliases(data.aliases || {});
-    } catch (error) {
-      console.log("Error fetching model aliases:", error);
-    }
-  };
+ const fetchModelAliases = async () => {
+ try {
+ const res = await fetch("/api/models/alias");
+ const data = await res.json();
+ if (res.ok) setModelAliases(data.aliases || {});
+ } catch (error) {
+ console.log("Error fetching model aliases:", error);
+ }
+ };
 
-  // Parse model and subagent settings from config content
-  useEffect(() => {
-    if (codexStatus?.config) {
-      const modelMatch = codexStatus.config.match(/^model\s*=\s*"([^"]+)"/m);
-      if (modelMatch) setSelectedModel(modelMatch[1]);
+ // Parse model and subagent settings from config content
+ useEffect(() => {
+ if (codexStatus?.config) {
+ const modelMatch = codexStatus.config.match(/^model\s*=\s*"([^"]+)"/m);
+ if (modelMatch) setSelectedModel(modelMatch[1]);
 
-      // Parse subagent settings
-      const subagentModelMatch = codexStatus.config.match(/^default_subagent_model\s*=\s*"([^"]+)"/m);
-      if (subagentModelMatch) setSubagentModel(subagentModelMatch[1]);
-    }
-  }, [codexStatus]);
+ // Parse subagent settings
+ const subagentModelMatch = codexStatus.config.match(/^default_subagent_model\s*=\s*"([^"]+)"/m);
+ if (subagentModelMatch) setSubagentModel(subagentModelMatch[1]);
+ }
+ }, [codexStatus]);
 
-  const getCurrentBaseUrl = () => {
-    const parsed = codexStatus?.config?.match(/base_url\s*=\s*"([^"]+)"/);
-    return parsed ? parsed[1] : "";
-  };
+ const getCurrentBaseUrl = () => {
+ const parsed = codexStatus?.config?.match(/base_url\s*=\s*"([^"]+)"/);
+ return parsed ? parsed[1] : "";
+ };
 
-  const currentBaseUrl = getCurrentBaseUrl();
+ const currentBaseUrl = getCurrentBaseUrl();
 
-  const getConfigStatus = () => {
-    if (!codexStatus?.installed) return null;
-    if (!codexStatus.config) return "not_configured";
-    return matchKnownEndpoint(currentBaseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
-  };
+ const getConfigStatus = () => {
+ if (!codexStatus?.installed) return null;
+ if (!codexStatus.config) return "not_configured";
+ return matchKnownEndpoint(currentBaseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
+ };
 
-  const configStatus = getConfigStatus();
+ const configStatus = getConfigStatus();
 
-  const getEffectiveBaseUrl = () => {
-    const url = customBaseUrl || `${baseUrl}/v1`;
-    // Ensure URL ends with /v1
-    return url.endsWith("/v1") ? url : `${url}/v1`;
-  };
+ const getEffectiveBaseUrl = () => {
+ const url = customBaseUrl || `${baseUrl}/v1`;
+ // Ensure URL ends with /v1
+ return url.endsWith("/v1") ? url : `${url}/v1`;
+ };
 
-  const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
+ const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
 
-  const checkCodexStatus = async () => {
-    setCheckingCodex(true);
-    try {
-      const res = await fetch("/api/cli-tools/codex-settings");
-      const data = await res.json();
-      setCodexStatus(data);
-    } catch (error) {
-      setCodexStatus({ installed: false, error: error.message });
-    } finally {
-      setCheckingCodex(false);
-    }
-  };
+ const checkCodexStatus = async () => {
+ setCheckingCodex(true);
+ try {
+ const res = await fetch("/api/cli-tools/codex-settings");
+ const data = await res.json();
+ setCodexStatus(data);
+ } catch (error) {
+ setCodexStatus({ installed: false, error: error.message });
+ } finally {
+ setCheckingCodex(false);
+ }
+ };
 
-  const handleApplySettings = async () => {
-    setApplying(true);
-    setMessage(null);
-    try {
-      // Use sk_9router for localhost if no key, otherwise use selected key
-      const keyToUse = (selectedApiKey && selectedApiKey.trim())
-        ? selectedApiKey
-        : (!cloudEnabled ? "sk_9router" : selectedApiKey);
+ const handleApplySettings = async () => {
+ setApplying(true);
+ setMessage(null);
+ try {
+ // Use sk_9router for localhost if no key, otherwise use selected key
+ const keyToUse = (selectedApiKey && selectedApiKey.trim())
+ ? selectedApiKey
+ : (!cloudEnabled ? "sk_9router" : selectedApiKey);
 
-      const res = await fetch("/api/cli-tools/codex-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: getEffectiveBaseUrl(),
-          apiKey: keyToUse,
-          model: selectedModel,
-          subagentModel: subagentModel || selectedModel
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        // Remember the endpoint so it stays selectable next time
-        rememberEndpoint(getEffectiveBaseUrl(), { tunnelPublicUrl, tailscaleUrl });
-        setMessage({ type: "success", text: "Settings applied successfully!" });
-        checkCodexStatus();
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to apply settings" });
-      }
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setApplying(false);
-    }
-  };
+ const res = await fetch("/api/cli-tools/codex-settings", {
+ method: "POST",
+ headers: { "Content-Type": "application/json" },
+ body: JSON.stringify({
+ baseUrl: getEffectiveBaseUrl(),
+ apiKey: keyToUse,
+ model: selectedModel,
+ subagentModel: subagentModel || selectedModel
+ }),
+ });
+ const data = await res.json();
+ if (res.ok) {
+ // Remember the endpoint so it stays selectable next time
+ rememberEndpoint(getEffectiveBaseUrl(), { tunnelPublicUrl, tailscaleUrl });
+ setMessage({ type: "success", text: "Settings applied successfully!" });
+ checkCodexStatus();
+ } else {
+ setMessage({ type: "error", text: data.error || "Failed to apply settings" });
+ }
+ } catch (error) {
+ setMessage({ type: "error", text: error.message });
+ } finally {
+ setApplying(false);
+ }
+ };
 
-  const handleResetSettings = async () => {
-    setRestoring(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/cli-tools/codex-settings", { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage({ type: "success", text: "Settings reset successfully!" });
-        setSelectedModel("");
-        setSubagentModel("");
-        checkCodexStatus();
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to reset settings" });
-      }
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setRestoring(false);
-    }
-  };
+ const handleResetSettings = async () => {
+ setRestoring(true);
+ setMessage(null);
+ try {
+ const res = await fetch("/api/cli-tools/codex-settings", { method: "DELETE" });
+ const data = await res.json();
+ if (res.ok) {
+ setMessage({ type: "success", text: "Settings reset successfully!" });
+ setSelectedModel("");
+ setSubagentModel("");
+ checkCodexStatus();
+ } else {
+ setMessage({ type: "error", text: data.error || "Failed to reset settings" });
+ }
+ } catch (error) {
+ setMessage({ type: "error", text: error.message });
+ } finally {
+ setRestoring(false);
+ }
+ };
 
-  const handleModelSelect = (model) => {
-    setSelectedModel(model.value);
-    // Auto-set subagent model if not set
-    if (!subagentModel) {
-      setSubagentModel(model.value);
-    }
-    setModalOpen(false);
-  };
+ const handleModelSelect = (model) => {
+ setSelectedModel(model.value);
+ // Auto-set subagent model if not set
+ if (!subagentModel) {
+ setSubagentModel(model.value);
+ }
+ setModalOpen(false);
+ };
 
-  const getManualConfigs = () => {
-    const keyToUse = (selectedApiKey && selectedApiKey.trim())
-      ? selectedApiKey
-      : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
+ const getManualConfigs = () => {
+ const keyToUse = (selectedApiKey && selectedApiKey.trim())
+ ? selectedApiKey
+ : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
 
-    const effectiveSubagentModel = subagentModel || selectedModel;
+ const effectiveSubagentModel = subagentModel || selectedModel;
 
-    const configContent = `# 9Router Configuration for Codex CLI
+ const configContent = `# 9Router Configuration for Codex CLI
 model = "${selectedModel}"
 model_provider = "9router"
 
@@ -189,194 +189,194 @@ Authorization = "Bearer ${keyToUse}"
 default_subagent_model = "${effectiveSubagentModel}"
 `;
 
-    return [
-      {
-        filename: "~/.codex/config.toml",
-        content: configContent,
-      },
-    ];
-  };
+ return [
+ {
+ filename: "~/.codex/config.toml",
+ content: configContent,
+ },
+ ];
+ };
 
-  return (
-    <Card padding="xs" className="overflow-hidden">
-      <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="size-8 flex items-center justify-center shrink-0">
-            <Image src="/providers/codex.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-lg" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h3 className="font-medium text-sm">{tool.name}</h3>
-              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">Connected</span>}
-              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full">Not configured</span>}
-              {configStatus === "other" && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full">Other</span>}
-            </div>
-            <p className="text-xs text-text-muted truncate">{tool.description}</p>
-          </div>
-        </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
-      </div>
+ return (
+ <Card padding="xs" className="overflow-hidden">
+ <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <div className="flex min-w-0 items-center gap-3">
+ <div className="size-8 flex items-center justify-center shrink-0">
+ <Image src="/providers/codex.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
+ </div>
+ <div className="min-w-0">
+ <div className="flex min-w-0 flex-wrap items-center gap-2">
+ <h3 className="font-medium text-sm">{tool.name}</h3>
+ {configStatus === "configured" && <span className="px-1.5 py-1 text-[11px] font-medium bg-success/10 text-success rounded-sm">Connected</span>}
+ {configStatus === "not_configured" && <span className="px-1.5 py-1 text-[11px] font-medium bg-warning/10 text-warning rounded-sm">Not configured</span>}
+ {configStatus === "other" && <span className="px-1.5 py-1 text-[11px] font-medium bg-primary/10 text-primary rounded-sm">Other</span>}
+ </div>
+ <p className="text-xs text-text-muted truncate">{tool.description}</p>
+ </div>
+ </div>
+ <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ </div>
 
-      {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
-          {checkingCodex && (
-            <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span>Checking Codex CLI...</span>
-            </div>
-          )}
+ {isExpanded && (
+ <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
+ {checkingCodex && (
+ <div className="flex items-center gap-2 text-text-muted">
+ <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <span>Checking Codex CLI...</span>
+ </div>
+ )}
 
-          {!checkingCodex && (
-            <ToolDetectionBanner
-              installed={codexStatus?.installed}
-              toolName={tool.name}
-              hasConfig={!!codexStatus?.config}
-            />
-          )}
+ {!checkingCodex && (
+ <ToolDetectionBanner
+ installed={codexStatus?.installed}
+ toolName={tool.name}
+ hasConfig={!!codexStatus?.config}
+ />
+ )}
 
-          <HostSetupCommand
-            toolId="codex"
-            baseUrl={getEffectiveBaseUrl()}
-            apiKey={selectedApiKey}
-            model={selectedModel}
-            subagentModel={subagentModel}
-          />
+ <HostSetupCommand
+ toolId="codex"
+ baseUrl={getEffectiveBaseUrl()}
+ apiKey={selectedApiKey}
+ model={selectedModel}
+ subagentModel={subagentModel}
+ />
 
-          {!checkingCodex && (
-            <>
-              <div className="flex flex-col gap-2">
-                {/* Endpoint (selector) */}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <BaseUrlSelect
-                    value={customBaseUrl || getDisplayUrl()}
-                    onChange={setCustomBaseUrl}
-                    requiresExternalUrl={tool.requiresExternalUrl}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
-                    currentUrl={currentBaseUrl}
-                  />
-                </div>
+ {!checkingCodex && (
+ <>
+ <div className="flex flex-col gap-2">
+ {/* Endpoint (selector) */}
+ <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
+ <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
+ <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <BaseUrlSelect
+ value={customBaseUrl || getDisplayUrl()}
+ onChange={setCustomBaseUrl}
+ requiresExternalUrl={tool.requiresExternalUrl}
+ tunnelEnabled={tunnelEnabled}
+ tunnelPublicUrl={tunnelPublicUrl}
+ tailscaleEnabled={tailscaleEnabled}
+ tailscaleUrl={tailscaleUrl}
+ currentUrl={currentBaseUrl}
+ />
+ </div>
 
-                {/* Current configured */}
-                {codexStatus?.config && (() => {
-                  return currentBaseUrl ? (
-                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                      <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
-                      <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                      <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                        {currentBaseUrl}
-                      </span>
-                    </div>
-                  ) : null;
-                })()}
+ {/* Current configured */}
+ {codexStatus?.config && (() => {
+ return currentBaseUrl ? (
+ <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+ <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
+ <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
+ {currentBaseUrl}
+ </span>
+ </div>
+ ) : null;
+ })()}
 
-                {/* API Key */}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
-                </div>
+ {/* API Key */}
+ <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+ <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
+ <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
+ </div>
 
-                {/* Model */}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Model</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <div className="relative w-full min-w-0">
-                    <input type="text" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} placeholder="provider/model-id" className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5" />
-                    {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors" title="Clear"><span className="material-symbols-outlined text-[14px]">close</span></button>}
-                  </div>
-                  <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`w-full sm:w-auto rounded border px-2 py-2 text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
-                </div>
+ {/* Model */}
+ <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+ <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Model</span>
+ <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <div className="relative w-full min-w-0">
+ <input type="text" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} placeholder="provider/model-id" className="w-full min-w-0 pl-2 pr-7 h-8 bg-surface rounded-sm border border-border text-xs focus:outline-none sm:py-2" />
+ {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm" title="Clear"><span className="material-symbols-outlined text-[18px]">close</span></button>}
+ </div>
+ <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`w-full sm:w-auto rounded-sm border px-2 h-8 text-xs sm:py-2 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
+ </div>
 
-                {/* Subagent Model */}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Subagent Model</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <div className="relative w-full min-w-0">
-                    <input
-                      type="text"
-                      value={subagentModel}
-                      onChange={(e) => setSubagentModel(e.target.value)}
-                      placeholder={selectedModel || "provider/model-id (defaults to main model)"}
-                      className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
-                    />
-                    {subagentModel && (
-                      <button
-                        onClick={() => setSubagentModel("")}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors"
-                        title="Clear (will use main model)"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setSubagentModalOpen(true)}
-                    disabled={!activeProviders?.length}
-                    className={`w-full sm:w-auto rounded border px-2 py-2 text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
-                  >
-                    Select Model
-                  </button>
-                </div>
-              </div>
+ {/* Subagent Model */}
+ <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+ <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Subagent Model</span>
+ <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <div className="relative w-full min-w-0">
+ <input
+ type="text"
+ value={subagentModel}
+ onChange={(e) => setSubagentModel(e.target.value)}
+ placeholder={selectedModel || "provider/model-id (defaults to main model)"}
+ className="w-full min-w-0 pl-2 pr-7 h-8 bg-surface rounded-sm border border-border text-xs focus:outline-none sm:py-2"
+ />
+ {subagentModel && (
+ <button
+ onClick={() => setSubagentModel("")}
+ className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm"
+ title="Clear (will use main model)"
+ >
+ <span className="material-symbols-outlined text-[18px]">close</span>
+ </button>
+ )}
+ </div>
+ <button
+ onClick={() => setSubagentModalOpen(true)}
+ disabled={!activeProviders?.length}
+ className={`w-full sm:w-auto rounded-sm border px-2 h-8 text-xs sm:py-2 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
+ >
+ Select Model
+ </button>
+ </div>
+ </div>
 
-              {message && (
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-                  <span className="material-symbols-outlined text-[14px]">{message.type === "success" ? "check_circle" : "error"}</span>
-                  <span>{message.text}</span>
-                </div>
-              )}
+ {message && (
+ <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
+ <span className="material-symbols-outlined text-[18px]">{message.type === "success" ? "check_circle" : "error"}</span>
+ <span>{message.text}</span>
+ </div>
+ )}
 
-              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-                <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={(!selectedApiKey && (cloudEnabled && apiKeys.length > 0)) || !selectedModel} loading={applying}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={restoring} loading={restoring}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>Manual Config
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+ <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+ <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={(!selectedApiKey && (cloudEnabled && apiKeys.length > 0)) || !selectedModel} loading={applying}>
+ <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
+ </Button>
+ <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={restoring} loading={restoring}>
+ <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
+ </Button>
+ <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
+ <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config
+ </Button>
+ </div>
+ </>
+ )}
+ </div>
+ )}
 
-      {modalOpen && (
-        <ModelSelectModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onSelect={handleModelSelect}
-          selectedModel={selectedModel}
-          activeProviders={activeProviders}
-          modelAliases={modelAliases}
-          title="Select Model for Codex"
-        />
-      )}
+ {modalOpen && (
+ <ModelSelectModal
+ isOpen={modalOpen}
+ onClose={() => setModalOpen(false)}
+ onSelect={handleModelSelect}
+ selectedModel={selectedModel}
+ activeProviders={activeProviders}
+ modelAliases={modelAliases}
+ title="Select Model for Codex"
+ />
+ )}
 
-      {subagentModalOpen && (
-        <ModelSelectModal
-          isOpen={subagentModalOpen}
-          onClose={() => setSubagentModalOpen(false)}
-          onSelect={(model) => { setSubagentModel(model.value); setSubagentModalOpen(false); }}
-          selectedModel={subagentModel}
-          activeProviders={activeProviders}
-          modelAliases={modelAliases}
-          title="Select Subagent Model for Codex"
-        />
-      )}
+ {subagentModalOpen && (
+ <ModelSelectModal
+ isOpen={subagentModalOpen}
+ onClose={() => setSubagentModalOpen(false)}
+ onSelect={(model) => { setSubagentModel(model.value); setSubagentModalOpen(false); }}
+ selectedModel={subagentModel}
+ activeProviders={activeProviders}
+ modelAliases={modelAliases}
+ title="Select Subagent Model for Codex"
+ />
+ )}
 
-      <ManualConfigModal
-        isOpen={showManualConfigModal}
-        onClose={() => setShowManualConfigModal(false)}
-        title="Codex CLI - Manual Configuration"
-        configs={getManualConfigs()}
-      />
-    </Card>
-  );
+ <ManualConfigModal
+ isOpen={showManualConfigModal}
+ onClose={() => setShowManualConfigModal(false)}
+ title="Codex CLI - Manual Configuration"
+ configs={getManualConfigs()}
+ />
+ </Card>
+ );
 }

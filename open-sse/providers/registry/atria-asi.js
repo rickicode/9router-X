@@ -14,11 +14,12 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: "https://api.atria-asi.ai/v1/chat/completions",
+    baseUrl: "https://api.atria-asi.ai/v1/responses",
     validateUrl: "https://api.atria-asi.ai/v1/models",
+    format: "openai-responses",
   },
   models: [
-    { id: "Atria-Dawn-Preview", name: "Atria Dawn Preview" },
+    { id: "Atria-Dawn-Preview", name: "Atria Dawn Preview", targetFormat: "openai-responses" },
   ],
   serviceKinds: ["llm"],
 };
