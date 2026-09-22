@@ -2066,6 +2066,6 @@ export default function BenchmarkPage() {
               </div>
             </div>
           ) : null}
-        </div>
-      );
-    }
+      </div>
+    );
+  }
