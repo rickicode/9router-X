@@ -1446,228 +1446,228 @@ export default function BenchmarkPage() {
  </div>
  </Card>
 
- {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (100% Solid, Non-Transparent) ─── */}
- {isPickerModalOpen ? (
- <div
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
- onClick={() => setIsPickerModalOpen(false)}
- >
- <div
- className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
- onClick={(e) => e.stopPropagation()}
- >
-                {/* Modal Header */}
-                <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
-                  <div>
-                    <h3 className="font-semibold text-text-main text-sm flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">dns</span>
-                      <span>Pilih Provider & Model Benchmark</span>
-                    </h3>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      Centang model yang ingin Anda uji, lalu klik tombol Oke di bawah untuk menerapkan.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsPickerModalOpen(false)}
-                    className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-
-                {/* Modal Search & Quick Selection Bar */}
-                <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 bg-surface">
-                  <div className="flex-1 max-w-sm">
-                    <Input
-                      placeholder="Cari provider atau nama model..."
-                      value={pickerSearch}
-                      onChange={(e) => setPickerSearch(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={() => {
-                        setModalSelectedModelIds((prev) => {
-                          const next = new Set(prev);
-                          pickerCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
-                          return next;
-                        });
-                      }}
-                    >
-                      Pilih Semua
-                    </Button>
-                    <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
-                      Kosongkan
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Modal Accordion Body */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface">
- {pickerCatalog.map((provider) => {
- const totalInProv = provider.models.length;
- const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
- const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
- const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
- const isExpanded = pickerExpandedProviders.has(provider.id);
-
- return (
- <div
- key={provider.id}
- className={`rounded-sm border overflow-hidden bg-surface ${
- selectedInProv > 0
- ? "border-primary/30"
- : "border-border hover:border-border"
- }`}
- >
- {/* Provider Row */}
- <div className="flex items-center justify-between p-3 gap-3 bg-surface">
- <div
- className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
- onClick={() => toggleModalProviderModels(provider)}
- >
- <input
- type="checkbox"
- checked={isAllSelected}
- ref={(el) => {
- if (el) el.indeterminate = isPartiallySelected;
- }}
- onChange={() => toggleModalProviderModels(provider)}
- onClick={(e) => e.stopPropagation()}
- aria-label={`Pilih semua model dari ${provider.name}`}
- className="w-4 h-4 rounded-sm border-border text-primary"
- />
- <div className="min-w-0 flex-1 truncate">
- <span className="font-semibold text-sm text-text-main truncate block">
- {provider.name}
- </span>
- <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
- </div>
- </div>
-
- <div className="flex items-center gap-2 shrink-0">
- <span
- className={`px-2 py-1 rounded-sm text-xs font-medium ${
- selectedInProv > 0
- ? "bg-primary/10 text-primary"
- : "bg-surface-3 text-text-muted"
- }`}
- >
- {selectedInProv} / {totalInProv}
- </span>
-                    <button
-                      type="button"
-                      onClick={() => togglePickerExpand(provider.id)}
-                      className="p-1.5 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors"
-                      title={isExpanded ? "Tutup daftar model" : "Buka daftar model"}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {isExpanded ? "expand_less" : "expand_more"}
-                      </span>
-                    </button>
- </div>
- </div>
-
- {/* Model Sub-list (Expanded) */}
- {isExpanded ? (
- <div className="border-t border-border bg-surface p-3 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border text-[11px] text-text-muted">
-                      <span>Daftar Model ({provider.name}):</span>
-                      <div className="flex gap-2 font-medium">
+       {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (100% Solid, Non-Transparent) ─── */}
+       {isPickerModalOpen ? (
+       <div
+       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+       onClick={() => setIsPickerModalOpen(false)}
+       >
+       <div
+       className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+       onClick={(e) => e.stopPropagation()}
+       >
+                      {/* Modal Header */}
+                      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
+                        <div>
+                          <h3 className="font-semibold text-text-main text-sm flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">dns</span>
+                            <span>Pilih Provider & Model Benchmark</span>
+                          </h3>
+                          <p className="text-xs text-text-muted mt-0.5">
+                            Centang model yang ingin Anda uji, lalu klik tombol Oke di bawah untuk menerapkan.
+                          </p>
+                        </div>
                         <button
-                          type="button"
-                          onClick={() => {
-                            setModalSelectedModelIds((prev) => {
-                              const next = new Set(prev);
-                              provider.models.forEach((m) => next.add(m.fullId));
-                              return next;
-                            });
-                          }}
-                          className="text-primary hover:underline"
+                          onClick={() => setIsPickerModalOpen(false)}
+                          className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
                         >
-                          Pilih Semua
-                        </button>
-                        <span>·</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalSelectedModelIds((prev) => {
-                              const next = new Set(prev);
-                              provider.models.forEach((m) => next.delete(m.fullId));
-                              return next;
-                            });
-                          }}
-                          className="text-danger hover:underline"
-                        >
-                          Batal
+                          <span className="material-symbols-outlined text-[18px]">close</span>
                         </button>
                       </div>
+      
+                      {/* Modal Search & Quick Selection Bar */}
+                      <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 bg-surface">
+                        <div className="flex-1 max-w-sm">
+                          <Input
+                            placeholder="Cari provider atau nama model..."
+                            value={pickerSearch}
+                            onChange={(e) => setPickerSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => {
+                              setModalSelectedModelIds((prev) => {
+                                const next = new Set(prev);
+                                pickerCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
+                                return next;
+                              });
+                            }}
+                          >
+                            Pilih Semua
+                          </Button>
+                          <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
+                            Kosongkan
+                          </Button>
+                        </div>
+                      </div>
+      
+                      {/* Modal Accordion Body */}
+                      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface">
+       {pickerCatalog.map((provider) => {
+       const totalInProv = provider.models.length;
+       const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
+       const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
+       const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
+       const isExpanded = pickerExpandedProviders.has(provider.id);
+      
+       return (
+       <div
+       key={provider.id}
+       className={`rounded-sm border overflow-hidden bg-surface ${
+       selectedInProv > 0
+       ? "border-primary/30"
+       : "border-border hover:border-border"
+       }`}
+       >
+       {/* Provider Row */}
+       <div className="flex items-center justify-between p-3 gap-3 bg-surface">
+       <div
+       className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
+       onClick={() => toggleModalProviderModels(provider)}
+       >
+       <input
+       type="checkbox"
+       checked={isAllSelected}
+       ref={(el) => {
+       if (el) el.indeterminate = isPartiallySelected;
+       }}
+       onChange={() => toggleModalProviderModels(provider)}
+       onClick={(e) => e.stopPropagation()}
+       aria-label={`Pilih semua model dari ${provider.name}`}
+       className="w-4 h-4 rounded-sm border-border text-primary"
+       />
+       <div className="min-w-0 flex-1 truncate">
+       <span className="font-semibold text-sm text-text-main truncate block">
+       {provider.name}
+       </span>
+       <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
+       </div>
+       </div>
+      
+       <div className="flex items-center gap-2 shrink-0">
+       <span
+       className={`px-2 py-1 rounded-sm text-xs font-medium ${
+       selectedInProv > 0
+       ? "bg-primary/10 text-primary"
+       : "bg-surface-3 text-text-muted"
+       }`}
+       >
+       {selectedInProv} / {totalInProv}
+       </span>
+                          <button
+                            type="button"
+                            onClick={() => togglePickerExpand(provider.id)}
+                            className="p-1.5 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors"
+                            title={isExpanded ? "Tutup daftar model" : "Buka daftar model"}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              {isExpanded ? "expand_less" : "expand_more"}
+                            </span>
+                          </button>
+       </div>
+       </div>
+      
+       {/* Model Sub-list (Expanded) */}
+       {isExpanded ? (
+       <div className="border-t border-border bg-surface p-3 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-border text-[11px] text-text-muted">
+                            <span>Daftar Model ({provider.name}):</span>
+                            <div className="flex gap-2 font-medium">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModalSelectedModelIds((prev) => {
+                                    const next = new Set(prev);
+                                    provider.models.forEach((m) => next.add(m.fullId));
+                                    return next;
+                                  });
+                                }}
+                                className="text-primary hover:underline"
+                              >
+                                Pilih Semua
+                              </button>
+                              <span>·</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModalSelectedModelIds((prev) => {
+                                    const next = new Set(prev);
+                                    provider.models.forEach((m) => next.delete(m.fullId));
+                                    return next;
+                                  });
+                                }}
+                                className="text-danger hover:underline"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+      
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+       {provider.models.map((model) => {
+       const isModelChecked = modalSelectedModelIds.has(model.fullId);
+       return (
+                            <div
+                              key={model.fullId}
+                              onClick={() => toggleModalModel(model.fullId)}
+                              className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-xs cursor-pointer border transition-colors ${
+                                isModelChecked
+                                  ? "border-primary/60 bg-primary/10 text-text-main font-semibold"
+                                  : "border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text-main"
+                              }`}
+                            >
+       <div className="flex items-center gap-2 min-w-0 flex-1">
+       <input
+       type="checkbox"
+       checked={isModelChecked}
+       onChange={() => toggleModalModel(model.fullId)}
+       onClick={(e) => e.stopPropagation()}
+       aria-label={`Pilih model ${model.name}`}
+       className="w-4 h-4 rounded-sm border-border text-primary"
+       />
+       <div className="truncate">
+       <div className="truncate text-text-main">{model.name}</div>
+       <div className="font-mono text-[11px] text-text-muted opacity-80 truncate">
+       {model.fullId}
+       </div>
+       </div>
+       </div>
+       </div>
+       );
+       })}
+       </div>
+       </div>
+       ) : null}
+       </div>
+       );
+                      })}
+      
+                      {pickerCatalog.length === 0 ? (
+                        <div className="py-8 text-center text-sm text-text-muted">
+                          Tidak ada provider atau model yang sesuai dengan kata kunci pencarian.
+                        </div>
+                      ) : null}
                     </div>
-
- <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
- {provider.models.map((model) => {
- const isModelChecked = modalSelectedModelIds.has(model.fullId);
- return (
-                      <div
-                        key={model.fullId}
-                        onClick={() => toggleModalModel(model.fullId)}
-                        className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-xs cursor-pointer border transition-colors ${
-                          isModelChecked
-                            ? "border-primary/60 bg-primary/10 text-text-main font-semibold"
-                            : "border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text-main"
-                        }`}
-                      >
- <div className="flex items-center gap-2 min-w-0 flex-1">
- <input
- type="checkbox"
- checked={isModelChecked}
- onChange={() => toggleModalModel(model.fullId)}
- onClick={(e) => e.stopPropagation()}
- aria-label={`Pilih model ${model.name}`}
- className="w-4 h-4 rounded-sm border-border text-primary"
- />
- <div className="truncate">
- <div className="truncate text-text-main">{model.name}</div>
- <div className="font-mono text-[11px] text-text-muted opacity-80 truncate">
- {model.fullId}
- </div>
- </div>
- </div>
- </div>
- );
- })}
- </div>
- </div>
- ) : null}
- </div>
- );
-                })}
-
-                {pickerCatalog.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-text-muted">
-                    Tidak ada provider atau model yang sesuai dengan kata kunci pencarian.
+      
+                    {/* Modal Footer with prominent OKE button */}
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
+                      <span className="text-xs text-text-muted">
+                        Terpilih di modal: <span className="font-semibold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
+                          Batal
+                        </Button>
+                        <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="font-medium">
+                          Oke, Terapkan Pilihan
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
-              </div>
-
-              {/* Modal Footer with prominent OKE button */}
-              <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
-                <span className="text-xs text-text-muted">
-                  Terpilih di modal: <span className="font-semibold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setIsPickerModalOpen(false)}>
-                    Batal
-                  </Button>
-                  <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="font-medium">
-                    Oke, Terapkan Pilihan
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
  {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
  {inspectAttempt ? (
@@ -1675,132 +1675,132 @@ export default function BenchmarkPage() {
  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
  onClick={() => setInspectAttempt(null)}
  >
- <div
- className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
- onClick={(e) => e.stopPropagation()}
- >
- {/* Modal Header */}
-                <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
-                  <div>
-                    <div className="flex items-center gap-2 font-semibold text-text-main text-sm">
-                      <span>{inspectAttempt.model}</span>
-                      <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
-                        {inspectAttempt.status?.toUpperCase()}
-                      </Badge>
-                      {inspectAttempt.http_status ? (
-                        <span
-                          className={`font-mono text-xs font-semibold px-2 py-1 rounded-sm border ${
-                            inspectAttempt.http_status === 200
-                              ? "border-success/30 bg-success/10 text-success"
-                              : inspectAttempt.http_status === 429
-                              ? "border-warning/30 bg-warning/10 text-warning"
-                              : "border-danger/30 bg-danger/10 text-danger"
-                          }`}
+       <div
+       className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+       onClick={(e) => e.stopPropagation()}
+       >
+       {/* Modal Header */}
+                      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
+                        <div>
+                          <div className="flex items-center gap-2 font-semibold text-text-main text-sm">
+                            <span>{inspectAttempt.model}</span>
+                            <Badge variant={inspectAttempt.status === "passed" ? "success" : "error"}>
+                              {inspectAttempt.status?.toUpperCase()}
+                            </Badge>
+                            {inspectAttempt.http_status ? (
+                              <span
+                                className={`font-mono text-xs font-semibold px-2 py-1 rounded-sm border ${
+                                  inspectAttempt.http_status === 200
+                                    ? "border-success/30 bg-success/10 text-success"
+                                    : inspectAttempt.http_status === 429
+                                    ? "border-warning/30 bg-warning/10 text-warning"
+                                    : "border-danger/30 bg-danger/10 text-danger"
+                                }`}
+                              >
+                                HTTP {inspectAttempt.http_status}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="text-xs text-text-muted font-mono mt-0.5">{inspectAttempt.suite}</div>
+                        </div>
+                        <button
+                          onClick={() => setInspectAttempt(null)}
+                          className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
                         >
-                          HTTP {inspectAttempt.http_status}
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+      
+                      {/* Modal Body */}
+                      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-xs font-mono bg-surface">
+                        {/* Telemetry Chips */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                          <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
+                            <div className="text-text-muted text-[11px]">Skor Kualitas</div>
+                            <div className="text-sm font-semibold text-text-main">{inspectAttempt.score ?? "-"} / 100</div>
+                          </div>
+                          <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
+                            <div className="text-text-muted text-[11px]">TTFT (Byte Pertama)</div>
+                            <div className="text-sm font-semibold text-text-main">
+                              {inspectAttempt.ttft_ms ? `${inspectAttempt.ttft_ms}ms` : "-"}
+                            </div>
+                          </div>
+                          <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
+                            <div className="text-text-muted text-[11px]">Total Waktu</div>
+                            <div className="text-sm font-semibold text-text-main">
+                              {inspectAttempt.total_ms ? `${inspectAttempt.total_ms}ms` : "-"}
+                            </div>
+                          </div>
+                          <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
+                            <div className="text-text-muted text-[11px]">Throughput (tok/s)</div>
+                            <div className="text-sm font-semibold text-text-main">
+                              {inspectAttempt.tps ?? "-"} tok/s
+                            </div>
+                          </div>
+                        </div>
+      
+                        {/* Error Box if any */}
+                        {inspectAttempt.error ? (
+                          <div>
+                            <div className="text-danger font-medium mb-1 flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-sm">warning</span>
+                              <span>Pesan Error / Upstream Diagnostic:</span>
+                            </div>
+                            <pre className="rounded-sm bg-danger/10 border border-danger/30 p-3 text-danger whitespace-pre-wrap break-all text-[11px] font-mono">
+                              {inspectAttempt.error}
+                            </pre>
+                          </div>
+                        ) : null}
+      
+                        {/* Request Payload */}
+                        <div>
+                          <div className="text-text-muted font-medium mb-1 flex items-center justify-between">
+                            <span>Request Payload:</span>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(inspectAttempt.request_body || "")}
+                              className="text-primary hover:underline text-[11px]"
+                            >
+                              Salin Request
+                            </button>
+                          </div>
+                          <pre className="rounded-sm bg-surface border border-border p-3 text-text-main whitespace-pre-wrap break-all max-h-48 overflow-y-auto font-mono text-xs">
+                            {inspectAttempt.request_body || "Tidak ada body request tersimpan."}
+                          </pre>
+                        </div>
+      
+                        {/* Response Body */}
+                        <div>
+                          <div className="text-text-muted font-medium mb-1 flex items-center justify-between">
+                            <span>Upstream Response Body:</span>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(inspectAttempt.response_body || inspectAttempt.excerpt || "")}
+                              className="text-primary hover:underline text-[11px]"
+                            >
+                              Salin Respon
+                            </button>
+                          </div>
+                          <pre className="rounded-sm bg-surface border border-border p-3 text-text-main whitespace-pre-wrap break-all max-h-60 overflow-y-auto font-mono text-xs">
+                            {inspectAttempt.response_body || inspectAttempt.excerpt || "Tidak ada respon body tersimpan."}
+                          </pre>
+                        </div>
+                      </div>
+      
+                      {/* Modal Footer */}
+                      <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
+                        <span className="text-[11px] text-text-muted">
+                          Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
                         </span>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-text-muted font-mono mt-0.5">{inspectAttempt.suite}</div>
-                  </div>
-                  <button
-                    onClick={() => setInspectAttempt(null)}
-                    className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-
-                {/* Modal Body */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-xs font-mono bg-surface">
-                  {/* Telemetry Chips */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
-                      <div className="text-text-muted text-[11px]">Skor Kualitas</div>
-                      <div className="text-sm font-semibold text-text-main">{inspectAttempt.score ?? "-"} / 100</div>
-                    </div>
-                    <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
-                      <div className="text-text-muted text-[11px]">TTFT (Byte Pertama)</div>
-                      <div className="text-sm font-semibold text-text-main">
-                        {inspectAttempt.ttft_ms ? `${inspectAttempt.ttft_ms}ms` : "-"}
+                        <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
+                          Tutup
+                        </Button>
                       </div>
-                    </div>
-                    <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
-                      <div className="text-text-muted text-[11px]">Total Waktu</div>
-                      <div className="text-sm font-semibold text-text-main">
-                        {inspectAttempt.total_ms ? `${inspectAttempt.total_ms}ms` : "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-sm border border-border bg-surface px-3 py-2.5">
-                      <div className="text-text-muted text-[11px]">Throughput (tok/s)</div>
-                      <div className="text-sm font-semibold text-text-main">
-                        {inspectAttempt.tps ?? "-"} tok/s
-                      </div>
-                    </div>
                   </div>
-
-                  {/* Error Box if any */}
-                  {inspectAttempt.error ? (
-                    <div>
-                      <div className="text-danger font-medium mb-1 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-sm">warning</span>
-                        <span>Pesan Error / Upstream Diagnostic:</span>
-                      </div>
-                      <pre className="rounded-sm bg-danger/10 border border-danger/30 p-3 text-danger whitespace-pre-wrap break-all text-[11px] font-mono">
-                        {inspectAttempt.error}
-                      </pre>
-                    </div>
-                  ) : null}
-
-                  {/* Request Payload */}
-                  <div>
-                    <div className="text-text-muted font-medium mb-1 flex items-center justify-between">
-                      <span>Request Payload:</span>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(inspectAttempt.request_body || "")}
-                        className="text-primary hover:underline text-[11px]"
-                      >
-                        Salin Request
-                      </button>
-                    </div>
-                    <pre className="rounded-sm bg-surface border border-border p-3 text-text-main whitespace-pre-wrap break-all max-h-48 overflow-y-auto font-mono text-xs">
-                      {inspectAttempt.request_body || "Tidak ada body request tersimpan."}
-                    </pre>
-                  </div>
-
-                  {/* Response Body */}
-                  <div>
-                    <div className="text-text-muted font-medium mb-1 flex items-center justify-between">
-                      <span>Upstream Response Body:</span>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(inspectAttempt.response_body || inspectAttempt.excerpt || "")}
-                        className="text-primary hover:underline text-[11px]"
-                      >
-                        Salin Respon
-                      </button>
-                    </div>
-                    <pre className="rounded-sm bg-surface border border-border p-3 text-text-main whitespace-pre-wrap break-all max-h-60 overflow-y-auto font-mono text-xs">
-                      {inspectAttempt.response_body || inspectAttempt.excerpt || "Tidak ada respon body tersimpan."}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Modal Footer */}
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
-                  <span className="text-[11px] text-text-muted">
-                    Waktu eksekusi: {new Date(inspectAttempt.created_at).toLocaleString()}
-                  </span>
-                  <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
-                    Tutup
-                  </Button>
-                </div>
-            </div>
-          ) : null}
-
-          {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
-          {isReviewerModalOpen ? (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
-              onClick={() => setIsReviewerModalOpen(false)}
+                ) : null}
+      
+                {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
+                {isReviewerModalOpen ? (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+                    onClick={() => setIsReviewerModalOpen(false)}
             >
               <div
                 className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
@@ -1808,101 +1808,101 @@ export default function BenchmarkPage() {
               >
                 <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
                   <div>
-                    <h3 className="font-semibold text-text-main text-sm flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">psychology</span>
-                      <span>Pilih Model Reviewer AI</span>
-                    </h3>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      Pilih 1 model yang akan membaca dan merangkum hasil benchmark setelah selesai.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsReviewerModalOpen(false)}
-                    className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-
-                <div className="px-4 py-3 border-b border-border bg-surface">
-                  <Input
-                    placeholder="Cari nama model reviewer..."
-                    value={reviewerPickerSearch}
-                    onChange={(e) => setReviewerPickerSearch(e.target.value)}
-                  />
-
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface">
-                  <div
-                    onClick={() => {
-                      setReviewer("judge-router");
-                      setIsReviewerModalOpen(false);
-                    }}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-sm border cursor-pointer bg-surface transition-colors ${
-                      reviewer === "judge-router"
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
-                        : "border-border hover:border-border text-text-main"
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold text-sm">judge-router</div>
-                      <div className="text-xs text-text-muted">Internal automated router judge</div>
-                    </div>
-                    <Badge variant="default">Default</Badge>
-                  </div>
-
-                  {reviewerModelOptions
-                    .filter((opt) => opt.value !== "judge-router")
-                    .filter((opt) => {
-                      if (!reviewerPickerSearch) return true;
-                      const q = reviewerPickerSearch.toLowerCase();
-                      return opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || opt.subtitle?.toLowerCase().includes(q);
-                    })
-                    .map((opt) => {
-                      const isSelected = reviewer === opt.value;
-                      return (
+                          <h3 className="font-semibold text-text-main text-sm flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">psychology</span>
+                            <span>Pilih Model Reviewer AI</span>
+                          </h3>
+                          <p className="text-xs text-text-muted mt-0.5">
+                            Pilih 1 model yang akan membaca dan merangkum hasil benchmark setelah selesai.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsReviewerModalOpen(false)}
+                          className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                      </div>
+      
+                      <div className="px-4 py-3 border-b border-border bg-surface">
+                        <Input
+                          placeholder="Cari nama model reviewer..."
+                          value={reviewerPickerSearch}
+                          onChange={(e) => setReviewerPickerSearch(e.target.value)}
+                        />
+      
+                      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface">
                         <div
-                          key={opt.value}
                           onClick={() => {
-                            setReviewer(opt.value);
+                            setReviewer("judge-router");
                             setIsReviewerModalOpen(false);
                           }}
                           className={`flex items-center justify-between px-3 py-2.5 rounded-sm border cursor-pointer bg-surface transition-colors ${
-                            isSelected
+                            reviewer === "judge-router"
                               ? "border-primary bg-primary/10 text-primary font-semibold"
                               : "border-border hover:border-border text-text-main"
                           }`}
                         >
-                          <div className="truncate">
-                            <div className="font-medium text-xs truncate text-text-main">{opt.label}</div>
-                            <div className="text-[11px] text-text-muted font-mono">{opt.value}</div>
+                          <div>
+                            <div className="font-semibold text-sm">judge-router</div>
+                            <div className="text-xs text-text-muted">Internal automated router judge</div>
                           </div>
-                          <Badge variant="secondary">{opt.badge}</Badge>
+                          <Badge variant="default">Default</Badge>
                         </div>
-                      );
-                    })}
-                </div>
-
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
-                  <span className="text-xs text-text-muted truncate max-w-sm">
-                    Terpilih: <span className="font-medium text-text-main">{reviewer || "Tanpa Reviewer"}</span>
-                  </span>
-                  <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
-                    Tutup
-                  </Button>
-            </div>
-          ) : null}
-
-          {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
-          {isLogModalOpen ? (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
-              onClick={() => setIsLogModalOpen(false)}
-            >
-              <div
-                className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
-                role="dialog"
-                aria-labelledby="log-modal-title"
-                tabIndex={-1}
+      
+                        {reviewerModelOptions
+                          .filter((opt) => opt.value !== "judge-router")
+                          .filter((opt) => {
+                            if (!reviewerPickerSearch) return true;
+                            const q = reviewerPickerSearch.toLowerCase();
+                            return opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || opt.subtitle?.toLowerCase().includes(q);
+                          })
+                          .map((opt) => {
+                            const isSelected = reviewer === opt.value;
+                            return (
+                              <div
+                                key={opt.value}
+                                onClick={() => {
+                                  setReviewer(opt.value);
+                                  setIsReviewerModalOpen(false);
+                                }}
+                                className={`flex items-center justify-between px-3 py-2.5 rounded-sm border cursor-pointer bg-surface transition-colors ${
+                                  isSelected
+                                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                                    : "border-border hover:border-border text-text-main"
+                                }`}
+                              >
+                                <div className="truncate">
+                                  <div className="font-medium text-xs truncate text-text-main">{opt.label}</div>
+                                  <div className="text-[11px] text-text-muted font-mono">{opt.value}</div>
+                                </div>
+                                <Badge variant="secondary">{opt.badge}</Badge>
+                              </div>
+                            );
+                          })}
+                      </div>
+      
+                      <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
+                        <span className="text-xs text-text-muted truncate max-w-sm">
+                          Terpilih: <span className="font-medium text-text-main">{reviewer || "Tanpa Reviewer"}</span>
+                        </span>
+                        <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
+                          Tutup
+                        </Button>
+                  </div>
+                ) : null}
+      
+                {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
+                {isLogModalOpen ? (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+                    onClick={() => setIsLogModalOpen(false)}
+                  >
+                    <div
+                      className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+                      role="dialog"
+                      aria-labelledby="log-modal-title"
+                      tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
@@ -1910,158 +1910,158 @@ export default function BenchmarkPage() {
                     <h3 id="log-modal-title" className="font-semibold text-text-main text-sm flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary">terminal</span>
                       <span>Live Logs — Request & Respons AI</span>
-                      {isJobRunning ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-success/10 border border-success/30 text-success text-[11px] font-medium">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-ping" />
-                          LIVE
-                        </span>
-                      ) : null}
-                    </h3>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {logEntries.length} dari {rawAttempts.length} log · {active?.progress?.phase || active?.status || "-"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsLogModalOpen(false)}
-                    className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-
-                {/* Filter bar: search + suite + auto-scroll */}
-                <div className="px-4 py-3 border-b border-border bg-surface flex flex-wrap items-center gap-2">
-                  <div className="flex-1 min-w-[200px]">
-                    <Input
-                      placeholder="Cari model, akun, isi request / respons..."
-                      value={logSearch}
-                      onChange={(e) => setLogSearch(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    {["all", "pong", "coding", "logic", "tool"].map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setLogSuiteFilter(s)}
-                        className={`px-2.5 py-1.5 rounded-sm font-medium transition-colors ${
-                          logSuiteFilter === s
-                            ? "bg-primary text-white"
-                            : "bg-surface text-text-muted hover:bg-surface-2 hover:text-text-main"
-                        }`}
-                      >
-                        {s === "all" ? "Semua" : s}
-                      </button>
-                    ))}
-                  </div>
-                  <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none ml-auto font-medium">
-                    <input
-                      type="checkbox"
-                      checked={logAutoScroll}
-                      onChange={(e) => setLogAutoScroll(e.target.checked)}
-                      className="rounded-sm border-border text-primary"
-                    />
-                    Auto-scroll
-                  </label>
-                </div>
-
-                {/* Log tail body */}
-                <div ref={logScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface font-mono text-[11px]">
-                  {logEntries.map((row) => {
-                    const id = row.id || `${row.model}-${row.suite}-${row.rep}-${row.created_at}`;
-                    const expanded = logExpandedId === id;
-                    const reqText = expanded ? prettyJSON(row.request_body) : "";
-                    const respText = row.response_body || row.excerpt || row.error || "-";
-                    const statusColor =
-                      row.status === "passed"
-                        ? "border-success/30 text-success"
-                        : row.status === "rate_limited"
-                        ? "border-warning/30 text-warning"
-                        : row.status === "skipped"
-                        ? "border-border text-text-muted"
-                        : "border-danger/30 text-danger";
-                    return (
-                      <div key={id} className="rounded-sm border border-border bg-surface overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setLogExpandedId(expanded ? null : id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-2/60 transition-colors"
-                        >
-                          <span className="text-text-muted text-xs w-16 shrink-0">
-                            {row.created_at ? new Date(row.created_at).toLocaleTimeString() : "-"}
-                          </span>
-                          <span className={`px-1.5 py-0.5 rounded-sm border text-[11px] font-medium shrink-0 ${statusColor}`}>
-                            {row.http_status || row.status}
-                          </span>
-                          <span className="font-medium text-text-main truncate flex-1 text-[11px]">{row.model}</span>
-                          <span className="text-text-muted text-[11px] shrink-0">{row.suite} r{row.rep || 1}</span>
-                          <span className="text-text-muted truncate max-w-[140px] hidden sm:inline">{row.account_name || ""}</span>
-                          <span className="material-symbols-outlined text-sm text-text-muted transition-transform" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>
-                            expand_more
-                          </span>
-                        </button>
-                        <div className="px-3 pb-2 text-text-muted truncate text-[11px]">
-                          <span className="text-success font-medium">RESP:</span> {(row.response_body || row.excerpt || row.error || "-").slice(0, 160)}
-                        </div>
-                        {expanded ? (
-                          <div className="border-t border-border px-3 py-3 space-y-3">
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-text-muted font-medium text-[11px]">REQUEST:</span>
-                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.request_body || ""); }} className="text-primary hover:underline text-[11px]">
-                                  Salin
-                                </button>
-                              </div>
-                              <pre className="rounded-sm bg-surface border border-border text-text-main whitespace-pre-wrap break-all max-h-96 overflow-y-auto p-3 font-mono text-xs">{reqText}</pre>
-                            </div>
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-text-muted font-medium text-[11px]">RESPONSE AI:</span>
-                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(respText); }} className="text-primary hover:underline text-[11px]">
-                                  Salin
-                                </button>
-                              </div>
-                              <pre className="rounded-sm bg-surface border border-border text-text-main whitespace-pre-wrap break-all max-h-[32rem] overflow-y-auto p-3 font-mono text-xs">{respText}</pre>
-                            </div>
-                            {row.error ? (
-                              <pre className="rounded-sm bg-danger/10 border border-danger/30 p-3 text-danger whitespace-pre-wrap break-all font-mono text-xs">{row.error}</pre>
+                            {isJobRunning ? (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-success/10 border border-success/30 text-success text-[11px] font-medium">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-ping" />
+                                LIVE
+                              </span>
                             ) : null}
-                            <div className="flex flex-wrap gap-2 text-[11px] text-text-muted">
-                              <span>TTFT: {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}</span>
-                              <span>Total: {row.total_ms ? `${row.total_ms}ms` : "-"}</span>
-                              <span>Tokens: {row.tokens ?? "-"}</span>
-                              <span>Score: {row.score ?? "-"}</span>
-                              <button onClick={(e) => { e.stopPropagation(); setInspectAttempt(row); }} className="text-primary hover:underline">
-                                Buka di Inspector →
+                          </h3>
+                          <p className="text-xs text-text-muted mt-0.5">
+                            {logEntries.length} dari {rawAttempts.length} log · {active?.progress?.phase || active?.status || "-"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsLogModalOpen(false)}
+                          className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                      </div>
+      
+                      {/* Filter bar: search + suite + auto-scroll */}
+                      <div className="px-4 py-3 border-b border-border bg-surface flex flex-wrap items-center gap-2">
+                        <div className="flex-1 min-w-[200px]">
+                          <Input
+                            placeholder="Cari model, akun, isi request / respons..."
+                            value={logSearch}
+                            onChange={(e) => setLogSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          {["all", "pong", "coding", "logic", "tool"].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setLogSuiteFilter(s)}
+                              className={`px-2.5 py-1.5 rounded-sm font-medium transition-colors ${
+                                logSuiteFilter === s
+                                  ? "bg-primary text-white"
+                                  : "bg-surface text-text-muted hover:bg-surface-2 hover:text-text-main"
+                              }`}
+                            >
+                              {s === "all" ? "Semua" : s}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none ml-auto font-medium">
+                          <input
+                            type="checkbox"
+                            checked={logAutoScroll}
+                            onChange={(e) => setLogAutoScroll(e.target.checked)}
+                            className="rounded-sm border-border text-primary"
+                          />
+                          Auto-scroll
+                        </label>
+                      </div>
+      
+                      {/* Log tail body */}
+                      <div ref={logScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-surface font-mono text-[11px]">
+                        {logEntries.map((row) => {
+                          const id = row.id || `${row.model}-${row.suite}-${row.rep}-${row.created_at}`;
+                          const expanded = logExpandedId === id;
+                          const reqText = expanded ? prettyJSON(row.request_body) : "";
+                          const respText = row.response_body || row.excerpt || row.error || "-";
+                          const statusColor =
+                            row.status === "passed"
+                              ? "border-success/30 text-success"
+                              : row.status === "rate_limited"
+                              ? "border-warning/30 text-warning"
+                              : row.status === "skipped"
+                              ? "border-border text-text-muted"
+                              : "border-danger/30 text-danger";
+                          return (
+                            <div key={id} className="rounded-sm border border-border bg-surface overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setLogExpandedId(expanded ? null : id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-2/60 transition-colors"
+                              >
+                                <span className="text-text-muted text-xs w-16 shrink-0">
+                                  {row.created_at ? new Date(row.created_at).toLocaleTimeString() : "-"}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded-sm border text-[11px] font-medium shrink-0 ${statusColor}`}>
+                                  {row.http_status || row.status}
+                                </span>
+                                <span className="font-medium text-text-main truncate flex-1 text-[11px]">{row.model}</span>
+                                <span className="text-text-muted text-[11px] shrink-0">{row.suite} r{row.rep || 1}</span>
+                                <span className="text-text-muted truncate max-w-[140px] hidden sm:inline">{row.account_name || ""}</span>
+                                <span className="material-symbols-outlined text-sm text-text-muted transition-transform" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>
+                                  expand_more
+                                </span>
                               </button>
+                              <div className="px-3 pb-2 text-text-muted truncate text-[11px]">
+                                <span className="text-success font-medium">RESP:</span> {(row.response_body || row.excerpt || row.error || "-").slice(0, 160)}
+                              </div>
+                              {expanded ? (
+                                <div className="border-t border-border px-3 py-3 space-y-3">
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-text-muted font-medium text-[11px]">REQUEST:</span>
+                                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.request_body || ""); }} className="text-primary hover:underline text-[11px]">
+                                        Salin
+                                      </button>
+                                    </div>
+                                    <pre className="rounded-sm bg-surface border border-border text-text-main whitespace-pre-wrap break-all max-h-96 overflow-y-auto p-3 font-mono text-xs">{reqText}</pre>
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-text-muted font-medium text-[11px]">RESPONSE AI:</span>
+                                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(respText); }} className="text-primary hover:underline text-[11px]">
+                                        Salin
+                                      </button>
+                                    </div>
+                                    <pre className="rounded-sm bg-surface border border-border text-text-main whitespace-pre-wrap break-all max-h-[32rem] overflow-y-auto p-3 font-mono text-xs">{respText}</pre>
+                                  </div>
+                                  {row.error ? (
+                                    <pre className="rounded-sm bg-danger/10 border border-danger/30 p-3 text-danger whitespace-pre-wrap break-all font-mono text-xs">{row.error}</pre>
+                                  ) : null}
+                                  <div className="flex flex-wrap gap-2 text-[11px] text-text-muted">
+                                    <span>TTFT: {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}</span>
+                                    <span>Total: {row.total_ms ? `${row.total_ms}ms` : "-"}</span>
+                                    <span>Tokens: {row.tokens ?? "-"}</span>
+                                    <span>Score: {row.score ?? "-"}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); setInspectAttempt(row); }} className="text-primary hover:underline">
+                                      Buka di Inspector →
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
+                          );
+                        })}
+                        {logEntries.length === 0 ? (
+                          <div className="py-8 text-center text-text-muted font-sans text-xs">
+                            {isJobRunning ? "Menunggu attempt pertama masuk..." : "Tidak ada log yang cocok dengan filter."}
                           </div>
                         ) : null}
                       </div>
-                    );
-                  })}
-                  {logEntries.length === 0 ? (
-                    <div className="py-8 text-center text-text-muted font-sans text-xs">
-                      {isJobRunning ? "Menunggu attempt pertama masuk..." : "Tidak ada log yang cocok dengan filter."}
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Modal Footer */}
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
-                  <span className="text-[11px] text-text-muted">
-                    Auto-refresh tiap {isJobRunning ? "1" : "4"} detik · scroll otomatis: {logAutoScroll ? "aktif" : "mati"}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => refresh(active?.id)} icon="refresh">
-                      Refresh
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setIsLogModalOpen(false)}>
-                      Tutup
-                    </Button>
+      
+                      {/* Modal Footer */}
+                      <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-surface">
+                        <span className="text-[11px] text-text-muted">
+                          Auto-refresh tiap {isJobRunning ? "1" : "4"} detik · scroll otomatis: {logAutoScroll ? "aktif" : "mati"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => refresh(active?.id)} icon="refresh">
+                            Refresh
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => setIsLogModalOpen(false)}>
+                            Tutup
+                          </Button>
+                        </div>
                   </div>
-            </div>
-          ) : null}
-      </div>
-    );
-  }
+        ) : null}
+    </div>
+  );
+}
