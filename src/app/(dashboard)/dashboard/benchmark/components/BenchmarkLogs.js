@@ -57,20 +57,20 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
         role="dialog"
         aria-labelledby="log-modal-title"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
           <div>
             <h3 id="log-modal-title" className="font-bold text-text-main text-base flex items-center gap-2">
               <span className="material-symbols-outlined text-brand-500">terminal</span>
               <span>Live Logs — Request & Respons AI</span>
               {isJobRunning ? (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 text-[10px] font-bold animate-pulse">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold animate-pulse">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   LIVE
                 </span>
@@ -89,7 +89,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
         </div>
 
         {/* Filter bar: search + suite + auto-scroll */}
-        <div className="px-6 py-3 border-b border-border bg-white dark:bg-[#202020] flex flex-wrap items-center gap-2">
+        <div className="px-6 py-3 border-b border-border bg-surface flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-[200px]">
             <Input
               placeholder="Cari model, akun, isi request / respons..."
@@ -125,7 +125,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
         </div>
 
         {/* Log tail body */}
-        <div ref={logScrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-2.5 bg-[#faf7f2] dark:bg-[#1a1a1a] font-mono text-[11px]">
+        <div ref={logScrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-2.5 bg-surface font-mono text-[11px]">
           {logEntries.map((row) => {
             const id = row.id || `${row.model}-${row.suite}-${row.rep}-${row.created_at}`;
             const expanded = logExpandedId === id;
@@ -133,14 +133,14 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
             const respText = row.response_body || row.excerpt || row.error || "-";
             const statusColor =
               row.status === "passed"
-                ? "border-emerald-500/30 text-emerald-500 dark:text-emerald-400"
+                ? "border-emerald-500/30 text-emerald-400"
                 : row.status === "rate_limited"
-                ? "border-amber-500/30 text-amber-500 dark:text-amber-400"
+                ? "border-amber-500/30 text-amber-400"
                 : row.status === "skipped"
                 ? "border-slate-500/30 text-slate-400"
-                : "border-rose-500/30 text-rose-500 dark:text-rose-400";
+                : "border-rose-500/30 text-rose-400";
             return (
-              <div key={id} className="rounded-xl border border-border bg-white dark:bg-[#242424] overflow-hidden">
+              <div key={id} className="rounded-sm border border-border bg-surface-2 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setLogExpandedId(expanded ? null : id)}
@@ -160,7 +160,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                   </span>
                 </button>
                 <div className="px-3 pb-2 text-text-muted truncate text-[10px]">
-                  <span className="text-emerald-500 dark:text-emerald-400 font-bold">RESP:</span> {(row.response_body || row.excerpt || row.error || "-").slice(0, 160)}
+                  <span className="text-emerald-400 font-bold">RESP:</span> {(row.response_body || row.excerpt || row.error || "-").slice(0, 160)}
                 </div>
                 {expanded ? (
                   <div className="border-t border-border px-3 py-2 space-y-2">
@@ -171,7 +171,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                           Salin
                         </button>
                       </div>
-                      <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-96 overflow-y-auto">{reqText}</pre>
+                      <pre className="rounded-lg bg-surface-3 border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-96 overflow-y-auto">{reqText}</pre>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -180,10 +180,10 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                           Salin
                         </button>
                       </div>
-                      <pre className="rounded-lg bg-[#faf7f2] dark:bg-[#282828] border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-[32rem] overflow-y-auto">{respText}</pre>
+                      <pre className="rounded-lg bg-surface-3 border border-border p-2.5 text-text-main whitespace-pre-wrap break-all max-h-[32rem] overflow-y-auto">{respText}</pre>
                     </div>
                     {row.error ? (
-                      <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-rose-600 dark:text-rose-300 whitespace-pre-wrap break-all">{row.error}</pre>
+                      <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-rose-300 whitespace-pre-wrap break-all">{row.error}</pre>
                     ) : null}
                     <div className="flex flex-wrap gap-2 text-[10px] text-text-muted">
                       <span>TTFT: {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}</span>
@@ -207,7 +207,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-[#fbf9f6] dark:bg-[#282828]">
+        <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-surface-3">
           <span className="text-[11px] text-text-muted">
             Auto-refresh tiap {isJobRunning ? "3" : "8"} detik · scroll otomatis: {logAutoScroll ? "aktif" : "mati"}
           </span>

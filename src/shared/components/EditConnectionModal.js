@@ -30,7 +30,10 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
  const [saving, setSaving] = useState(false);
 
  useEffect(() => {
- if (connection) {
+ if (!connection) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  setFormData({
  name: connection.name || "",
  priority: connection.priority || 1,
@@ -56,7 +59,8 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
  }
  setTestResult(null);
  setValidationResult(null);
- }
+ });
+ return () => { cancelled = true; };
  }, [connection]);
 
  const isOAuth = connection?.authType === "oauth";

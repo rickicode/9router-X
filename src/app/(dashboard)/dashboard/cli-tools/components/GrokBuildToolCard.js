@@ -255,7 +255,7 @@ export default function GrokBuildToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image
@@ -281,7 +281,7 @@ export default function GrokBuildToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

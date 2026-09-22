@@ -180,7 +180,7 @@ export default function Sidebar({ onClose }) {
  <button
  type="button"
  onClick={onClose}
-            className="size-9 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
+            className="size-11 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
  aria-label="Close navigation sidebar"
  >
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
@@ -202,8 +202,9 @@ export default function Sidebar({ onClose }) {
               key={item.href}
               href={item.href}
               onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -232,8 +233,9 @@ export default function Sidebar({ onClose }) {
               key={item.href}
               href={item.href}
               onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -262,8 +264,9 @@ export default function Sidebar({ onClose }) {
               key={item.href}
               href={item.href}
               onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -292,8 +295,9 @@ export default function Sidebar({ onClose }) {
               key={item.href}
               href={item.href}
               onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -322,7 +326,7 @@ export default function Sidebar({ onClose }) {
           <button
             onClick={() => setMediaOpen((v) => !v)}
             className={cn(
-              "flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              "flex h-10 min-h-10 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
               pathname.startsWith("/dashboard/media-providers")
                 ? "bg-primary/10 text-primary"
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -345,8 +349,9 @@ export default function Sidebar({ onClose }) {
                   key={kind.id}
                   href={`/dashboard/media-providers/${kind.id}`}
                   onClick={onClose}
+                  aria-current={pathname.startsWith(`/dashboard/media-providers/${kind.id}`) ? "page" : undefined}
                   className={cn(
-                    "flex h-8 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                    "flex h-10 min-h-10 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
                     pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
                       ? "bg-primary/10 text-primary"
                       : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -360,8 +365,9 @@ export default function Sidebar({ onClose }) {
                 key={COMBINED_WEB_ITEM.id}
                 href={COMBINED_WEB_ITEM.href}
                 onClick={onClose}
+                aria-current={pathname.startsWith(COMBINED_WEB_ITEM.href) ? "page" : undefined}
                 className={cn(
-                  "flex h-8 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                  "flex h-10 min-h-10 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
                   pathname.startsWith(COMBINED_WEB_ITEM.href)
                     ? "bg-primary/10 text-primary"
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -378,8 +384,9 @@ export default function Sidebar({ onClose }) {
               key={item.href}
               href={item.href}
               onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -408,8 +415,9 @@ export default function Sidebar({ onClose }) {
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
+                aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                  "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
                   isActive(item.href)
                     ? "bg-primary/10 text-primary"
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -433,8 +441,9 @@ export default function Sidebar({ onClose }) {
           <Link
             href="/dashboard/profile"
             onClick={onClose}
+            aria-current={isActive("/dashboard/profile") ? "page" : undefined}
             className={cn(
-              "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              "flex h-10 min-h-10 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
               isActive("/dashboard/profile")
                 ? "bg-primary/10 text-primary"
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"

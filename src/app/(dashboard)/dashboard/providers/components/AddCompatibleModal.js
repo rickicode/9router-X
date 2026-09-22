@@ -52,6 +52,9 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
 
  // openai: reset baseUrl when apiType changes; anthropic: reset checks when opened
  useEffect(() => {
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  if (config.hasApiType) {
  setFormData((prev) => ({ ...prev, baseUrl: config.defaultBaseUrl }));
  } else if (isOpen) {
@@ -59,6 +62,8 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
  setCheckKey("");
  setCheckModelId("");
  }
+ });
+ return () => { cancelled = true; };
  }, [config.hasApiType ? formData.apiType : isOpen]);
 
  const handleSubmit = async () => {

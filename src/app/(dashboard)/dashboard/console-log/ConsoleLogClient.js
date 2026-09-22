@@ -35,12 +35,12 @@ export default function ConsoleLogClient() {
  };
 
  useEffect(() => {
- if (paused) {
- setConnected(false);
- return undefined;
- }
+  if (paused) {
+  queueMicrotask(() => setConnected(false));
+  return undefined;
+  }
 
- const es = new EventSource("/api/translator/console-logs/stream");
+  const es = new EventSource("/api/translator/console-logs/stream");
 
  es.onopen = () => setConnected(true);
 

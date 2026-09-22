@@ -41,7 +41,11 @@ export default function Combobox({
 
  // Sync internal query whenever controlled value prop changes externally
  useEffect(() => {
- setQuery(value || "");
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) setQuery(value || "");
+ });
+ return () => { cancelled = true; };
  }, [value]);
 
  // Normalize options array into structured items

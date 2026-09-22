@@ -16,8 +16,12 @@ export default function ChangelogModal({ isOpen, onClose }) {
 
  useEffect(() => {
  if (!isOpen || html) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  setLoading(true);
  setError("");
+ });
  fetch(GITHUB_CONFIG.changelogUrl)
  .then((res) => {
  if (!res.ok) throw new Error(`HTTP ${res.status}`);

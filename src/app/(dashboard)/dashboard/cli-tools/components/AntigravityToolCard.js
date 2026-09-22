@@ -25,65 +25,82 @@ export default function AntigravityToolCard({
  const [modelMappings, setModelMappings] = useState({});
  const [modalOpen, setModalOpen] = useState(false);
  const [currentEditingAlias, setCurrentEditingAlias] = useState(null);
- const [modelAliases, setModelAliases] = useState({});
+  const [modelAliases, setModelAliases] = useState({});
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const loadSavedMappings = async () => {
+  try {
+  const res = await fetch("/api/cli-tools/antigravity-mitm/alias?tool=antigravity");
+  if (res.ok) {
+  const data = await res.json();
+  const aliases = data.aliases || {};
 
- useEffect(() => {
- if (initialStatus) setStatus(initialStatus);
- }, [initialStatus]);
+  if (Object.keys(aliases).length > 0) {
+  setModelMappings(aliases);
+  }
+  }
+  } catch (error) {
+  console.log("Error loading saved mappings:", error);
+  }
+  };
 
- useEffect(() => {
- if (!isExpanded) return;
- if (!status) fetchStatus();
- loadSavedMappings();
- fetchModelAliases();
- }, [isExpanded]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- const loadSavedMappings = async () => {
- try {
- const res = await fetch("/api/cli-tools/antigravity-mitm/alias?tool=antigravity");
- if (res.ok) {
- const data = await res.json();
- const aliases = data.aliases || {};
+  const fetchStatus = async () => {
+  try {
+  const res = await fetch("/api/cli-tools/antigravity-mitm");
+  if (res.ok) {
+  const data = await res.json();
+  setStatus(data);
+  }
+  } catch (error) {
+  console.log("Error fetching status:", error);
+  setStatus({ running: false });
+  }
+  };
 
- if (Object.keys(aliases).length > 0) {
- setModelMappings(aliases);
- }
- }
- } catch (error) {
- console.log("Error loading saved mappings:", error);
- }
- };
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- const fetchStatus = async () => {
- try {
- const res = await fetch("/api/cli-tools/antigravity-mitm");
- if (res.ok) {
- const data = await res.json();
- setStatus(data);
- }
- } catch (error) {
- console.log("Error fetching status:", error);
- setStatus({ running: false });
- }
- };
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!status) fetchStatus();
+  loadSavedMappings();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- // MITM elevation is decided by the server OS, not by this browser's OS.
+  // MITM elevation is decided by the server OS, not by this browser's OS.
  const serverIsWindows = status?.isWin === true;
  const canRunWithoutPassword = serverIsWindows || status?.hasCachedPassword || status?.needsSudoPassword === false;
 
@@ -227,7 +244,7 @@ export default function AntigravityToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image
@@ -255,7 +272,7 @@ export default function AntigravityToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

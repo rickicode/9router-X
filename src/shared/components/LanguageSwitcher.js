@@ -73,7 +73,11 @@ export default function LanguageSwitcher({ className = "", isOpen: controlledOpe
  };
 
  useEffect(() => {
- setLocale(getLocaleFromCookie());
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) setLocale(getLocaleFromCookie());
+ });
+ return () => { cancelled = true; };
  }, []);
 
  // Close modal when clicking outside

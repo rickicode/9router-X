@@ -60,25 +60,25 @@ export default function BaseUrlSelect({
  const customInputRef = useRef("");
 
  useEffect(() => {
- const sync = () => {
- const presets = readPresets();
- setSavedPresets(presets);
- // A preset saved elsewhere (e.g. on Apply) takes over the custom slot
- setMode((prev) => {
- if (prev !== CUSTOM_VALUE) return prev;
- const typed = stripSlash(customInputRef.current);
- if (!typed) return prev;
- const match = presets.find((p) => {
- const saved = stripSlash(p.baseUrl);
- return saved === typed || saved === ensureV1(typed);
- });
- return match ? `saved:${match.name}` : prev;
- });
- };
- sync();
- setPresetsLoaded(true);
- return subscribePresets(sync);
- }, []);
+  const sync = () => {
+  const presets = readPresets();
+  setSavedPresets(presets);
+  // A preset saved elsewhere (e.g. on Apply) takes over the custom slot
+  setMode((prev) => {
+  if (prev !== CUSTOM_VALUE) return prev;
+  const typed = stripSlash(customInputRef.current);
+  if (!typed) return prev;
+  const match = presets.find((p) => {
+  const saved = stripSlash(p.baseUrl);
+  return saved === typed || saved === ensureV1(typed);
+  });
+  return match ? `saved:${match.name}` : prev;
+  });
+  };
+  sync();
+  queueMicrotask(() => setPresetsLoaded(true));
+  return subscribePresets(sync);
+  }, []);
 
  const options = useMemo(
  () => buildOptions({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }),
@@ -95,13 +95,15 @@ export default function BaseUrlSelect({
  ? options.find((o) => o.saved && stripSlash(o.url) === current)
  : null;
  const target = matched || options.find((o) => o.value !== CUSTOM_VALUE);
- if (target) {
- setMode(target.value);
- onChange(target.url);
- } else {
- setMode(CUSTOM_VALUE);
- }
- }, [presetsLoaded, options, onChange, currentUrl]);
+  queueMicrotask(() => {
+  if (target) {
+  setMode(target.value);
+  onChange(target.url);
+  } else {
+  setMode(CUSTOM_VALUE);
+  }
+  });
+  }, [presetsLoaded, options, onChange, currentUrl]);
 
  const handleSelect = (e) => {
  const next = e.target.value;

@@ -7,6 +7,7 @@ import Badge from "@/shared/components/Badge";
 
 const fmt = (n) => new Intl.NumberFormat("en-US").format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
+const DETAIL_ROW_CAP = 100;
 
 function fmtTime(iso) {
  if (!iso) return "Never";
@@ -108,15 +109,22 @@ export default function UsageTable({
 }) {
  const [expanded, setExpanded] = useState(new Set());
 
- // Load expanded state from localStorage
- useEffect(() => {
- try {
- const saved = localStorage.getItem(storageKey);
- if (saved) setExpanded(new Set(JSON.parse(saved)));
- } catch (e) {
- console.error(`Failed to load ${storageKey}:`, e);
- }
- }, [storageKey]);
+  // Load expanded state from localStorage (deferred: avoid setState sync in effect)
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) setExpanded(new Set(JSON.parse(saved)));
+      } catch (e) {
+        console.error(`Failed to load ${storageKey}:`, e);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storageKey]);
 
  // Save expanded state to localStorage
  useEffect(() => {
@@ -211,10 +219,10 @@ export default function UsageTable({
  </div>
  </div>
 
- {/* Expanded items */}
- {isExpanded && (
- <div className="mt-2 space-y-3 pl-3 border-l-2 border-primary/30">
- {group.items.map((item) => (
+  {/* Expanded items */}
+  {isExpanded && (
+  <div className="mt-2 space-y-3 pl-3 border-l-2 border-primary/30">
+  {group.items.slice(0, DETAIL_ROW_CAP).map((item) => (
  <div key={`mobile-item-${item.key}`} className="p-3 rounded-sm bg-surface-2/60 border border-border text-xs space-y-3">
  <div className="flex items-center justify-between gap-2">
  <span className="font-medium text-text-main truncate">
@@ -232,15 +240,20 @@ export default function UsageTable({
  {viewMode === "tokens" ? `${fmt(item.totalTokens)} tok` : fmtCost(item.totalCost || item.cost)}
  </span>
  </div>
- </div>
- ))}
- </div>
- )}
- </div>
- );
- })
- )}
- </div>
+  </div>
+  ))}
+  {group.items.length > DETAIL_ROW_CAP && (
+  <p className="text-[11px] text-text-muted pt-1">
+  Showing first 100 — refine filters
+  </p>
+  )}
+  </div>
+  )}
+  </div>
+  );
+  })
+  )}
+  </div>
 
  {/* Desktop Table (sm+) */}
  <div className="hidden sm:block overflow-x-auto">
@@ -251,40 +264,36 @@ export default function UsageTable({
  const isSorted = sortBy === col.field;
  const sortState = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
  return (
- <th className="h-8 px-3 text-left text-xs font-medium text-text-muted"
- scope="col"
- key={col.field}
- aria-sort={sortState}
- className={`p-0 ${col.align === "right" ? "text-right" : ""}`}
- >
- <button
- type="button"
- onClick={() => onToggleSort(tableType, col.field)}
- aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
- className={`w-full px-3 sm:px-3 h-8 sm:py-3 cursor-pointer hover:bg-surface-2 text-inherit font-inherit text-xs inline-flex items-center gap-1 focus-visible:outline-none ${col.align === "right" ? "justify-end" : "justify-start"}`}
- >
- <span>{col.label}</span>{" "}
- <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
- </button>
- </th>
- );
- })}
- {valueColumns.map((col) => {
- const isSorted = sortBy === col.field;
- const sortState = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
- return (
- <th
- scope="col"
- key={col.field}
- aria-sort={sortState}
- className="p-0 text-right h-8 text-xs font-medium text-text-muted"
- >
- <button
- type="button"
- onClick={() => onToggleSort(tableType, col.field)}
- aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
- className="w-full px-3 sm:px-3 h-8 sm:py-3 cursor-pointer hover:bg-surface-2 text-inherit font-inherit text-xs inline-flex items-center justify-end gap-1 focus-visible:outline-none"
- >
+  <th
+  scope="col"
+  key={col.field}
+  aria-sort={sortState}
+  className={`h-8 text-left text-xs font-medium text-text-muted p-0 ${col.align === "right" ? "text-right" : ""}`}
+  >
+  <button type="button" onClick={() => onToggleSort(tableType, col.field)}
+  aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
+  className={`w-full px-3 sm:px-3 h-8 sm:py-3 cursor-pointer hover:bg-surface-2 text-inherit font-inherit text-xs inline-flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-primary/40 ${col.align === "right" ? "justify-end" : "justify-start"}`}
+  >
+  <span>{col.label}</span>{" "}
+  <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
+  </button>
+  </th>
+  );
+  })}
+  {valueColumns.map((col) => {
+  const isSorted = sortBy === col.field;
+  const sortState = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
+  return (
+  <th
+  scope="col"
+  key={col.field}
+  aria-sort={sortState}
+  className="p-0 text-right h-8 text-xs font-medium text-text-muted"
+  >
+  <button type="button" onClick={() => onToggleSort(tableType, col.field)}
+  aria-label={`Sort by ${col.label}, currently ${isSorted ? (sortOrder === "asc" ? "sorted ascending" : "sorted descending") : "not sorted"}`}
+  className="w-full px-3 sm:px-3 h-8 sm:py-3 cursor-pointer hover:bg-surface-2 text-inherit font-inherit text-xs inline-flex items-center justify-end gap-1 focus-visible:ring-2 focus-visible:ring-primary/40"
+  >
  <span>{col.label}</span>{" "}
  <SortIcon field={col.field} currentSort={sortBy} currentOrder={sortOrder} />
  </button>
@@ -324,17 +333,24 @@ export default function UsageTable({
  {renderSummaryCells(group)}
  <ValueCells item={group.summary} viewMode={viewMode} isSummary />
  </tr>
- {/* Detail rows */}
- {expanded.has(group.groupKey) && group.items.map((item) => (
- <tr
- key={`detail-${item.key}`}
- className="group-detail hover:bg-surface-2"
- >
- {renderDetailCells(item)}
- <ValueCells item={item} viewMode={viewMode} />
- </tr>
- ))}
- </Fragment>
+  {/* Detail rows */}
+  {expanded.has(group.groupKey) && group.items.slice(0, DETAIL_ROW_CAP).map((item) => (
+  <tr
+  key={`detail-${item.key}`}
+  className="group-detail hover:bg-surface-2"
+  >
+  {renderDetailCells(item)}
+  <ValueCells item={item} viewMode={viewMode} />
+  </tr>
+  ))}
+  {expanded.has(group.groupKey) && group.items.length > DETAIL_ROW_CAP && (
+  <tr className="group-detail">
+  <td colSpan={totalColSpan} className="px-3 sm:px-3 py-2 text-center text-[11px] text-text-muted">
+  Showing first 100 — refine filters
+  </td>
+  </tr>
+  )}
+  </Fragment>
  ))}
  {groupedData.length === 0 && (
  <tr>

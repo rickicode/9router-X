@@ -22,7 +22,7 @@ export default function EndpointRow({
  <span
  className={`text-xs font-mono px-1.5 py-1 rounded-sm shrink-0 min-w-[88px] text-center ${
  isHighlighted
- ? "bg-primary/10 text-primary font-medium"
+  ? "bg-primary/10 text-primary font-medium"
  : "bg-surface text-text-muted"
  }`}
  >
@@ -37,7 +37,7 @@ export default function EndpointRow({
  type="button"
  onClick={() => onCopy(url, copyId)}
  aria-label={isCopied ? "Copied" : `Copy ${label} URL`}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:outline-none"
+  className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
  {isCopied ? "check" : "content_copy"}

@@ -132,12 +132,12 @@ export default function FailureResponseModal({
  setSelectedIndex(idx);
  setCopied(false);
  }}
- className={cn(
- "w-full p-3 text-left flex flex-col gap-1.5 cursor-pointer",
- isSelected
- ? "bg-primary/10 border-l-4 border-primary pl-2.5"
- : "hover:bg-surface-2/80",
- )}
+className={cn(
+  "w-full p-3 text-left flex flex-col gap-1.5 cursor-pointer rounded-sm",
+  isSelected
+    ? "bg-primary/10 ring-1 ring-primary/30"
+    : "hover:bg-surface-2/80",
+)}
  >
  <div className="flex items-center justify-between gap-2">
  <div className="flex items-center gap-1.5">

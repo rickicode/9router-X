@@ -93,102 +93,102 @@ export default function ClaudeToolCard({
 
  const configStatus = getConfigStatus();
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) {
- setClaudeStatus(initialStatus);
- setExaMcpEnabled(!!initialStatus.exaMcpEnabled);
- }
- }, [initialStatus]);
+  const checkClaudeStatus = async () => {
+  setCheckingClaude(true);
+  try {
+  const res = await fetch("/api/cli-tools/claude-settings");
+  const data = await res.json();
+  setClaudeStatus(data);
+  setExaMcpEnabled(!!data.exaMcpEnabled);
+  } catch (error) {
+  setClaudeStatus({ installed: false, error: error.message });
+  } finally {
+  setCheckingClaude(false);
+  }
+  };
 
- useEffect(() => {
- const v = claudeStatus?.settings?.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
- setAutoCompactWindow(v || "");
- }, [claudeStatus?.settings?.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW]);
+  useEffect(() => {
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  queueMicrotask(() => setSelectedApiKey(apiKeys[0].key));
+  }
+  }, [apiKeys, selectedApiKey]);
 
- useEffect(() => {
- const env = claudeStatus?.settings?.env;
- if (!env) return;
- setOneMContext(tool.defaultModels.some((model) => env[model.envKey]?.endsWith("[1m]")));
- }, [claudeStatus?.settings?.env, tool.defaultModels]);
+  useEffect(() => {
+  if (initialStatus) {
+  queueMicrotask(() => {
+  setClaudeStatus(initialStatus);
+  setExaMcpEnabled(!!initialStatus.exaMcpEnabled);
+  });
+  }
+  }, [initialStatus]);
 
- useEffect(() => {
- if (isExpanded) {
- if (!claudeStatus) checkClaudeStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  const v = claudeStatus?.settings?.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+  queueMicrotask(() => setAutoCompactWindow(v || ""));
+  }, [claudeStatus?.settings?.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW]);
 
- useEffect(() => {
- fetch("/api/settings").then(r => r.json()).then(data => {
- setCcFilterNaming(!!data.ccFilterNaming);
- }).catch(() => {});
- }, []);
+  useEffect(() => {
+  const env = claudeStatus?.settings?.env;
+  if (!env) return;
+  const oneM = tool.defaultModels.some((model) => env[model.envKey]?.endsWith("[1m]"));
+  queueMicrotask(() => setOneMContext(oneM));
+  }, [claudeStatus?.settings?.env, tool.defaultModels]);
 
- const handleCcFilterNamingToggle = async (e) => {
- const value = e.target.checked;
- setCcFilterNaming(value);
- await fetch("/api/settings", {
- method: "PATCH",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ ccFilterNaming: value }),
- }).catch(() => {});
- };
+useEffect(() => {
+    if (!isExpanded) return;
+    queueMicrotask(() => {
+      if (!claudeStatus) checkClaudeStatus();
+      fetchModelAliases();
+    });
+  }, [isExpanded]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  fetch("/api/settings").then(r => r.json()).then(data => {
+  setCcFilterNaming(!!data.ccFilterNaming);
+  }).catch(() => {});
+  }, []);
 
- useEffect(() => {
- if (claudeStatus?.installed && !hasInitializedModels.current) {
- hasInitializedModels.current = true;
- const env = claudeStatus.settings?.env || {};
+  const handleCcFilterNamingToggle = async (e) => {
+  const value = e.target.checked;
+  setCcFilterNaming(value);
+  await fetch("/api/settings", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ ccFilterNaming: value }),
+  }).catch(() => {});
+  };
 
- tool.defaultModels.forEach((model) => {
- if (model.envKey) {
- // Kept verbatim (marker included) so the input matches what is on disk;
- // withContextMarker strips before appending, so re-applying cannot double it.
- const value = env[model.envKey] || model.defaultValue || "";
- // Only sync initial values from file once
- if (value) {
- onModelMappingChange(model.alias, value);
- }
- }
- });
- // Restore key from settings.json; ApiKeySelect matches it against saved presets
- const tokenFromFile = env.ANTHROPIC_AUTH_TOKEN;
- if (tokenFromFile) {
- setSelectedApiKey(tokenFromFile);
- }
- }
- }, [claudeStatus, apiKeys, tool.defaultModels, onModelMappingChange]);
+  useEffect(() => {
+  if (claudeStatus?.installed && !hasInitializedModels.current) {
+  hasInitializedModels.current = true;
+  const env = claudeStatus.settings?.env || {};
 
- const checkClaudeStatus = async () => {
- setCheckingClaude(true);
- try {
- const res = await fetch("/api/cli-tools/claude-settings");
- const data = await res.json();
- setClaudeStatus(data);
- setExaMcpEnabled(!!data.exaMcpEnabled);
- } catch (error) {
- setClaudeStatus({ installed: false, error: error.message });
- } finally {
- setCheckingClaude(false);
- }
- };
+  tool.defaultModels.forEach((model) => {
+  if (model.envKey) {
+  const value = env[model.envKey] || model.defaultValue || "";
+  if (value) {
+  onModelMappingChange(model.alias, value);
+  }
+  }
+  });
+  const tokenFromFile = env.ANTHROPIC_AUTH_TOKEN;
+  if (tokenFromFile) {
+  queueMicrotask(() => setSelectedApiKey(tokenFromFile));
+  }
+  }
+  }, [claudeStatus, apiKeys, tool.defaultModels, onModelMappingChange]);
 
- const getEffectiveBaseUrl = () => {
+  const getEffectiveBaseUrl = () => {
  const url = customBaseUrl || baseUrl;
  return url.endsWith("/v1") ? url : `${url}/v1`;
  };
@@ -299,7 +299,7 @@ export default function ClaudeToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src="/providers/claude.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -315,7 +315,7 @@ export default function ClaudeToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

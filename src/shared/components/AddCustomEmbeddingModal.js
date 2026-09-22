@@ -22,6 +22,9 @@ export default function AddCustomEmbeddingModal({ isOpen, onClose, onCreated, on
 
  useEffect(() => {
  if (!isOpen) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  setValidationResult(null);
  setCheckKey("");
  setCheckModelId("");
@@ -34,6 +37,8 @@ export default function AddCustomEmbeddingModal({ isOpen, onClose, onCreated, on
  } else {
  setFormData({ name: "", prefix: "", baseUrl: DEFAULT_BASE_URL });
  }
+ });
+ return () => { cancelled = true; };
  }, [isOpen, isEdit, node]);
 
  const handleSubmit = async () => {

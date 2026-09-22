@@ -24,82 +24,99 @@ export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, api
  const [subagentModalOpen, setSubagentModalOpen] = useState(false);
  const [modelAliases, setModelAliases] = useState({});
  const [showManualConfigModal, setShowManualConfigModal] = useState(false);
- const [customBaseUrl, setCustomBaseUrl] = useState("");
+  const [customBaseUrl, setCustomBaseUrl] = useState("");
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setCodexStatus(initialStatus);
- }, [initialStatus]);
+  const checkCodexStatus = async () => {
+  setCheckingCodex(true);
+  try {
+  const res = await fetch("/api/cli-tools/codex-settings");
+  const data = await res.json();
+  setCodexStatus(data);
+  } catch (error) {
+  setCodexStatus({ installed: false, error: error.message });
+  } finally {
+  setCheckingCodex(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!codexStatus) checkCodexStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setCodexStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- // Parse model and subagent settings from config content
- useEffect(() => {
- if (codexStatus?.config) {
- const modelMatch = codexStatus.config.match(/^model\s*=\s*"([^"]+)"/m);
- if (modelMatch) setSelectedModel(modelMatch[1]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!codexStatus) checkCodexStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- // Parse subagent settings
- const subagentModelMatch = codexStatus.config.match(/^default_subagent_model\s*=\s*"([^"]+)"/m);
- if (subagentModelMatch) setSubagentModel(subagentModelMatch[1]);
- }
- }, [codexStatus]);
+  useEffect(() => {
+  if (!codexStatus?.config) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || !codexStatus?.config) return;
+  const modelMatch = codexStatus.config.match(/^model\s*=\s*"([^"]+)"/m);
+  if (modelMatch) setSelectedModel(modelMatch[1]);
+  const subagentModelMatch = codexStatus.config.match(/^default_subagent_model\s*=\s*"([^"]+)"/m);
+  if (subagentModelMatch) setSubagentModel(subagentModelMatch[1]);
+  });
+  return () => { cancelled = true; };
+  }, [codexStatus]);
 
- const getCurrentBaseUrl = () => {
- const parsed = codexStatus?.config?.match(/base_url\s*=\s*"([^"]+)"/);
- return parsed ? parsed[1] : "";
- };
+  const getCurrentBaseUrl = () => {
+  const parsed = codexStatus?.config?.match(/base_url\s*=\s*"([^"]+)"/);
+  return parsed ? parsed[1] : "";
+  };
 
- const currentBaseUrl = getCurrentBaseUrl();
+  const currentBaseUrl = getCurrentBaseUrl();
 
- const getConfigStatus = () => {
- if (!codexStatus?.installed) return null;
- if (!codexStatus.config) return "not_configured";
- return matchKnownEndpoint(currentBaseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
- };
+  const getConfigStatus = () => {
+  if (!codexStatus?.installed) return null;
+  if (!codexStatus.config) return "not_configured";
+  return matchKnownEndpoint(currentBaseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
+  };
 
- const configStatus = getConfigStatus();
+  const configStatus = getConfigStatus();
 
- const getEffectiveBaseUrl = () => {
- const url = customBaseUrl || `${baseUrl}/v1`;
- // Ensure URL ends with /v1
- return url.endsWith("/v1") ? url : `${url}/v1`;
- };
+  const getEffectiveBaseUrl = () => {
+  const url = customBaseUrl || `${baseUrl}/v1`;
+  // Ensure URL ends with /v1
+  return url.endsWith("/v1") ? url : `${url}/v1`;
+  };
 
- const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
-
- const checkCodexStatus = async () => {
- setCheckingCodex(true);
- try {
- const res = await fetch("/api/cli-tools/codex-settings");
- const data = await res.json();
- setCodexStatus(data);
- } catch (error) {
- setCodexStatus({ installed: false, error: error.message });
- } finally {
- setCheckingCodex(false);
- }
- };
+  const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
 
  const handleApplySettings = async () => {
  setApplying(true);
@@ -199,7 +216,7 @@ default_subagent_model = "${effectiveSubagentModel}"
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src="/providers/codex.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -215,7 +232,7 @@ default_subagent_model = "${effectiveSubagentModel}"
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

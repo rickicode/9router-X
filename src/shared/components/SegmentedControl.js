@@ -88,7 +88,7 @@ export default function SegmentedControl({
  onClick={() => onChange?.(option.value)}
  className={cn(
  "inline-flex items-center justify-center shrink-0 rounded-sm font-medium gap-1.5 cursor-pointer select-none",
-"focus-visible:outline-none",
+ "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
  sizes[size],
  isSelected
  ? "bg-surface text-text-main"

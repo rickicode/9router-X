@@ -32,9 +32,12 @@ export default function TailscaleCard({
 
  // Keep card expanded when authentication is required
  useEffect(() => {
- if (tailscale.authUrl) {
- setIsExpanded(true);
- }
+ if (!tailscale.authUrl) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) setIsExpanded(true);
+ });
+ return () => { cancelled = true; };
  }, [tailscale.authUrl]);
 
  const handleOpenTsModal = async () => {
@@ -271,7 +274,7 @@ export default function TailscaleCard({
  type="button"
  disabled={!tailscale.publicUrl && !tailscale.url}
  onClick={() => (tailscale.publicUrl || tailscale.url) && onCopy(`${tailscale.url}/v1`, "ts_card_url")}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+  className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
  aria-label={copied === "ts_card_url" ? "Copied" : "Copy Tailscale URL"}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">

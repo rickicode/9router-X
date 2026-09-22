@@ -14,54 +14,56 @@ export default function MitmPageClient() {
  const [expandedTool, setExpandedTool] = useState(null);
  const [mitmStatus, setMitmStatus] = useState({ running: false, certExists: false, dnsStatus: {}, hasCachedPassword: false });
 
- useEffect(() => {
- fetchConnections();
- fetchApiKeys();
- fetchAliases();
- fetchCloudSettings();
- }, []);
-
  const fetchConnections = async () => {
- try {
- const res = await fetch("/api/providers?isActive=true&fields=summary");
- if (res.ok) {
- const data = await res.json();
- setConnections(data.connections || []);
- }
- } catch { /* ignore */ }
- };
+  try {
+  const res = await fetch("/api/providers?isActive=true&fields=summary");
+  if (res.ok) {
+  const data = await res.json();
+  setConnections(data.connections || []);
+  }
+  } catch { /* ignore */ }
+  };
 
- const fetchApiKeys = async () => {
- try {
- const res = await fetch("/api/keys");
- if (res.ok) {
- const data = await res.json();
- setApiKeys(data.keys || []);
- }
- } catch { /* ignore */ }
- };
+  const fetchApiKeys = async () => {
+  try {
+  const res = await fetch("/api/keys");
+  if (res.ok) {
+  const data = await res.json();
+  setApiKeys(data.keys || []);
+  }
+  } catch { /* ignore */ }
+  };
 
- const fetchAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- if (res.ok) {
- const data = await res.json();
- setModelAliases(data.aliases || {});
- }
- } catch { /* ignore */ }
- };
+  const fetchAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  if (res.ok) {
+  const data = await res.json();
+  setModelAliases(data.aliases || {});
+  }
+  } catch { /* ignore */ }
+  };
 
- const fetchCloudSettings = async () => {
- try {
- const res = await fetch("/api/settings");
- if (res.ok) {
- const data = await res.json();
- setCloudEnabled(data.cloudEnabled || false);
- }
- } catch { /* ignore */ }
- };
+  const fetchCloudSettings = async () => {
+  try {
+  const res = await fetch("/api/settings");
+  if (res.ok) {
+  const data = await res.json();
+  setCloudEnabled(data.cloudEnabled || false);
+  }
+  } catch { /* ignore */ }
+  };
 
- const getActiveProviders = () => connections.filter(c => c.isActive !== false);
+  useEffect(() => {
+  queueMicrotask(() => {
+  fetchConnections();
+  fetchApiKeys();
+  fetchAliases();
+  fetchCloudSettings();
+  });
+  }, []);
+
+  const getActiveProviders = () => connections.filter(c => c.isActive !== false);
 
  const hasActiveProviders = () => {
  const active = getActiveProviders();

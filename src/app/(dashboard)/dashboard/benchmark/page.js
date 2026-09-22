@@ -115,7 +115,9 @@ export default function BenchmarkPage() {
   const [savedRetentionToast, setSavedRetentionToast] = useState(false);
 
   const activeIdRef = useRef(null);
+  useEffect(() => {
   activeIdRef.current = active?.id;
+  }, [active?.id]);
 
   // Active providers derived from selected models
   const activeProviders = useMemo(() => {
@@ -205,14 +207,14 @@ export default function BenchmarkPage() {
     );
   }, [starting, active?.status, jobs]);
 
-  // Polling with fast tick (1s) when active job is running
+ // Polling with fast tick (1s) when active job is running
   useEffect(() => {
-    refresh();
-    const intervalMs = isAnyJobRunning ? 3000 : 8000;
-    const timer = setInterval(() => {
-      refresh();
-    }, intervalMs);
-    return () => clearInterval(timer);
+  queueMicrotask(() => refresh());
+  const intervalMs = isAnyJobRunning ? 3000 : 8000;
+  const timer = setInterval(() => {
+  refresh();
+  }, intervalMs);
+  return () => clearInterval(timer);
   }, [isAnyJobRunning]);
 
   // Load settings on mount
@@ -516,7 +518,7 @@ export default function BenchmarkPage() {
                     onKeyDown={(e) => {
                       if (e.key === " " || e.key === "Enter") toggleSuite(s.id);
                     }}
-                    className={`relative flex items-start gap-3 rounded-lg border p-3 text-left cursor-pointer transition-all ${
+                    className={`relative flex items-start gap-3 rounded-lg border p-3 text-left cursor-pointer transition-colors ${
                       checked
                         ? "border-brand-500/50 bg-brand-500/5 shadow-sm"
                         : "border-border-subtle bg-surface hover:border-border"
@@ -659,7 +661,7 @@ export default function BenchmarkPage() {
               return (
                 <div
                   key={provider.id}
-                  className="rounded-xl border border-border-subtle bg-surface-2 transition-all hover:border-border overflow-hidden"
+                  className="rounded-sm border border-border-subtle bg-surface-2 transition-colors hover:border-border overflow-hidden"
                 >
                   {/* Clickable Header Dropdown Bar */}
                   <div
@@ -828,7 +830,7 @@ export default function BenchmarkPage() {
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
                 <div
-                  className={`h-full transition-all duration-300 ${
+                  className={`h-full transition-[width] duration-300 ${
                     active.status === "failed"
                       ? "bg-rose-500"
                       : active.status === "cancelled"
@@ -857,19 +859,19 @@ export default function BenchmarkPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border-subtle text-center">
               <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2">
                 <div className="text-xs text-text-muted">Lolos</div>
-                <div className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{counts.passed || 0}</div>
+                <div className="text-lg font-bold text-emerald-400">{counts.passed || 0}</div>
               </div>
               <div className="rounded-md bg-rose-500/5 border border-rose-500/20 p-2">
                 <div className="text-xs text-text-muted">Gagal</div>
-                <div className="text-lg font-bold text-rose-500 dark:text-rose-400">{counts.failed || 0}</div>
+                <div className="text-lg font-bold text-rose-400">{counts.failed || 0}</div>
               </div>
               <div className="rounded-md bg-amber-500/5 border border-amber-500/20 p-2">
                 <div className="text-xs text-text-muted">Rate Limit (429)</div>
-                <div className="text-lg font-bold text-amber-500 dark:text-amber-400">{counts.rate_limited || 0}</div>
+                <div className="text-lg font-bold text-amber-400">{counts.rate_limited || 0}</div>
               </div>
               <div className="rounded-md bg-slate-500/5 border border-slate-500/20 p-2">
                 <div className="text-xs text-text-muted">Dilewati</div>
-                <div className="text-lg font-bold text-slate-500 dark:text-slate-400">{counts.skipped || 0}</div>
+                <div className="text-lg font-bold text-slate-400">{counts.skipped || 0}</div>
               </div>
             </div>
 
@@ -920,7 +922,7 @@ export default function BenchmarkPage() {
                   <td className="py-2 px-3">
                     {row.pong_total ? (
                       <span className="inline-flex items-center gap-1 font-mono">
-                        <span className={row.pong_passed === row.pong_total ? "text-emerald-500 dark:text-emerald-400 font-semibold" : "text-amber-500 dark:text-amber-400"}>
+                        <span className={row.pong_passed === row.pong_total ? "text-emerald-400 font-semibold" : "text-amber-400"}>
                           {row.pong_passed}/{row.pong_total}
                         </span>
                         <span className="text-[10px] text-text-muted">
@@ -936,10 +938,10 @@ export default function BenchmarkPage() {
                       <span
                         className={
                           row.median_score >= 80
-                            ? "text-emerald-500 dark:text-emerald-400"
+                            ? "text-emerald-400"
                             : row.median_score >= 50
-                            ? "text-amber-500 dark:text-amber-400"
-                            : "text-rose-500 dark:text-rose-400"
+                            ? "text-amber-400"
+                            : "text-rose-400"
                         }
                       >
                         {row.median_score}
@@ -1004,7 +1006,7 @@ export default function BenchmarkPage() {
             </div>
             <div className="flex items-center gap-2">
               {savedRetentionToast ? (
-                <span className="text-emerald-500 dark:text-emerald-400 font-medium animate-fade-in">Tersimpan!</span>
+                <span className="text-emerald-400 font-medium animate-fade-in">Tersimpan!</span>
               ) : null}
               <Button size="xs" variant="secondary" onClick={handleSaveRetention}>
                 Simpan Retensi
@@ -1064,11 +1066,11 @@ export default function BenchmarkPage() {
                         <span
                           className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${
                             job.status === "completed"
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
                               : job.status === "running"
-                              ? "border-amber-500/20 bg-amber-500/10 text-amber-500 dark:text-amber-400 animate-pulse"
+                              ? "border-amber-500/20 bg-amber-500/10 text-amber-400 animate-pulse"
                               : job.status === "cancelled"
-                              ? "border-orange-500/20 bg-orange-500/10 text-orange-500 dark:text-orange-400"
+                              ? "border-orange-500/20 bg-orange-500/10 text-orange-400"
                               : "border-border bg-surface-3 text-text-muted"
                           }`}
                         >
@@ -1106,11 +1108,11 @@ export default function BenchmarkPage() {
           onClick={() => setIsPickerModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
+            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
               <div>
                 <h3 className="font-bold text-text-main text-base flex items-center gap-2">
                   <span className="material-symbols-outlined text-brand-500">dns</span>
@@ -1129,7 +1131,7 @@ export default function BenchmarkPage() {
             </div>
 
             {/* Modal Search & Quick Selection Bar */}
-            <div className="px-6 py-3 border-b border-border flex items-center justify-between gap-3 bg-white dark:bg-[#202020]">
+            <div className="px-6 py-3 border-b border-border flex items-center justify-between gap-3 bg-surface">
               <div className="flex-1 max-w-sm">
                 <Input
                   placeholder="Cari provider atau nama model..."
@@ -1158,7 +1160,7 @@ export default function BenchmarkPage() {
             </div>
 
             {/* Modal Accordion Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-[#faf7f2] dark:bg-[#1a1a1a]">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-surface">
               {pickerCatalog.map((provider) => {
                 const totalInProv = provider.models.length;
                 const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
@@ -1169,14 +1171,14 @@ export default function BenchmarkPage() {
                 return (
                   <div
                     key={provider.id}
-                    className={`rounded-xl border transition-all overflow-hidden bg-white dark:bg-[#242424] ${
+                    className={`rounded-sm border transition-colors overflow-hidden bg-surface-2 ${
                       selectedInProv > 0
                         ? "border-brand-500/50 shadow-xs"
                         : "border-border shadow-2xs hover:border-border"
                     }`}
                   >
                     {/* Provider Row */}
-                    <div className="flex items-center justify-between p-3.5 gap-3 bg-white dark:bg-[#242424]">
+                    <div className="flex items-center justify-between p-3.5 gap-3 bg-surface-2">
                       <div
                         className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
                         onClick={() => toggleModalProviderModels(provider)}
@@ -1204,7 +1206,7 @@ export default function BenchmarkPage() {
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             selectedInProv > 0
-                              ? "bg-brand-500/20 text-brand-500 dark:text-brand-400"
+                              ? "bg-brand-500/20 text-brand-400"
                               : "bg-surface-3 text-text-muted"
                           }`}
                         >
@@ -1225,7 +1227,7 @@ export default function BenchmarkPage() {
 
                     {/* Model Sub-list (Expanded) */}
                     {isExpanded ? (
-                      <div className="border-t border-border bg-[#fdfcf9] dark:bg-[#1e1e1e] p-3 space-y-2">
+                      <div className="border-t border-border bg-surface-2 p-3 space-y-2">
                         <div className="flex items-center justify-between pb-1.5 border-b border-border-subtle text-[11px] text-text-muted">
                           <span>Daftar Model ({provider.name}):</span>
                           <div className="flex gap-2 font-medium">
@@ -1266,10 +1268,10 @@ export default function BenchmarkPage() {
                               <div
                                 key={model.fullId}
                                 onClick={() => toggleModalModel(model.fullId)}
-                                className={`flex items-center justify-between gap-2.5 p-2.5 rounded-lg text-xs cursor-pointer transition-all border ${
+                                className={`flex items-center justify-between gap-2.5 p-2.5 rounded-lg text-xs cursor-pointer transition-colors border ${
                                   isModelChecked
                                     ? "border-brand-500/60 bg-brand-500/10 text-text-main font-semibold shadow-2xs"
-                                    : "border-border bg-white dark:bg-[#282828] text-text-muted hover:bg-surface-2 hover:text-text-main"
+                                    : "border-border bg-surface-3 text-text-muted hover:bg-surface-2 hover:text-text-main"
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -1306,7 +1308,7 @@ export default function BenchmarkPage() {
             </div>
 
             {/* Modal Footer with prominent OKE button */}
-            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface-3">
               <span className="text-xs text-text-muted">
                 Terpilih di modal: <span className="font-bold text-text-main text-sm">{modalSelectedModelIds.size}</span> model
               </span>
@@ -1333,10 +1335,10 @@ export default function BenchmarkPage() {
           onClick={() => setIsReviewerModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-white dark:bg-[#202020] shadow-2xl overflow-hidden"
+            className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
               <div>
                 <h3 className="font-bold text-text-main text-base flex items-center gap-2">
                   <span className="material-symbols-outlined text-brand-500">psychology</span>
@@ -1354,7 +1356,7 @@ export default function BenchmarkPage() {
               </button>
             </div>
 
-            <div className="px-6 py-3 border-b border-border bg-white dark:bg-[#202020]">
+            <div className="px-6 py-3 border-b border-border bg-surface">
               <Input
                 placeholder="Cari nama model reviewer..."
                 value={reviewerPickerSearch}
@@ -1362,15 +1364,15 @@ export default function BenchmarkPage() {
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 bg-[#faf7f2] dark:bg-[#1a1a1a]">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 bg-surface">
               <div
                 onClick={() => {
                   setReviewer("judge-router");
                   setIsReviewerModalOpen(false);
                 }}
-                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all bg-white dark:bg-[#242424] ${
+                className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
                   reviewer === "judge-router"
-                    ? "border-brand-500 bg-brand-500/10 text-brand-500 dark:text-brand-400 font-bold"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-400 font-bold"
                     : "border-border hover:border-border text-text-main"
                 }`}
               >
@@ -1397,9 +1399,9 @@ export default function BenchmarkPage() {
                         setReviewer(opt.value);
                         setIsReviewerModalOpen(false);
                       }}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all bg-white dark:bg-[#242424] ${
+                      className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
                         isSelected
-                          ? "border-brand-500 bg-brand-500/10 text-brand-500 dark:text-brand-400 font-semibold"
+                          ? "border-brand-500 bg-brand-500/10 text-brand-400 font-semibold"
                           : "border-border hover:border-border text-text-main"
                       }`}
                     >
@@ -1413,7 +1415,7 @@ export default function BenchmarkPage() {
                 })}
             </div>
 
-            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-[#fbf9f6] dark:bg-[#282828]">
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface-3">
               <span className="text-xs text-text-muted truncate max-w-sm">
                 Terpilih: <span className="font-bold text-text-main">{reviewer || "Tanpa Reviewer"}</span>
               </span>

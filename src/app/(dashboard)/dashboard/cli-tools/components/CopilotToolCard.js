@@ -22,48 +22,81 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  const [showManualConfigModal, setShowManualConfigModal] = useState(false);
  const [selectedModels, setSelectedModels] = useState([]);
  const [modalOpen, setModalOpen] = useState(false);
- const selectedModelsRef = useRef([]);
+  const selectedModelsRef = useRef([]);
 
- useEffect(() => {
- selectedModelsRef.current = selectedModels;
- }, [selectedModels]);
+  useEffect(() => {
+  selectedModelsRef.current = selectedModels;
+  }, [selectedModels]);
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setStatus(initialStatus);
- }, [initialStatus]);
+  const checkStatus = async () => {
+  setChecking(true);
+  try {
+  const res = await fetch("/api/cli-tools/copilot-settings");
+  const data = await res.json();
+  setStatus(data);
+  } catch (error) {
+  setStatus({ error: error.message });
+  } finally {
+  setChecking(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!status) checkStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- // Pre-fill from existing config
- useEffect(() => {
- if (status?.config && Array.isArray(status.config) && selectedModels.length === 0) {
- const entry = status.config.find((e) => e.name === "9Router");
- if (entry?.models?.length > 0) {
- setSelectedModels(entry.models.map((m) => m.id));
- }
- }
- }, [status]);
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!status) checkStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
+
+  useEffect(() => {
+  if (!(status?.config && Array.isArray(status.config) && selectedModels.length === 0)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!(status?.config && Array.isArray(status.config) && selectedModels.length === 0)) return;
+  const entry = status.config.find((e) => e.name === "9Router");
+  if (entry?.models?.length > 0) {
+  setSelectedModels(entry.models.map((m) => m.id));
+  }
+  });
+  return () => { cancelled = true; };
+  }, [status]);
 
  const saveModels = async (models) => {
  try {
@@ -96,24 +129,11 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  return url.endsWith("/v1") ? url : `${url}/v1`;
  };
 
- const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
+  const getDisplayUrl = () => customBaseUrl || `${baseUrl}/v1`;
 
- const removeModel = (id) => setSelectedModels((prev) => prev.filter((m) => m !== id));
+  const removeModel = (id) => setSelectedModels((prev) => prev.filter((m) => m !== id));
 
- const checkStatus = async () => {
- setChecking(true);
- try {
- const res = await fetch("/api/cli-tools/copilot-settings");
- const data = await res.json();
- setStatus(data);
- } catch (error) {
- setStatus({ error: error.message });
- } finally {
- setChecking(false);
- }
- };
-
- const handleApply = async () => {
+  const handleApply = async () => {
  setApplying(true);
  setMessage(null);
  try {
@@ -187,7 +207,7 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src="/providers/copilot.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -203,7 +223,7 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

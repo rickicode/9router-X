@@ -50,55 +50,75 @@ export default function DeepSeekTuiToolCard({
  return "other";
  };
 
- const configStatus = getConfigStatus();
+  const configStatus = getConfigStatus();
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setDeepseekStatus(initialStatus);
- }, [initialStatus]);
+  const checkStatus = async () => {
+  setChecking(true);
+  try {
+  const res = await fetch(ENDPOINT);
+  const data = await res.json();
+  setDeepseekStatus(data);
+  } catch (error) {
+  setDeepseekStatus({ installed: false, error: error.message });
+  } finally {
+  setChecking(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!deepseekStatus) checkStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setDeepseekStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- useEffect(() => {
- if (deepseekStatus?.installed && !hasInitializedModel.current) {
- hasInitializedModel.current = true;
- const openaiSection = deepseekStatus.settings?.["providers.openai"];
- if (openaiSection?.model) setSelectedModel(openaiSection.model);
- }
- }, [deepseekStatus]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!deepseekStatus) checkStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- const checkStatus = async () => {
- setChecking(true);
- try {
- const res = await fetch(ENDPOINT);
- const data = await res.json();
- setDeepseekStatus(data);
- } catch (error) {
- setDeepseekStatus({ installed: false, error: error.message });
- } finally {
- setChecking(false);
- }
- };
+  useEffect(() => {
+  if (!(deepseekStatus?.installed && !hasInitializedModel.current)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || hasInitializedModel.current) return;
+  hasInitializedModel.current = true;
+  const openaiSection = deepseekStatus.settings?.["providers.openai"];
+  if (openaiSection?.model) setSelectedModel(openaiSection.model);
+  });
+  return () => { cancelled = true; };
+  }, [deepseekStatus]);
 
  const normalizeLocalhost = (url) => url.replace("://localhost", "://127.0.0.1");
 
@@ -190,7 +210,7 @@ model = "${selectedModel || "provider/model-id"}"
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src={tool.image || "/providers/deepseek-tui.png"} alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -206,7 +226,7 @@ model = "${selectedModel || "provider/model-id"}"
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

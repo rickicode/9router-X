@@ -61,9 +61,9 @@ export default function EndpointUrlsCard({
  {tunnel?.enabled && (
  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
  <div className="flex items-center justify-between sm:justify-start">
- <span className="text-xs font-mono px-1.5 py-1 rounded-sm shrink-0 min-w-[88px] text-center bg-primary/10 text-primary font-medium">
- Tunnel
- </span>
+  <span className="text-xs font-mono px-1.5 py-1 rounded-sm shrink-0 min-w-[88px] text-center bg-primary/10 text-primary font-medium">
+  Tunnel
+  </span>
  </div>
  {tunnel.reachable ? (
  <>
@@ -79,8 +79,8 @@ export default function EndpointUrlsCard({
  type="button"
  disabled={!tunnel.publicUrl && !tunnel.url}
  onClick={() => (tunnel.publicUrl || tunnel.url) && onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_url")}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
- aria-label={copied === "tunnel_url" ? "Copied" : "Copy tunnel URL"}
+  className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+  aria-label={copied === "tunnel_url" ? "Copied" : "Copy tunnel URL"}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
  {copied === "tunnel_url" ? "check" : "content_copy"}
@@ -114,9 +114,9 @@ export default function EndpointUrlsCard({
  {tailscale?.enabled && (
  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
  <div className="flex items-center justify-between sm:justify-start">
- <span className="text-xs font-mono px-1.5 py-1 rounded-sm shrink-0 min-w-[88px] text-center bg-primary/10 text-primary font-medium">
- Tailscale
- </span>
+  <span className="text-xs font-mono px-1.5 py-1 rounded-sm shrink-0 min-w-[88px] text-center bg-primary/10 text-primary font-medium">
+  Tailscale
+  </span>
  </div>
  {tailscale.reachable ? (
  <>
@@ -132,8 +132,8 @@ export default function EndpointUrlsCard({
  type="button"
  disabled={!tailscale.publicUrl && !tailscale.url}
  onClick={() => (tailscale.publicUrl || tailscale.url) && onCopy(`${tailscale.url}/v1`, "ts_url")}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
- aria-label={copied === "ts_url" ? "Copied" : "Copy Tailscale URL"}
+  className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+  aria-label={copied === "ts_url" ? "Copied" : "Copy Tailscale URL"}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
  {copied === "ts_url" ? "check" : "content_copy"}

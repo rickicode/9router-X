@@ -35,15 +35,24 @@ export default function RealtimeRequestsCard({
 
  useEffect(() => {
  if (!selectedError) {
- setErrorDetailsLoading(false);
- return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) setErrorDetailsLoading(false);
+ });
+ return () => { cancelled = true; };
  }
  if (selectedError.error) {
- setErrorDetailsLoading(false);
- return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) setErrorDetailsLoading(false);
+ });
+ return () => { cancelled = true; };
  }
  let active = true;
+ queueMicrotask(() => {
+ if (!active) return;
  setErrorDetailsLoading(true);
+ });
  const modelParam = encodeURIComponent(selectedError.model || "");
  const providerParam = encodeURIComponent(selectedError.provider || "");
  fetch(`/api/usage/request-details?model=${modelParam}&provider=${providerParam}&pageSize=5`)

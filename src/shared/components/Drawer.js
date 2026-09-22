@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import { cn } from "@/shared/utils/cn";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function Drawer({
  isOpen,
@@ -11,6 +14,10 @@ export default function Drawer({
  width = "md",
  className
 }) {
+ const titleId = useId();
+ const panelRef = useRef(null);
+ const restoreFocusRef = useRef(null);
+
  const widths = {
  sm: "w-full sm:w-[400px] max-w-[100vw]",
  md: "w-full sm:w-[500px] max-w-[100vw]",
@@ -29,17 +36,52 @@ export default function Drawer({
  }, [isOpen]);
 
  useEffect(() => {
- const handleEscape = (e) => {
- if (e.key === "Escape" && isOpen) onClose();
+ if (!isOpen) return;
+ restoreFocusRef.current = document.activeElement;
+
+ const panel = panelRef.current;
+ const first = panel?.querySelector(FOCUSABLE);
+ (first || panel)?.focus();
+
+ const handleKeyDown = (e) => {
+ if (e.key === "Escape") {
+ e.stopPropagation();
+ onClose();
+ return;
+ }
+ if (e.key !== "Tab" || !panel) return;
+ const focusable = [...panel.querySelectorAll(FOCUSABLE)].filter(
+ (el) => el.offsetParent !== null || el === document.activeElement
+ );
+ if (focusable.length === 0) {
+ e.preventDefault();
+ panel.focus();
+ return;
+ }
+ const firstEl = focusable[0];
+ const lastEl = focusable[focusable.length - 1];
+ if (e.shiftKey && document.activeElement === firstEl) {
+ e.preventDefault();
+ lastEl.focus();
+ } else if (!e.shiftKey && document.activeElement === lastEl) {
+ e.preventDefault();
+ firstEl.focus();
+ }
  };
- document.addEventListener("keydown", handleEscape);
- return () => document.removeEventListener("keydown", handleEscape);
+
+ document.addEventListener("keydown", handleKeyDown, true);
+ return () => {
+ document.removeEventListener("keydown", handleKeyDown, true);
+ document.body.style.overflow = "";
+ const restore = restoreFocusRef.current;
+ if (restore && typeof restore.focus === "function") restore.focus();
+ };
  }, [isOpen, onClose]);
 
  if (!isOpen) return null;
 
  return (
- <div className="fixed inset-0 z-50">
+ <div className="fixed inset-0 z-50 overscroll-contain">
  {/* Overlay */}
  <div
  className="absolute inset-0 bg-black/80 fade-in cursor-pointer"
@@ -48,34 +90,43 @@ export default function Drawer({
  />
 
  {/* Drawer panel */}
- <div className={cn(
- "absolute right-0 bottom-0 sm:top-0 w-full max-w-[100vw] h-[90vh] sm:h-full max-h-[90vh] sm:max-h-none bg-surface flex flex-col",
+ <div
+ ref={panelRef}
+ role="dialog"
+ aria-modal="true"
+ aria-labelledby={title ? titleId : undefined}
+ aria-label={title ? undefined : "Drawer"}
+ tabIndex={-1}
+ className={cn(
+ "absolute right-0 bottom-0 sm:top-0 w-full max-w-[100vw] h-[90vh] sm:h-full max-h-[90vh] sm:max-h-none bg-surface flex flex-col outline-none",
  "rounded-none",
  "shadow-none",
  "slide-in-right",
  "border-t sm:border-t-0 sm:border-l border-border",
+ "overscroll-contain",
  widths[width] || widths.md,
  className
- )}>
+ )}
+ >
  {/* Header */}
  <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
  <div className="flex items-center gap-2">
  {title && (
- <h2 className="text-sm font-semibold text-text-main">{title}</h2>
+ <h2 id={titleId} className="text-sm font-semibold text-text-main">{title}</h2>
  )}
  </div>
  <button
  type="button"
  onClick={onClose}
  aria-label="Close drawer"
- className="flex size-8 items-center justify-center text-text-muted hover:bg-bg hover:text-text-main"
+ className="size-11 -mr-2 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/40"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
  </button>
  </div>
 
  {/* Body */}
- <div className="flex-1 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] custom-scrollbar">
+ <div className="flex-1 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] custom-scrollbar overscroll-contain">
  {children}
  </div>
  </div>

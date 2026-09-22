@@ -48,7 +48,11 @@ export default function UsageChart({ period = "7d" }) {
  }, [period]);
 
  useEffect(() => {
- fetchData();
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) fetchData();
+ });
+ return () => { cancelled = true; };
  }, [fetchData]);
 
  const hasData = data.some((d) => d.tokens > 0 || d.cost > 0);

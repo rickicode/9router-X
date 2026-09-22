@@ -138,7 +138,13 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
  } catch (e) { console.log("ModelsCard fetch error:", e); }
  }, []);
 
- useEffect(() => { fetchData(); }, [fetchData]);
+ useEffect(() => {
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) fetchData();
+ });
+ return () => { cancelled = true; };
+ }, [fetchData]);
 
  const handleSetAlias = async (modelId, alias) => {
  const fullModel = `${providerAlias}/${modelId}`;

@@ -402,49 +402,61 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
  const errorKey = errorProvider?.toLowerCase() || "";
 
  const rawActiveSet = useMemo(() => new Set(activeKey ? activeKey.split(",") : []), [activeKey]);
- const lastSet = useMemo(() => new Set(lastKey ? [lastKey] : []), [lastKey]);
- const errorSet = useMemo(() => new Set(errorKey ? [errorKey] : []), [errorKey]);
- const lastUsedRef = useRef({});
- const [clock, setClock] = useState(() => Date.now());
- const usedProviderSet = useMemo(() => {
- const used = new Set(rawActiveSet);
- for (const provider of providers) {
- const key = String(provider.provider || "").toLowerCase();
- if (lastUsedRef.current[key] && clock - lastUsedRef.current[key] < PROVIDER_RETENTION_MS) used.add(key);
- }
- return used;
- }, [providers, rawActiveSet, clock]);
+  const lastSet = useMemo(() => new Set(lastKey ? [lastKey] : []), [lastKey]);
+  const errorSet = useMemo(() => new Set(errorKey ? [errorKey] : []), [errorKey]);
+  const lastUsedRef = useRef({});
+  const [clock, setClock] = useState(() => Date.now());
+  const [usedSnapshot, setUsedSnapshot] = useState(() => new Set());
+  const usedProviderSet = useMemo(() => {
+  const used = new Set(rawActiveSet);
+  for (const key of usedSnapshot) used.add(key);
+  return used;
+  }, [rawActiveSet, usedSnapshot]);
  const visibleProviders = useMemo(
  () => providers.filter((p) => usedProviderSet.has(String(p.provider || "").toLowerCase())),
  [providers, usedProviderSet],
  );
 
  useEffect(() => {
- const now = Date.now();
- for (const p of rawActiveSet) lastUsedRef.current[p] = now;
- }, [rawActiveSet]);
+  const now = Date.now();
+  for (const p of rawActiveSet) lastUsedRef.current[p] = now;
+  setUsedSnapshot((prev) => {
+  const next = new Set(prev);
+  for (const p of rawActiveSet) next.add(p);
+  for (const provider of providers) {
+  const key = String(provider.provider || "").toLowerCase();
+  if (lastUsedRef.current[key] && now - lastUsedRef.current[key] < PROVIDER_RETENTION_MS) next.add(key);
+  }
+  return next;
+  });
+  }, [rawActiveSet, providers]);
 
  useEffect(() => {
- const id = setInterval(() => {
- const now = Date.now();
- const keys = Object.keys(lastUsedRef.current);
- if (keys.length === 0) return; // idle: skip setState, zero render
- let alive = false;
- for (const k of keys) {
- if (now - lastUsedRef.current[k] < PROVIDER_RETENTION_MS) {
- alive = true;
- } else {
- delete lastUsedRef.current[k]; // prune expired, cegah ref bengkak
- }
- }
- if (!alive && Object.keys(lastUsedRef.current).length === 0) {
- setClock(now); // satu update final buat lepas node expired
- return;
- }
- if (alive) setClock(now);
- }, FE_ACTIVE_TICK_MS);
- return () => clearInterval(id);
- }, []);
+  const id = setInterval(() => {
+  const now = Date.now();
+  const keys = Object.keys(lastUsedRef.current);
+  if (keys.length === 0) return; // idle: skip setState, zero render
+  let alive = false;
+  for (const k of keys) {
+  if (now - lastUsedRef.current[k] < PROVIDER_RETENTION_MS) {
+  alive = true;
+  } else {
+  delete lastUsedRef.current[k]; // prune expired, cegah ref bengkak
+  }
+  }
+  setUsedSnapshot(() => {
+  const next = new Set();
+  for (const k of Object.keys(lastUsedRef.current)) {
+  if (now - lastUsedRef.current[k] < PROVIDER_RETENTION_MS) next.add(k);
+  }
+  for (const p of rawActiveSet) next.add(p);
+  return next;
+  });
+  if (!alive) return;
+  setClock(now);
+  }, 1000);
+  return () => clearInterval(id);
+  }, [rawActiveSet]);
 
  const activeSet = rawActiveSet;
  const totalActiveCount = activeRequests.length;

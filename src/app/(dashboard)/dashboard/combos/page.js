@@ -107,16 +107,12 @@ function CombosContent() {
  const [capacityAdapter, setCapacityAdapter] = useState(EMPTY_CAPACITY_ADAPTER);
  const { getCaps } = useModelCaps();
  const [confirmState, setConfirmState] = useState(null);
- const { copied, copy } = useCopyToClipboard();
- const notify = useNotificationStore();
+  const { copied, copy } = useCopyToClipboard();
+  const notify = useNotificationStore();
  const [comboCategory, setComboCategory] = useState("all"); // "all" | "custom" | "builtin"
- const [searchQuery, setSearchQuery] = useState("");
- useEffect(() => {
- fetchData();
- }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
- const fetchData = async () => {
- try {
+  const [searchQuery, setSearchQuery] = useState("");
+  const fetchData = async () => {
+  try {
  const [combosRes, providersRes, settingsRes] = await Promise.all([
  fetch("/api/combos"),
  fetch("/api/providers?isActive=true&fields=summary"),
@@ -140,12 +136,16 @@ function CombosContent() {
  setCapacityAdapter(normalized);
  } catch (error) {
 
- } finally {
- setLoading(false);
- }
- };
+  } finally {
+  setLoading(false);
+  }
+  };
 
- const handleSetCapacityAdapter = async (next) => {
+ useEffect(() => {
+ queueMicrotask(() => fetchData());
+ }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSetCapacityAdapter = async (next) => {
  setCapacityAdapter(next);
  try {
  await fetch("/api/settings", {
@@ -1092,8 +1092,8 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
  };
 
  useEffect(() => {
- if (isOpen) fetchModalData();
- }, [isOpen]);
+  if (isOpen) queueMicrotask(() => fetchModalData());
+  }, [isOpen]);
 
  const validateName = (value) => {
  if (!value.trim()) {

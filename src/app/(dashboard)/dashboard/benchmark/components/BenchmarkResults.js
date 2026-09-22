@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { Card } from "@/shared/components";
 
 const STATUS_CONFIG = {
-  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30" },
-  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/30" },
-  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30" },
-  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/30" },
-  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/30" },
+  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-400 border-rose-500/30" },
+  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
+  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-400 border-slate-500/30" },
+  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-400 border-orange-500/30" },
 };
 
 const FILTERS = [
@@ -243,10 +243,10 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                           <span
                             className={`font-mono text-[10px] font-bold ${
                               row.http_status === 200
-                                ? "text-emerald-500 dark:text-emerald-400"
+                                ? "text-emerald-400"
                                 : row.http_status === 429
-                                ? "text-amber-500 dark:text-amber-400"
-                                : "text-rose-500 dark:text-rose-400"
+                                ? "text-amber-400"
+                                : "text-rose-400"
                             }`}
                           >
                             {row.http_status}
@@ -256,7 +256,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                     </td>
                     <td
                       className={`py-2 px-3 max-w-[240px] truncate font-mono text-[11px] ${
-                        isFailedOrLimited ? "text-rose-500 dark:text-rose-400 font-medium" : "text-text-muted"
+                        isFailedOrLimited ? "text-rose-400 font-medium" : "text-text-muted"
                       }`}
                       title={displayMessage}
                     >
@@ -267,10 +267,10 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                         <span
                           className={
                             row.score >= 80
-                              ? "text-emerald-500 dark:text-emerald-400"
+                              ? "text-emerald-400"
                               : row.score >= 50
-                              ? "text-amber-500 dark:text-amber-400"
-                              : "text-rose-500 dark:text-rose-400"
+                              ? "text-amber-400"
+                              : "text-rose-400"
                           }
                         >
                           {row.score}

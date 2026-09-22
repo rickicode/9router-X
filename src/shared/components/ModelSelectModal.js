@@ -37,13 +37,13 @@ function useLiveProviderModels(isOpen, connectionIds, label) {
  const idsKey = (connectionIds ?? []).join("|");
 
  useEffect(() => {
- const ids = idsKey ? idsKey.split("|") : [];
- if (!isOpen || ids.length === 0) {
- setModels([]);
- return undefined;
- }
+  const ids = idsKey ? idsKey.split("|") : [];
+  if (!isOpen || ids.length === 0) {
+  queueMicrotask(() => setModels([]));
+  return undefined;
+  }
 
- let cancelled = false;
+  let cancelled = false;
  Promise.all(ids.map(async (connectionId) => {
  const response = await fetch(`/api/providers/${connectionId}/models`, { cache: "no-store" });
  if (!response.ok) return [];
@@ -134,10 +134,6 @@ export default function ModelSelectModal({
  }
  };
 
- useEffect(() => {
- if (isOpen) fetchCombos();
- }, [isOpen]);
-
  const fetchProviderNodes = async () => {
  try {
  const res = await fetch("/api/provider-nodes");
@@ -149,10 +145,6 @@ export default function ModelSelectModal({
  setProviderNodes([]);
  }
  };
-
- useEffect(() => {
- if (isOpen) fetchProviderNodes();
- }, [isOpen]);
 
  const fetchCustomModels = async () => {
  try {
@@ -166,10 +158,6 @@ export default function ModelSelectModal({
  }
  };
 
- useEffect(() => {
- if (isOpen) fetchCustomModels();
- }, [isOpen]);
-
  const fetchDisabledModels = async () => {
  try {
  const res = await fetch("/api/models/disabled");
@@ -182,11 +170,17 @@ export default function ModelSelectModal({
  }
  };
 
- useEffect(() => {
- if (isOpen) fetchDisabledModels();
- }, [isOpen]);
-
  const allProviders = useMemo(() => ({ ...OAUTH_PROVIDERS, ...FREE_PROVIDERS, ...FREE_TIER_PROVIDERS, ...APIKEY_PROVIDERS }), []);
+
+  useEffect(() => {
+  if (!isOpen) return;
+  queueMicrotask(() => {
+  fetchCombos();
+  fetchProviderNodes();
+  fetchCustomModels();
+  fetchDisabledModels();
+  });
+  }, [isOpen]);
 
  // Group models by provider with priority order
  const groupedModels = useMemo(() => {

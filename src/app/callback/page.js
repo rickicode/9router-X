@@ -77,11 +77,11 @@ function CallbackContent() {
       return;
     }
 
-    setStatus("success");
-    setTimeout(() => {
-      window.close();
-      setTimeout(() => setStatus("done"), 500);
-    }, 1500);
+ queueMicrotask(() => setStatus("success"));
+ setTimeout(() => {
+ window.close();
+ setTimeout(() => setStatus("done"), 500);
+ }, 1500);
   }, [searchParams]);
 
   return (

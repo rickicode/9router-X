@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -100,18 +100,18 @@ describe("A11y & Action Hardening Verification", () => {
   });
 
   describe("4. Contrast & Brand tokens", () => {
-    it("globals.css defines brand-700 for text contrast in light and brand-400 in dark", () => {
+    it("globals.css defines brand tokens for dark-only cyan accent", () => {
       const css = readSrc("src/app/globals.css");
-      assert.ok(css.includes("--color-brand-700: #a64027;"));
-      assert.ok(css.includes("--color-brand-text: var(--color-brand-700);"));
+      assert.ok(css.includes("--color-brand-700: #0E7490;"));
       assert.ok(css.includes("--color-brand-text: var(--color-brand-400);"));
+      assert.ok(css.includes("--color-primary: #06B6D4;"));
     });
 
-    it("Endpoint badges use brand-700 / dark:brand-400 for text contrast", () => {
+    it("Endpoint badges use primary accent for text contrast", () => {
       const row = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointRow.js");
-      assert.ok(row.includes("text-brand-700 dark:text-brand-400"));
+      assert.ok(row.includes("text-primary"));
       const urls = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointUrlsCard.js");
-      assert.ok(urls.includes("text-brand-700 dark:text-brand-400"));
+      assert.ok(urls.includes("text-primary"));
     });
   });
 

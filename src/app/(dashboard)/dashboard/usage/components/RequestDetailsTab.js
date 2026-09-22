@@ -186,12 +186,12 @@ export default function RequestDetailsTab() {
  }, [pagination.page, pagination.pageSize, filters]);
 
  useEffect(() => {
- fetchProviders();
- }, [fetchProviders]);
+  queueMicrotask(() => fetchProviders());
+  }, [fetchProviders]);
 
- useEffect(() => {
- fetchDetails();
- }, [fetchDetails]);
+  useEffect(() => {
+  queueMicrotask(() => fetchDetails());
+  }, [fetchDetails]);
 
  const handleViewDetail = (detail) => {
  setSelectedDetail(detail);

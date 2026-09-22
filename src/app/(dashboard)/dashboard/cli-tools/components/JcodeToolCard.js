@@ -48,64 +48,84 @@ export default function JcodeToolCard({
  return matchKnownEndpoint(currentProvider.base_url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
  };
 
- const configStatus = getConfigStatus();
+  const configStatus = getConfigStatus();
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setJcodeStatus(initialStatus);
- }, [initialStatus]);
+  const checkJcodeStatus = async () => {
+  setCheckingJcode(true);
+  try {
+  const res = await fetch("/api/cli-tools/jcode-settings");
+  const data = await res.json();
+  setJcodeStatus(data);
+  } catch (error) {
+  setJcodeStatus({ installed: false, error: error.message });
+  } finally {
+  setCheckingJcode(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!jcodeStatus) checkJcodeStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setJcodeStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- useEffect(() => {
- if (jcodeStatus?.installed && !hasInitializedModel.current) {
- hasInitializedModel.current = true;
- const provider = jcodeStatus.config?.providers?.["9router"];
- if (provider) {
- if (provider.default_model) {
- setSelectedModel(provider.default_model);
- }
- // Try to match API key from env file
- const envApiKey = jcodeStatus.envApiKey;
- if (envApiKey && apiKeys?.some(k => k.key === envApiKey)) {
- setSelectedApiKey(envApiKey);
- }
- }
- }
- }, [jcodeStatus, apiKeys]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!jcodeStatus) checkJcodeStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- const checkJcodeStatus = async () => {
- setCheckingJcode(true);
- try {
- const res = await fetch("/api/cli-tools/jcode-settings");
- const data = await res.json();
- setJcodeStatus(data);
- } catch (error) {
- setJcodeStatus({ installed: false, error: error.message });
- } finally {
- setCheckingJcode(false);
- }
- };
+  useEffect(() => {
+  if (!(jcodeStatus?.installed && !hasInitializedModel.current)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || hasInitializedModel.current) return;
+  hasInitializedModel.current = true;
+  const provider = jcodeStatus.config?.providers?.["9router"];
+  if (provider) {
+  if (provider.default_model) {
+  setSelectedModel(provider.default_model);
+  }
+  // Try to match API key from env file
+  const envApiKey = jcodeStatus.envApiKey;
+  if (envApiKey && apiKeys?.some(k => k.key === envApiKey)) {
+  setSelectedApiKey(envApiKey);
+  }
+  }
+  });
+  return () => { cancelled = true; };
+  }, [jcodeStatus, apiKeys]);
 
  const normalizeLocalhost = (url) => url.replace("://localhost", "://127.0.0.1");
 
@@ -218,7 +238,7 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src={tool.image || "/providers/jcode.png"} alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -234,7 +254,7 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

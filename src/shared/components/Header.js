@@ -229,7 +229,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
  <button
  type="button"
  onClick={onMenuClick}
- className="flex size-8 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main lg:hidden h-8"
+ className="flex size-11 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main lg:hidden"
  aria-label="Open navigation"
  >
  <span className="material-symbols-outlined text-[18px]">menu</span>
@@ -298,13 +298,13 @@ function HeaderSearch() {
  value={query}
  onChange={(e) => setQuery(e.target.value)}
  placeholder={placeholder}
- className="h-8 w-full border border-border bg-surface pl-7 pr-7 text-sm text-text-main outline-none focus:border-primary"
+ className="h-11 w-full border border-border bg-surface pl-7 pr-7 text-sm text-text-main outline-none focus:border-primary"
  />
  {query && (
  <button
  type="button"
  onClick={() => setQuery("")}
- className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-0.5 rounded-sm"
+ className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-1.5 rounded-sm min-size-8"
  aria-label="Clear search"
  >
  <span className="material-symbols-outlined text-[18px]">close</span>

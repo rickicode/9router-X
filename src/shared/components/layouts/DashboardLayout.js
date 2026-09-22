@@ -105,7 +105,7 @@ export default function DashboardLayout({ children }) {
  {/* Skip Link for keyboard navigation */}
  <a
  href="#main-content"
- className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-3 focus:h-8 focus:bg-primary focus:text-white focus:rounded-sm focus: focus:outline-none font-medium text-sm"
+ className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-3 focus:h-8 focus:bg-primary focus:text-white focus:rounded-sm focus:outline-none font-medium text-sm"
  >
  Skip to main content
  </a>
@@ -122,7 +122,7 @@ export default function DashboardLayout({ children }) {
  return (
  <div
  key={n.id}
- className={`rounded-sm border px-3 h-8 ${style.wrapper}`}
+ className={`rounded-sm border px-3 min-h-8 py-1.5 ${style.wrapper}`}
  >
  <div className="flex items-start gap-2">
  <span className="material-symbols-outlined text-[18px] leading-5" aria-hidden="true">

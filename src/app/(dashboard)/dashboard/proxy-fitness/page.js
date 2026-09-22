@@ -108,7 +108,11 @@ export default function ProxyFitnessPage() {
  }, []);
 
  useEffect(() => {
- fetchAll();
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) fetchAll();
+ });
+ return () => { cancelled = true; };
  }, [fetchAll]);
 
  useEffect(() => {

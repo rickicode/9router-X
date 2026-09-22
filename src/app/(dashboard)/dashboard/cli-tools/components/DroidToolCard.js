@@ -52,67 +52,87 @@ export default function DroidToolCard({
  return matchKnownEndpoint(currentConfig.baseUrl, { tunnelPublicUrl, tailscaleUrl, cloudUrl: cloudEnabled ? CLOUD_URL : null }) ? "configured" : "other";
  };
 
- const configStatus = getConfigStatus();
+  const configStatus = getConfigStatus();
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setDroidStatus(initialStatus);
- }, [initialStatus]);
+  const checkDroidStatus = async () => {
+  setCheckingDroid(true);
+  try {
+  const res = await fetch("/api/cli-tools/droid-settings");
+  const data = await res.json();
+  setDroidStatus(data);
+  } catch (error) {
+  setDroidStatus({ installed: false, error: error.message });
+  } finally {
+  setCheckingDroid(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!droidStatus) checkDroidStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setDroidStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- // Pre-fill model list from existing config (supports multi-model)
- useEffect(() => {
- if (droidStatus?.installed && !hasInitializedModel.current) {
- hasInitializedModel.current = true;
- const existingModels = (droidStatus.settings?.customModels || [])
- .filter(m => m.id?.startsWith("custom:9Router"))
- .sort((a, b) => (a.index || 0) - (b.index || 0))
- .map(m => m.model);
- if (existingModels.length > 0) {
- setModelList(existingModels);
- } else {
- // Legacy: single model stored as custom:9Router-0
- const legacy = droidStatus.settings?.customModels?.find(m => m.id === "custom:9Router-0");
- if (legacy?.model) {
- setModelList([legacy.model]);
- }
- }
- }
- }, [droidStatus]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!droidStatus) checkDroidStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- const checkDroidStatus = async () => {
- setCheckingDroid(true);
- try {
- const res = await fetch("/api/cli-tools/droid-settings");
- const data = await res.json();
- setDroidStatus(data);
- } catch (error) {
- setDroidStatus({ installed: false, error: error.message });
- } finally {
- setCheckingDroid(false);
- }
- };
+  // Pre-fill model list from existing config (supports multi-model)
+  useEffect(() => {
+  if (!(droidStatus?.installed && !hasInitializedModel.current)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || hasInitializedModel.current) return;
+  hasInitializedModel.current = true;
+  const existingModels = (droidStatus.settings?.customModels || [])
+  .filter(m => m.id?.startsWith("custom:9Router"))
+  .sort((a, b) => (a.index || 0) - (b.index || 0))
+  .map(m => m.model);
+  if (existingModels.length > 0) {
+  setModelList(existingModels);
+  } else {
+  // Legacy: single model stored as custom:9Router-0
+  const legacy = droidStatus.settings?.customModels?.find(m => m.id === "custom:9Router-0");
+  if (legacy?.model) {
+  setModelList([legacy.model]);
+  }
+  }
+  });
+  return () => { cancelled = true; };
+  }, [droidStatus]);
 
  const getEffectiveBaseUrl = () => {
  const url = customBaseUrl || baseUrl;
@@ -228,7 +248,7 @@ export default function DroidToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src="/providers/droid.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -244,7 +264,7 @@ export default function DroidToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

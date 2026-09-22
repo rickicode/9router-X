@@ -11,24 +11,24 @@ export default function PricingSettingsPage() {
   const [currentPricing, setCurrentPricing] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPricing();
-  }, []);
+ const loadPricing = async () => {
+ setLoading(true);
+ try {
+ const response = await fetch("/api/pricing");
+ if (response.ok) {
+ const data = await response.json();
+ setCurrentPricing(data);
+ }
+ } catch (error) {
+ console.error("Failed to load pricing:", error);
+ } finally {
+ setLoading(false);
+ }
+ };
 
-  const loadPricing = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/pricing");
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentPricing(data);
-      }
-    } catch (error) {
-      console.error("Failed to load pricing:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+ useEffect(() => {
+ queueMicrotask(() => loadPricing());
+ }, []);
 
   const handlePricingUpdated = () => {
     loadPricing();

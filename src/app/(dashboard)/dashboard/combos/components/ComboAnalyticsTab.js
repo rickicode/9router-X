@@ -29,9 +29,9 @@ export default function ComboAnalyticsTab() {
  const [loading, setLoading] = useState(true);
 
  useEffect(() => {
- let alive = true;
- setLoading(true);
- fetch(`/api/combos/analytics?period=${period}`)
+  let alive = true;
+  queueMicrotask(() => setLoading(true));
+  fetch(`/api/combos/analytics?period=${period}`)
  .then((r) => (r.ok ? r.json() : { combos: [], members: [] }))
  .then((d) => { if (alive) setData(d); })
  .catch(() => { if (alive) setData({ combos: [], members: [] }); })

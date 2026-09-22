@@ -50,55 +50,75 @@ export default function HermesToolCard({
  return "other";
  };
 
- const configStatus = getConfigStatus();
+  const configStatus = getConfigStatus();
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const fetchModelAliases = async () => {
+  try {
+  const res = await fetch("/api/models/alias");
+  const data = await res.json();
+  if (res.ok) setModelAliases(data.aliases || {});
+  } catch (error) {
+  console.log("Error fetching model aliases:", error);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setHermesStatus(initialStatus);
- }, [initialStatus]);
+  const checkStatus = async () => {
+  setChecking(true);
+  try {
+  const res = await fetch(ENDPOINT);
+  const data = await res.json();
+  setHermesStatus(data);
+  } catch (error) {
+  setHermesStatus({ installed: false, error: error.message });
+  } finally {
+  setChecking(false);
+  }
+  };
 
- useEffect(() => {
- if (isExpanded) {
- if (!hermesStatus) checkStatus();
- fetchModelAliases();
- }
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- const fetchModelAliases = async () => {
- try {
- const res = await fetch("/api/models/alias");
- const data = await res.json();
- if (res.ok) setModelAliases(data.aliases || {});
- } catch (error) {
- console.log("Error fetching model aliases:", error);
- }
- };
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setHermesStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- useEffect(() => {
- if (hermesStatus?.installed && !hasInitializedModel.current) {
- hasInitializedModel.current = true;
- const cfg = hermesStatus.settings?.model;
- if (cfg?.default) setSelectedModel(cfg.default);
- }
- }, [hermesStatus]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (!hermesStatus) checkStatus();
+  fetchModelAliases();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- const checkStatus = async () => {
- setChecking(true);
- try {
- const res = await fetch(ENDPOINT);
- const data = await res.json();
- setHermesStatus(data);
- } catch (error) {
- setHermesStatus({ installed: false, error: error.message });
- } finally {
- setChecking(false);
- }
- };
+  useEffect(() => {
+  if (!(hermesStatus?.installed && !hasInitializedModel.current)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || hasInitializedModel.current) return;
+  hasInitializedModel.current = true;
+  const cfg = hermesStatus.settings?.model;
+  if (cfg?.default) setSelectedModel(cfg.default);
+  });
+  return () => { cancelled = true; };
+  }, [hermesStatus]);
 
  const normalizeLocalhost = (url) => url.replace("://localhost", "://127.0.0.1");
 
@@ -188,7 +208,7 @@ export default function HermesToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src="/providers/hermes.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -204,7 +224,7 @@ export default function HermesToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

@@ -140,11 +140,11 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
  return () => clearInterval(interval);
  }, [accountLockUntil]);
 
- const now = currentTime > 0 ? currentTime : Date.now();
+ const now = currentTime;
  const hasAccountLock = Boolean(
- accountLockUntil && new Date(accountLockUntil).getTime() > now
+ now > 0 && accountLockUntil && new Date(accountLockUntil).getTime() > now
  );
- const hasModelLock = [
+ const hasModelLock = now > 0 && [
  ...Object.entries(connection).filter(([k]) => k.startsWith("modelLock_")).map(([k, v]) => ({ model: k.slice("modelLock_".length) || "__all", until: v })),
  ...Object.entries(connection.modelLocks || {}).map(([k, v]) => ({ model: k || "__all", until: v })),
  ].some((item) => item.model !== "__all" && item.until && new Date(item.until).getTime() > now);

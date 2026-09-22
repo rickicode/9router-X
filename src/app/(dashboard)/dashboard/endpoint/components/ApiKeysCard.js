@@ -241,7 +241,7 @@ export default function ApiKeysCard({
  <button
  type="button"
  onClick={() => handleDeleteKey(key.id, key.name)}
- className="size-8 shrink-0 rounded-sm text-danger hover:bg-danger/10 focus-visible:outline-none"
+  className="size-11 shrink-0 rounded-sm text-danger hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-red-500"
  aria-label={`Delete API key ${key.name}`}
  title={`Delete API key ${key.name}`}
  >

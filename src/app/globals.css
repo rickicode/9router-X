@@ -44,7 +44,7 @@
   --color-brand-800: #155E75;
   --color-brand-900: #164E63;
 
-  /* Brand text - cyan accent */
+  /* Brand text - cyan accent (dark-only app) */
   --color-brand-text: var(--color-brand-400);
 
   /* Primary - vibrant cyan */
@@ -74,12 +74,12 @@
   --color-text: #FFFFFF;
   --color-text-main: #FFFFFF;
   --color-text-muted: #A0A0A0;
-  --color-text-subtle: #707070;
+  --color-text-subtle: #7A7A7A;
 
   /* Status colors - vibrant on black */
   --color-danger: #FF5555;
   --color-error: var(--color-danger);
-  --color-success: #50FA7B;
+  --color-success: #22C55E;
   --color-warning: #FFB86C;
   --color-info: #06B6D4;
 
@@ -498,13 +498,12 @@ button:disabled,
     radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.10) 0%, transparent 40%);
 }
 
-/* Landing-style faint grid overlay (use absolute pos inside relative parent) */
+/* Soft accent glow overlay (no hard grid — avoids generated-UI slop signature) */
 .landing-grid {
   background-image:
-    linear-gradient(to right, var(--color-accent) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-accent) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.04;
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--color-accent) 22%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--color-accent) 12%, transparent) 0%, transparent 50%);
+  opacity: 0.5;
 }
 
 /* Topology: router card pulse (no flying rings) + electric edge beam */

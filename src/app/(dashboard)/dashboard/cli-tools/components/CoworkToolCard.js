@@ -51,65 +51,95 @@ export default function CoworkToolCard({
  const [modelSelectOpen, setModelSelectOpen] = useState(false);
  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
  const [addMcpOpen, setAddMcpOpen] = useState(false);
- const [addMcpForm, setAddMcpForm] = useState({ name: "", url: "" });
+  const [addMcpForm, setAddMcpForm] = useState({ name: "", url: "" });
 
- useEffect(() => {
- if (apiKeys?.length > 0 && !selectedApiKey) {
- setSelectedApiKey(apiKeys[0].key);
- }
- }, [apiKeys, selectedApiKey]);
+  const checkStatus = async () => {
+  setChecking(true);
+  try {
+  const res = await fetch(ENDPOINT);
+  const data = await res.json();
+  setStatus(data);
+  } catch (error) {
+  setStatus({ installed: false, error: error.message });
+  } finally {
+  setChecking(false);
+  }
+  };
 
- useEffect(() => {
- if (initialStatus) setStatus(initialStatus);
- }, [initialStatus]);
+  useEffect(() => {
+  if (!(apiKeys?.length > 0 && !selectedApiKey)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (apiKeys?.length > 0 && !selectedApiKey) {
+  setSelectedApiKey(apiKeys[0].key);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [apiKeys, selectedApiKey]);
 
- useEffect(() => {
- if (isExpanded && !status) checkStatus();
- }, [isExpanded]);
+  useEffect(() => {
+  if (!initialStatus) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  setStatus(initialStatus);
+  });
+  return () => { cancelled = true; };
+  }, [initialStatus]);
 
- useEffect(() => {
- if (!isExpanded) return;
- fetch("/api/models/alias")
- .then((r) => r.ok ? r.json() : null)
- .then((data) => {
- if (data) setModelAliases(data.aliases || {});
- })
- .catch(() => {});
- }, [isExpanded]);
+  useEffect(() => {
+  if (!(isExpanded && !status)) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  if (isExpanded && !status) checkStatus();
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- useEffect(() => {
- if (status?.cowork?.models?.length) {
- setSelectedModels(status.cowork.models);
- }
- if (status?.cowork?.baseUrl && !customBaseUrl) {
- setCustomBaseUrl(stripV1(status.cowork.baseUrl));
- }
- // Initialize plugins: from current config, fallback to defaultPlugins
- if (Array.isArray(status?.cowork?.plugins) && status.cowork.plugins.length > 0) {
- setPlugins(status.cowork.plugins);
- } else if (plugins.length === 0 && Array.isArray(status?.defaultPlugins)) {
- setPlugins(status.defaultPlugins);
- }
- if (Array.isArray(status?.cowork?.localPlugins)) {
- setLocalPlugins(status.cowork.localPlugins);
- }
- if (Array.isArray(status?.cowork?.customPlugins) && status.cowork.customPlugins.length > 0) {
- setCustomPlugins(status.cowork.customPlugins);
- }
- }, [status]);
+  useEffect(() => {
+  if (!isExpanded) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled) return;
+  fetch("/api/models/alias")
+  .then((r) => r.ok ? r.json() : null)
+  .then((data) => {
+  if (cancelled) return;
+  if (data) setModelAliases(data.aliases || {});
+  })
+  .catch(() => {});
+  });
+  return () => { cancelled = true; };
+  }, [isExpanded]);
 
- const checkStatus = async () => {
- setChecking(true);
- try {
- const res = await fetch(ENDPOINT);
- const data = await res.json();
- setStatus(data);
- } catch (error) {
- setStatus({ installed: false, error: error.message });
- } finally {
- setChecking(false);
- }
- };
+  useEffect(() => {
+  if (!status) return;
+  let cancelled = false;
+  queueMicrotask(() => {
+  if (cancelled || !status) return;
+  if (status?.cowork?.models?.length) {
+  setSelectedModels(status.cowork.models);
+  }
+  if (status?.cowork?.baseUrl && !customBaseUrl) {
+  setCustomBaseUrl(stripV1(status.cowork.baseUrl));
+  }
+  // Initialize plugins: from current config, fallback to defaultPlugins
+  if (Array.isArray(status?.cowork?.plugins) && status.cowork.plugins.length > 0) {
+  setPlugins(status.cowork.plugins);
+  } else if (plugins.length === 0 && Array.isArray(status?.defaultPlugins)) {
+  setPlugins(status.defaultPlugins);
+  }
+  if (Array.isArray(status?.cowork?.localPlugins)) {
+  setLocalPlugins(status.cowork.localPlugins);
+  }
+  if (Array.isArray(status?.cowork?.customPlugins) && status.cowork.customPlugins.length > 0) {
+  setCustomPlugins(status.cowork.customPlugins);
+  }
+  });
+  return () => { cancelled = true; };
+  }, [status]);
 
  const getEffectiveBaseUrl = () => ensureV1(customBaseUrl);
 
@@ -253,7 +283,7 @@ export default function CoworkToolCard({
 
  return (
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image src={tool.image} alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
@@ -269,7 +299,7 @@ export default function CoworkToolCard({
  </div>
  </div>
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

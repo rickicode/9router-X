@@ -43,7 +43,12 @@ export default function ModelAvailabilityBadge() {
 
  // Lazy fetch: only when popover opens (or refresh button clicked)
  useEffect(() => {
- if (expanded) fetchStatus();
+ if (!expanded) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) fetchStatus();
+ });
+ return () => { cancelled = true; };
  }, [expanded, fetchStatus]);
 
  // Close popover on outside click

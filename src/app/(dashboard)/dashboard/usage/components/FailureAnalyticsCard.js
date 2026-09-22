@@ -28,62 +28,62 @@ export default function FailureAnalyticsCard({
  const [recentLoading, setRecentLoading] = useState(false);
 
  // Derive model failure stats
- const modelsWithFailures = useMemo(() => {
- if (!data?.models) return [];
- return data.models
- .map((m) => {
- const failures = Number(m.failures || m.failure_count || 0);
- const requests = Number(m.requests || m.count || 0);
- const failureRate = requests > 0 ? (failures / requests) * 100 : 0;
- return {
- ...m,
- failures,
- requests,
- failureRate,
- };
- })
- .filter((m) => {
- if (!search) return true;
- const s = search.toLowerCase();
- return (
- m.model?.toLowerCase().includes(s) ||
- m.provider?.toLowerCase().includes(s)
- );
- })
- .sort((a, b) => {
- if (sortBy === "rate") {
- return b.failureRate - a.failureRate || b.failures - a.failures;
- }
- return b.failures - a.failures || b.failureRate - a.failureRate;
- });
- }, [data?.models, sortBy, search]);
+  const modelsWithFailures = useMemo(() => {
+  if (!data?.models) return [];
+  return data.models
+  .map((m) => {
+  const failures = Number(m.failures || m.failure_count || 0);
+  const requests = Number(m.requests || m.count || 0);
+  const failureRate = requests > 0 ? (failures / requests) * 100 : 0;
+  return {
+  ...m,
+  failures,
+  requests,
+  failureRate,
+  };
+  })
+  .filter((m) => {
+  if (!search) return true;
+  const s = search.toLowerCase();
+  return (
+  m.model?.toLowerCase().includes(s) ||
+  m.provider?.toLowerCase().includes(s)
+  );
+  })
+  .sort((a, b) => {
+  if (sortBy === "rate") {
+  return b.failureRate - a.failureRate || b.failures - a.failures;
+  }
+  return b.failures - a.failures || b.failureRate - a.failureRate;
+  });
+  }, [data, sortBy, search]);
 
- // Derive provider failure stats
- const providersWithFailures = useMemo(() => {
- if (!data?.byProvider) return [];
- return data.byProvider
- .map((p) => {
- const failures = Number(p.failureCount ?? p.failures ?? 0);
- const requests = Number(p.count ?? p.requests ?? 0);
- const failureRate = requests > 0 ? (failures / requests) * 100 : 0;
- return {
- ...p,
- failures,
- requests,
- failureRate,
- };
- })
- .filter((p) => {
- if (!search) return true;
- return p.provider?.toLowerCase().includes(search.toLowerCase());
- })
- .sort((a, b) => {
- if (sortBy === "rate") {
- return b.failureRate - a.failureRate || b.failures - a.failures;
- }
- return b.failures - a.failures || b.failureRate - a.failureRate;
- });
- }, [data?.byProvider, sortBy, search]);
+  // Derive provider failure stats
+  const providersWithFailures = useMemo(() => {
+  if (!data?.byProvider) return [];
+  return data.byProvider
+  .map((p) => {
+  const failures = Number(p.failureCount ?? p.failures ?? 0);
+  const requests = Number(p.count ?? p.requests ?? 0);
+  const failureRate = requests > 0 ? (failures / requests) * 100 : 0;
+  return {
+  ...p,
+  failures,
+  requests,
+  failureRate,
+  };
+  })
+  .filter((p) => {
+  if (!search) return true;
+  return p.provider?.toLowerCase().includes(search.toLowerCase());
+  })
+  .sort((a, b) => {
+  if (sortBy === "rate") {
+  return b.failureRate - a.failureRate || b.failures - a.failures;
+  }
+  return b.failures - a.failures || b.failureRate - a.failureRate;
+  });
+  }, [data, sortBy, search]);
 
  // Total failed attempts
  const totalFailures = useMemo(() => {
@@ -107,11 +107,11 @@ export default function FailureAnalyticsCard({
  }, []);
 
  // When switching to "recent" tab, load failures
- useEffect(() => {
- if (viewMode === "recent") {
- fetchRecentFailures();
- }
- }, [viewMode, fetchRecentFailures]);
+  useEffect(() => {
+  if (viewMode === "recent") {
+  queueMicrotask(() => fetchRecentFailures());
+  }
+  }, [viewMode, fetchRecentFailures]);
 
  // Open inspection modal for a specific model or provider
  const inspectFailures = async (target, type = "model") => {

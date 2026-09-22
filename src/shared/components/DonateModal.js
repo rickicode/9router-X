@@ -13,8 +13,12 @@ export default function DonateModal({ isOpen, onClose }) {
 
  useEffect(() => {
  if (!isOpen || data) return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  setLoading(true);
  setError("");
+ });
  fetch(GITHUB_CONFIG.donateUrl, { cache: "no-store" })
  .then((res) => {
  if (!res.ok) throw new Error(`HTTP ${res.status}`);

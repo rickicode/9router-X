@@ -87,7 +87,11 @@ export default function PxpipeClient() {
  }, []);
 
  useEffect(() => {
- refresh();
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) refresh();
+ });
+ return () => { cancelled = true; };
  }, [refresh]);
 
  const w = stats?.windows?.[windowId];

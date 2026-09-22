@@ -67,8 +67,8 @@ export function TtsExampleCard({ providerId }) {
  const [connectionCount, setConnectionCount] = useState(0);
 
  useEffect(() => {
- setLocalEndpoint(window.location.origin);
- fetch("/api/keys")
+  queueMicrotask(() => setLocalEndpoint(window.location.origin));
+  fetch("/api/keys")
  .then((r) => r.json())
  .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
  .catch(() => {});
@@ -90,41 +90,44 @@ export function TtsExampleCard({ providerId }) {
  const voices = (config.voicesPerModel && defaultModel)
  ? (getTtsVoicesForModel(providerId, defaultModel) || [])
  : getModelsByProviderId(config.voiceKey || providerId).filter((m) => getModelKind(m) === "tts");
- if (voices.length) {
- if (config.hasBrowseButton) {
- // Google TTS: pre-select "en" (English) as default, show as single voice chip
- const defaultVoice = voices.find((v) => v.id === "en") || voices[0];
- setSelectedLang(defaultVoice.id);
- setSelectedVoice(defaultVoice.id);
- setSelectedVoiceName(defaultVoice.name);
- setCountryVoices([{ id: defaultVoice.id, name: defaultVoice.name }]);
- } else {
- // OpenAI/OpenRouter: set voice chips directly (no language picker)
- setCountryVoices(voices);
- setSelectedVoice(voices[0].id);
- setSelectedVoiceName(voices[0].name || voices[0].id);
- }
- }
- }
- // api-language (edge-tts, local-device, elevenlabs): NO default load, wait for user to pick language
- // config (nvidia, hyperbolic, deepgram, huggingface, cartesia, playht, coqui, tortoise, inworld, qwen):
- // use ttsConfig.models for model selector; voice is empty by default (backend uses provider default)
- }, [providerId]);
+  if (voices.length) {
+  queueMicrotask(() => {
+  if (config.hasBrowseButton) {
+  // Google TTS: pre-select "en" (English) as default, show as single voice chip
+  const defaultVoice = voices.find((v) => v.id === "en") || voices[0];
+  setSelectedLang(defaultVoice.id);
+  setSelectedVoice(defaultVoice.id);
+  setSelectedVoiceName(defaultVoice.name);
+  setCountryVoices([{ id: defaultVoice.id, name: defaultVoice.name }]);
+  } else {
+  // OpenAI/OpenRouter: set voice chips directly (no language picker)
+  setCountryVoices(voices);
+  setSelectedVoice(voices[0].id);
+  setSelectedVoiceName(voices[0].name || voices[0].id);
+  }
+  });
+  }
+  }
+  // api-language (edge-tts, local-device, elevenlabs): NO default load, wait for user to pick language
+  // config (nvidia, hyperbolic, deepgram, huggingface, cartesia, playht, coqui, tortoise, inworld, qwen):
+  // use ttsConfig.models for model selector; voice is empty by default (backend uses provider default)
+  }, [providerId]);
 
  // Update voices when model changes (voicesPerModel providers)
  useEffect(() => {
- if (!config.voicesPerModel || !selectedModel) return;
- const voices = getTtsVoicesForModel(providerId, selectedModel) || [];
- setCountryVoices(voices);
- if (voices.length) {
- setSelectedVoice(voices[0].id);
- setSelectedVoiceName(voices[0].name || voices[0].id);
- } else {
- // Model has no preset voices (voicedesign/voiceclone) — drop stale voice
- setSelectedVoice("");
- setSelectedVoiceName("");
- }
- }, [selectedModel]);
+  if (!config.voicesPerModel || !selectedModel) return;
+  const voices = getTtsVoicesForModel(providerId, selectedModel) || [];
+  queueMicrotask(() => {
+  setCountryVoices(voices);
+  if (voices.length) {
+  setSelectedVoice(voices[0].id);
+  setSelectedVoiceName(voices[0].name || voices[0].id);
+  } else {
+  setSelectedVoice("");
+  setSelectedVoiceName("");
+  }
+  });
+  }, [selectedModel]);
 
  // Open modal — load language list
  const openModal = async () => {
@@ -211,17 +214,17 @@ export function TtsExampleCard({ providerId }) {
  setError("");
  setAudioUrl("");
  setJsonResponse(null);
- const start = Date.now();
- try {
- const headers = { "Content-Type": "application/json" };
- if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
- const url = `/api/v1/audio/speech${responseFormat === "json" ? "?response_format=json" : ""}`;
- const res = await fetch(url, {
- method: "POST",
- headers,
- body: JSON.stringify({ ...ttsBody, input: input.trim() }),
- });
- setLatency(Date.now() - start);
+ const start = performance.now();
+  try {
+  const headers = { "Content-Type": "application/json" };
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  const url = `/api/v1/audio/speech${responseFormat === "json" ? "?response_format=json" : ""}`;
+  const res = await fetch(url, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ ...ttsBody, input: input.trim() }),
+  });
+  setLatency(Math.round(performance.now() - start));
  if (!res.ok) {
  const d = await res.json().catch(() => ({}));
  setError(d?.error?.message || d?.error || `HTTP ${res.status}`);

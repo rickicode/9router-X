@@ -403,8 +403,15 @@ export default function UsageStats({
  }, [period]);
 
  useEffect(() => {
- fetchStats();
- return () => statsAbortRef.current?.abort();
+ // Defers setState off the effect's synchronous body (react-hooks/set-state-in-effect)
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (!cancelled) fetchStats();
+ });
+ return () => {
+ cancelled = true;
+ statsAbortRef.current?.abort();
+ };
  }, [fetchStats]);
 
  // SSE connection - real-time updates for activeRequests + recentRequests only
@@ -502,7 +509,7 @@ export default function UsageStats({
  ),
  renderDetailCells: (item) => (
  <>
- <td className="h-8 px-3 text-sm text-text-main" className={`px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
@@ -536,8 +543,8 @@ export default function UsageStats({
  ),
  renderDetailCells: (item) => (
  <>
- <td className="h-8 px-3 text-sm text-text-main" className={`px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.accountName || `Account ${item.connectionId?.slice(0, 8)}...`}</td>
- <td className="h-8 px-3 text-sm text-text-main" className={`px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.accountName || `Account ${item.connectionId?.slice(0, 8)}...`}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
  <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>

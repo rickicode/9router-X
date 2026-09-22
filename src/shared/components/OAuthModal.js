@@ -72,12 +72,16 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
 
  // Detect if running on localhost (client-side only)
  useEffect(() => {
- if (typeof window !== "undefined") {
+ if (typeof window === "undefined") return;
+ let cancelled = false;
+ queueMicrotask(() => {
+ if (cancelled) return;
  setIsLocalhost(
  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
  );
  setPlaceholderUrl(`${window.location.origin}/callback?code=...`);
- }
+ });
+ return () => { cancelled = true; };
  }, []);
 
  // Define all useCallback hooks BEFORE the useEffects that reference them

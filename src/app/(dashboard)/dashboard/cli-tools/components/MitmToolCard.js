@@ -40,21 +40,21 @@ export default function MitmToolCard({
  const mitmHosts = TOOL_HOSTS[tool.id] ?? [];
  const canRunWithoutPassword = isWin || hasCachedPassword || needsSudoPassword === false;
 
- useEffect(() => {
- if (isExpanded) loadSavedMappings();
- }, [isExpanded]);
-
  const loadSavedMappings = async () => {
- try {
- const res = await fetch(`/api/cli-tools/antigravity-mitm/alias?tool=${tool.id}`);
- if (res.ok) {
- const data = await res.json();
- if (Object.keys(data.aliases || {}).length > 0) setModelMappings(data.aliases);
- }
- } catch { /* ignore */ }
- };
+  try {
+  const res = await fetch(`/api/cli-tools/antigravity-mitm/alias?tool=${tool.id}`);
+  if (res.ok) {
+  const data = await res.json();
+  if (Object.keys(data.aliases || {}).length > 0) setModelMappings(data.aliases);
+  }
+  } catch { /* ignore */ }
+  };
 
- const saveMappings = useCallback(async (mappings) => {
+useEffect(() => {
+    if (isExpanded) queueMicrotask(() => { loadSavedMappings(); });
+  }, [isExpanded]);
+
+  const saveMappings = useCallback(async (mappings) => {
  try {
  await fetch("/api/cli-tools/antigravity-mitm/alias", {
  method: "PUT",
@@ -132,7 +132,7 @@ export default function MitmToolCard({
  return (
  <>
  <Card padding="xs" className="overflow-hidden">
- <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+ <button type="button" className="flex w-full items-start justify-between gap-3 text-left hover:cursor-pointer sm:items-center focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm" onClick={onToggle} aria-expanded={isExpanded}>
  <div className="flex min-w-0 items-center gap-3">
  <div className="size-8 flex items-center justify-center shrink-0">
  <Image
@@ -164,7 +164,7 @@ export default function MitmToolCard({
  <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>
  expand_more
  </span>
- </div>
+ </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">

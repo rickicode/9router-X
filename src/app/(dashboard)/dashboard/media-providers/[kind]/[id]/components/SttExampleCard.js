@@ -8,6 +8,8 @@ import { getModelsByProviderId } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Row } from "./exampleShared";
 
+const nowMs = () => performance.now();
+
 export function SttExampleCard({ providerId }) {
  const providerAlias = getProviderAlias(providerId);
  const builtinSttModels = getModelsByProviderId(providerId).filter((m) => getModelKind(m) === "stt");
@@ -35,8 +37,8 @@ export function SttExampleCard({ providerId }) {
  const { copied: copiedRes, copy: copyRes } = useCopyToClipboard();
 
  useEffect(() => {
- setLocalEndpoint(window.location.origin);
- fetch("/api/keys")
+  queueMicrotask(() => setLocalEndpoint(window.location.origin));
+  fetch("/api/keys")
  .then((r) => r.json())
  .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
  .catch(() => {});
@@ -75,20 +77,20 @@ export function SttExampleCard({ providerId }) {
  setRunning(true);
  setError("");
  setResult(null);
- const start = Date.now();
- try {
- const fd = new FormData();
- fd.append("file", audioFile);
- fd.append("model", modelFull);
- if (allowedParams.includes("language") && language) fd.append("language", language);
- if (allowedParams.includes("response_format")) fd.append("response_format", responseFormat);
- if (allowedParams.includes("temperature") && temperature) fd.append("temperature", temperature);
- if (allowedParams.includes("prompt") && prompt) fd.append("prompt", prompt);
+ const start = nowMs();
+  try {
+  const fd = new FormData();
+  fd.append("file", audioFile);
+  fd.append("model", modelFull);
+  if (allowedParams.includes("language") && language) fd.append("language", language);
+  if (allowedParams.includes("response_format")) fd.append("response_format", responseFormat);
+  if (allowedParams.includes("temperature") && temperature) fd.append("temperature", temperature);
+  if (allowedParams.includes("prompt") && prompt) fd.append("prompt", prompt);
 
- const headers = {};
- if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
- const res = await fetch("/api/v1/audio/transcriptions", { method: "POST", headers, body: fd });
- setLatency(Date.now() - start);
+  const headers = {};
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  const res = await fetch("/api/v1/audio/transcriptions", { method: "POST", headers, body: fd });
+  setLatency(Math.round(nowMs() - start));
  const ct = res.headers.get("content-type") || "";
  const data = ct.includes("application/json") ? await res.json() : await res.text();
  if (!res.ok) {

@@ -207,8 +207,8 @@ export default function BasicChatPageClient() {
  const historyMenuRef = useRef(null);
 
  useEffect(() => {
- setIsHydrated(true);
- }, []);
+  queueMicrotask(() => setIsHydrated(true));
+  }, []);
 
  useEffect(() => {
  let cancelled = false;
@@ -390,10 +390,12 @@ export default function BasicChatPageClient() {
  ? modelIndex.get(session.modelId)
  : savedModel;
  initializedRef.current = true;
- setActiveSessionId(session.id);
- setActiveProviderId(sessionModel?.providerId || savedProvider.providerId);
- setActiveModelId(sessionModel?.id || savedModel.id);
- return;
+  queueMicrotask(() => {
+  setActiveSessionId(session.id);
+  setActiveProviderId(sessionModel?.providerId || savedProvider.providerId);
+  setActiveModelId(sessionModel?.id || savedModel.id);
+  });
+  return;
  }
 
  const session = {
@@ -409,10 +411,12 @@ export default function BasicChatPageClient() {
  };
 
  initializedRef.current = true;
+ queueMicrotask(() => {
  setSessions([session]);
  setActiveSessionId(session.id);
  setActiveProviderId(savedProvider.providerId);
  setActiveModelId(savedModel.id);
+ });
  }, [isHydrated, loadingData, providerGroups, modelIndex, sessions, activeSessionId, activeProviderId, activeModelId]);
 
  const updateSession = (sessionId, updater) => {

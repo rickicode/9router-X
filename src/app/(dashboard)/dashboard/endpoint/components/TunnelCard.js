@@ -186,7 +186,7 @@ export default function TunnelCard({
  type="button"
  disabled={!tunnel.publicUrl && !tunnel.url}
  onClick={() => (tunnel.publicUrl || tunnel.url) && onCopy(`${tunnel.publicUrl || tunnel.url}/v1`, "tunnel_card_url")}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+  className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
  aria-label={copied === "tunnel_card_url" ? "Copied" : "Copy Tunnel URL"}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
