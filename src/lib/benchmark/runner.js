@@ -587,8 +587,26 @@ export async function pruneBenchmarkHistory({ retentionDays } = {}) {
 }
 
 
+// A benchmark row can stay 'running' after the process dies (restart, crash):
+// no in-memory abort controller means no live runner owns it. Sweep such rows
+// to 'failed' whenever the job list or a job detail is read.
+async function sweepStaleJobs(db, id = null) {
+  const live = [...jobs.keys()];
+  if (id && jobAbortControllers.has(id)) return;
+  await db.run(
+    `UPDATE benchmark_jobs
+     SET status = 'failed',
+         error = COALESCE(error, 'Server restarted before this benchmark finished'),
+         finished_at = COALESCE(finished_at, NOW())
+     WHERE status IN ('queued', 'running')
+       AND NOT (id = ANY($1::uuid[]))`,
+    [id ? [...new Set([id, ...live])] : live],
+  ).catch(() => {});
+}
+
 export async function listBenchmarkJobs(limit = 30) {
   const db = await getAdapter();
+  await sweepStaleJobs(db);
   const jobs = await db.all(
     `SELECT id, status, providers, suites, reviewer, created_at, started_at, finished_at, progress, error
      FROM benchmark_jobs ORDER BY created_at DESC LIMIT $1`,
@@ -613,6 +631,7 @@ export async function listBenchmarkJobs(limit = 30) {
 export async function getBenchmarkJob(id) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ""))) return null;
   const db = await getAdapter();
+  await sweepStaleJobs(db, id);
   const job = await db.get(`SELECT * FROM benchmark_jobs WHERE id = $1`, [id]);
   if (!job) return null;
   const attempts = await db.all(
