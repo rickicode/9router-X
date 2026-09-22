@@ -39,7 +39,7 @@ export default function DonateModal({ isOpen, onClose }) {
 
  return createPortal(
  <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
- <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+ <div className="absolute inset-0 bg-black/80" onClick={onClose} />
  <div
  ref={modalRef}
  className="relative w-full bg-surface border border-border rounded-sm animate-in fade-in zoom-in-95 max-w-3xl flex flex-col max-h-[85vh]"

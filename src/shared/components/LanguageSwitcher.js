@@ -133,7 +133,7 @@ export default function LanguageSwitcher({ className = "", isOpen: controlledOpe
  <div className="fixed inset-0 z-50 flex items-center justify-center p-3" data-i18n-skip="true">
  {/* Overlay */}
  <div
- className="absolute inset-0 bg-black/40"
+ className="absolute inset-0 bg-black/80"
  onClick={() => setIsOpen(false)}
  />
 

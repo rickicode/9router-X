@@ -407,7 +407,7 @@ export default function SmartRoutingSection({
  {/* ─── DEDICATED MODAL: Pilih & Urutkan Model Tier (Drag & Drop System) ─── */}
  {activeTierModal && activeTierConfig && (
  <div
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+ className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 overflow-y-auto"
  onClick={() => setActiveTierModal(null)}
  >
  <div

@@ -266,7 +266,7 @@ export default function MitmServerCard({ apiKeys, cloudEnabled, onStatusChange }
 
  {/* Password Modal */}
  {showPasswordModal && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
  <div className="mx-4 flex w-full max-w-sm flex-col gap-3 rounded-sm border border-border bg-surface p-3">
  <h3 className="font-medium text-text-main">Sudo Password Required</h3>
  <div className="flex items-start gap-3 p-3 bg-warning/10 border border-warning/30 rounded-sm">
@@ -300,7 +300,7 @@ export default function MitmServerCard({ apiKeys, cloudEnabled, onStatusChange }
 
  {/* Port 443 Conflict Modal */}
  {port443Conflict && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
  <div className="mx-4 flex w-full max-w-md flex-col gap-3 rounded-sm border border-border bg-surface p-3">
  <h3 className="font-medium text-text-main">Port 443 Already In Use</h3>
  <div className="flex items-start gap-3 p-3 bg-warning/10 border border-warning/30 rounded-sm">

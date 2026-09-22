@@ -42,7 +42,7 @@ export default function Drawer({
  <div className="fixed inset-0 z-50">
  {/* Overlay */}
  <div
- className="absolute inset-0 bg-black/40 fade-in cursor-pointer"
+ className="absolute inset-0 bg-black/80 fade-in cursor-pointer"
  onClick={onClose}
  aria-hidden="true"
  />

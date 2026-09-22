@@ -30,7 +30,7 @@ export default function NineRemotePromoModal({ isOpen, onClose }) {
 
  return createPortal(
  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3">
- <div className="absolute inset-0 bg-black/40 fade-in" onClick={onClose} />
+ <div className="absolute inset-0 bg-black/80 fade-in" onClick={onClose} />
 
  <div className="relative w-full max-w-sm rounded-sm overflow-hidden fade-in flex flex-col bg-surface border border-border">
  {/* Header */}

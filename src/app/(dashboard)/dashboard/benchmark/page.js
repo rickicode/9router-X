@@ -1451,7 +1451,7 @@ export default function BenchmarkPage() {
       {/* ─── Modal 1: Dedicated Provider & Model Selector Modal (100% Solid, Non-Transparent) ─── */}
       {isPickerModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setIsPickerModalOpen(false)}
         >
           <div
@@ -1675,7 +1675,7 @@ export default function BenchmarkPage() {
       {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
       {inspectAttempt ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setInspectAttempt(null)}
         >
           <div
@@ -1808,7 +1808,7 @@ export default function BenchmarkPage() {
       {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
       {isReviewerModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setIsReviewerModalOpen(false)}
         >
           <div
@@ -1906,7 +1906,7 @@ export default function BenchmarkPage() {
       {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
       {isLogModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={() => setIsLogModalOpen(false)}
         >
           <div

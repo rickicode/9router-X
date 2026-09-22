@@ -49,7 +49,7 @@ function ProvidersModals({
  className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-[6vh] sm:pt-[10vh]"
  onClick={onCloseTestResults}
  >
- <div className="absolute inset-0 bg-black/40" />
+ <div className="absolute inset-0 bg-black/80" />
  <div
  className="relative bg-surface border border-border rounded-sm w-full max-w-[600px] max-h-[86vh] sm:max-h-[80vh] overflow-y-auto"
  onClick={(e) => e.stopPropagation()}

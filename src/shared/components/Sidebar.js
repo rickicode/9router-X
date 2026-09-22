@@ -160,7 +160,7 @@ export default function Sidebar({ onClose }) {
  return (
  <>
  <aside className="flex w-60 flex-col border-r border-border bg-sidebar min-h-full">
-      <div className="flex items-center justify-between h-11 px-3 border-b border-border">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" aria-label="Dashboard">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
@@ -185,9 +185,9 @@ export default function Sidebar({ onClose }) {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {/* Core Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-primary">dashboard</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Core</span>
+          <div className="px-3 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-primary opacity-60">dashboard</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Core</span>
           </div>
           {coreItems.map((item) => (
             <Link
@@ -216,9 +216,9 @@ export default function Sidebar({ onClose }) {
 
         {/* Routing & Performance Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-success">route</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Routing & Performance</span>
+          <div className="px-3 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-success opacity-60">route</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Routing & Performance</span>
           </div>
           {routingItems.map((item) => (
             <Link
@@ -247,9 +247,9 @@ export default function Sidebar({ onClose }) {
 
         {/* Monitoring Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-warning">monitoring</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Monitoring</span>
+          <div className="px-3 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-warning opacity-60">monitoring</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Monitoring</span>
           </div>
           {monitoringItems.map((item) => (
             <Link
@@ -278,9 +278,9 @@ export default function Sidebar({ onClose }) {
 
         {/* Tools Section */}
         <div className="mb-4">
-          <div className="px-3 mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-info">build</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Tools</span>
+          <div className="px-3 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-info opacity-60">build</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Tools</span>
           </div>
           {toolsItems.map((item) => (
             <Link
@@ -309,9 +309,9 @@ export default function Sidebar({ onClose }) {
 
         {/* System Section */}
         <div className="pt-2 border-t border-border/50">
-          <div className="px-3 mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-text-muted">settings</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">System</span>
+          <div className="px-3 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-text-muted opacity-60">settings</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">System</span>
           </div>
 
           {/* Media Providers accordion */}

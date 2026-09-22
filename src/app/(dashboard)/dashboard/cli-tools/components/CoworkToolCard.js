@@ -554,7 +554,7 @@ export default function CoworkToolCard({
 
  {/* Add Custom MCP modal */}
  {addMcpOpen && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAddMcpOpen(false)}>
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setAddMcpOpen(false)}>
  <div className="bg-surface border border-border rounded-sm w-full max-w-sm mx-4 p-3 flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
  <div className="flex items-center justify-between">
  <h3 className="font-semibold text-sm">Add Custom MCP</h3>
