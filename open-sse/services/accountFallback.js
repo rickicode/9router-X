@@ -42,7 +42,7 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
         return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted };
       }
       const canFallback = rule.shouldFallback !== false;
-      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted };
+      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted, isToolIncompatibility: !!rule.isToolIncompatibility };
     }
 
     // Status-based rule: match HTTP status code
@@ -52,7 +52,7 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
         return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted };
       }
       const canFallback = rule.shouldFallback !== false;
-      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted };
+      return { shouldFallback: canFallback, cooldownMs: rule.cooldownMs || 0, lockAll: !!rule.lockAll, disableAccount: !!rule.disableAccount, isExhausted: !!rule.isExhausted, isToolIncompatibility: !!rule.isToolIncompatibility };
     }
   }
 
