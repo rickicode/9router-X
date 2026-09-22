@@ -421,26 +421,6 @@ export default function Sidebar({ onClose }) {
             ) : null;
           })}
 
-          {/* 9Remote */}
-          <button
-            onClick={() => setShowRemoteModal(true)}
-            className="flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors text-text-muted hover:bg-surface-2 hover:text-text-main"
-          >
-            <span className="material-symbols-outlined text-[18px]">computer</span>
-            <span>9Remote</span>
-          </button>
-
-          {/* 9English */}
-          <a
-            href="https://9english.net/"
-            target="_blank"
-            rel="noreferrer"
-            onClick={onClose}
-            className="flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors text-text-muted hover:bg-surface-2 hover:text-text-main"
-          >
-            <span className="material-symbols-outlined text-[18px]">translate</span>
-            <span>9English</span>
-          </a>
 
           {/* Settings */}
           <Link
