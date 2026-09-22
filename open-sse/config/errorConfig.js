@@ -464,6 +464,24 @@ export const ERROR_RULES = [
     cooldownMs: COOLDOWN.quotaExhausted,
     lockAll: false,
   },
+  // Model-entitlement rejection (upstream e.g. runanywhere:
+  // {"code":"model_not_entitled","message":"This request is not permitted for
+  // this API key."}). The key is valid but cannot use THIS model — lock the
+  // model only. Without these, the message falls through to the status-403
+  // rule below and parks the whole account for 3 days, even though every
+  // other model on the same key keeps working.
+  {
+    text: "not permitted for this api key",
+    cooldownMs: COOLDOWN.quotaExhausted,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "model_not_entitled",
+    cooldownMs: COOLDOWN.quotaExhausted,
+    lockAll: false,
+    shouldFallback: true,
+  },
   {
     text: "model is restricted",
     cooldownMs: COOLDOWN.quotaExhausted,

@@ -600,9 +600,17 @@ try {
     freebuffKind: error?.freebuffKind,
   });
 }
-
-// Handle 401/403 - try token refresh (skip for noAuth providers)
-if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED || providerResponse.status === HTTP_STATUS.FORBIDDEN)) {
+// Handle 401/403 - try token refresh. Skipped for noAuth providers and for
+// custom compatible nodes: those are pure apikey proxies with no OAuth flow,
+// so a refresh attempt can only return null (and cost ~3s of retry delays)
+// before the real upstream error is reported.
+const isCustomCompatibleProvider = typeof provider === "string"
+  && (provider.startsWith("openai-compatible-") || provider.startsWith("anthropic-compatible-"));
+if (
+  !executor.noAuth &&
+  !isCustomCompatibleProvider &&
+  (providerResponse.status === HTTP_STATUS.UNAUTHORIZED || providerResponse.status === HTTP_STATUS.FORBIDDEN)
+) {
   try {
     // Mutate credentials after each successful refresh: rotating refresh_token
     // providers (xAI/grok-cli) issue a new RT on every refresh; without this,
