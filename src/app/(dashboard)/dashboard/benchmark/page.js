@@ -1669,12 +1669,13 @@ export default function BenchmarkPage() {
                   </div>
                 ) : null}
 
- {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
- {inspectAttempt ? (
- <div
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
- onClick={() => setInspectAttempt(null)}
- >
+
+      {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
+      {inspectAttempt ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+          onClick={() => setInspectAttempt(null)}
+        >
        <div
        className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
        onClick={(e) => e.stopPropagation()}
@@ -1792,21 +1793,20 @@ export default function BenchmarkPage() {
                         <Button size="sm" variant="secondary" onClick={() => setInspectAttempt(null)}>
                           Tutup
                         </Button>
-                      </div>
                   </div>
-                ) : null}
+                </div>
+              ) : null}
       
-                {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
-                {isReviewerModalOpen ? (
-                  <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
-                    onClick={() => setIsReviewerModalOpen(false)}
-            >
-              <div
-                className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
+      {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
+      {isReviewerModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+          onClick={() => setIsReviewerModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
                   <div>
                           <h3 className="font-semibold text-text-main text-sm flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">psychology</span>
@@ -1890,21 +1890,22 @@ export default function BenchmarkPage() {
                           Tutup
                         </Button>
                   </div>
-                ) : null}
+                </div>
+              ) : null}
       
-                {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
-                {isLogModalOpen ? (
-                  <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
-                    onClick={() => setIsLogModalOpen(false)}
-                  >
-                    <div
-                      className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
-                      role="dialog"
-                      aria-labelledby="log-modal-title"
-                      tabIndex={-1}
-                onClick={(e) => e.stopPropagation()}
-              >
+      {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
+      {isLogModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 overflow-y-auto"
+          onClick={() => setIsLogModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface overflow-hidden"
+            role="dialog"
+            aria-labelledby="log-modal-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
                 <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface">
                   <div>
                     <h3 id="log-modal-title" className="font-semibold text-text-main text-sm flex items-center gap-2">
@@ -2061,7 +2062,8 @@ export default function BenchmarkPage() {
                           </Button>
                         </div>
                   </div>
-        ) : null}
-    </div>
+                </div>
+              ) : null}
+</div>
   );
 }
