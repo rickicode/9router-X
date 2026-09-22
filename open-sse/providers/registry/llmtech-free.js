@@ -20,6 +20,7 @@ export default {
   },
   category: "free",
   noAuth: true,
+  trialKey: true,
   transport: {
     baseUrl: "https://api.llmtech.eu/v1/chat/completions",
     noAuth: true,

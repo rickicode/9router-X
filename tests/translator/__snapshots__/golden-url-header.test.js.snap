@@ -1027,25 +1027,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > llmtech → headers 
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > llmtech-free → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-}
-`;
-
 exports[`GOLDEN buildHeaders (default executor providers) > minimax → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -1583,22 +1564,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > vlmrun → headers (
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > vlmrun-free → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Content-Type": "application/json",
-  },
-}
-`;
-
 exports[`GOLDEN buildHeaders (default executor providers) > volcengine-ark → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -2042,13 +2007,6 @@ exports[`GOLDEN buildUrl (default executor providers) > llmtech → url (stream 
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > llmtech-free → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://api.llmtech.eu/v1/chat/completions",
-  "stream": "https://api.llmtech.eu/v1/chat/completions",
-}
-`;
-
 exports[`GOLDEN buildUrl (default executor providers) > minimax → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://api.minimax.io/anthropic/v1/messages?beta=true",
@@ -2232,13 +2190,6 @@ exports[`GOLDEN buildUrl (default executor providers) > vercel-ai-gateway → ur
 `;
 
 exports[`GOLDEN buildUrl (default executor providers) > vlmrun → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://gateway.vlm.run/v1/openai/chat/completions",
-  "stream": "https://gateway.vlm.run/v1/openai/chat/completions",
-}
-`;
-
-exports[`GOLDEN buildUrl (default executor providers) > vlmrun-free → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://gateway.vlm.run/v1/openai/chat/completions",
   "stream": "https://gateway.vlm.run/v1/openai/chat/completions",

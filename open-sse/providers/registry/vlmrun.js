@@ -28,6 +28,6 @@ export default {
   models: [
     { id: "qwen/qwen3.8-27b", name: "Qwen 3.8 27B", contextLength: 262144, reasoning: true, vision: true },
   ],
-  modelsFetcher: { url: "https://gateway.vlm.run/v1/openai/models", type: "vlmrun-free" },
+  modelsFetcher: { url: "https://gateway.vlm.run/v1/openai/models", type: "openai" },
   passthroughModels: true,
 };

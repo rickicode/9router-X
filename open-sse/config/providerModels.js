@@ -132,7 +132,13 @@ export function getModelUpstreamId(aliasOrId, modelId) {
     const resolvedBase = presetSuffix ? resolvedId.slice(0, presetMatch.index).trim() : resolvedId;
     return resolvedBase + (suffix || presetSuffix);
   }
-  if (KNOWN_PREFIXLESS_MODELS[baseId]) {
+  // Custom compatible nodes are transparent proxies — the model id must reach
+  // upstream unchanged. Never rewrite via KNOWN_PREFIXLESS_MODELS for these.
+  const isCompatibleNode = typeof aliasOrId === "string" && (
+    aliasOrId.startsWith("openai-compatible-") ||
+    aliasOrId.startsWith("anthropic-compatible-")
+  );
+  if (!isCompatibleNode && KNOWN_PREFIXLESS_MODELS[baseId]) {
     return KNOWN_PREFIXLESS_MODELS[baseId] + suffix;
   }
   if (aliasOrId === "cx" && typeof baseId === "string" && baseId.endsWith(CODEX_REVIEW_SUFFIX)) {

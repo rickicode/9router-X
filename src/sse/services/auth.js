@@ -533,12 +533,17 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         resolvedProxy = await resolveConnectionProxyConfig({});
       }
 
+      // BYOK for noAuth providers with a stored trial/custom key (e.g. llmtech-free).
+      // The executor reads credentials.apiKey to override the registry header.
+      const customTrialKey = override.trialKey || null;
+
       return {
         id: "noauth",
         connectionId: "noauth",
         connectionName: "Public",
         isActive: true,
         accessToken: "public",
+        ...(customTrialKey ? { apiKey: customTrialKey } : {}),
         providerSpecificData: {
           connectionProxyEnabled: resolvedProxy.connectionProxyEnabled,
           connectionProxyUrl: resolvedProxy.connectionProxyUrl,
@@ -547,15 +552,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
           vercelRelayUrl: resolvedProxy.vercelRelayUrl || "",
           proxyPoolId: resolvedProxy.proxyPoolId || null,
           strictProxy: resolvedProxy.strictProxy === true,
-          // Keyless providers bill quota per egress IP: a dead proxy must
-          // rotate to the next pool, never silently fall back to direct
-          // (that burns the shared server IP into an upstream 429).
-          // Direct stays the last resort after pools are exhausted.
           failClosedProxy: true,
           proxyGroup: proxyGroup || undefined,
-          // Let chatCore's pool-scoped retry rotate across the same candidate
-          // pool set (excluding the failed pool) instead of reusing it — this
-          // is what makes per-IP limit retries work for no-auth providers.
           proxyPoolIds: poolIds.length > 0 ? poolIds : (resolvedProxy.proxyPoolIds?.length > 0 ? resolvedProxy.proxyPoolIds : undefined),
           proxyRotationStrategy: strategy,
         },
@@ -1270,7 +1268,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const isPooledQuotaProvider = POOLED_QUOTA_PROVIDERS.has(providerId);
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at, antigravity quotaResetTimeStamp) overrides backoff
-  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false, frequencyLimitReset = false;
+  let shouldFallback, cooldownMs, newBackoffLevel, lockAll = false, disableAccount = false, isExhausted = false, frequencyLimitReset = false, isToolIncompatibility = false;
   const cfResetAtMs = cloudflareDailyResetMs(status, errorText, provider);
   if (cfResetAtMs) {
     shouldFallback = true;
@@ -1300,7 +1298,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     frequencyLimitReset = isFrequencyLimitReset;
     if (isPooledQuotaProvider && !isFrequencyLimitReset) lockAll = true;
   } else {
-    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted } = checkFallbackError(status, errorText, backoffLevel));
+    ({ shouldFallback, cooldownMs, newBackoffLevel, lockAll, disableAccount, isExhausted, isToolIncompatibility } = checkFallbackError(status, errorText, backoffLevel));
     if (isPooledQuotaProvider && providerId !== "cline-free" && (status === 429 || (status === 402 && providerId !== "github"))) lockAll = true;
     // UniKey 预扣费额度失败: saldo di pesan. <100 → lock 30d, >=100 → cooldown 1d (bisa top-up / pakai model murah)
     if (providerId === "unikey" && /预扣费额度失败|insufficient_user_quota/i.test(String(errorText || ""))) {
@@ -1578,6 +1576,16 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (isModelSpecificRestriction && status !== 429) {
     lockAll = false;
     disableAccount = false;
+  }
+
+  const COOLDOWN_LONG_MS = 2 * 60 * 1000; // aligned with errorConfig COOLDOWN.long
+  if (isToolIncompatibility) {
+    lockAll = false;
+    disableAccount = false;
+    isExhausted = false;
+    shouldFallback = true;
+    newBackoffLevel = 0;
+    cooldownMs = Math.min(cooldownMs || 0, COOLDOWN_LONG_MS);
   }
 
   // Antigravity uses 409 for quota/capacity exhaustion. Keep this provider-

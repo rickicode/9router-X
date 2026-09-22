@@ -382,6 +382,26 @@ export const ERROR_RULES = [
     cooldownMs: TRANSIENT_COOLDOWN_MS,
     lockAll: false,
   },
+  // OpenRouter endpoint routing: the free model's only endpoint cannot serve
+  // tool-calling requests ("Filter by Tool Compatibility" / "No endpoints found
+  // that support tool use"). Capability gap, not quota: the model sits out
+  // briefly and the request falls back to a tool-capable member. Stripping
+  // tools would break agentic clients (Cline) that NEED them.
+  {
+    text: "no endpoints found that support tool use",
+    cooldownMs: COOLDOWN.long,
+    lockAll: false,
+    shouldFallback: true,
+    isToolIncompatibility: true,
+  },
+  {
+    text: "filter by tool compatibility",
+    cooldownMs: COOLDOWN.long,
+    lockAll: false,
+    shouldFallback: true,
+    isToolIncompatibility: true,
+  },
+
   // OpenRouter & generic model gating (agentic harness gate, routing funnel, model-specific access)
   {
     text: "only available on agentic harnesses",
@@ -452,6 +472,24 @@ export const ERROR_RULES = [
     text: "model is not allowed",
     cooldownMs: COOLDOWN.quotaExhausted,
     lockAll: false,
+  },
+  // Model-entitlement rejection (upstream e.g. runanywhere:
+  // {"code":"model_not_entitled","message":"This request is not permitted for
+  // this API key."}). The key is valid but cannot use THIS model — lock the
+  // model only. Without these, the message falls through to the status-403
+  // rule below and parks the whole account for 3 days, even though every
+  // other model on the same key keeps working.
+  {
+    text: "not permitted for this api key",
+    cooldownMs: COOLDOWN.quotaExhausted,
+    lockAll: false,
+    shouldFallback: true,
+  },
+  {
+    text: "model_not_entitled",
+    cooldownMs: COOLDOWN.quotaExhausted,
+    lockAll: false,
+    shouldFallback: true,
   },
   {
     text: "model is restricted",

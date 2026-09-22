@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import { Button } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
-function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias, onTest, testStatus, isTesting }) {
+function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias, onTest, testStatus, isTesting, errorMessage }) {
  const borderColor = testStatus === "ok"
  ? "border-success/30"
  : testStatus === "error"
@@ -28,6 +28,9 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  </span>
  <div className="flex-1 min-w-0">
  <p className="text-sm font-medium truncate">{modelId}</p>
+ {testStatus === "error" && errorMessage && (
+ <p className="text-xs text-danger mt-1 break-words">{errorMessage}</p>
+ )}
  <div className="flex items-center gap-1 mt-1">
  <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-1 rounded-sm">{fullModel}</code>
  <div className="relative group/btn">
@@ -82,6 +85,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
  const notify = useNotificationStore();
  const [testingModelId, setTestingModelId] = useState(null);
  const [modelTestResults, setModelTestResults] = useState({});
+ const [modelTestErrors, setModelTestErrors] = useState({});
 
  const handleTestModel = async (modelId) => {
  if (testingModelId) return;
@@ -94,8 +98,14 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
  });
  const data = await res.json();
  setModelTestResults((prev) => ({ ...prev, [modelId]: data.ok ? "ok" : "error" }));
- } catch {
+ if (!data.ok) {
+ setModelTestErrors((prev) => ({ ...prev, [modelId]: data.error || "Unknown error" }));
+ } else {
+ setModelTestErrors((prev) => ({ ...prev, [modelId]: null }));
+ }
+ } catch (err) {
  setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
+ setModelTestErrors((prev) => ({ ...prev, [modelId]: err.message || "Network error" }));
  } finally {
  setTestingModelId(null);
  }
@@ -209,6 +219,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
  onTest={connections.length > 0 ? () => handleTestModel(id) : undefined}
  testStatus={modelTestResults[id]}
  isTesting={testingModelId === id}
+ errorMessage={modelTestErrors[id]}
  />
  ))}
  </div>

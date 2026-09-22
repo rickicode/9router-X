@@ -82,6 +82,39 @@ describe("Antigravity auto-heal on quota restore", () => {
     expect(mocks.clearModelCooldown).toHaveBeenCalledWith(connId, "gemini-3.8-flash-high");
   });
 
+  it("heals a stale exhausted flag when Claude family still serves while Gemini sits at 0%", async () => {
+    const connId = "ag-auto-heal-2";
+    mocks.getProviderConnectionById.mockResolvedValue({
+      id: connId,
+      provider: "antigravity",
+      isActive: true,
+      testStatus: "exhausted",
+      lockedAllUntil: new Date(Date.now() + 3600000).toISOString(),
+    });
+
+    mocks.getAntigravityUsage.mockResolvedValue({
+      plan: "paid",
+      quotas: {
+        "gemini-3.7-flash-medium": { remainingPercentage: 0, resetAt: new Date(Date.now() + 7200000).toISOString() },
+        gemini_weekly: { remainingPercentage: 0, resetAt: new Date(Date.now() + 7200000).toISOString() },
+        "claude-sonnet-4-6": { remainingPercentage: 100, resetAt: new Date(Date.now() + 86400000).toISOString() },
+        claude_gpt_weekly: { remainingPercentage: 100, resetAt: new Date(Date.now() + 86400000).toISOString() },
+      },
+    });
+
+    await refreshAntigravityQuota(connId, "tok-2", {});
+
+    // Stale account flag must go; the 0% Gemini family keeps its per-model locks.
+    expect(mocks.updateProviderConnection).toHaveBeenCalledWith(
+      connId,
+      expect.objectContaining({
+        testStatus: "active",
+        lockedAllUntil: null,
+      }),
+    );
+    const patch = mocks.updateProviderConnection.mock.calls[0][1];
+    expect(patch["modelLock_gemini-3.7-flash-medium"] ?? patch.modelLocks?.["gemini-3.7-flash-medium"]).toBeUndefined();
+  });
   it("does NOT reactivate permanently disabled accounts", async () => {
     const connId = "ag-disabled-1";
     mocks.getProviderConnectionById.mockResolvedValue({

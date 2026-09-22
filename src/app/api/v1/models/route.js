@@ -344,6 +344,26 @@ export async function buildModelsList(kindFilter, options = {}) {
     }
   }
 
+  // Prefetch live model ids for custom compatible nodes IN PARALLEL. Doing
+  // this inside the loop below serialized one upstream /models round-trip per
+  // node (5s timeout each), so a couple of unreachable nodes pushed the whole
+  // /v1/models response past client discovery timeouts (OMP aborts at 10s).
+  // Parallel fetch makes the cost max(node latency) instead of sum(node).
+  const compatibleLiveModels = new Map();
+  if (!skipDynamicFetch && connections.length > 0 && kindFilter.includes(LLM_KIND)) {
+    const compatibleConns = [...activeConnectionByProvider.entries()].filter(
+      ([providerId]) => isOpenAICompatibleProvider(providerId) || isAnthropicCompatibleProvider(providerId),
+    );
+    await Promise.all(compatibleConns.map(async ([providerId, conn]) => {
+      const hasExplicitEnabledModels =
+        Array.isArray(conn?.providerSpecificData?.enabledModels)
+        && conn.providerSpecificData.enabledModels.length > 0;
+      if (hasExplicitEnabledModels) return;
+      const ids = await fetchCompatibleModelIds(conn).catch(() => []);
+      if (ids.length > 0) compatibleLiveModels.set(providerId, ids);
+    }));
+  }
+
   const models = [];
 
   // Combos first (filtered by kind). Web combos expose `kind` so AI knows search vs fetch.
@@ -430,7 +450,7 @@ export async function buildModelsList(kindFilter, options = {}) {
         : providerModels.map((model) => model.id);
 
       if (isCompatibleProvider && rawModelIds.length === 0 && !skipDynamicFetch) {
-        rawModelIds = await fetchCompatibleModelIds(conn);
+        rawModelIds = compatibleLiveModels.get(providerId) || [];
       }
 
       // Config-driven live catalog override (e.g. Kiro returns dynamic

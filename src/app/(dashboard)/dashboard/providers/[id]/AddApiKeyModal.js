@@ -90,14 +90,14 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
  }
  };
 
- const handleSubmit = async () => {
- if (!provider) return;
- if (!isOllamaLocal && !formData.apiKey) return;
- if (!isOllamaLocal) {
- // Non-ollama providers require a name
- if (!formData.name) return;
- }
- if (isCompatible && !formData.defaultModel.trim()) return;
+  const handleSubmit = async () => {
+    if (!provider) return;
+    if (!isOllamaLocal && !formData.apiKey) return;
+    if (!isOllamaLocal) {
+      // Non-ollama providers require a name
+      if (!formData.name) return;
+    }
+    // Custom provider: defaultModel optional (models fetched after connection created)
 
  setSaving(true);
  try {
@@ -119,19 +119,20 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
  setValidating(false);
  }
 
- await onSave({
- name: formData.name || (isOllamaLocal ? "Ollama Local" : ""),
- apiKey: formData.apiKey,
- defaultModel: isCompatible ? formData.defaultModel.trim() : undefined,
- priority: formData.priority,
- proxyPoolId: formData.proxyPoolId === NONE_PROXY_POOL_VALUE ? null : formData.proxyPoolId,
- testStatus: isValid ? "active" : "unknown",
- providerSpecificData: buildProviderSpecificData()
- });
- } finally {
- setSaving(false);
- }
- };
+  await onSave({
+    name: formData.name || (isOllamaLocal ? "Ollama Local" : ""),
+    apiKey: formData.apiKey,
+    // Master: defaultModel optional for compatible providers (models fetched after connection created)
+    defaultModel: (isCompatible && formData.defaultModel.trim()) ? formData.defaultModel.trim() : undefined,
+    priority: formData.priority,
+    proxyPoolId: formData.proxyPoolId === NONE_PROXY_POOL_VALUE ? null : formData.proxyPoolId,
+    testStatus: isValid ? "active" : "unknown",
+    providerSpecificData: buildProviderSpecificData()
+  });
+  } finally {
+  setSaving(false);
+  }
+  };
 
  const handleBulkSubmit = async () => {
  const lines = bulkText.split("\n");
@@ -294,7 +295,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
  )}
  {isCompatible && (
  <Input
- label="Default Model"
+ label="Default Model (Optional)"
  value={formData.defaultModel}
  onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
  placeholder={isAnthropic ? "claude-3-5-sonnet-latest" : "gpt-4o-mini"}
@@ -393,7 +394,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
  </p>
 
  <div className="flex gap-2">
- <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && (!formData.name || !formData.apiKey)) || (isCompatible && !formData.defaultModel.trim()) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
+ <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && (!formData.name || !formData.apiKey)) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
  {saving ? "Saving..." : "Save"}
  </Button>
  <Button onClick={onClose} variant="ghost" fullWidth>

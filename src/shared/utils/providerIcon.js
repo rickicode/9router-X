@@ -26,8 +26,6 @@ const ICON_ALIASES = {
   "ovh": "ovhcloud",
   "ovhcloud-free": "ovhcloud",
   "ovhcf": "ovhcloud",
-  "vlmrun-free": "vlmrun",
-  "vlmrf": "vlmrun",
   "llmtech-free": "llmtech",
   "ltf": "llmtech",
   "llm7-free": "llm7",

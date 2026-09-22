@@ -7,7 +7,7 @@ import { resolveProviderAlias, parseModel } from "../../open-sse/services/model.
 import { resolveProviderIconId } from "../../src/shared/utils/providerIcon.js";
 
 describe("New Free Providers — Registry", () => {
-  const freeIds = ["ovhcloud-free", "vlmrun-free", "llmtech-free", "llm7-free"];
+  const freeIds = ["ovhcloud-free", "llmtech-free", "llm7-free"];
   const paidIds = ["ovhcloud", "vlmrun", "llmtech"];
 
   for (const id of freeIds) {
@@ -34,7 +34,6 @@ describe("New Free Providers — Registry", () => {
 describe("New Free Providers — FREE_PROVIDERS catalog", () => {
   it("all free variants appear in FREE_PROVIDERS", () => {
     expect(FREE_PROVIDERS["ovhcloud-free"]).toBeDefined();
-    expect(FREE_PROVIDERS["vlmrun-free"]).toBeDefined();
     expect(FREE_PROVIDERS["llmtech-free"]).toBeDefined();
     expect(FREE_PROVIDERS["llm7-free"]).toBeDefined();
   });
@@ -48,7 +47,7 @@ describe("New Free Providers — FREE_PROVIDERS catalog", () => {
 });
 
 describe("New Free Providers — Account exhaustion exemption", () => {
-  const freeIds = ["ovhcloud-free", "vlmrun-free", "llmtech-free", "llm7-free"];
+  const freeIds = ["ovhcloud-free", "llmtech-free", "llm7-free"];
 
   for (const id of freeIds) {
     it(`${id} is exempt from account exhaustion`, () => {
@@ -61,7 +60,6 @@ describe("New Free Providers — Alias resolution", () => {
   const aliasTests = [
     ["ovhcf", "ovhcloud-free"],
     ["ovh", "ovhcloud"],
-    ["vlmrf", "vlmrun-free"],
     ["vlmr", "vlmrun"],
     ["ltf", "llmtech-free"],
     ["lt", "llmtech"],
@@ -79,7 +77,6 @@ describe("New Free Providers — Model string parsing", () => {
   const parseTests = [
     ["ovhcf/Qwen3.8-27B", "ovhcloud-free", "Qwen3.8-27B"],
     ["ovh/Qwen3-Coder-30B-A3B-Instruct", "ovhcloud", "Qwen3-Coder-30B-A3B-Instruct"],
-    ["vlmrf/qwen/qwen3.8-27b", "vlmrun-free", "qwen/qwen3.8-27b"],
     ["ltf/nvidia/Qwen3.8-27B-NVFP4", "llmtech-free", "nvidia/Qwen3.8-27B-NVFP4"],
     ["l7f/GLM-5.3-Flash", "llm7-free", "GLM-5.3-Flash"],
   ];
@@ -97,8 +94,6 @@ describe("New Free Providers — Icon aliases", () => {
   const iconTests = [
     ["ovhcloud-free", "ovhcloud"],
     ["ovhcf", "ovhcloud"],
-    ["vlmrun-free", "vlmrun"],
-    ["vlmrf", "vlmrun"],
     ["llmtech-free", "llmtech"],
     ["ltf", "llmtech"],
     ["llm7-free", "llm7"],
@@ -124,13 +119,4 @@ describe("New Free Providers — Suggested models filters", () => {
     expect(result[0].contextLength).toBe(131072);
   });
 
-  it("vlmrun-free filter passes models through", () => {
-    const filter = FILTERS["vlmrun-free"];
-    expect(filter).toBeDefined();
-    const result = filter([
-      { id: "qwen/qwen3.8-27b", name: "Qwen 3.8 27B", context_length: 262144 },
-    ]);
-    expect(result.length).toBe(1);
-    expect(result[0].id).toBe("qwen/qwen3.8-27b");
-  });
 });

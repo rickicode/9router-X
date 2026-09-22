@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { NextResponse } from "next/server";
-import { getClientUsageConnections, getClientUsageMeta } from "@/lib/localDb";
+import { getClientUsageConnections, getClientUsageMeta, getProviderNodes } from "@/lib/localDb";
 import { backfillCodexEmails, backfillCodeBuddyIntlIdentity } from "@/lib/oauth/providers";
 import { USAGE_APIKEY_PROVIDERS, USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 
@@ -53,10 +53,34 @@ function sanitize(c) {
   return safe;
 }
 
-function isUsageEligible(connection) {
-  return USAGE_SUPPORTED_PROVIDERS.includes(connection.provider) && (
-    connection.authType === "oauth" || USAGE_APIKEY_PROVIDERS.includes(connection.provider)
-  );
+// Custom compatible nodes (openai-compatible-* / anthropic-compatible-*) have
+// dynamic ids that can never appear in the static USAGE_* lists, but must be
+// first-class on the Usage page: their connection status (active / exhausted /
+// unavailable / disabled) is tracked by the same pipeline as built-ins.
+// Quota endpoints are unknown for them, so they join as apikey-eligible only —
+// the quota fetch surfaces "no quota API" instead of hiding the connection.
+const COMPATIBLE_NODE_TYPES = new Set(["openai-compatible", "anthropic-compatible"]);
+
+async function getUsageProviderLists() {
+  const [supported, apikey] = await Promise.all([
+    Promise.resolve(USAGE_SUPPORTED_PROVIDERS),
+    Promise.resolve(USAGE_APIKEY_PROVIDERS),
+  ]);
+  try {
+    const nodes = await getProviderNodes();
+    const compatibleIds = nodes
+      .filter((n) => COMPATIBLE_NODE_TYPES.has(n.type))
+      .map((n) => n.id);
+    if (compatibleIds.length) {
+      return {
+        supportedProviders: [...supported, ...compatibleIds],
+        apiKeyProviders: [...apikey, ...compatibleIds],
+      };
+    }
+  } catch (err) {
+    console.warn("[Usage] failed to load provider nodes:", err?.message || err);
+  }
+  return { supportedProviders: supported, apiKeyProviders: apikey };
 }
 
 function parsePositiveInt(value, fallback) {
@@ -76,10 +100,11 @@ export async function GET(request) {
     const sort = searchParams.get("sort") || "priority";
     const page = parsePositiveInt(searchParams.get("page"), 1);
     const pageSize = Math.min(parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
+    const { supportedProviders, apiKeyProviders } = await getUsageProviderLists();
     const [meta, queryResult] = await Promise.all([
       getClientUsageMeta({
-        supportedProviders: USAGE_SUPPORTED_PROVIDERS,
-        apiKeyProviders: USAGE_APIKEY_PROVIDERS,
+        supportedProviders,
+        apiKeyProviders,
         provider,
         search,
       }),
@@ -90,8 +115,8 @@ export async function GET(request) {
         search,
         limit: pageSize,
         offset: (page - 1) * pageSize,
-        supportedProviders: USAGE_SUPPORTED_PROVIDERS,
-        apiKeyProviders: USAGE_APIKEY_PROVIDERS,
+        supportedProviders,
+        apiKeyProviders,
       }),
     ]);
 

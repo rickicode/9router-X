@@ -43,21 +43,25 @@ export async function getModelInfo(modelStr) {
   // prefix is not a built-in id/alias may still belong to a compatible node
   // (e.g. oct/gpt-image-1). Check the node registry before treating it as a
   // model alias — otherwise open-sse infers openai from the gpt- pattern.
+  // The prefix before "/" may be either the node's user-defined routing
+  // prefix (e.g. "omop/...") or the full node id (e.g. the dashboard model
+  // Test button sends "<node-id>/<model>"); match both so the latter does
+  // not fall through to the openai inference fallback.
   const slashIdx = typeof modelStr === "string" ? modelStr.indexOf("/") : -1;
   const rawPrefix = slashIdx > 0 ? modelStr.slice(0, slashIdx) : null;
   if (rawPrefix && !RESERVED_PROVIDER_PREFIXES.has(rawPrefix)) {
     const openaiNodes = await getProviderNodes({ type: "openai-compatible" });
-    const matchedOpenAI = openaiNodes.find((node) => node.prefix === rawPrefix);
+    const matchedOpenAI = openaiNodes.find((node) => node.prefix === rawPrefix || node.id === rawPrefix);
     if (matchedOpenAI) {
       return { provider: matchedOpenAI.id, model: modelStr.slice(slashIdx + 1) };
     }
     const anthropicNodes = await getProviderNodes({ type: "anthropic-compatible" });
-    const matchedAnthropic = anthropicNodes.find((node) => node.prefix === rawPrefix);
+    const matchedAnthropic = anthropicNodes.find((node) => node.prefix === rawPrefix || node.id === rawPrefix);
     if (matchedAnthropic) {
       return { provider: matchedAnthropic.id, model: modelStr.slice(slashIdx + 1) };
     }
     const embeddingNodes = await getProviderNodes({ type: "custom-embedding" });
-    const matchedEmbedding = embeddingNodes.find((node) => node.prefix === rawPrefix);
+    const matchedEmbedding = embeddingNodes.find((node) => node.prefix === rawPrefix || node.id === rawPrefix);
     if (matchedEmbedding) {
       return { provider: matchedEmbedding.id, model: modelStr.slice(slashIdx + 1) };
     }

@@ -129,7 +129,6 @@ import p129 from "./bai.js";
 import p130 from "./kilocode-free.js";
 import p131 from "./ovhcloud-free.js";
 import p132 from "./ovhcloud.js";
-import p133 from "./vlmrun-free.js";
 import p134 from "./vlmrun.js";
 import p135 from "./llmtech-free.js";
 import p136 from "./llmtech.js";
@@ -265,7 +264,6 @@ export default [
   p130,
   p131,
   p132,
-  p133,
   p134,
   p135,
   p136,
