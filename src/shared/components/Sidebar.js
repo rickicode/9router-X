@@ -149,10 +149,10 @@ export default function Sidebar({ onClose }) {
  return (
  <>
  <aside className="flex w-60 flex-col border-r border-border bg-sidebar min-h-full">
- <div className="flex items-center justify-between h-8 px-3 border-b border-border">
- <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Dashboard">
- <div className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">hub</span>
+      <div className="flex items-center justify-between h-11 px-3 border-b border-border">
+        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" aria-label="Dashboard">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
  </div>
  <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
  </Link>
@@ -160,10 +160,10 @@ export default function Sidebar({ onClose }) {
  <button
  type="button"
  onClick={onClose}
- className="size-8 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
+            className="size-9 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
  aria-label="Close navigation sidebar"
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
  </button>
  )}
  </div>

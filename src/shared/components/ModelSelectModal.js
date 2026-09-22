@@ -613,7 +613,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  className={`flex h-8 shrink-0 items-center gap-1 rounded-sm border px-2 text-xs font-medium ${providerFilter === p.id ? "bg-primary text-white border-primary" : "bg-surface border-border text-text-main hover:border-primary/30"}`}
  >
  <span>{p.name}</span>
- <span className={`text-[11px] px-1 rounded-sm ${providerFilter === p.id ? "bg-white/20" : "bg-surface-2"}`}>{p.count}</span>
+                <span className={`text-[11px] px-1 rounded-sm ${providerFilter === p.id ? "bg-surface text-primary" : "bg-surface-2"}`}>{p.count}</span>
  </button>
  ))}
  </div>

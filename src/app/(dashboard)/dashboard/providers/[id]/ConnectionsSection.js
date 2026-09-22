@@ -114,7 +114,7 @@ function SearchFilterBar({ connectionSearch, setConnectionSearch, connectionPage
  }`}
  >
  <span>{tab.label}</span>
- <span className={`rounded-sm px-1.5 py-0.5 text-[11px] ${isSelected ? "bg-surface/20 text-white" : "bg-surface-2 text-text-muted"}`}>
+                <span className={`rounded-sm px-1.5 py-0.5 text-[11px] ${isSelected ? "bg-surface text-primary" : "bg-surface-2 text-text-muted"}`}>
  {tab.count}
  </span>
  </button>
