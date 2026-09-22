@@ -1058,11 +1058,11 @@ export default function ProviderLimits() {
  }
  setAccountFilter(tab.key);
  }}
- className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-xs font-medium ${
- isSelected
- ? "bg-primary text-white"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- }`}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 py-2 text-xs font-medium transition-colors ${
+                  isSelected
+                    ? "bg-primary text-white"
+                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                }`}
  >
  {tab.dot && (
  <span
@@ -1108,7 +1108,7 @@ export default function ProviderLimits() {
  }}
  placeholder="Search accounts..."
  aria-label="Search accounts"
- className="h-8 w-full rounded-sm border border-border bg-surface pl-8.5 pr-8 text-xs text-text-main placeholder:text-text-muted outline-none focus:border-primary"
+              className="w-full rounded-sm border border-border bg-surface pl-8.5 pr-8 py-2 text-xs text-text-main placeholder:text-text-muted outline-none focus:border-primary transition-colors"
  />
  {searchQuery && (
  <button
@@ -1140,11 +1140,11 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setProviderMenuOpen((prev) => !prev)}
- className={`flex h-8 items-center justify-between gap-1.5 rounded-sm border px-2.5 text-xs font-medium ${
- providerFilter !== "all"
- ? "border-primary/30 bg-primary/10 text-primary"
- : "border-border bg-surface text-text-main hover:bg-surface-2"
- }`}
+              className={`flex items-center justify-between gap-1.5 rounded-sm border px-2.5 py-2 text-xs font-medium transition-colors ${
+                providerFilter !== "all"
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border bg-surface text-text-main hover:bg-surface-2"
+              }`}
  aria-haspopup="menu"
  aria-expanded={providerMenuOpen}
  title="Filter quota providers"
@@ -1190,10 +1190,10 @@ export default function ProviderLimits() {
  setProviderFilter("all");
  setProviderMenuOpen(false);
  }}
- className={`flex w-full items-center gap-2 rounded-sm px-3 h-8 text-left text-xs font-medium ${
- providerFilter === "all"
- ? "bg-primary/10 text-primary"
- : "text-text-main hover:bg-surface-2"
+                className={`flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-xs font-medium transition-colors ${
+                  providerFilter === "all"
+                    ? "bg-primary/10 text-primary"
+                    : "text-text-main hover:bg-surface-2"
  }`}
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -1219,10 +1219,10 @@ export default function ProviderLimits() {
  setProviderFilter(provider);
  setProviderMenuOpen(false);
  }}
- className={`flex w-full items-center gap-2 rounded-sm px-3 h-8 text-left text-xs font-medium ${
- providerFilter === provider
- ? "bg-primary/10 text-primary"
- : "text-text-main hover:bg-surface-2"
+                className={`flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-xs font-medium transition-colors ${
+                  providerFilter === provider
+                    ? "bg-primary/10 text-primary"
+                    : "text-text-main hover:bg-surface-2"
  }`}
  >
  <ProviderIcon
@@ -1251,7 +1251,7 @@ export default function ProviderLimits() {
  <select
  value={quotaSortMode}
  onChange={(event) => setQuotaSortMode(event.target.value)}
- className="h-8 rounded-sm border border-border bg-surface px-2 text-xs font-medium text-text-main outline-none hover:bg-surface-2"
+              className="rounded-sm border border-border bg-surface px-2 py-2 text-xs font-medium text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Sort Codex quotas by remaining"
  >
  {QUOTA_SORT_OPTIONS.map((option) => (
@@ -1267,10 +1267,10 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => setExpiringFirst((prev) => !prev)}
  aria-pressed={expiringFirst}
- className={`flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium ${
- expiringFirst
- ? "border-warning/30 bg-warning/10 text-warning font-medium"
- : "border-border bg-surface text-text-main hover:bg-surface-2"
+              className={`flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-2 text-xs font-medium transition-colors ${
+                expiringFirst
+                  ? "border-warning/30 bg-warning/10 text-warning font-medium"
+                  : "border-border bg-surface text-text-main hover:bg-surface-2"
  }`}
  title="Sort accounts by earliest quota reset time"
  >
@@ -1293,7 +1293,7 @@ export default function ProviderLimits() {
  setExpiringFirst(false);
  setPage(1);
  }}
- className="flex h-8 items-center gap-1 rounded-sm px-2 text-xs font-medium text-text-muted hover:text-text-main"
+              className="flex items-center gap-1 rounded-sm px-2 py-2 text-xs font-medium text-text-muted hover:text-text-main transition-colors"
  title="Reset all filters"
  >
  <span className="material-symbols-outlined text-[18px]">restart_alt</span>
@@ -1309,7 +1309,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={handleDisableDepleted}
  disabled={bulkToggling}
- className="flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-danger/30 bg-danger/10 px-2.5 text-xs font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-danger/30 bg-danger/10 px-2.5 py-2 text-xs font-medium text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
  title="Disable connections with depleted quota on the current page"
  >
  <span className="material-symbols-outlined text-[18px]">block</span>
@@ -1321,7 +1321,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={handleEnableAvailable}
  disabled={bulkToggling}
- className="flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-success/30 bg-success/10 px-2.5 text-xs font-medium text-success hover:bg-success/10 disabled:opacity-50"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-success/30 bg-success/10 px-2.5 py-2 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
  title="Enable connections that still have quota on the current page"
  >
  <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -1334,7 +1334,7 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setAutoRefresh((prev) => !prev)}
- className="flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
  title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
  >
  <span
@@ -1357,7 +1357,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => refreshAll(true)}
  disabled={refreshingAll}
- className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border bg-surface text-xs text-text-main hover:bg-surface-2 disabled:opacity-50"
+              className="flex w-9 shrink-0 items-center justify-center rounded-sm border border-border bg-surface py-2 text-xs text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  title="Refresh all quotas"
  >
  <span
@@ -1372,7 +1372,7 @@ export default function ProviderLimits() {
 
  {/* Provider cards: 2 columns, compact */}
  {expiringFirst && (
- <div className="rounded-sm border border-warning/30 bg-warning/10 px-3 h-8 text-xs text-warning">
+        <div className="rounded-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
  Expiring-first currently reorders accounts inside the current page.
  Cross-page ordering still follows backend pagination.
  </div>
@@ -1406,7 +1406,7 @@ export default function ProviderLimits() {
  setExpiringFirst(false);
  setPage(1);
  }}
- className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-1 text-xs font-medium text-text-main hover:bg-surface-2 h-8"
+              className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
  >
  <span className="material-symbols-outlined text-[18px]">restart_alt</span>
  <span>Reset all filters</span>
@@ -1478,7 +1478,7 @@ export default function ProviderLimits() {
  onClick={() => setResetConfirmState({ connection: conn, resetCreditCount })}
  disabled={isLoading || rowBusy}
  aria-label={`Use one Codex reset credit. ${resetCreditCount} available.`}
- className="flex h-8 min-w-9 items-center justify-center gap-1 rounded-sm border border-primary/30 bg-primary/10 px-1.5 text-[11px] font-medium tabular-nums text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex min-w-9 items-center justify-center gap-1 rounded-sm border border-primary/30 bg-primary/10 px-1.5 py-1.5 text-[11px] font-medium tabular-nums text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
  >
  <span className={`material-symbols-outlined text-[18px] ${isResettingLimit ? "animate-spin" : ""}`}>
  {isResettingLimit ? "progress_activity" : "restart_alt"}
@@ -1493,7 +1493,7 @@ export default function ProviderLimits() {
  onClick={() => refreshProvider(conn.id, conn.provider)}
  disabled={isLoading || rowBusy}
  aria-label="Refresh quota"
- className="flex size-8 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main disabled:opacity-50"
+                  className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main disabled:opacity-50 transition-colors"
  >
  <span
  className={`material-symbols-outlined text-[18px] ${isLoading ? "animate-spin" : ""}`}
@@ -1527,7 +1527,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => setOpenMenuConnectionId((prev) => (prev === conn.id ? null : conn.id))}
  aria-label="More actions"
- className="flex size-8 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
+                  className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
  >
  <span className="material-symbols-outlined text-[18px]">more_vert</span>
  </button>
@@ -1549,7 +1549,7 @@ export default function ProviderLimits() {
  setShowEditModal(true);
  }}
  disabled={rowBusy}
- className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 h-8"
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  >
  <span className="material-symbols-outlined text-[18px] text-text-muted">edit</span>
  <span>Edit connection</span>
@@ -1562,7 +1562,7 @@ export default function ProviderLimits() {
  handleResetConnectionStatus(conn.id, conn.provider);
  }}
  disabled={isLoading || rowBusy || resettingStatusId === conn.id}
- className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 h-8"
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  >
  <span className={`material-symbols-outlined text-[18px] text-warning ${resettingStatusId === conn.id ? "animate-spin" : ""}`}>
  restart_alt
@@ -1578,7 +1578,7 @@ export default function ProviderLimits() {
  handleViewCodexResetCredits(conn);
  }}
  disabled={isLoading || rowBusy}
- className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 h-8"
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  >
  <span className="material-symbols-outlined text-[18px] text-text-muted">schedule</span>
  <span>Credit expiry</span>
@@ -1592,7 +1592,7 @@ export default function ProviderLimits() {
  setOpenMenuConnectionId(null);
  toggleAutoPing(conn.id, conn.provider, !(autoPingMaps[conn.provider]?.[conn.id] === true));
  }}
- className="flex w-full items-center justify-between rounded-sm px-2.5 py-1 text-xs font-medium text-text-main hover:bg-surface-2 h-8"
+                  className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
  >
  <div className="flex items-center gap-2">
  <span className={`material-symbols-outlined text-[18px] ${autoPingMaps[conn.provider]?.[conn.id] === true ? "text-primary" : "text-text-muted"}`}>
@@ -1771,7 +1771,7 @@ export default function ProviderLimits() {
  )}
 
 {hasVisibleConnections && (
- <div className="rounded-sm border border-border bg-surface px-3 h-8">
+      <div className="rounded-sm border border-border bg-surface px-3 py-2">
  <div className="flex flex-wrap items-center justify-between gap-2">
  <span className="text-xs text-text-muted">{connectionsPageSummary}</span>
  <div className="flex flex-wrap items-center gap-2">
@@ -1787,7 +1787,7 @@ export default function ProviderLimits() {
  setCustomPageSizeInput(String(nextPageSize));
  }
  }}
- className="h-8 rounded-sm border border-border bg-surface px-2 text-xs text-text-main outline-none hover:bg-surface-2"
+                className="rounded-sm border border-border bg-surface px-2 py-2 text-xs text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Accounts per page"
  >
  {ACCOUNT_PAGE_SIZE_OPTIONS.map((option) => (
@@ -1827,7 +1827,7 @@ export default function ProviderLimits() {
  setPageSize(nextPageSize);
  setCustomPageSizeInput(String(nextPageSize));
  }}
- className="h-8 w-20 rounded-sm border border-border bg-surface px-2 text-xs text-text-main outline-none hover:bg-surface-2"
+                className="w-20 rounded-sm border border-border bg-surface px-2 py-2 text-xs text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Custom accounts per page"
  placeholder="Custom"
  />
@@ -1840,7 +1840,7 @@ export default function ProviderLimits() {
  disabled={
  pagination.page <= 1 || connectionsLoading || refreshingAll
  }
- className="flex h-8 items-center rounded-sm border border-border px-3 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
  >
  First Page
  </button>
@@ -1852,7 +1852,7 @@ export default function ProviderLimits() {
  disabled={
  pagination.page <= 1 || connectionsLoading || refreshingAll
  }
- className="flex h-8 w-8 items-center justify-center rounded-sm border border-border text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex w-9 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
  aria-label="Previous accounts page"
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -1871,7 +1871,7 @@ export default function ProviderLimits() {
  connectionsLoading ||
  refreshingAll
  }
- className="flex h-8 w-8 items-center justify-center rounded-sm border border-border text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex w-9 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
  aria-label="Next accounts page"
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -1886,7 +1886,7 @@ export default function ProviderLimits() {
  connectionsLoading ||
  refreshingAll
  }
- className="flex h-8 items-center rounded-sm border border-border px-3 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
  >
  Last Page
  </button>
@@ -1917,7 +1917,7 @@ export default function ProviderLimits() {
  {resetCreditsState && (
  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
  <div className="w-full max-w-2xl overflow-hidden rounded-sm border border-border bg-surface">
- <div className="flex items-start justify-between gap-3 border-b border-border bg-surface-2 h-8 px-3">
+          <div className="flex items-start justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2.5">
  <div className="min-w-0">
  <h3 className="text-sm font-semibold text-text-main">Codex Reset Credit Expiry</h3>
  <p className="mt-0.5 truncate text-xs text-text-muted">
@@ -1927,7 +1927,7 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setResetCreditsState(null)}
- className="flex h-8 w-8 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
+              className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
  aria-label="Close reset credit expiry modal"
  >
  <span className="material-symbols-outlined text-[18px]">close</span>
@@ -1941,12 +1941,12 @@ export default function ProviderLimits() {
  Loading reset credits...
  </div>
  ) : resetCreditsState.error ? (
- <div className="rounded-sm border border-danger/30 bg-danger/10 px-3 h-8 text-sm text-danger dark:text-danger">
+          <div className="rounded-sm border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger dark:text-danger">
  {resetCreditsState.error}
  </div>
  ) : resetCreditsState.data?.credits?.length ? (
  <div className="space-y-3">
- <div className="flex items-center justify-between rounded-sm border border-border bg-surface px-3 h-8 text-xs text-text-muted">
+          <div className="flex items-center justify-between rounded-sm border border-border bg-surface px-3 py-2 text-xs text-text-muted">
  <span>{resetCreditsState.data.credits.length} reset credit{resetCreditsState.data.credits.length === 1 ? "" : "s"}</span>
  <span>{resetCreditsState.data.availableCount ?? 0} available</span>
  </div>
@@ -1954,23 +1954,23 @@ export default function ProviderLimits() {
  <table className="w-full min-w-[560px] text-left text-sm" aria-label="Codex reset credit expiry">
  <thead className="bg-surface-2 text-xs text-text-muted">
  <tr>
- <th scope="col" className="px-3 h-8 font-medium text-xs text-text-muted">Status</th>
- <th scope="col" className="px-3 h-8 font-medium text-xs text-text-muted">Granted At</th>
- <th scope="col" className="px-3 h-8 font-medium text-xs text-text-muted">Expires At</th>
- <th scope="col" className="px-3 h-8 font-medium text-xs text-text-muted">Remaining</th>
+              <th scope="col" className="px-3 py-2 font-medium text-xs text-text-muted">Status</th>
+              <th scope="col" className="px-3 py-2 font-medium text-xs text-text-muted">Granted At</th>
+              <th scope="col" className="px-3 py-2 font-medium text-xs text-text-muted">Expires At</th>
+              <th scope="col" className="px-3 py-2 font-medium text-xs text-text-muted">Remaining</th>
  </tr>
  </thead>
  <tbody>
  {resetCreditsState.data.credits.map((credit, index) => (
  <tr key={`${credit.status}-${credit.expiresAt || index}`} className="border-t border-border">
- <td className="px-3 h-8 text-sm">
+              <td className="px-3 py-2.5 text-sm">
  <span className="rounded-sm bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
  {credit.status || "unknown"}
  </span>
  </td>
- <td className="px-3 h-8 text-text-muted text-sm">{formatCreditDate(credit.grantedAt)}</td>
- <td className="px-3 h-8 text-text-main text-sm">{formatCreditDate(credit.expiresAt)}</td>
- <td className="px-3 h-8 font-medium text-text-main text-sm">{formatTimeRemaining(credit.expiresAt)}</td>
+              <td className="px-3 py-2.5 text-text-muted text-sm">{formatCreditDate(credit.grantedAt)}</td>
+              <td className="px-3 py-2.5 text-text-main text-sm">{formatCreditDate(credit.expiresAt)}</td>
+              <td className="px-3 py-2.5 font-medium text-text-main text-sm">{formatTimeRemaining(credit.expiresAt)}</td>
  </tr>
  ))}
  </tbody>
