@@ -267,23 +267,52 @@ export async function peekStreamHead(stream, timeoutMs) {
   }
   let timer = null;
   try {
+    const headRead = reader.read().then(
+      (v) => ({ ...v, timedOut: false }),
+      (e) => ({ error: e }),
+    );
     const readOutcome = await Promise.race([
-      reader.read().then(
-        (v) => ({ ...v, timedOut: false }),
-        (e) => ({ error: e }),
-      ),
+      headRead,
       new Promise((resolve) => {
         timer = setTimeout(() => resolve({ timedOut: true }), Math.max(1, timeoutMs));
         if (timer.unref) timer.unref();
       }),
     ]);
-    if (timer) clearTimeout(timer);
+    clearTimeout(timer);
 
-    // Timeout or whitespace keepalive: inconclusive — release the lock and let
-    // the caller commit the original stream untouched.
+    // Timeout: inconclusive — fail-open and let the caller commit. releaseLock()
+    // THROWS while the raced read() is still pending, so the original stream
+    // cannot be returned (new Response() rejects locked bodies — "disturbed or
+    // locked"). Keep pumping the locked reader through a fresh stream instead;
+    // the still-in-flight chunk replays as soon as it lands, so no bytes are lost.
     if (readOutcome.timedOut) {
-      try { reader.releaseLock(); } catch {}
-      return { stream, timedOut: true };
+      const rebuilt = new ReadableStream({
+        async start(controller) {
+          try {
+            const r = await headRead;
+            if (r.error) { controller.error(r.error); return; }
+            if (!r.done && r.value !== undefined) controller.enqueue(r.value);
+          } catch (e) { controller.error(e); }
+        },
+        async pull(controller) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) {
+              controller.close();
+              try { reader.releaseLock(); } catch {}
+            } else {
+              controller.enqueue(value);
+            }
+          } catch (e) {
+            controller.error(e);
+          }
+        },
+        async cancel() {
+          try { await reader.cancel(); } catch {}
+          try { reader.releaseLock(); } catch {}
+        },
+      });
+      return { stream: rebuilt, timedOut: true };
     }
     if (readOutcome.error || readOutcome.done) {
       try { await reader.cancel(); } catch {}
