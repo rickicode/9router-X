@@ -49,7 +49,8 @@ afterAll(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
-describe("DB Benchmark — SQLite vs Lowdb", () => {
+// SKIPPED: lowdb is no longer a dependency (PostgreSQL is the SSOT). File kept for methodology.
+describe.skip("DB Benchmark — SQLite vs Lowdb (legacy, lowdb removed)", () => {
   it(`INSERT ${N_ITEMS} provider connections`, async () => {
     console.log(`\n[INSERT ${N_ITEMS}]`);
 

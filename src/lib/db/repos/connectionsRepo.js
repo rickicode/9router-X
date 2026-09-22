@@ -352,7 +352,7 @@ function deriveConnectionName(data, fallbackName) {
 
 const FATAL_CONNECTION_ERROR_SQL = "(last_error IS NOT NULL AND last_error ~* '(banned|account has been banned|account has been deleted|suspended|revoked|invalid_grant|invalid token|invalid api key|unauthorized|forbidden)')";
 const CONNECTION_UNAVAILABLE_DATA_SQL = "(data->'providerSpecificData'->>'refreshBlocked' IS NOT NULL AND data->'providerSpecificData'->>'refreshBlocked' <> 'false' AND data->'providerSpecificData'->>'refreshBlocked' <> '')";
-const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL AND pg_input_is_valid((${expression})::text, 'timestamptz') THEN (${expression})::timestamptz ELSE NULL END)`;
+const safeTimestampSql = (expression) => `(CASE WHEN (${expression}) IS NOT NULL THEN safe_input_timestamptz((${expression})::text) ELSE NULL END)`;
 const FUTURE_ACCOUNT_LOCK_SQL = `(
   (locked_all_until IS NOT NULL AND locked_all_until > NOW())
   OR (COALESCE(${safeTimestampSql("model_locks->>'__all'")}, '-infinity'::timestamptz) > NOW())

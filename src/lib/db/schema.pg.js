@@ -1,5 +1,24 @@
 export const PG_SCHEMA_SQL = `
 -- Metadata Schema Versioning
+-- Safe timestamptz cast for legacy/junk lock values (PG 15 has no
+-- pg_input_is_valid; prod PG 17 has it but the schema must run on both).
+CREATE OR REPLACE FUNCTION safe_input_timestamptz(v TEXT) RETURNS TIMESTAMPTZ AS $fn$
+  BEGIN
+    RETURN v::timestamptz;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+$fn$ LANGUAGE plpgsql IMMUTABLE;
+-- Text that looks like JSON ("{not-valid-json") but fails to parse must be
+-- left alone, never abort the whole bootstrap transaction.
+CREATE OR REPLACE FUNCTION safe_input_jsonb(v TEXT) RETURNS JSONB AS $fn$
+  BEGIN
+    RETURN v::jsonb;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+$fn$ LANGUAGE plpgsql IMMUTABLE;
+
 CREATE TABLE IF NOT EXISTS _meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -32,70 +51,6 @@ CREATE TABLE IF NOT EXISTS provider_connections (
 
 ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model TEXT;
 ALTER TABLE provider_connections ADD COLUMN IF NOT EXISTS locked_to_model_until TIMESTAMPTZ;
--- Auto-repair legacy / imported scalar strings into valid JSONB objects
-UPDATE provider_connections
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE provider_connections
-   SET model_locks = (model_locks #>> '{}')::jsonb
- WHERE jsonb_typeof(model_locks) = 'string'
-   AND (model_locks #>> '{}') LIKE '{%';
-
-UPDATE combos
-   SET models = (models #>> '{}')::jsonb
- WHERE jsonb_typeof(models) = 'string'
-   AND (models #>> '{}') LIKE '[%';
-
-UPDATE proxy_groups
-   SET pool_ids = (pool_ids #>> '{}')::jsonb
- WHERE jsonb_typeof(pool_ids) = 'string'
-   AND (pool_ids #>> '{}') LIKE '[%';
-
-UPDATE proxy_groups
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE settings
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE provider_nodes
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE proxy_pools
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE usage_snapshots
-   SET quotas = (quotas #>> '{}')::jsonb
- WHERE jsonb_typeof(quotas) = 'string'
-   AND (quotas #>> '{}') LIKE '{%';
-
-UPDATE usage_snapshots
-   SET rate_limits = NULL
- WHERE rate_limits = '"null"'::jsonb OR rate_limits = to_jsonb('null'::text);
-
-UPDATE request_details
-   SET data = (data #>> '{}')::jsonb
- WHERE jsonb_typeof(data) = 'string'
-   AND (data #>> '{}') LIKE '{%';
-
-UPDATE usage_history
-   SET tokens = (tokens #>> '{}')::jsonb
- WHERE jsonb_typeof(tokens) = 'string'
-   AND (tokens #>> '{}') LIKE '{%';
-
-UPDATE usage_history
-   SET meta = (meta #>> '{}')::jsonb
- WHERE jsonb_typeof(meta) = 'string'
-   AND (meta #>> '{}') LIKE '{%';
 
 CREATE INDEX IF NOT EXISTS idx_pc_routing ON provider_connections (provider, priority, last_used_at NULLS FIRST)
 WHERE is_active = true;
@@ -320,6 +275,83 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   date_key DATE PRIMARY KEY,
   data JSONB NOT NULL
 );
+
+-- Auto-repair legacy / imported scalar strings into valid JSONB objects.
+-- Runs after every CREATE TABLE: on an empty database the target tables
+-- would not exist yet and the whole bootstrap transaction would fail.
+UPDATE provider_connections
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE provider_connections
+   SET model_locks = safe_input_jsonb(model_locks #>> '{}')
+ WHERE jsonb_typeof(model_locks) = 'string'
+   AND (model_locks #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(model_locks #>> '{}') IS NOT NULL;
+UPDATE combos
+   SET models = safe_input_jsonb(models #>> '{}')
+ WHERE jsonb_typeof(models) = 'string'
+   AND (models #>> '{}') LIKE '[%'
+   AND safe_input_jsonb(models #>> '{}') IS NOT NULL;
+UPDATE proxy_groups
+   SET pool_ids = safe_input_jsonb(pool_ids #>> '{}')
+ WHERE jsonb_typeof(pool_ids) = 'string'
+   AND (pool_ids #>> '{}') LIKE '[%'
+   AND safe_input_jsonb(pool_ids #>> '{}') IS NOT NULL;
+
+UPDATE proxy_groups
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE settings
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE provider_nodes
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE proxy_pools
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE usage_snapshots
+   SET quotas = safe_input_jsonb(quotas #>> '{}')
+ WHERE jsonb_typeof(quotas) = 'string'
+   AND (quotas #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(quotas #>> '{}') IS NOT NULL;
+
+UPDATE usage_snapshots
+   SET rate_limits = NULL
+ WHERE rate_limits = '"null"'::jsonb OR rate_limits = to_jsonb('null'::text);
+
+UPDATE request_details
+   SET data = safe_input_jsonb(data #>> '{}')
+ WHERE jsonb_typeof(data) = 'string'
+   AND (data #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(data #>> '{}') IS NOT NULL;
+
+UPDATE usage_history
+   SET tokens = safe_input_jsonb(tokens #>> '{}')
+ WHERE jsonb_typeof(tokens) = 'string'
+   AND (tokens #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(tokens #>> '{}') IS NOT NULL;
+
+UPDATE usage_history
+   SET meta = safe_input_jsonb(meta #>> '{}')
+ WHERE jsonb_typeof(meta) = 'string'
+   AND (meta #>> '{}') LIKE '{%'
+   AND safe_input_jsonb(meta #>> '{}') IS NOT NULL;
 `;
 
 /**

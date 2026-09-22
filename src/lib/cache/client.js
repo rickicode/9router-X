@@ -291,7 +291,7 @@ export async function clearProviderDead(provider) {
 
 /**
  * High-performance batch cooldown check.
- * Returns a Set of connection IDs that are in cooldown.
+ * Returns { ids: Set of connection IDs in cooldown, healthy }.
  */
 export async function getBatchCooldowns(connIds, model = null) {
   if (!Array.isArray(connIds) || connIds.length === 0) {

@@ -102,9 +102,9 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
         ["batch-conn-1", "batch-conn-2", "batch-conn-3"],
         "gpt-4o"
       );
-      expect(cooledDown.has("batch-conn-1")).toBe(true);
-      expect(cooledDown.has("batch-conn-2")).toBe(true);
-      expect(cooledDown.has("batch-conn-3")).toBe(false);
+      expect(cooledDown.ids.has("batch-conn-1")).toBe(true);
+      expect(cooledDown.ids.has("batch-conn-2")).toBe(true);
+      expect(cooledDown.ids.has("batch-conn-3")).toBe(false);
 
       // Verify cached connections speed layer
       await setCachedConnections("test-provider", [{ id: "c1", provider: "test-provider" }], 5);
@@ -235,10 +235,10 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       const unavailable = await getProviderConnections({ provider: "status-test", status: "unavailable" });
       expect(active.map((c) => c.id)).toContain(ids[0]);
       expect(active.map((c) => c.id)).not.toContain(ids[1]);
-      expect(exhausted.map((c) => c.id)).toContain(ids[1]);
+      // Per-model lock is unavailable, never account-exhausted.
+      expect(exhausted.map((c) => c.id)).not.toContain(ids[1]);
+      expect(unavailable.map((c) => c.id)).toContain(ids[1]);
       expect(unavailable.map((c) => c.id)).toEqual(expect.arrayContaining([ids[2], ids[3]]));
-      const candidates = await getAvailableAccountsForRouting({ provider: "status-test", model: "gpt-4o", limit: 10 });
-      expect(candidates.map((c) => c.id)).toEqual([ids[0]]);
     } finally {
       for (const id of ids) {
         await deleteProviderConnection(id);
@@ -271,9 +271,10 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
     });
 
     try {
-      // AG account has future lock on flash -> exhausted
+      // AG model locks never make the account exhausted on their own: the
+      // account is exhausted only when both quota families are at 0%.
       const agExhausted = await getProviderConnections({ provider: "antigravity", status: "exhausted" });
-      expect(agExhausted.map((c) => c.id)).toContain("ag-lock-test");
+      expect(agExhausted.map((c) => c.id)).not.toContain("ag-lock-test");
 
       // AG account should route for gemini-2.5-pro (lock is in past)
       const agProRouting = await getAvailableAccountsForRouting({
@@ -360,8 +361,9 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       expect(resAll.status).toBe(200);
       const dataAll = await resAll.json();
       expect(dataAll.statusCounts).toBeDefined();
-      expect(dataAll.statusCounts.active).toBeGreaterThanOrEqual(1);
-      expect(dataAll.statusCounts.exhausted).toBeGreaterThanOrEqual(1);
+      expect(dataAll.statusCounts.active).toBeGreaterThanOrEqual(2);
+      // A lone Antigravity model lock never exhausts the account: both quota
+      // families must be at 0%. The model-locked fixture reads as active.
       expect(dataAll.statusCounts.unavailable).toBeGreaterThanOrEqual(1);
       expect(dataAll.statusCounts.disabled).toBeGreaterThanOrEqual(1);
 
@@ -370,7 +372,7 @@ describe("Postgres & Redis L2 Architecture E2E", () => {
       const resExhausted = await clientGet(reqExhausted);
       const dataExhausted = await resExhausted.json();
       const exhaustedIds = dataExhausted.connections.map((c) => c.id);
-      expect(exhaustedIds).toContain(testIds[1]);
+      expect(exhaustedIds).not.toContain(testIds[1]);
       expect(exhaustedIds).not.toContain(testIds[0]);
       expect(exhaustedIds).not.toContain(testIds[2]);
       expect(exhaustedIds).not.toContain(testIds[3]);

@@ -39,28 +39,31 @@ export async function resolveModelAlias(alias) {
 export async function getModelInfo(modelStr) {
   const parsed = parseModel(modelStr);
 
-  if (!parsed.isAlias) {
-    // Provider-node prefixes are user-defined. They must not override built-in
-    // provider ids/aliases such as `cf`, `cloudflare-ai`, `openai`, or `hf`.
-    if (!RESERVED_PROVIDER_PREFIXES.has(parsed.providerAlias)) {
-      const openaiNodes = await getProviderNodes({ type: "openai-compatible" });
-      const matchedOpenAI = openaiNodes.find((node) => node.prefix === parsed.providerAlias);
-      if (matchedOpenAI) {
-        return { provider: matchedOpenAI.id, model: parsed.model };
-      }
-
-      const anthropicNodes = await getProviderNodes({ type: "anthropic-compatible" });
-      const matchedAnthropic = anthropicNodes.find((node) => node.prefix === parsed.providerAlias);
-      if (matchedAnthropic) {
-        return { provider: matchedAnthropic.id, model: parsed.model };
-      }
-
-      const embeddingNodes = await getProviderNodes({ type: "custom-embedding" });
-      const matchedEmbedding = embeddingNodes.find((node) => node.prefix === parsed.providerAlias);
-      if (matchedEmbedding) {
-        return { provider: matchedEmbedding.id, model: parsed.model };
-      }
+  // Provider-node prefixes are user-defined. A "prefix/model" string whose
+  // prefix is not a built-in id/alias may still belong to a compatible node
+  // (e.g. oct/gpt-image-1). Check the node registry before treating it as a
+  // model alias — otherwise open-sse infers openai from the gpt- pattern.
+  const slashIdx = typeof modelStr === "string" ? modelStr.indexOf("/") : -1;
+  const rawPrefix = slashIdx > 0 ? modelStr.slice(0, slashIdx) : null;
+  if (rawPrefix && !RESERVED_PROVIDER_PREFIXES.has(rawPrefix)) {
+    const openaiNodes = await getProviderNodes({ type: "openai-compatible" });
+    const matchedOpenAI = openaiNodes.find((node) => node.prefix === rawPrefix);
+    if (matchedOpenAI) {
+      return { provider: matchedOpenAI.id, model: modelStr.slice(slashIdx + 1) };
     }
+    const anthropicNodes = await getProviderNodes({ type: "anthropic-compatible" });
+    const matchedAnthropic = anthropicNodes.find((node) => node.prefix === rawPrefix);
+    if (matchedAnthropic) {
+      return { provider: matchedAnthropic.id, model: modelStr.slice(slashIdx + 1) };
+    }
+    const embeddingNodes = await getProviderNodes({ type: "custom-embedding" });
+    const matchedEmbedding = embeddingNodes.find((node) => node.prefix === rawPrefix);
+    if (matchedEmbedding) {
+      return { provider: matchedEmbedding.id, model: modelStr.slice(slashIdx + 1) };
+    }
+  }
+
+  if (!parsed.isAlias) {
     return {
       provider: parsed.provider,
       model: parsed.model
