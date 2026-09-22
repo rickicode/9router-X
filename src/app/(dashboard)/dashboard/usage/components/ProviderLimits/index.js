@@ -1011,7 +1011,7 @@ export default function ProviderLimits() {
  role="tablist"
  aria-orientation="horizontal"
  aria-label="Account status filters"
- className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-sm border border-border bg-surface size-8 h-8"
+ className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-sm border border-border bg-surface p-1"
  onKeyDown={(e) => {
  const statusKeys = ["all", "active", "exhausted", "unavailable", "disabled"];
  const currentIndex = statusKeys.indexOf(accountFilter);
@@ -1438,21 +1438,21 @@ export default function ProviderLimits() {
  padding="none"
  className={`min-w-0 ${isInactive ? "opacity-60" : ""} ${openMenuConnectionId === conn.id ? "relative z-20" : ""}`}
  >
- <div className="px-3 h-8 border-b border-border">
- <div className="flex items-center justify-between gap-2">
- <div className="flex items-center gap-2 min-w-0">
- <div className="w-8 h-8 shrink-0 rounded-sm flex items-center justify-center overflow-hidden">
+ <div className="px-4 py-3 border-b border-border">
+ {/* Top row: Provider icon + info + actions */}
+ <div className="flex items-start justify-between gap-3 mb-3">
+ <div className="flex items-center gap-3 min-w-0 flex-1">
+ <div className="w-10 h-10 shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-surface-2">
  <ProviderIcon
  src={`/providers/${conn.provider}.png`}
- alt={conn.provider}
- size={32}
+ size={40}
  className="object-contain"
  fallbackText={
  conn.provider?.slice(0, 2).toUpperCase() || "PR"
  }
  />
  </div>
- <div className="min-w-0">
+ <div className="min-w-0 flex-1">
  <h3 className="text-sm font-semibold text-text-main capitalize truncate">
  {conn.provider}
  </h3>
@@ -1466,77 +1466,6 @@ export default function ProviderLimits() {
  {getConnectionSecondaryLabel(conn)}
  </p>
  ) : null}
- <div className="mt-1 flex flex-wrap items-center gap-1">
- {conn.provider === "kiro" && (
- <>
- <span className="rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
- {kiroMethodLabel(conn)}
- </span>
- {kiroRegion(conn) && (
- <span className="rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
- {kiroRegion(conn)}
- </span>
- )}
- </>
- )}
- <Badge
- variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas))}
- size="sm"
- dot
- title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString("en-US")}` : ""}` : undefined}
- >
- {conn.isActive === false
- ? (conn.previousStatus && conn.previousStatus !== "disabled" ? `disabled (was: ${conn.previousStatus})` : "disabled")
- : getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas)}
- </Badge>
- {conn.isActive === false && (conn.disabledReason || conn.lastError) && (
- <span
- className="max-w-full truncate text-xs text-warning sm:max-w-[260px]"
- title={`Reason: ${conn.disabledReason || conn.lastError}${conn.disabledAt ? ` (${new Date(conn.disabledAt).toLocaleString("en-US")})` : ""}`}
- >
- {conn.disabledReason || conn.lastError}
- </span>
- )}
- {conn.providerSpecificData?.validationUrl && (
- <div className="inline-flex flex-wrap items-center gap-1 rounded-sm bg-warning/10 px-2 py-1 text-[11px] text-warning">
- <span className="font-medium">⚠️ Verify:</span>
- <a
- href={conn.providerSpecificData.validationUrl}
- target="_blank"
- rel="noopener noreferrer"
- className="font-medium underline hover:text-warning"
- >
- Action Required ↗
- </a>
- <button
- type="button"
- onClick={() => copy(conn.providerSpecificData.validationUrl, `val-${conn.id}`)}
- className="inline-flex items-center gap-0.5 rounded-sm px-1 py-1 text-[11px] text-warning hover:bg-warning/10"
- title="Copy validation URL"
- >
- <span className="material-symbols-outlined text-[18px]">
- {copied === `val-${conn.id}` ? "check" : "content_copy"}
- </span>
- <span>{copied === `val-${conn.id}` ? "Copied" : "Copy"}</span>
- </button>
- </div>
- )}
- {conn.provider === "kiro" && conn.providerSpecificData?.profileArn && (
- <button
- type="button"
- onClick={() => copy(conn.providerSpecificData.profileArn, conn.id)}
- title={conn.providerSpecificData.profileArn}
- className="inline-flex max-w-full items-center gap-1 rounded-sm border border-border px-2 text-[11px] text-text-muted hover:text-primary h-8"
- >
- <span className="material-symbols-outlined text-[18px]">
- {copied === conn.id ? "check" : "content_copy"}
- </span>
- <code className="truncate font-mono">
- {conn.providerSpecificData.profileArn}
- </code>
- </button>
- )}
- </div>
  </div>
  </div>
  <div className="flex items-center gap-1 shrink-0">
@@ -1549,7 +1478,7 @@ export default function ProviderLimits() {
  onClick={() => setResetConfirmState({ connection: conn, resetCreditCount })}
  disabled={isLoading || rowBusy}
  aria-label={`Use one Codex reset credit. ${resetCreditCount} available.`}
- className="flex h-8 min-w-9 items-center justify-center gap-1 rounded-sm border border-primary/30 bg-primary/10 px-1.5 text-[11px] font-medium tabular-nums text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+ className="flex h-8 min-w-9 items-center justify-center gap-1 rounded-sm border border-primary/30 bg-primary/10 px-1.5 text-[11px] font-medium tabular-nums text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
  >
  <span className={`material-symbols-outlined text-[18px] ${isResettingLimit ? "animate-spin" : ""}`}>
  {isResettingLimit ? "progress_activity" : "restart_alt"}
@@ -1698,6 +1627,79 @@ export default function ProviderLimits() {
  )}
  </div>
  </div>
+ </div>
+
+ {/* Bottom row: Status badges and metadata */}
+ <div className="flex flex-wrap items-center gap-2">
+ {conn.provider === "kiro" && (
+ <>
+ <span className="rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
+ {kiroMethodLabel(conn)}
+ </span>
+ {kiroRegion(conn) && (
+ <span className="rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
+ {kiroRegion(conn)}
+ </span>
+ )}
+ </>
+ )}
+ <Badge
+ variant={getStatusVariant(conn.isActive, getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas))}
+ size="sm"
+ dot
+ title={conn.isActive === false && conn.previousStatus && conn.previousStatus !== "disabled" ? `Status before disabled: ${conn.previousStatus}${conn.disabledAt ? ` at ${new Date(conn.disabledAt).toLocaleString("en-US")}` : ""}` : undefined}
+ >
+ {conn.isActive === false
+ ? (conn.previousStatus && conn.previousStatus !== "disabled" ? `disabled (was: ${conn.previousStatus})` : "disabled")
+ : getEffectiveConnectionStatus(conn, Date.now(), quota?.quotas)}
+ </Badge>
+ {conn.isActive === false && (conn.disabledReason || conn.lastError) && (
+ <span
+ className="max-w-full truncate text-xs text-warning"
+ title={`Reason: ${conn.disabledReason || conn.lastError}${conn.disabledAt ? ` (${new Date(conn.disabledAt).toLocaleString("en-US")})` : ""}`}
+ >
+ {conn.disabledReason || conn.lastError}
+ </span>
+ )}
+ {conn.providerSpecificData?.validationUrl && (
+ <div className="inline-flex flex-wrap items-center gap-1 rounded-sm bg-warning/10 px-2 py-1 text-[11px] text-warning">
+ <span className="font-medium">⚠️ Verify:</span>
+ <a
+ href={conn.providerSpecificData.validationUrl}
+ target="_blank"
+ rel="noopener noreferrer"
+ className="font-medium underline hover:text-warning"
+ >
+ Action Required ↗
+ </a>
+ <button
+ type="button"
+ onClick={() => copy(conn.providerSpecificData.validationUrl, `val-${conn.id}`)}
+ className="inline-flex items-center gap-0.5 rounded-sm px-1 py-0.5 text-[11px] text-warning hover:bg-warning/20"
+ title="Copy validation URL"
+ >
+ <span className="material-symbols-outlined text-[16px]">
+ {copied === `val-${conn.id}` ? "check" : "content_copy"}
+ </span>
+ <span>{copied === `val-${conn.id}` ? "Copied" : "Copy"}</span>
+ </button>
+ </div>
+ )}
+ {conn.provider === "kiro" && conn.providerSpecificData?.profileArn && (
+ <button
+ type="button"
+ onClick={() => copy(conn.providerSpecificData.profileArn, conn.id)}
+ title={conn.providerSpecificData.profileArn}
+ className="inline-flex max-w-full items-center gap-1 rounded-sm border border-border px-2 py-1 text-[11px] text-text-muted hover:text-primary hover:border-primary/30"
+ >
+ <span className="material-symbols-outlined text-[16px]">
+ {copied === conn.id ? "check" : "content_copy"}
+ </span>
+ <code className="truncate font-mono">
+ {conn.providerSpecificData.profileArn}
+ </code>
+ </button>
+ )}
  </div>
  </div>
 
