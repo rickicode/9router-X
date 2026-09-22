@@ -1667,6 +1667,7 @@ export default function BenchmarkPage() {
                       </div>
                     </div>
                   </div>
+                  </div>
                 ) : null}
 
 
@@ -1795,6 +1796,7 @@ export default function BenchmarkPage() {
                         </Button>
                   </div>
                 </div>
+              </div>
               ) : null}
       
       {/* ─── Modal 3: Reviewer Model Selector Modal (100% Solid, Non-Transparent) ─── */}
@@ -1891,6 +1893,7 @@ export default function BenchmarkPage() {
                         </Button>
                   </div>
                 </div>
+              </div>
               ) : null}
       
       {/* ─── Modal 4: Live Request & Response Logs (100% Solid, Non-Transparent) ─── */}
@@ -2063,6 +2066,7 @@ export default function BenchmarkPage() {
                         </div>
                   </div>
                 </div>
+              </div>
               ) : null}
 </div>
   );
