@@ -67,3 +67,35 @@ describe("custom provider node routing (getModelInfo)", () => {
     expect(info.provider).not.toBe("openai-compatible-chat-omop");
   });
 });
+
+// Regression: custom compatible nodes are transparent proxies. A model id that
+// happens to collide with a built-in prefixless rewrite (e.g. "glm-5.3-flash"
+// → "z-ai/glm-5.3-flash") must reach the custom upstream unchanged. Rewriting
+// it made upstream answer 403 model_not_entitled while the same id worked
+// against the upstream directly.
+const { getModelUpstreamId } = await import("open-sse/config/providerModels.js");
+
+describe("custom provider node model id passthrough (getModelUpstreamId)", () => {
+
+  it("passes the model id through unchanged for openai-compatible nodes", () => {
+    expect(getModelUpstreamId("openai-compatible-chat-runanywhere", "glm-5.3-flash"))
+      .toBe("glm-5.3-flash");
+    expect(getModelUpstreamId("openai-compatible-chat-omop", "deepseek-v4-flash"))
+      .toBe("deepseek-v4-flash");
+  });
+
+  it("passes the model id through unchanged for anthropic-compatible nodes", () => {
+    expect(getModelUpstreamId("anthropic-compatible-proxy", "glm-5.2"))
+      .toBe("glm-5.2");
+  });
+
+  it("keeps the built-in prefixless rewrite for built-in providers", () => {
+    expect(getModelUpstreamId("cline-free", "glm-5.3-flash"))
+      .toBe("z-ai/glm-5.3-flash");
+  });
+
+  it("keeps the thinking suffix intact on passthrough", () => {
+    expect(getModelUpstreamId("openai-compatible-chat-runanywhere", "glm-5.3-flash(high)"))
+      .toBe("glm-5.3-flash(high)");
+  });
+});
