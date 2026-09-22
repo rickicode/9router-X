@@ -56,7 +56,7 @@ function ProvidersGrid({
  }
  />
  {compatibleProviders.length === 0 && anthropicCompatibleProviders.length === 0 ? (
- <div className="flex items-center justify-center gap-2 h-8 border border-dashed border-border rounded-sm text-text-muted text-sm">
+        <div className="flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-sm text-text-muted text-sm">
  <span className="material-symbols-outlined text-[18px]">extension</span>
  <span>No custom providers — use buttons above to add OpenAI/Anthropic compatible endpoints</span>
  </div>
@@ -171,7 +171,7 @@ function ProvidersGrid({
  {!isFiltering && !showAllApikey && hiddenApikeyCount > 0 && (
  <button
  onClick={onShowAllApikey}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 h-8 text-sm font-medium text-primary hover:border-primary hover:bg-primary/10"
+          className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-sm font-medium text-primary hover:border-primary hover:bg-primary/10 transition-colors"
  >
  <span className="material-symbols-outlined text-[18px]">expand_more</span>
  Show all {apikeyEntries.length} providers

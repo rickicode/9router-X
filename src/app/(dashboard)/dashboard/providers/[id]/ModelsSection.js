@@ -115,7 +115,7 @@ export default function ModelsSection(d) {
  })}
  <button
  onClick={() => setShowAddCustomModel(true)}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
+      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
  >
  <span className="material-symbols-outlined text-sm">add</span>
  Add Model
@@ -125,7 +125,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportQoderModels}
  disabled={importingQoderModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingQoderModels ? "progress_activity" : "download"}
@@ -138,7 +138,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportClineModels}
  disabled={importingClineModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingClineModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingClineModels ? "progress_activity" : "download"}
@@ -151,7 +151,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportLiveModels}
  disabled={importingLiveModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingLiveModels ? "progress_activity" : "download"}

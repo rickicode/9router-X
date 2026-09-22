@@ -16,7 +16,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
  : undefined;
 
  return (
- <div className={`group min-w-0 max-w-full rounded-sm border px-3 py-2 ${borderColor} hover:bg-surface-2 transition-colors`}>
+    <div className={`group min-w-0 max-w-full rounded-sm border px-3 py-2.5 ${borderColor} hover:bg-surface-2 transition-colors`}>
  <div className="flex min-w-0 items-center gap-2">
  <span
  className="material-symbols-outlined shrink-0 text-sm"
