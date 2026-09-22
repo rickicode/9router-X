@@ -16,19 +16,17 @@ export default function Card({
 }) {
  const paddings = {
  none: "",
- xs: "p-3",
+ xs: "p-2",
  sm: "p-3",
  md: "p-3",
- lg: "p-3",
+ lg: "p-5",
  };
 
  return (
  <div
  className={cn(
- "min-w-0 max-w-full border border-border bg-surface",
- elev
- ? "rounded-sm"
- : "rounded-sm",
+ "min-w-0 max-w-full border border-border bg-surface rounded-sm",
+ elev && "shadow-soft",
  hover &&
  "hover:border-primary/30 cursor-pointer",
  paddings[padding],

@@ -389,6 +389,9 @@ export default function Sidebar({ onClose }) {
           ))}
 
           {/* Debug items */}
+          <div className="px-3 mb-2">
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Debug</span>
+          </div>
           {debugItems.map((item) => {
             const show = item.href !== "/dashboard/translator" || enableTranslator;
             return show ? (

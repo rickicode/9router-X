@@ -14,7 +14,7 @@ const variants = {
 const sizes = {
  sm: "h-8 px-2.5 text-xs",
  md: "h-8 px-3 text-sm",
- lg: "h-8 px-3 text-sm",
+ lg: "h-10 px-4 text-sm",
 };
 
 export default function Button({
@@ -35,7 +35,7 @@ export default function Button({
  type={type}
  className={cn(
  "inline-flex items-center justify-center gap-2 font-medium",
- "focus-visible:outline-none",
+ "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
  "disabled:cursor-not-allowed disabled:opacity-50",
  variants[variant],
  sizes[size],

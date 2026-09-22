@@ -45,7 +45,7 @@ export default function Toggle({
  className={cn(
  "relative inline-flex shrink-0 cursor-pointer rounded-full",
  " ease-in-out",
-"focus-visible:outline-none",
+ "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
  checked ? "bg-primary" : "bg-surface-3",
  sizes[size].track,
  disabled && "opacity-50 cursor-not-allowed"
