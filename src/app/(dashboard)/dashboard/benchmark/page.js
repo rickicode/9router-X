@@ -1310,9 +1310,9 @@ export default function BenchmarkPage() {
                   </tr>
                 ) : null}
               </tbody>
- </table>
- </div>
- </Card>
+            </table>
+          </div>
+        </Card>
 
  {/* ─── Bottom Section 2: Benchmark History & Retention ─── */}
  <Card
