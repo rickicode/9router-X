@@ -1667,8 +1667,7 @@ export default function BenchmarkPage() {
                 </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
  {/* ─── Modal 2: Detail Attempt Inspector Modal (100% Solid, Non-Transparent) ─── */}
  {inspectAttempt ? (
@@ -1794,7 +1793,6 @@ export default function BenchmarkPage() {
                     Tutup
                   </Button>
                 </div>
-              </div>
             </div>
           ) : null}
 
@@ -1891,7 +1889,6 @@ export default function BenchmarkPage() {
                   <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
                     Tutup
                   </Button>
-              </div>
             </div>
           ) : null}
 
@@ -2063,7 +2060,6 @@ export default function BenchmarkPage() {
                       Tutup
                     </Button>
                   </div>
-              </div>
             </div>
           ) : null}
       </div>
