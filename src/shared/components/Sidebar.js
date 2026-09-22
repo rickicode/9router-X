@@ -17,27 +17,39 @@ const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
 // Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
-const navItems = [
- { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
- { href: "/dashboard/providers", label: "Providers", icon: "dns" },
- // { href: "/dashboard/basic-chat", label: "Basic Chat", icon: "chat" }, // Hidden
- { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
-  { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
-  { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
- { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
- { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
- // { href: "/dashboard/pxpipe", label: "PXPIPE", icon: "image" },
- { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },
+// Core Features
+const coreItems = [
+  { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
+  { href: "/dashboard/providers", label: "Providers", icon: "dns" },
 ];
 
-const debugItems = [
- { href: "/dashboard/console-log", label: "Console Log", icon: "terminal" },
- { href: "/dashboard/translator", label: "Translator", icon: "translate" },
+// Routing & Performance
+const routingItems = [
+  { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
+  { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
+  { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
+];
+
+// Monitoring
+const monitoringItems = [
+  { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
+  { href: "/dashboard/usage", label: "Usage & Analytics", icon: "bar_chart" },
+  { href: "/dashboard/benchmark", label: "Benchmark", icon: "speed" },
+];
+
+// Tools & Integration
+const toolsItems = [
+  { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },
 ];
 
 const systemItems = [
- { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: "lan" },
- { href: "/dashboard/skills", label: "Skills", icon: "extension" },
+  { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: "lan" },
+  { href: "/dashboard/skills", label: "Skills", icon: "extension" },
+];
+
+const debugItems = [
+  { href: "/dashboard/console-log", label: "Console Log", icon: "terminal" },
+  { href: "/dashboard/translator", label: "Translator", icon: "translate" },
 ];
 
 export default function Sidebar({ onClose }) {
@@ -168,195 +180,291 @@ export default function Sidebar({ onClose }) {
  </div>
 
 
- {/* Navigation */}
- <nav className="flex-1 px-3 h-8 space-y-3 overflow-y-auto custom-scrollbar">
- {navItems.map((item) => (
- <Link
- key={item.href}
- href={item.href}
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium",
- isActive(item.href)
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span
- className={cn(
- "material-symbols-outlined text-[18px]",
- isActive(item.href) ? "fill-1" : "group-hover:text-primary"
- )}
- >
- {item.icon}
- </span>
- <span className="text-[13px] font-medium">{item.label}</span>
- </Link>
- ))}
 
- {/* System section */}
- <div className="pt-3 mt-2 space-y-3">
- <p className="px-3 mb-1 text-[11px] font-medium text-text-muted">
- System
- </p>
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+        {/* Core Section */}
+        <div className="mb-4">
+          <div className="px-3 mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-primary">dashboard</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Core</span>
+          </div>
+          {coreItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
- {/* Media Providers accordion */}
- <button
- onClick={() => setMediaOpen((v) => !v)}
- className={cn(
- "flex h-8 w-full items-center gap-3 px-3 text-[13px] font-medium",
- pathname.startsWith("/dashboard/media-providers")
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span className="material-symbols-outlined text-[18px]">perm_media</span>
- <span className="text-[13px] font-medium flex-1 text-left">Media Providers</span>
- <span className="material-symbols-outlined text-[18px] transition-transform" style={{ transform: mediaOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
- expand_more
- </span>
- </button>
- {mediaOpen && (
- <div className="pl-3">
- {MEDIA_PROVIDER_KINDS.filter((k) => VISIBLE_MEDIA_KINDS.includes(k.id)).map((kind) => (
- <Link
- key={kind.id}
- href={`/dashboard/media-providers/${kind.id}`}
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px]",
- pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span className="material-symbols-outlined text-[18px]">{kind.icon}</span>
- <span className="text-sm">{kind.label}</span>
- </Link>
- ))}
- <Link
- key={COMBINED_WEB_ITEM.id}
- href={COMBINED_WEB_ITEM.href}
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px]",
- pathname.startsWith(COMBINED_WEB_ITEM.href)
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span className="material-symbols-outlined text-[18px]">{COMBINED_WEB_ITEM.icon}</span>
- <span className="text-sm">{COMBINED_WEB_ITEM.label}</span>
- </Link>
- </div>
- )}
+        {/* Routing & Performance Section */}
+        <div className="mb-4">
+          <div className="px-3 mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-success">route</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Routing & Performance</span>
+          </div>
+          {routingItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
- {systemItems.map((item) => (
- <Link
- key={item.href}
- href={item.href}
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium",
- isActive(item.href)
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span
- className={cn(
- "material-symbols-outlined text-[18px]",
- isActive(item.href) ? "fill-1" : "group-hover:text-primary"
- )}
- >
- {item.icon}
- </span>
- <span className="text-[13px] font-medium">{item.label}</span>
- </Link>
- ))}
+        {/* Monitoring Section */}
+        <div className="mb-4">
+          <div className="px-3 mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-warning">monitoring</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Monitoring</span>
+          </div>
+          {monitoringItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
- {/* Debug items (inside System section, before Settings) */}
- {debugItems.map((item) => {
- const show = item.href !== "/dashboard/translator" || enableTranslator;
- return show ? (
- <Link
- key={item.href}
- href={item.href}
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium",
- isActive(item.href)
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span
- className={cn(
- "material-symbols-outlined text-[18px]",
- isActive(item.href) ? "fill-1" : "group-hover:text-primary"
- )}
- >
- {item.icon}
- </span>
- <span className="text-[13px] font-medium">{item.label}</span>
- </Link>
- ) : null;
- })}
+        {/* Tools Section */}
+        <div className="mb-4">
+          <div className="px-3 mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-info">build</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Tools</span>
+          </div>
+          {toolsItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
- {/* Remote */}
- <button
- onClick={() => setShowRemoteModal(true)}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium w-full",
- "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span className="material-symbols-outlined text-[18px] group-hover:text-primary">
- computer
- </span>
- <span className="text-[13px] font-medium">9Remote</span>
- </button>
+        {/* System Section */}
+        <div className="pt-2 border-t border-border/50">
+          <div className="px-3 mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-text-muted">settings</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">System</span>
+          </div>
 
- {/* 9English */}
- <a
- href="https://9english.net/"
- target="_blank"
- rel="noreferrer"
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium w-full",
- "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span className="material-symbols-outlined text-[18px] group-hover:text-primary">
- translate
- </span>
- <span className="text-[13px] font-medium">9English</span>
- </a>
+          {/* Media Providers accordion */}
+          <button
+            onClick={() => setMediaOpen((v) => !v)}
+            className={cn(
+              "flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              pathname.startsWith("/dashboard/media-providers")
+                ? "bg-primary/10 text-primary"
+                : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+            )}
+          >
+            <span className="material-symbols-outlined text-[18px]">perm_media</span>
+            <span className="flex-1 text-left">Media Providers</span>
+            <span 
+              className="material-symbols-outlined text-[18px] transition-transform" 
+              style={{ transform: mediaOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              expand_more
+            </span>
+          </button>
+          
+          {mediaOpen && (
+            <div className="mt-1 space-y-0.5">
+              {MEDIA_PROVIDER_KINDS.filter((k) => VISIBLE_MEDIA_KINDS.includes(k.id)).map((kind) => (
+                <Link
+                  key={kind.id}
+                  href={`/dashboard/media-providers/${kind.id}`}
+                  onClick={onClose}
+                  className={cn(
+                    "flex h-8 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                    pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
+                      ? "bg-primary/10 text-primary"
+                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[16px]">{kind.icon}</span>
+                  <span>{kind.label}</span>
+                </Link>
+              ))}
+              <Link
+                key={COMBINED_WEB_ITEM.id}
+                href={COMBINED_WEB_ITEM.href}
+                onClick={onClose}
+                className={cn(
+                  "flex h-8 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                  pathname.startsWith(COMBINED_WEB_ITEM.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                )}
+              >
+                <span className="material-symbols-outlined text-[16px]">{COMBINED_WEB_ITEM.icon}</span>
+                <span>{COMBINED_WEB_ITEM.label}</span>
+              </Link>
+            </div>
+          )}
 
- {/* Settings */}
- <Link
- href="/dashboard/profile"
- onClick={onClose}
- className={cn(
- "flex h-8 items-center gap-3 px-3 text-[13px] font-medium",
- isActive("/dashboard/profile")
- ? "bg-primary/10 text-primary"
- : "text-text-muted hover:bg-surface-2 hover:text-text-main"
- )}
- >
- <span
- className={cn(
- "material-symbols-outlined text-[18px]",
- isActive("/dashboard/profile") ? "fill-1" : "group-hover:text-primary"
- )}
- >
- settings
- </span>
- <span className="text-[13px] font-medium">Settings</span>
- </Link>
- </div>
- </nav>
+          {systemItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+
+          {/* Debug items */}
+          {debugItems.map((item) => {
+            const show = item.href !== "/dashboard/translator" || enableTranslator;
+            return show ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                  isActive(item.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                )}
+              >
+                <span
+                  className={cn(
+                    "material-symbols-outlined text-[18px]",
+                    isActive(item.href) ? "fill-1" : ""
+                  )}
+                >
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ) : null;
+          })}
+
+          {/* 9Remote */}
+          <button
+            onClick={() => setShowRemoteModal(true)}
+            className="flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors text-text-muted hover:bg-surface-2 hover:text-text-main"
+          >
+            <span className="material-symbols-outlined text-[18px]">computer</span>
+            <span>9Remote</span>
+          </button>
+
+          {/* 9English */}
+          <a
+            href="https://9english.net/"
+            target="_blank"
+            rel="noreferrer"
+            onClick={onClose}
+            className="flex h-9 w-full items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors text-text-muted hover:bg-surface-2 hover:text-text-main"
+          >
+            <span className="material-symbols-outlined text-[18px]">translate</span>
+            <span>9English</span>
+          </a>
+
+          {/* Settings */}
+          <Link
+            href="/dashboard/profile"
+            onClick={onClose}
+            className={cn(
+              "flex h-9 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              isActive("/dashboard/profile")
+                ? "bg-primary/10 text-primary"
+                : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+            )}
+          >
+            <span
+              className={cn(
+                "material-symbols-outlined text-[18px]",
+                isActive("/dashboard/profile") ? "fill-1" : ""
+              )}
+            >
+              settings
+            </span>
+            <span>Settings</span>
+          </Link>
+        </div>
+      </nav>
 
  <div className="flex h-8 items-center border-t border-border px-3">
  <a
