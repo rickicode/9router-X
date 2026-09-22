@@ -61,7 +61,7 @@ export default function ModelsSection(d) {
  });
 
  return (
- <div className="flex flex-wrap gap-3">
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
  {customModelRows.map((model) => (
  <ModelRow
  key={`${model.source}-${model.fullModel}`}
@@ -115,7 +115,7 @@ export default function ModelsSection(d) {
  })}
  <button
  onClick={() => setShowAddCustomModel(true)}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 h-8 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto"
+ className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
  >
  <span className="material-symbols-outlined text-sm">add</span>
  Add Model
@@ -125,7 +125,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportQoderModels}
  disabled={importingQoderModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 h-8 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+ className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingQoderModels ? "progress_activity" : "download"}
@@ -138,7 +138,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportClineModels}
  disabled={importingClineModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 h-8 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+ className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingClineModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingClineModels ? "progress_activity" : "download"}
@@ -151,7 +151,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportLiveModels}
  disabled={importingLiveModels}
- className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 h-8 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+ className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingLiveModels ? "progress_activity" : "download"}
@@ -173,14 +173,14 @@ export default function ModelsSection(d) {
  return (
  <div className="w-full mt-2">
  <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
- <div className="flex flex-wrap gap-2">
+ <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
  {notAdded.map((m) => (
  <button
  key={m.id}
  onClick={async () => {
  await handleAddCustomModel(m.id, "llm", providerStorageAlias);
  }}
- className="flex items-center gap-1 px-2.5 py-1 rounded-sm border border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 h-8"
+ className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
  >
  <span className="material-symbols-outlined text-[18px]">add</span>
@@ -195,12 +195,12 @@ export default function ModelsSection(d) {
  {disabledDisplayModels.length > 0 && (
  <div className="w-full mt-2">
  <p className="text-xs text-text-muted mb-2">Disabled models ({disabledDisplayModels.length}):</p>
- <div className="flex flex-wrap gap-2">
+ <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
  {disabledDisplayModels.map((m) => (
  <button
  key={m.id}
  onClick={() => handleEnableModel(m.id)}
- className="flex items-center gap-1 px-2.5 py-1 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 h-8"
+ className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title="Restore model"
  >
  <span className="material-symbols-outlined text-[18px]">add</span>
