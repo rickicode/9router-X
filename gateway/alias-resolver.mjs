@@ -2,9 +2,9 @@
 //   "@/*" -> "src/*", plus "open-sse" already resolves by relative path).
 // Loaded via node --import before anything else. Keeps gateway ESM imports
 // working without a bundler step.
-import { pathToFileURL } from "node:url";
-import { existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { existsSync } from "node:fs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
