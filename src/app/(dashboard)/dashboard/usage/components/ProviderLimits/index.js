@@ -1108,7 +1108,7 @@ export default function ProviderLimits() {
  }}
  placeholder="Search accounts..."
  aria-label="Search accounts"
-              className="w-full rounded-sm border border-border bg-surface pl-8.5 pr-8 py-2 text-xs text-text-main placeholder:text-text-muted outline-none focus:border-primary transition-colors"
+              className="w-full min-h-11 rounded-sm border border-border bg-surface pl-8.5 pr-8 py-2.5 text-xs text-text-main placeholder:text-text-muted outline-none focus:border-primary transition-colors sm:min-h-9 sm:py-2"
  />
  {searchQuery && (
  <button
