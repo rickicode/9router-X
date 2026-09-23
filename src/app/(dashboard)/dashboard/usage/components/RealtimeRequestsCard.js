@@ -9,6 +9,9 @@ import RealtimeRequestRow, { RealtimeRequestCardMobile } from "./realtime/Realti
 import ActiveRequestsModal from "./realtime/ActiveRequestsModal";
 import RequestErrorModal from "./realtime/RequestErrorModal";
 
+// Live traffic appends without bound; a phone cannot scroll an unbounded list.
+const MOBILE_ROW_CAP = 10;
+
 export default function RealtimeRequestsCard({
  activeRequests = [],
  recentRequests = [],
@@ -20,6 +23,7 @@ export default function RealtimeRequestsCard({
  const [errorDetailsLoading, setErrorDetailsLoading] = useState(false);
  const [fetchedError, setFetchedError] = useState(null);
  const [showActiveModal, setShowActiveModal] = useState(false);
+  const [showAllMobile, setShowAllMobile] = useState(false);
 
  const handleOpenErrorModal = (req) => {
  setSelectedError(req);
@@ -228,12 +232,27 @@ export default function RealtimeRequestsCard({
  </div>
  ) : (
  <div className="rounded-sm border border-border bg-surface/50 overflow-hidden">
- {/* Mobile Card List (< sm) */}
- <div className="sm:hidden data-cards">
- {filteredRecents.map((r, i) => (
- <RealtimeRequestCardMobile key={`mob-${i}`} req={r} onOpenError={handleOpenErrorModal} />
- ))}
- </div>
+{/* Mobile Card List (< sm) — capped so live traffic cannot grow the page
+            without bound; the full set stays available behind Load more. */}
+        <div className="sm:hidden data-cards">
+          {(showAllMobile ? filteredRecents : filteredRecents.slice(0, MOBILE_ROW_CAP)).map((r, i) => (
+            <RealtimeRequestCardMobile key={`mob-${i}`} req={r} onOpenError={handleOpenErrorModal} />
+          ))}
+          {filteredRecents.length > MOBILE_ROW_CAP && (
+            <button
+              type="button"
+              onClick={() => setShowAllMobile((prev) => !prev)}
+              className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-border text-xs font-medium text-primary"
+            >
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                {showAllMobile ? "expand_less" : "expand_more"}
+              </span>
+              {showAllMobile
+                ? "Show fewer"
+                : `Show ${filteredRecents.length - MOBILE_ROW_CAP} more of ${filteredRecents.length}`}
+            </button>
+          )}
+        </div>
 
  {/* Desktop Table (sm+) */}
  <div className="hidden sm:block overflow-x-auto">

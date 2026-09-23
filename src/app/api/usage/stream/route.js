@@ -1,4 +1,4 @@
-import { getUsageStats, statsEmitter, getActiveRequests } from "@/lib/usageDb";
+import { getUsageStats, statsEmitter, getActiveRequests, getLast10Minutes } from "@/lib/usageDb";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,8 @@ export async function GET() {
           // Push lightweight update immediately so UI reflects changes fast
           if (state.cachedStats) {
             const { activeRequests, recentRequests, errorProvider } = await getActiveRequests();
-            const quickStats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider };
+            const last10Minutes = await getLast10Minutes();
+            const quickStats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider, last10Minutes };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(quickStats)}\n\n`));
           }
           // Then do full recalc and update cache
@@ -39,7 +40,8 @@ export async function GET() {
         if (state.closed || !state.cachedStats) return;
         try {
           const { activeRequests, recentRequests, errorProvider } = await getActiveRequests();
-          const stats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider };
+          const last10Minutes = await getLast10Minutes();
+          const stats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider, last10Minutes };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
         } catch {
           state.closed = true;
@@ -63,6 +65,14 @@ export async function GET() {
           clearInterval(state.keepalive);
         }
       }, 25000);
+
+      // The bucket series advances with wall-clock time, not with traffic, so it
+      // must be re-sent even when no request event fires. Without this the stream
+      // keeps serving the window captured at connect time.
+      state.bucketTick = setInterval(() => {
+        if (state.closed || !state.cachedStats) return;
+        state.sendPending();
+      }, 60000);
     },
 
     cancel() {
@@ -70,6 +80,7 @@ export async function GET() {
       statsEmitter.off("update", state.send);
       statsEmitter.off("pending", state.sendPending);
       clearInterval(state.keepalive);
+      clearInterval(state.bucketTick);
     },
   });
 

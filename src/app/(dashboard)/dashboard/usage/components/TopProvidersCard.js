@@ -156,7 +156,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, onI
  }
  >
  <div className="overflow-x-auto rounded-sm border border-border">
- <table className="data-table w-full min-w-[760px] text-left text-xs" aria-label="Top providers breakdown">
+ <table className="data-table data-table-sticky-first w-full min-w-[760px] text-left text-xs" aria-label="Top providers breakdown">
  <thead>
  <tr className="text-text-muted font-medium text-[11px]">
  <th scope="col" className="h-8 px-3 w-8 text-center text-xs font-medium text-text-muted">#</th>

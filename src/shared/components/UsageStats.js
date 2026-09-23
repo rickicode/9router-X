@@ -369,6 +369,17 @@ export default function UsageStats({
  const [viewMode, setViewMode] = useState("costs");
  const [providers, setProviders] = useState([]);
  const [periodLocal, setPeriodLocal] = useState("today");
+ // Which live panel is showing below lg, where the three panels share one slot.
+ const [livePanel, setLivePanel] = useState(() => {
+   const fromUrl = searchParams.get("live");
+   return ["topology", "recent", "stream"].includes(fromUrl) ? fromUrl : "stream";
+ });
+ const handleLivePanelChange = useCallback((value) => {
+   setLivePanel(value);
+   const params = new URLSearchParams(searchParams.toString());
+   params.set("live", value);
+   router.replace(`?${params.toString()}`, { scroll: false });
+ }, [searchParams, router]);
  const isInitialLoad = useRef(true);
  const hasLoadedStats = useRef(false);
  const providersLoaded = useRef(false);
@@ -474,6 +485,25 @@ export default function UsageStats({
  return () => {
  cancelled = true;
  statsAbortRef.current?.abort();
+ };
+ }, [fetchStats]);
+
+ // The 10-minute bucket series is computed server-side per request, so it only
+ // advances when we ask for it. Without this poll the stream freezes on the
+ // buckets loaded at mount and reads as flat zero while traffic continues.
+ // One refresh per minute aligns with the bucket size; hidden tabs skip it.
+ useEffect(() => {
+ const timer = setInterval(() => {
+ if (typeof document !== "undefined" && document.hidden) return;
+ fetchStats();
+ }, 60000);
+ const onVisibility = () => {
+ if (typeof document !== "undefined" && !document.hidden) fetchStats();
+ };
+ if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+ return () => {
+ clearInterval(timer);
+ if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
  };
  }, [fetchStats]);
 
@@ -828,7 +858,24 @@ export default function UsageStats({
  {activeSubTab !== "breakdown" && (
  <div className="flex flex-col gap-3">
  <RequestStream buckets={stats?.last10Minutes || []} />
- <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+
+ {/* Below lg the topology, recent list and live stream were three stacked
+     full-chrome panels telling one story. One switch replaces that scroll. */}
+ <div className="lg:hidden">
+ <SegmentedControl
+ options={[
+ { value: "topology", label: "Topology" },
+ { value: "recent", label: "Recent" },
+ { value: "stream", label: "Live Stream" },
+ ]}
+ value={livePanel}
+ onChange={handleLivePanelChange}
+ size="touch"
+ className="w-full"
+ />
+ </div>
+
+ <div className="hidden lg:grid lg:min-w-0 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-stretch lg:gap-2">
  <ProviderTopology
  providers={providers}
  activeRequests={stats?.activeRequests || []}
@@ -837,10 +884,31 @@ export default function UsageStats({
  />
  <RecentRequests requests={stats?.recentRequests || []} />
  </div>
+
+ <div className="lg:hidden">
+ {livePanel === "topology" && (
+ <ProviderTopology
+ providers={providers}
+ activeRequests={stats?.activeRequests || []}
+ lastProvider={stats?.recentRequests?.[0]?.provider || ""}
+ errorProvider={stats?.errorProvider || ""}
+ />
+ )}
+ {livePanel === "recent" && <RecentRequests requests={stats?.recentRequests || []} />}
+ {livePanel === "stream" && (
  <RealtimeRequestsCard
  activeRequests={stats?.activeRequests || []}
  recentRequests={stats?.recentRequests || []}
  />
+ )}
+ </div>
+
+ <div className="hidden lg:block">
+ <RealtimeRequestsCard
+ activeRequests={stats?.activeRequests || []}
+ recentRequests={stats?.recentRequests || []}
+ />
+ </div>
  </div>
  )}
  </>

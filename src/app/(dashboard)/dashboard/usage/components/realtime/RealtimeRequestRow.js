@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
 import { cn } from "@/shared/utils/cn";
@@ -135,97 +136,77 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
 }
 
 export function RealtimeRequestCardMobile({ req, onOpenError }) {
- const r = req;
- const isOk = !r.status || r.status === "ok" || r.status === "success";
+  const r = req;
+  const isOk = !r.status || r.status === "ok" || r.status === "success";
+  const [expanded, setExpanded] = useState(false);
+  const hasCreds = Boolean(r.account || r.clientApiKey || r.apiKey);
+  const hasError = !isOk || Boolean(r.error);
 
- return (
- <div className="p-3 space-y-3 hover:bg-surface-2">
- {/* Row 1: Status badge, type badge, When */}
- <div className="flex items-center justify-between gap-2">
- <div className="flex items-center gap-1.5 flex-wrap">
- <span
- className={`inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] font-medium border ${
- isOk
- ? "bg-success/10 text-success border-success/30"
- : "bg-danger/10 text-danger border-danger/30"
- }`}
- >
- <span className="material-symbols-outlined !text-[18px]">
- {isOk ? "check_circle" : "error"}
- </span>
- {isOk ? "OK" : r.status || "Failed"}
- </span>
+  return (
+    <div className="border-b border-border last:border-b-0 hover:bg-surface-2">
+      {/* Two dense lines: at 177px per record a 30-row stream was five viewports.
+          Identity and volume stay visible; credentials expand on demand. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={hasCreds ? expanded : undefined}
+        className="flex w-full flex-col gap-1 px-3 py-2 text-left"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className={`size-2 shrink-0 rounded-full ${isOk ? "bg-success" : "bg-danger"}`} />
+          <span className="truncate font-mono text-xs font-medium text-text-main" title={r.model}>
+            {r.model}
+          </span>
+          {hasError && (
+            <span className="material-symbols-outlined shrink-0 text-[15px] text-danger" aria-hidden="true">
+              error
+            </span>
+          )}
+          <span className="material-symbols-outlined ml-auto shrink-0 text-[15px] text-text-muted" aria-hidden="true">
+            {expanded ? "expand_less" : "expand_more"}
+          </span>
+        </span>
+        <span className="flex min-w-0 items-center gap-2 text-[11px] text-text-muted">
+          <span className="truncate">{r.provider || "unknown"}</span>
+          <span aria-hidden="true" className="text-text-muted/40">·</span>
+          <span className="shrink-0 font-mono">{r.isStream ? "STREAM" : "JSON"}</span>
+          <span aria-hidden="true" className="text-text-muted/40">·</span>
+          <span className="shrink-0 font-mono tabular-nums">
+            <span className="text-primary">{fmt(r.promptTokens)}↑</span>{" "}
+            <span className="text-success">{fmt(r.completionTokens)}↓</span>
+          </span>
+          <span className="ml-auto shrink-0 whitespace-nowrap font-mono">
+            <TimeAgo timestamp={r.timestamp} />
+          </span>
+        </span>
+      </button>
 
- {r.isStream ? (
- <span className="inline-flex items-center gap-1 rounded-sm bg-info/10 border border-info/30 px-2 py-1 text-[11px] font-medium text-info">
- <span className="material-symbols-outlined !text-[11px]">
- wifi_tethering
- </span>
- STREAM
- </span>
- ) : (
- <span className="inline-flex items-center gap-1 rounded-sm bg-primary/10 border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary">
- <span className="material-symbols-outlined !text-[11px]">
- code
- </span>
- JSON
- </span>
- )}
-
- <Badge variant="neutral" size="sm">
- {r.provider || "unknown"}
- </Badge>
- </div>
-
- <span className="text-[11px] text-text-muted font-mono whitespace-nowrap">
- <TimeAgo timestamp={r.timestamp} />
- </span>
- </div>
-
- {/* Row 2: Model name */}
- <div className="font-mono text-xs font-medium text-text-main break-all" title={r.model}>
- {r.model}
- </div>
-
- {/* Row 3: Account & Client Key */}
- <div className="grid grid-cols-1 gap-1 text-[11px] text-text-muted">
- <div className="flex items-center gap-1 truncate">
- <span className="material-symbols-outlined !text-[18px] shrink-0">account_circle</span>
- <span className="text-text-main truncate">{r.account || "Direct request"}</span>
- </div>
- {(r.clientApiKey || r.apiKey) && (
- <div className="flex items-center gap-1 truncate font-mono text-[11px]">
- <span className="material-symbols-outlined !text-[18px] shrink-0">key</span>
- <span className="text-text-muted truncate">{r.clientApiKey || r.apiKey}</span>
- </div>
- )}
- </div>
-
- {/* Row 4: Tokens + Action button */}
- <div className="flex items-center justify-between gap-2 pt-1 border-t border-border h-8">
- <div className="font-mono text-[11px]">
- <span className="text-primary font-medium">{fmt(r.promptTokens)}↑</span>
- {" "}
- <span className="text-success font-medium">{fmt(r.completionTokens)}↓</span>
- </div>
-
- {!isOk || r.error ? (
- <Button
- type="button"
- variant="danger"
- size="sm"
- onClick={() => onOpenError(r)}
- className="min-h-[44px] min-w-[44px] !px-3 !text-xs font-medium inline-flex items-center gap-1"
- >
- <span className="material-symbols-outlined !text-[18px]">
- error
- </span>
- Show Error
- </Button>
- ) : (
- <span className="text-text-muted text-[11px]">—</span>
- )}
- </div>
- </div>
- );
+      {expanded && (
+        <div className="flex flex-col gap-1.5 px-3 pb-2.5 text-[11px] text-text-muted">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined shrink-0 text-[15px]" aria-hidden="true">account_circle</span>
+            <span className="truncate text-text-main">{r.account || "Direct request"}</span>
+          </div>
+          {(r.clientApiKey || r.apiKey) && (
+            <div className="flex items-center gap-1.5 font-mono">
+              <span className="material-symbols-outlined shrink-0 text-[15px]" aria-hidden="true">key</span>
+              <span className="truncate">{r.clientApiKey || r.apiKey}</span>
+            </div>
+          )}
+          {hasError && onOpenError && (
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={() => onOpenError(r)}
+              className="mt-0.5 w-fit"
+            >
+              <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">error</span>
+              Show Error
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

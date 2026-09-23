@@ -60,7 +60,7 @@ export default function AnalyticsModelTable({
  className="overflow-hidden"
  >
  <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
- <table className="data-table w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
+ <table className="data-table data-table-sticky-first w-full min-w-[900px] text-left text-sm" aria-label="Model Performance Breakdown">
  <thead className="text-text-muted text-xs font-medium">
  <tr>
  {headers.map(({ key, label }) => {

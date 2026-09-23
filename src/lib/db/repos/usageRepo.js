@@ -761,6 +761,41 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
   return stats;
 }
 
+/**
+ * Requests per minute for the last 10 minutes, always returning the full window
+ * of buckets (including zero-traffic minutes) so the client can render a stable
+ * series instead of a shrinking one.
+ */
+export async function getLast10Minutes(dbArg) {
+  const db = dbArg || (await getAdapter());
+  const now = new Date();
+  const currentMinuteStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
+  const tenMinutesAgo = new Date(currentMinuteStart.getTime() - 9 * 60 * 1000);
+  const bucketMap = {};
+  const buckets = [];
+  for (let i = 0; i < 10; i++) {
+    const ts = currentMinuteStart.getTime() - (9 - i) * 60 * 1000;
+    bucketMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+    buckets.push(bucketMap[ts]);
+  }
+  const recent10 = await db.all(
+    `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
+     WHERE timestamp >= $1 AND timestamp <= $2`,
+    [tenMinutesAgo.toISOString(), now.toISOString()],
+  );
+  for (const row of recent10) {
+    const tt = new Date(row.timestamp).getTime();
+    const minuteStart = Math.floor(tt / 60000) * 60000;
+    if (bucketMap[minuteStart]) {
+      bucketMap[minuteStart].requests++;
+      bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
+      bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
+      bucketMap[minuteStart].cost += row.cost || 0;
+    }
+  }
+  return buckets;
+}
+
 export async function getUsageStats(period = "all") {
   const db = await getAdapter();
 
@@ -869,30 +904,7 @@ export async function getUsageStats(period = "all") {
     }
   }
 
-  const now = new Date();
-  const currentMinuteStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
-  const tenMinutesAgo = new Date(currentMinuteStart.getTime() - 9 * 60 * 1000);
-  const bucketMap = {};
-  for (let i = 0; i < 10; i++) {
-    const ts = currentMinuteStart.getTime() - (9 - i) * 60 * 1000;
-    bucketMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
-    stats.last10Minutes.push(bucketMap[ts]);
-  }
-  const recent10 = await db.all(
-    `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
-     WHERE timestamp >= $1 AND timestamp <= $2`,
-    [tenMinutesAgo.toISOString(), now.toISOString()],
-  );
-  for (const row of recent10) {
-    const tt = new Date(row.timestamp).getTime();
-    const minuteStart = Math.floor(tt / 60000) * 60000;
-    if (bucketMap[minuteStart]) {
-      bucketMap[minuteStart].requests++;
-      bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
-      bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
-      bucketMap[minuteStart].cost += row.cost || 0;
-    }
-  }
+  stats.last10Minutes = await getLast10Minutes(db);
 
   const useDailySummary = period !== "24h" && period !== "today";
 
