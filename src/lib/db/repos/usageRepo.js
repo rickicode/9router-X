@@ -12,6 +12,8 @@ function maskApiKey(key) {
 const PENDING_TIMEOUT_MS = 60 * 1000;
 const RING_CAP = 50;
 const CONN_CACHE_TTL_MS = 30 * 1000;
+const USAGE_FLUSH_MS = 100;
+const USAGE_FLUSH_MAX = 100;
 const PERIOD_MS = { "24h": 86400000, "7d": 604800000, "30d": 2592000000, "60d": 5184000000 };
 
 if (!global._pendingRequests) global._pendingRequests = { byModel: {}, byAccount: {} };
@@ -24,6 +26,7 @@ if (!global._pendingTimers) global._pendingTimers = {};
 if (!global._recentRing) global._recentRing = { items: [], initialized: false };
 if (!global._connectionMapCache) global._connectionMapCache = { map: {}, ts: 0 };
 if (!global._statsEmitTimers) global._statsEmitTimers = { pending: null, update: null };
+if (!global._usageWriteQueue) global._usageWriteQueue = { items: [], timer: null, flushing: null };
 
 const pendingRequests = global._pendingRequests;
 const lastErrorProvider = global._lastErrorProvider;
@@ -31,6 +34,7 @@ const pendingTimers = global._pendingTimers;
 const recentRing = global._recentRing;
 const connCache = global._connectionMapCache;
 const statsEmitTimers = global._statsEmitTimers;
+const usageWriteQueue = global._usageWriteQueue;
 
 export const statsEmitter = global._statsEmitter;
 
@@ -101,6 +105,156 @@ function pushToRing(entry) {
   if (recentRing.items.length > RING_CAP) {
     recentRing.items = recentRing.items.slice(-RING_CAP);
   }
+}
+
+// Usage write batcher — one DB transaction per flush window instead of one
+// transaction per request. At 1000+ req/min the per-write transaction pattern
+// serialized every request on the usage_daily row (SELECT ... FOR UPDATE +
+// read-modify-write of the day JSONB) and exhausted the 25-conn pool.
+function applyFailedToDay(day, item) {
+  day.requests = (day.requests || 0) + 1;
+  day.failedRequests = (day.failedRequests || 0) + 1;
+  if (item.provider) {
+    day.byProvider ||= {};
+    if (!day.byProvider[item.provider]) day.byProvider[item.provider] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+    day.byProvider[item.provider].requests = (day.byProvider[item.provider].requests || 0) + 1;
+    day.byProvider[item.provider].failedRequests = (day.byProvider[item.provider].failedRequests || 0) + 1;
+  }
+  if (item.model) {
+    const modelKey = item.provider ? `${item.model}|${item.provider}` : item.model;
+    day.byModel ||= {};
+    if (!day.byModel[modelKey]) day.byModel[modelKey] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: item.model, provider: item.provider };
+    day.byModel[modelKey].requests = (day.byModel[modelKey].requests || 0) + 1;
+    day.byModel[modelKey].failedRequests = (day.byModel[modelKey].failedRequests || 0) + 1;
+  }
+}
+
+async function insertHistoryChunk(tx, rows) {
+  if (rows.length === 0) return 0;
+  const params = [];
+  const tuples = rows.map((r) => {
+    const base = params.length;
+    params.push(
+      r.timestamp, r.provider, r.model, r.connectionId, r.apiKey, r.endpoint,
+      r.promptTokens, r.completionTokens, r.cost, r.status, r.tokens, r.meta, r.requestId,
+    );
+    return r.requestId
+      ? `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11}::jsonb,$${base + 12}::jsonb,$${base + 13})`
+      : `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11}::jsonb,$${base + 12}::jsonb,NULL)`;
+  });
+  const sqlText = `INSERT INTO usage_history
+     (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta, request_id)
+   VALUES ${tuples.join(",")}
+   ON CONFLICT (request_id, timestamp) DO NOTHING`;
+  const res = await tx.run(sqlText, params);
+  return res?.changes ?? 0;
+}
+
+async function flushUsageQueue() {
+  const batch = usageWriteQueue.items.splice(0, Math.max(usageWriteQueue.items.length, USAGE_FLUSH_MAX));
+  if (batch.length === 0) return;
+  try {
+    const db = await getAdapter();
+    await db.transaction(async (tx) => {
+      // Per-row insert preserves ON CONFLICT idempotency (requestId path) while
+      // the outer transaction amortizes lock + commit cost across the batch.
+      const aggregated = [];
+      for (const item of batch) {
+        if (!item.failed && !item.requestId) {
+          const existing = await tx.get(
+            `SELECT id, endpoint FROM usage_history
+             WHERE timestamp = $1
+               AND COALESCE(provider, '') = COALESCE($2, '')
+               AND COALESCE(model, '') = COALESCE($3, '')
+               AND COALESCE(connection_id, '') = COALESCE($4, '')
+               AND COALESCE(api_key, '') = COALESCE($5, '')
+               AND prompt_tokens = $6
+               AND completion_tokens = $7
+             ORDER BY id DESC LIMIT 1`,
+            [item.timestamp, item.provider, item.model, item.connectionId, item.apiKey, item.promptTokens, item.completionTokens],
+          );
+          if (existing) {
+            if (!existing.endpoint && item.endpoint) {
+              await tx.run(`UPDATE usage_history SET endpoint = $1 WHERE id = $2`, [item.endpoint, existing.id]);
+            }
+            continue;
+          }
+        }
+        const res = await insertHistoryChunk(tx, [item]);
+        if (item.failed || (res ?? 0) > 0) aggregated.push(item);
+      }
+
+      const byDate = new Map();
+      for (const item of aggregated) {
+        const dateKey = item.dateKey;
+        if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+        byDate.get(dateKey).push(item);
+      }
+      for (const [dateKey, items] of byDate) {
+        const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
+        const rawData = row?.data;
+        const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
+          requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
+          byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
+        };
+        for (const item of items) {
+          if (item.failed) applyFailedToDay(day, item);
+          else aggregateEntryToDay(day, item);
+        }
+        await tx.run(
+          `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
+           ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
+          [dateKey, day],
+        );
+      }
+
+      await tx.run(
+        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
+         ON CONFLICT (key) DO UPDATE SET value = (COALESCE(_meta.value, '0')::bigint + $1)::text`,
+        [String(aggregated.length)],
+      );
+    });
+    for (const item of batch) item.resolve?.();
+  } catch (err) {
+    for (const item of batch) item.reject?.(err);
+  }
+}
+
+function enqueueUsageWrite(item) {
+  return new Promise((resolve, reject) => {
+    item.resolve = resolve;
+    item.reject = reject;
+    usageWriteQueue.items.push(item);
+    if (usageWriteQueue.flushing) {
+      // A flush is running — the timer below covers items pushed after it started.
+    }
+    if (!usageWriteQueue.timer) {
+      usageWriteQueue.timer = setTimeout(() => {
+        usageWriteQueue.timer = null;
+        usageWriteQueue.flushing = flushUsageQueue().finally(() => {
+          usageWriteQueue.flushing = null;
+          if (usageWriteQueue.items.length > 0) {
+            usageWriteQueue.flushing = flushUsageQueue().finally(() => {
+              usageWriteQueue.flushing = null;
+            });
+          }
+        });
+      }, USAGE_FLUSH_MS);
+      usageWriteQueue.timer.unref?.();
+    }
+    if (usageWriteQueue.items.length >= USAGE_FLUSH_MAX && usageWriteQueue.timer) {
+      clearTimeout(usageWriteQueue.timer);
+      usageWriteQueue.timer = null;
+      usageWriteQueue.flushing = flushUsageQueue().finally(() => {
+        usageWriteQueue.flushing = null;
+        if (usageWriteQueue.items.length > 0) {
+          usageWriteQueue.flushing = flushUsageQueue().finally(() => {
+            usageWriteQueue.flushing = null;
+          });
+        }
+      });
+    }
+  });
 }
 
 async function getConnectionMapCached() {
@@ -349,7 +503,6 @@ export async function getActiveRequests() {
 
 export async function saveFailedRequest({ provider, model, connectionId, apiKey, endpoint, errorStatus, isStream, error, account, comboName }) {
   try {
-    const db = await getAdapter();
     const ts = new Date().toISOString();
     const status = `error_${errorStatus || 502}`;
     const isStreamBool = Boolean(isStream);
@@ -357,63 +510,21 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       ? error
       : (error ? (error.message || (typeof error === "object" ? JSON.stringify(error) : String(error))) : null);
 
-    // One transaction: history row + daily aggregate + lifetime counter stay
-    // consistent under concurrency (previously three separate statements where
-    // the aggregate/counter could be lost while the history row persisted).
-    await db.transaction(async (tx) => {
-      const dateKey = getLocalDateKey(ts);
-      await tx.run(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`usage_daily:${dateKey}`]);
-      await tx.run(`SELECT pg_advisory_xact_lock(hashtext('totalRequestsLifetime'))`);
-      await tx.run(
-        `INSERT INTO usage_history
-           (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
-         VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $7, '{}'::jsonb, $8::jsonb)`,
-        [
-          ts,
-          provider || null,
-          model || null,
-          connectionId || null,
-          apiKey || null,
-          endpoint || null,
-          status,
-          JSON.stringify({ isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined, ...(comboName ? { comboName } : {}) }),
-        ],
-      );
-
-      const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
-      const rawData = row?.data;
-      const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
-        requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
-        byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
-      };
-      day.requests = (day.requests || 0) + 1;
-      day.failedRequests = (day.failedRequests || 0) + 1;
-      if (provider) {
-        day.byProvider ||= {};
-        if (!day.byProvider[provider]) day.byProvider[provider] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
-        day.byProvider[provider].requests = (day.byProvider[provider].requests || 0) + 1;
-        day.byProvider[provider].failedRequests = (day.byProvider[provider].failedRequests || 0) + 1;
-      }
-      if (model) {
-        const modelKey = provider ? `${model}|${provider}` : model;
-        day.byModel ||= {};
-        if (!day.byModel[modelKey]) day.byModel[modelKey] = { requests: 0, failedRequests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, rawModel: model, provider };
-        day.byModel[modelKey].requests = (day.byModel[modelKey].requests || 0) + 1;
-        day.byModel[modelKey].failedRequests = (day.byModel[modelKey].failedRequests || 0) + 1;
-      }
-      await tx.run(
-        `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
-         ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
-        [dateKey, day],
-      );
-
-      const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime' FOR UPDATE`);
-      const next = (current ? parseInt(current.value, 10) : 0) + 1;
-      await tx.run(
-        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        [String(next)],
-      );
+    await enqueueUsageWrite({
+      dateKey: getLocalDateKey(ts),
+      timestamp: ts,
+      failed: true,
+      provider: provider || null,
+      model: model || null,
+      connectionId: connectionId || null,
+      apiKey: apiKey || null,
+      endpoint: endpoint || null,
+      promptTokens: 0,
+      completionTokens: 0,
+      cost: 0,
+      status,
+      tokens: {},
+      meta: { isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined, ...(comboName ? { comboName } : {}) },
     });
 
     pushToRing({
@@ -444,123 +555,33 @@ export async function saveRequestUsage(entry) {
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
     const completionTokens = tokens.completion_tokens || tokens.output_tokens || 0;
     const cost = entry.cost ?? await calculateCost(entry.provider, entry.model, tokens);
+    const entryMeta = JSON.stringify(
+      typeof entry.meta === "string"
+        ? (parseJson(entry.meta, {}) || {})
+        : (entry.meta || {})
+    ) || "{}";
 
-    const db = await getAdapter();
-    let inserted = false;
-    await db.transaction(async (tx) => {
-       const dateKey = getLocalDateKey(entry.timestamp);
-       await tx.run(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`usage_daily:${dateKey}`]);
-       await tx.run(`SELECT pg_advisory_xact_lock(hashtext('totalRequestsLifetime'))`);
-       const existing = await tx.get(
-        `SELECT id, endpoint FROM usage_history
-         WHERE timestamp = $1
-           AND COALESCE(provider, '') = COALESCE($2, '')
-           AND COALESCE(model, '') = COALESCE($3, '')
-           AND COALESCE(connection_id, '') = COALESCE($4, '')
-           AND COALESCE(api_key, '') = COALESCE($5, '')
-           AND prompt_tokens = $6
-           AND completion_tokens = $7
-         ORDER BY id DESC LIMIT 1`,
-        [
-          entry.timestamp,
-          entry.provider || null,
-          entry.model || null,
-          entry.connectionId || null,
-          entry.apiKey || null,
-          promptTokens,
-          completionTokens,
-        ],
-      );
-
-      if (existing) {
-        if (!existing.endpoint && entry.endpoint) {
-          await tx.run(`UPDATE usage_history SET endpoint = $1 WHERE id = $2`, [entry.endpoint, existing.id]);
-        }
-        return;
-      }
-
-      // Idempotency first: concurrent completion callbacks (stream close +
-      // completion event, retry paths) share one request_id. The UNIQUE
-      // (request_id, timestamp) index makes the second insert a no-op so the
-      // attempt is never double-counted in history, daily aggregates, or cost.
-      const requestId = entry.requestId || null;
-      const entryMeta = JSON.stringify(
-        typeof entry.meta === "string"
-          ? (parseJson(entry.meta, {}) || {})
-          : (entry.meta || {})
-      ) || "{}";
-      if (requestId) {
-        const idem = await tx.run(
-          `INSERT INTO usage_history
-             (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta, request_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13)
-           ON CONFLICT (request_id, timestamp) DO NOTHING`,
-          [
-            entry.timestamp,
-            entry.provider || null,
-            entry.model || null,
-            entry.connectionId || null,
-            entry.apiKey || null,
-            entry.endpoint || null,
-            promptTokens,
-            completionTokens,
-            cost || 0,
-            entry.status || "ok",
-            tokens,
-            entryMeta,
-            requestId,
-          ],
-        );
-        if (!idem || (idem.changes ?? 0) === 0) return;
-      } else {
-        await tx.run(
-          `INSERT INTO usage_history
-             (timestamp, provider, model, connection_id, api_key, endpoint, prompt_tokens, completion_tokens, cost, status, tokens, meta)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)`,
-          [
-            entry.timestamp,
-            entry.provider || null,
-            entry.model || null,
-            entry.connectionId || null,
-            entry.apiKey || null,
-            entry.endpoint || null,
-            promptTokens,
-            completionTokens,
-            cost || 0,
-            entry.status || "ok",
-            tokens,
-            entryMeta,
-          ],
-        );
-      }
-
-       const row = await tx.get(`SELECT data FROM usage_daily WHERE date_key = $1 FOR UPDATE`, [dateKey]);
-      const rawData = row?.data;
-      const day = (typeof rawData === "string" ? parseJson(rawData, null) : rawData) ?? {
-        requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
-        byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
-      };
-      aggregateEntryToDay(day, entry);
-      await tx.run(
-        `INSERT INTO usage_daily (date_key, data) VALUES ($1, $2)
-         ON CONFLICT (date_key) DO UPDATE SET data = EXCLUDED.data`,
-        [dateKey, day],
-      );
-
-       const current = await tx.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime' FOR UPDATE`);
-      const next = (current ? parseInt(current.value, 10) : 0) + 1;
-      await tx.run(
-        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        [String(next)],
-      );
-      inserted = true;
+    await enqueueUsageWrite({
+      dateKey: getLocalDateKey(entry.timestamp),
+      timestamp: entry.timestamp,
+      failed: false,
+      provider: entry.provider || null,
+      model: entry.model || null,
+      connectionId: entry.connectionId || null,
+      apiKey: entry.apiKey || null,
+      endpoint: entry.endpoint || null,
+      promptTokens,
+      completionTokens,
+      cost: cost || 0,
+      status: entry.status || "ok",
+      tokens,
+      meta: entryMeta,
+      requestId: entry.requestId || null,
+      _rawEntry: entry,
     });
 
-    if (inserted) {
-      pushToRing(entry);
-      scheduleStatsEvent("update", 250);
-    }
+    pushToRing(entry);
+    scheduleStatsEvent("update", 250);
   } catch (error) {
     console.error("Failed to save usage stats:", error);
   }
