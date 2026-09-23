@@ -185,40 +185,39 @@ export default function RealtimeRequestsCard({
  />
 
  {/* Control Bar: Filter Pills & Search */}
- <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 min-w-0 max-w-full">
- <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar py-1">
- <div className="flex items-center gap-1.5 min-w-max">
- {filterPills.map((pill) => (
- <button
- key={pill.id}
- type="button"
- onClick={() => setFilterType(pill.id)}
- className={cn(
- "inline-flex items-center gap-1 rounded-sm px-2.5 py-1 text-xs font-medium cursor-pointer select-none shrink-0",
- filterType === pill.id
- ? "bg-surface-3 border border-border text-text-main font-semibold"
- : "bg-surface border border-border text-text-muted hover:text-text-main hover:bg-surface-2",
- )}
- >
- <span>{pill.label}</span>
- <span className="text-[11px] opacity-70 font-mono">
- ({pill.count})
- </span>
- </button>
- ))}
- </div>
- </div>
+        <div className="flex min-w-0 max-w-full flex-col justify-between gap-3 pt-1 sm:flex-row sm:items-center">
+          <div className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar py-1 sm:w-auto">
+            <div className="flex min-w-max items-center gap-1.5">
+              {filterPills.map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setFilterType(pill.id)}
+                  aria-pressed={filterType === pill.id}
+                  className={cn(
+                    "scroll-snap-align-start inline-flex min-h-11 shrink-0 cursor-pointer select-none items-center gap-1 rounded-sm border px-3 py-2 text-xs font-medium sm:min-h-9 sm:py-1",
+                    filterType === pill.id
+                      ? "border-border bg-surface-3 font-semibold text-text-main"
+                      : "border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text-main",
+                  )}
+                >
+                  <span>{pill.label}</span>
+                  <span className="font-mono text-[11px] opacity-70">({pill.count})</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
- <div className="w-full sm:w-64 min-w-0">
- <Input
- aria-label="Filter realtime requests"
- placeholder="Search model, provider, apikey..."
- value={search}
- onChange={(e) => setSearch(e.target.value)}
- className="w-full text-xs h-8"
- />
- </div>
- </div>
+          <div className="w-full min-w-0 sm:w-64">
+            <Input
+              aria-label="Filter realtime requests"
+              placeholder="Search model, provider, apikey..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full text-xs h-11 sm:h-8"
+            />
+          </div>
+        </div>
 
  {/* Full-width Request Stream Table */}
  {!filteredRecents.length ? (

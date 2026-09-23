@@ -40,66 +40,99 @@ export default function BlockGrid({
   max,
 }) {
   const visible = columns.slice(0, 31);
+  const maxValue = Math.max(...visible.map((column) => column.value), 1);
 
   return (
-    <div className="flex min-w-0 gap-2.5">
-      <div className="flex shrink-0 flex-col-reverse justify-between py-0.5 text-right">
-        {Array.from({ length: rows + 1 }, (_, rowIndex) => {
-          const show = rowIndex % 3 === 0 || rowIndex === rows;
-          return (
-            <span
-              key={rowIndex}
-              className="font-mono text-[10px] leading-none text-text-muted"
-              style={{ visibility: show ? "visible" : "hidden" }}
+    <div className="flex min-w-0 flex-col gap-3">
+      {/* Compact list (<640): cells would measure ~9px in the grid, so the same
+          data renders as labelled rows with a proportional bar and a real value. */}
+      <div className="flex flex-col gap-1 sm:hidden" role="list" aria-label={`${label}, per bucket`}>
+        {visible.length === 0 ? (
+          <p className="py-4 text-center text-xs text-text-muted">No buckets in this window</p>
+        ) : (
+          visible.map((column, index) => (
+            <div
+              key={`${column.label}-${index}`}
+              role="listitem"
+              className="flex min-h-11 items-center gap-2.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5"
             >
-              {axisFormatter(rowIndex * step)}
-            </span>
-          );
-        })}
+              <span className="w-16 shrink-0 truncate font-mono text-[10px] text-text-muted">
+                {column.label}
+              </span>
+              <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3">
+                <span
+                  className={`block h-full rounded-full ${color}`}
+                  style={{ width: `${Math.max(column.value > 0 ? 3 : 0, (column.value / maxValue) * 100)}%` }}
+                />
+              </span>
+              <span className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-text-main">
+                {valueFormatter(column.value)}
+              </span>
+            </div>
+          ))
+        )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div
-          className="grid gap-[3px]"
-          style={{
-            gridTemplateColumns: `repeat(${Math.min(visible.length, 31)}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-            gridAutoFlow: "column",
-          }}
-          role="img"
-          aria-label={`${label} grid, peak ${valueFormatter(max)}`}
-        >
-          {visible.map((column, columnIndex) =>
-            Array.from({ length: rows }, (_, rowIndex) => {
-              const filled = rowIndex < column.blocks;
-              return (
-                <span
-                  key={`${columnIndex}-${rowIndex}`}
-                  title={`${column.label}: ${valueFormatter(column.value)}`}
-                  className={`aspect-square rounded-[2px] transition-colors ${
-                    filled ? `${color} ${hoverColor || "hover:opacity-80"}` : "bg-surface-2 hover:bg-surface-3"
-                  }`}
-                />
-              );
-            }),
-          )}
-        </div>
-
-        <div className="mt-2 flex min-w-0 justify-between gap-1 overflow-hidden">
-          {visible.map((column, index) => {
-            const total = visible.length;
-            const every = total > 20 ? Math.ceil(total / 8) : total > 10 ? 4 : 2;
-            const show = index % every === 0 || index === total - 1;
+      {/* Block grid (>=640): cells measure >=14px here, so the metaphor holds. */}
+      <div className="hidden min-w-0 gap-2.5 sm:flex">
+        <div className="flex shrink-0 flex-col-reverse justify-between py-0.5 text-right">
+          {Array.from({ length: rows + 1 }, (_, rowIndex) => {
+            const show = rowIndex % 3 === 0 || rowIndex === rows;
             return (
               <span
-                key={index}
-                className="h-3 min-w-0 shrink truncate text-center font-mono text-[10px] leading-tight text-text-muted"
-                style={{ flex: 1 }}
+                key={rowIndex}
+                className="font-mono text-[10px] leading-none text-text-muted"
+                style={{ visibility: show ? "visible" : "hidden" }}
               >
-                {show ? column.label : ""}
+                {axisFormatter(rowIndex * step)}
               </span>
             );
           })}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div
+            className="grid gap-[3px]"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(visible.length, 31)}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+              gridAutoFlow: "column",
+            }}
+            role="img"
+            aria-label={`${label} grid, peak ${valueFormatter(max)}`}
+          >
+            {visible.map((column, columnIndex) =>
+              Array.from({ length: rows }, (_, rowIndex) => {
+                const filled = rowIndex < column.blocks;
+                return (
+                  <span
+                    key={`${columnIndex}-${rowIndex}`}
+                    title={`${column.label}: ${valueFormatter(column.value)}`}
+                    className={`aspect-square rounded-[2px] transition-colors ${
+                      filled ? `${color} ${hoverColor || "hover:opacity-80"}` : "bg-surface-2 hover:bg-surface-3"
+                    }`}
+                  />
+                );
+              }),
+            )}
+          </div>
+
+          <div className="mt-2 flex min-w-0 justify-between gap-1 overflow-hidden">
+            {visible.map((column, index) => {
+              const total = visible.length;
+              const every = total > 20 ? Math.ceil(total / 8) : total > 10 ? 4 : 2;
+              const show = index % every === 0 || index === total - 1;
+              return (
+                <span
+                  key={index}
+                  className="h-3 min-w-0 shrink truncate text-center font-mono text-[10px] leading-tight text-text-muted"
+                  style={{ flex: 1 }}
+                >
+                  {show ? column.label : ""}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

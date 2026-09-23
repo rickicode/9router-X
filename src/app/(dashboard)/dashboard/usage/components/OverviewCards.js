@@ -40,17 +40,27 @@ const CARDS = [
   },
 ];
 
-function Metric({ label, icon, tone, value, valueClass, note, extra }) {
+function Metric({ label, icon, tone, value, valueClass, note, extra, compact = false }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+    <div
+      className={`flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3 sm:gap-3 sm:p-4 ${
+        extra ? "col-span-2 sm:col-span-1" : ""
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">{label}</span>
-        <span className={`flex size-7 items-center justify-center rounded-md border ${tone}`}>
-          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">{icon}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted sm:text-[11px]">
+          {label}
+        </span>
+        <span className={`flex size-6 items-center justify-center rounded-md border sm:size-7 ${tone}`}>
+          <span className="material-symbols-outlined text-[15px] sm:text-[16px]" aria-hidden="true">{icon}</span>
         </span>
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className={`truncate text-2xl font-semibold tabular-nums ${valueClass || "text-text-main"}`}>{value}</span>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <span
+          className={`text-xl font-semibold tabular-nums break-all sm:text-2xl ${valueClass || "text-text-main"}`}
+        >
+          {value}
+        </span>
         {note}
       </div>
       {extra}
@@ -73,7 +83,7 @@ export default function OverviewCards({ stats }) {
   const costTip = `Input ${fmtCost(inputCost)} · Cached ${fmtCost(cachedCost)} · Output ${fmtCost(outputCost)}. Token-share split of the estimated total. Rates come from Settings > Pricing.`;
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
       <Metric
         {...CARDS[0]}
         value={fmt(stats.totalRequests)}
@@ -101,7 +111,7 @@ export default function OverviewCards({ stats }) {
             </span>
             <Link
               href="/dashboard/settings/pricing"
-              className="w-fit underline decoration-dotted underline-offset-2 hover:text-primary"
+              className="inline-flex min-h-11 w-fit items-center underline decoration-dotted underline-offset-2 hover:text-primary sm:min-h-0"
             >
               Edit rates
             </Link>

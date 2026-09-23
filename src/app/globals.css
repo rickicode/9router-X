@@ -267,6 +267,25 @@ input, textarea {
   -webkit-mask-size: 100% 100%;
 }
 
+/* Touch-driven horizontal strips: snap each tab so a clipped strip lands on a
+   whole destination instead of cutting one in half. */
+.scroll-snap-align-start {
+  scroll-snap-align: start;
+}
+.tab-scroll-fade:has(.scroll-snap-align-start) {
+  scroll-snap-type: x proximity;
+}
+
+/* Wide data tables must never scroll their row identity away: the first cell
+   stays pinned so the numbers keep their label. */
+.data-table-sticky-first th:first-child,
+.data-table-sticky-first td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-table-row, var(--color-surface));
+}
+
 /* ============================================================
    Data tables — shared grid lines + zebra striping.
    Use on <table className="data-table"> so every usage/log table

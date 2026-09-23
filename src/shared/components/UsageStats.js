@@ -95,7 +95,29 @@ function RecentRequests({ requests = [] }) {
  {!requests.length ? (
  <div className="flex-1 flex items-center justify-center text-text-muted text-sm">No requests yet.</div>
  ) : (
- <div className="flex-1 overflow-y-auto">
+ <>
+ {/* Mobile (<640): a 300px-min table cannot fit this card, so the same fields
+     render as two-line rows with no horizontal scroll. */}
+ <div className="flex flex-1 flex-col divide-y divide-border overflow-y-auto sm:hidden" role="list" aria-label="Recent requests">
+ {requests.slice(0, 20).map((r, i) => {
+ const ok = !r.status || r.status === "ok" || r.status === "success";
+ return (
+ <div key={i} className="flex min-h-11 items-center gap-2.5 px-1 py-2">
+ <span className={`size-2 shrink-0 rounded-full ${ok ? "bg-success" : "bg-danger"}`} />
+ <div className="min-w-0 flex-1">
+ <p className="truncate font-mono text-xs text-text-main" title={r.model}>{r.model}</p>
+ <p className="mt-0.5 font-mono text-[11px] tabular-nums">
+ <span className="text-primary">{fmt(r.promptTokens)}↑</span>{" "}
+ <span className="text-success">{fmt(r.completionTokens)}↓</span>
+ </p>
+ </div>
+ <span className="shrink-0 text-[11px] text-text-muted"><TimeAgo timestamp={r.timestamp} /></span>
+ </div>
+ );
+ })}
+ </div>
+
+ <div className="hidden flex-1 overflow-y-auto sm:block">
  <table className="data-table data-table-plain w-full min-w-[300px] text-xs" aria-label="Recent requests">
  <thead className="sticky top-0 z-10">
  <tr>
@@ -126,6 +148,7 @@ function RecentRequests({ requests = [] }) {
  </tbody>
  </table>
  </div>
+ </>
  )}
  </Card>
  );

@@ -76,9 +76,11 @@ export default function Tooltip({
  return (
  <span
  ref={containerRef}
- className={`relative inline-flex ${
- children ? "" : "items-center cursor-help focus-visible:outline-none rounded-sm"
- } group/tt ${className}`.trim()}
+ className={`group/tt relative inline-flex ${
+ children
+ ? ""
+ : "min-h-11 min-w-11 items-center justify-center rounded-sm cursor-help focus-visible:outline-none sm:min-h-0 sm:min-w-0"
+ } ${className}`.trim()}
  aria-describedby={text ? id : undefined}
  tabIndex={children ? undefined : 0}
  role={children ? undefined : "button"}

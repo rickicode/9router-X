@@ -4,29 +4,33 @@ import { useRef, useCallback } from "react";
 import { cn } from "@/shared/utils/cn";
 
 export default function SegmentedControl({
- options = [],
- value,
- onChange,
- size = "md",
- className,
- "aria-label": ariaLabelProp,
- ariaLabel,
- ...props
+  options = [],
+  value,
+  onChange,
+  size = "md",
+  snap = false,
+  className,
+  "aria-label": ariaLabelProp,
+  ariaLabel,
+  ...props
 }) {
- const tabRefs = useRef([]);
+  const tabRefs = useRef([]);
 
-// Matches the Quota Tracker tab bar: padding-based height, text-xs labels,
+  // Matches the Quota Tracker tab bar: padding-based height, text-xs labels,
   // selected tab filled with the primary color.
+  // `touch` keeps a 44px minimum height so the control stays tappable on phones.
   const sizes = {
-  sm: "px-2 py-1.5 text-[11px]",
-  md: "px-2.5 py-2 text-xs",
-  lg: "px-3 py-2 text-sm",
+    sm: "px-2 py-1.5 text-[11px]",
+    md: "px-2.5 py-2 text-xs",
+    lg: "px-3 py-2 text-sm",
+    touch: "px-3 py-2.5 text-xs min-h-11",
   };
 
   const iconSizes = {
-  sm: "text-[16px]",
-  md: "text-[18px]",
-  lg: "text-[18px]",
+    sm: "text-[16px]",
+    md: "text-[18px]",
+    lg: "text-[18px]",
+    touch: "text-[16px]",
   };
 
  const selectedIndex = options.findIndex((opt) => opt.value === value);
@@ -83,15 +87,17 @@ export default function SegmentedControl({
  ref={(el) => {
  tabRefs.current[index] = el;
  }}
- type="button"
- role="tab"
- aria-selected={isSelected}
- tabIndex={isTabStop ? 0 : -1}
- onClick={() => onChange?.(option.value)}
-  className={cn(
-  "inline-flex items-center justify-center shrink-0 rounded-sm font-medium gap-1.5 cursor-pointer select-none",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-  sizes[size],
+type="button"
+          role="tab"
+          aria-selected={isSelected}
+          tabIndex={isTabStop ? 0 : -1}
+          data-active={isSelected ? "true" : undefined}
+          onClick={() => onChange?.(option.value)}
+          className={cn(
+            "inline-flex items-center justify-center shrink-0 rounded-sm font-medium gap-1.5 cursor-pointer select-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+            snap && "scroll-snap-align-start",
+            sizes[size],
   isSelected
   ? "bg-primary text-white"
   : "text-text-muted hover:text-text-main hover:bg-surface-2"

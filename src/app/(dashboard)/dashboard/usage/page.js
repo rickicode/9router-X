@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CardSkeleton, SegmentedControl } from "@/shared/components";
@@ -87,6 +87,21 @@ function UsageContent() {
 
   const copy = TAB_COPY[activeTab];
   const showPeriod = activeTab === "overview" || activeTab === "analytics";
+  const tabsRef = useRef(null);
+
+  // Keep the active tab visible: at 360 the strip is wider than its wrapper, so
+  // a tab reached by URL or by deep navigation can sit entirely off-screen.
+  useEffect(() => {
+    const strip = tabsRef.current;
+    if (!strip) return;
+    const active = strip.querySelector('[data-active="true"]');
+    if (!active) return;
+    const left = active.offsetLeft;
+    const right = left + active.offsetWidth;
+    if (left < strip.scrollLeft || right > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollLeft = Math.max(0, left - 8);
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -104,20 +119,34 @@ function UsageContent() {
               options={PERIODS}
               value={period}
               onChange={setPeriod}
-              size="sm"
+              size="touch"
               className="min-w-max"
             />
           </div>
         )}
       </div>
 
-      <div className="w-full min-w-0 overflow-x-auto no-scrollbar">
-        <SegmentedControl
-          options={TABS}
-          value={activeTab}
-          onChange={handleTabChange}
-          className="w-full min-w-max sm:w-auto"
-        />
+      {/* Sticky control bar: the period and tab controls drive every panel below,
+          so they stay reachable instead of scrolling off in a long page. */}
+      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+        <div
+          ref={tabsRef}
+          className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar"
+        >
+          <SegmentedControl
+            options={TABS}
+            value={activeTab}
+            onChange={handleTabChange}
+            size="touch"
+            snap
+            className="w-full min-w-max sm:w-auto"
+          />
+        </div>
+        {showPeriod && (
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+            <SegmentedControl options={PERIODS} value={period} onChange={setPeriod} size="touch" />
+          </div>
+        )}
       </div>
 
       {activeTab === "overview" && (
