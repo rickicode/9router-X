@@ -205,6 +205,70 @@ describe("refreshOne unrecoverable refresh error deletes connection", () => {
   });
 });
 
+describe("tombstone sweep deletes legacy dead grants", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("deletes inactive rows with expired tokens each tick", async () => {
+    const deleteProviderConnectionsByIds = vi.fn(async () => 2);
+    vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
+      checkAndRefreshToken: vi.fn(async () => ({})),
+    }));
+    vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
+      getProviderConnections: vi.fn(async (filter) =>
+        filter.isActive === false ? [
+          { id: "dead-1", provider: "grok-cli", expiresAt: new Date(NOW - 60 * 1000).toISOString() },
+          { id: "dead-2", provider: "kiro", expiresAt: new Date(NOW - 3600 * 1000).toISOString() },
+        ] : []),
+      deleteProviderConnectionsByIds,
+    }));
+
+    const { runBackgroundTokenRefreshTick } = await import(
+      "../../src/sse/services/backgroundTokenRefresh.js"
+    );
+
+    await runBackgroundTokenRefreshTick({
+      loadConnections: undefined, // force real loadActiveConnections
+      refreshConnection: vi.fn(async () => null),
+      sleep: async () => {},
+    });
+
+    expect(deleteProviderConnectionsByIds).toHaveBeenCalledWith(["dead-1", "dead-2"]);
+  });
+
+  it("keeps inactive rows whose token is not expired (e.g. fresh tombstones)", async () => {
+    const deleteProviderConnectionsByIds = vi.fn(async () => 0);
+    vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
+      checkAndRefreshToken: vi.fn(async () => ({})),
+    }));
+    vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
+      getProviderConnections: vi.fn(async (filter) =>
+        filter.isActive === false ? [
+          { id: "keep-1", provider: "kiro", expiresAt: new Date(NOW + 10 * 60 * 1000).toISOString() },
+        ] : []),
+      deleteProviderConnectionsByIds,
+    }));
+
+    const { runBackgroundTokenRefreshTick } = await import(
+      "../../src/sse/services/backgroundTokenRefresh.js"
+    );
+
+    await runBackgroundTokenRefreshTick({
+      refreshConnection: vi.fn(async () => null),
+      sleep: async () => {},
+    });
+
+    expect(deleteProviderConnectionsByIds).not.toHaveBeenCalled();
+  });
+});
 describe("transient-failure backoff skips re-fire within window", () => {
   beforeEach(() => {
     vi.useFakeTimers();

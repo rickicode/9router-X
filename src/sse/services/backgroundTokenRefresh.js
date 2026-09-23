@@ -101,6 +101,30 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
 }
 
 async function loadActiveConnections() {
+  // Sweep legacy tombstones: rows disabled or refreshBlocked with an EXPIRED
+  // token are dead grants by definition — nothing revives them (re-auth
+  // creates a fresh connection). One bounded batch per tick.
+  try {
+    const { getProviderConnections, deleteProviderConnectionsByIds } = await import(
+      "../../lib/db/repos/connectionsRepo.js"
+    );
+    const dead = await getProviderConnections({ isActive: false, limit: 200 });
+    const tombstoned = dead.filter((c) => {
+      const expiresAtMs = getCredentialExpiryMs(c);
+      return expiresAtMs !== null && expiresAtMs < Date.now();
+    });
+    if (tombstoned.length > 0) {
+      const n = await deleteProviderConnectionsByIds(tombstoned.map((c) => c.id)).catch(() => 0);
+      if (n > 0) {
+        log.info("BG_TOKEN_REFRESH", `Swept ${n} legacy tombstone(s) (dead grants, expired tokens)`, {
+          providers: [...new Set(tombstoned.map((c) => c.provider))],
+        });
+      }
+    }
+  } catch (err) {
+    log.debug("BG_TOKEN_REFRESH", `Tombstone sweep skipped: ${err?.message ?? err}`);
+  }
+
   // Dynamic import avoids circular load with db / app graph at module eval time.
   const { getProviderConnections } = await import("../../lib/db/repos/connectionsRepo.js");
   // Keep scheduler memory bounded. Expiry ordering is handled in SQL; the
