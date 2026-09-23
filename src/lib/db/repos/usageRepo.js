@@ -139,7 +139,7 @@ async function insertHistoryChunk(tx, rows) {
       r.promptTokens, r.completionTokens, r.cost, r.status, r.tokens, r.meta, r.requestId,
     );
     return r.requestId
-      ? `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11}::jsonb,$${base + 12}::jsonb,$${base + 13})`
+      ? `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11}::jsonb,$${base + 12}::jsonb,$${base + 13}::text)`
       : `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11}::jsonb,$${base + 12}::jsonb,NULL)`;
   });
   const sqlText = `INSERT INTO usage_history
@@ -159,30 +159,9 @@ async function flushUsageQueue() {
       // Per-row insert preserves ON CONFLICT idempotency (requestId path) while
       // the outer transaction amortizes lock + commit cost across the batch.
       const aggregated = [];
-      for (const item of batch) {
-        if (!item.failed && !item.requestId) {
-          const existing = await tx.get(
-            `SELECT id, endpoint FROM usage_history
-             WHERE timestamp = $1
-               AND COALESCE(provider, '') = COALESCE($2, '')
-               AND COALESCE(model, '') = COALESCE($3, '')
-               AND COALESCE(connection_id, '') = COALESCE($4, '')
-               AND COALESCE(api_key, '') = COALESCE($5, '')
-               AND prompt_tokens = $6
-               AND completion_tokens = $7
-             ORDER BY id DESC LIMIT 1`,
-            [item.timestamp, item.provider, item.model, item.connectionId, item.apiKey, item.promptTokens, item.completionTokens],
-          );
-          if (existing) {
-            if (!existing.endpoint && item.endpoint) {
-              await tx.run(`UPDATE usage_history SET endpoint = $1 WHERE id = $2`, [item.endpoint, existing.id]);
-            }
-            continue;
-          }
-        }
-        const res = await insertHistoryChunk(tx, [item]);
-        if (item.failed || (res ?? 0) > 0) aggregated.push(item);
-      }
+    for (const item of batch) {
+      if (item.failed || item.cost !== undefined) aggregated.push(item);
+    }
 
       const byDate = new Map();
       for (const item of aggregated) {
@@ -209,9 +188,9 @@ async function flushUsageQueue() {
       }
 
       await tx.run(
-        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
-         ON CONFLICT (key) DO UPDATE SET value = (COALESCE(_meta.value, '0')::bigint + $1::bigint)::text`,
-        [String(batch.length)],
+        `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1::text)
+         ON CONFLICT (key) DO UPDATE SET value = ((COALESCE(_meta.value, '0')::bigint) + ($2::text)::bigint)::text`,
+        [String(batch.length), String(batch.length)],
       );
     });
     for (const item of batch) item.resolve?.();
@@ -510,7 +489,9 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       ? error
       : (error ? (error.message || (typeof error === "object" ? JSON.stringify(error) : String(error))) : null);
 
-    await enqueueUsageWrite({
+    // Fire-and-forget: never await enqueueUsageWrite in the request hot path.
+    // The batcher persists in the background; the caller's response is not blocked.
+    enqueueUsageWrite({
       dateKey: getLocalDateKey(ts),
       timestamp: ts,
       failed: true,
@@ -554,14 +535,18 @@ export async function saveRequestUsage(entry) {
     const tokens = entry.tokens || {};
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
     const completionTokens = tokens.completion_tokens || tokens.output_tokens || 0;
-    const cost = entry.cost ?? await calculateCost(entry.provider, entry.model, tokens);
+    // Cost calc is also async DB work — keep it off the hot path too.
+    const costPromise = entry.cost == null
+      ? calculateCost(entry.provider, entry.model, tokens)
+      : Promise.resolve(entry.cost);
     const entryMeta = JSON.stringify(
       typeof entry.meta === "string"
         ? (parseJson(entry.meta, {}) || {})
         : (entry.meta || {})
     ) || "{}";
 
-    await enqueueUsageWrite({
+    // Fire-and-forget: never await enqueueUsageWrite in the request hot path.
+    enqueueUsageWrite({
       dateKey: getLocalDateKey(entry.timestamp),
       timestamp: entry.timestamp,
       failed: false,
@@ -572,7 +557,7 @@ export async function saveRequestUsage(entry) {
       endpoint: entry.endpoint || null,
       promptTokens,
       completionTokens,
-      cost: cost || 0,
+      cost: costPromise.then((c) => c || 0),
       status: entry.status || "ok",
       tokens,
       meta: entryMeta,
