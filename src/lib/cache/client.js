@@ -343,7 +343,10 @@ export async function setCachedConnections(provider, connections, ttlSeconds = 1
 export async function invalidateCachedConnections(provider) {
   if (!provider) return false;
   try {
+    // The window scan caches per (provider, model) routing windows too.
+    // Iterate instead of prefix-scan: two memDel calls are O(1) map deletes.
     memDel(`cache:connections:${provider}`);
+    memDelPrefix(`cache:connections:${provider}::routing:`);
     return true;
   } catch {
     return false;
@@ -387,7 +390,6 @@ export async function releaseLock(key, token) {
  * In-Flight Concurrency Limiter per Account
  */
 const ACTIVE_REQUEST_TTL_SECONDS = 30;
-const ACTIVE_REQUEST_INDEX = "active_req:index";
 
 export async function incrementInFlight(connId) {
   if (!connId) return 1;
@@ -424,13 +426,10 @@ export async function registerActiveRequest(requestId, detail) {
       JSON.stringify({ ...detail, requestId, expiresAt: Date.now() + ACTIVE_REQUEST_TTL_SECONDS * 1000 }),
       ACTIVE_REQUEST_TTL_SECONDS
     );
-    // Maintain index as JSON array (single-process, no sorted-set needed).
-    let index = [];
-    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
-    if (!index.includes(requestId)) {
-      index.push(requestId);
-      memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(index), ACTIVE_REQUEST_TTL_SECONDS);
-    }
+    // O(1) Set index (single-process). The old JSON array re-parse/rewrite
+    // was O(n) per request start/stop and churned the store at high concurrency.
+    if (!global._activeReqIndex) global._activeReqIndex = new Set();
+    global._activeReqIndex.add(requestId);
     return true;
   } catch {
     return false;
@@ -441,11 +440,7 @@ export async function unregisterActiveRequest(requestId) {
   if (!requestId) return false;
   try {
     memDel(`active_req:detail:${requestId}`);
-    let index = [];
-    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
-    const next = index.filter((id) => id !== requestId);
-    if (next.length) memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(next), ACTIVE_REQUEST_TTL_SECONDS);
-    else memDel(ACTIVE_REQUEST_INDEX);
+    global._activeReqIndex?.delete(requestId);
     return true;
   } catch {
     return false;
@@ -454,26 +449,21 @@ export async function unregisterActiveRequest(requestId) {
 
 export async function getActiveRequestsDistributed() {
   try {
-    let index = [];
-    try { index = JSON.parse(memGet(ACTIVE_REQUEST_INDEX) || "[]"); } catch { index = []; }
-    if (!index.length) return [];
+    const index = global._activeReqIndex;
+    if (!index || index.size === 0) return [];
     const now = Date.now();
     const out = [];
-    const alive = [];
+    const dead = [];
     for (const id of index) {
       const raw = memGet(`active_req:detail:${id}`);
-      if (!raw) continue;
+      if (!raw) { dead.push(id); continue; }
       try {
         const parsed = JSON.parse(raw);
-        if (parsed.expiresAt && parsed.expiresAt <= now) continue;
+        if (parsed.expiresAt && parsed.expiresAt <= now) { dead.push(id); continue; }
         out.push(parsed);
-        alive.push(id);
-      } catch { /* skip corrupt */ }
+      } catch { dead.push(id); }
     }
-    if (alive.length !== index.length) {
-      if (alive.length) memSet(ACTIVE_REQUEST_INDEX, JSON.stringify(alive), ACTIVE_REQUEST_TTL_SECONDS);
-      else memDel(ACTIVE_REQUEST_INDEX);
-    }
+    for (const id of dead) index.delete(id);
     return out;
   } catch {
     return [];

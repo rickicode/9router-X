@@ -391,18 +391,18 @@ export default function SmartRoutingSection({
                     </div>
                   </div>
 
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    icon="tune"
+                  <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenTierModal(tier.key);
                     }}
-                    className="shrink-0"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text-main shadow-xs hover:border-primary/50 hover:bg-surface-2 hover:text-primary transition-all shrink-0"
+                    title={`Configure ${tier.label} models`}
                   >
-                    Configure
-                  </Button>
+                    <span className="material-symbols-outlined text-[15px]">tune</span>
+                    <span>Configure</span>
+                  </button>
                 </div>
 
                 <p className="text-[11px] text-text-muted/80 mt-2 line-clamp-2">

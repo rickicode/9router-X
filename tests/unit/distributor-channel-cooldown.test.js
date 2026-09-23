@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: vi.fn(),
   updateProviderConnection: vi.fn(async () => {}),
   getUsageSnapshotByConnectionId: vi.fn(async () => null),

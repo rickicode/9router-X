@@ -28,6 +28,7 @@ vi.mock("open-sse/executors/freebuff.js", () => ({
   FreebuffExecutor: class {},
 }));
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getSettings: mocks.getSettings,
   lockAccountToModel: vi.fn(),
   lockProxyPoolForScope: vi.fn(),

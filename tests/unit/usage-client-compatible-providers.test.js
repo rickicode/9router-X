@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getClientUsageMeta: mocks.getClientUsageMeta,
   getClientUsageConnections: mocks.getClientUsageConnections,
   getProviderNodes: mocks.getProviderNodes,

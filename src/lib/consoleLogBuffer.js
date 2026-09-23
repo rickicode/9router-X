@@ -29,6 +29,19 @@ if (!state.flushTimer) state.flushTimer = null;
 const FLUSH_INTERVAL_MS = 100;
 const MAX_BATCH_LINES = 50;
 let isWriting = false;
+// dirEnsured caches the mkdirSync + statSync cost: both are constant for the
+// process lifetime (same log dir), so re-checking per 100ms flush wasted
+// syscalls on the request path.
+let dirEnsured = null;
+
+function ensureLogDir(logFile) {
+  if (dirEnsured === logFile) return;
+  const logDir = path.dirname(logFile);
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  dirEnsured = logFile;
+}
 
 export function getLogFilePath() {
   if (process.env.CONSOLE_LOG_FILE) return process.env.CONSOLE_LOG_FILE;
@@ -83,14 +96,11 @@ export function rotateLogFiles(baseFile, maxFiles = 5) {
 }
 
 export function writeLogLines(lines) {
-  if (!lines || !lines.length || isWriting) return;
+  if (!lines || !lines.length || isWriting) return Promise.resolve();
   isWriting = true;
   try {
     const logFile = getLogFilePath();
-    const logDir = path.dirname(logFile);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
+    ensureLogDir(logFile);
 
     let payload = lines.join("\n") + "\n";
     let payloadBytes = Buffer.byteLength(payload, "utf8");
@@ -114,9 +124,13 @@ export function writeLogLines(lines) {
       rotateLogFiles(logFile, maxFiles);
     }
 
-    fs.appendFileSync(logFile, payload, "utf8");
+    // Async append (event loop stays free), but writeLogLines returns a
+    // promise that resolves once the file write lands so callers/tests can
+    // await durability; console.log hook just fires it off.
+    return fs.promises.appendFile(logFile, payload, "utf8").catch(() => {});
   } catch {
     // Fail-safe
+    return Promise.resolve();
   } finally {
     isWriting = false;
   }
@@ -153,11 +167,11 @@ function loadInitialLogsFromFile() {
 
 export function flushPendingLines() {
   state.flushTimer = null;
-  if (!state.pendingLines.length) return;
+  if (!state.pendingLines.length) return Promise.resolve();
 
   const lines = state.pendingLines.splice(0, state.pendingLines.length);
   state.emitter.emit("lines", lines);
-  writeLogLines(lines);
+  return Promise.resolve(writeLogLines(lines));
 }
 
 function scheduleFlush() {
@@ -235,6 +249,6 @@ export function getConsoleEmitter() {
 
 if (typeof process !== "undefined" && typeof process.on === "function") {
   process.on("beforeExit", () => {
-    flushPendingLines();
+    Promise.resolve(flushPendingLines()).catch(() => {});
   });
 }

@@ -21,6 +21,7 @@ vi.mock("@/sse/services/auth.js", () => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getSettings: mocks.getSettings,
 }));
 

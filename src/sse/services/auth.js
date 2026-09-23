@@ -614,15 +614,17 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // 3. Window scan (up to 2 windows): SQL pre-filters durable eligibility;
     // the second window covers providers whose first `candidateWindow` rows
     // are all transiently filtered (cache cooldowns / RAM quota blocks).
+    // Window-0 hits the L2 connection cache (8s TTL, invalidated by every
+    // updateProviderConnection/setModelCooldown/ban path), so repeated
+    // selections for a hot provider/model skip the PG scan entirely.
+    // Windows ≥1 always re-read PG (pagination correctness beats cache hits).
     const MAX_SELECTION_WINDOWS = Math.min(10, Math.max(2, Number(process.env.ROUTING_MAX_CANDIDATE_WINDOWS) || 6));
-    const isAntigravity = providerId === "antigravity";
-    const isFreebuff = providerId === "freebuff";
-    let connections = [];
-    let availableConnections = [];
-    let cooledDownIds = new Set();
-    let cooldownHealthy = true;
-    let lastCandidateIds = [];
-    for (let windowIdx = 0; windowIdx < MAX_SELECTION_WINDOWS; windowIdx++) {
+    const CONNECTION_CACHE_TTL_S = 8;
+    const loadWindow = async (windowIdx) => {
+      if (windowIdx === 0) {
+        const cached = await getCachedConnections(`${providerId}::routing:${model || "*"}`).catch(() => null);
+        if (Array.isArray(cached)) return cached;
+      }
       const batch = await getProviderConnections({
         provider: providerId,
         isActive: true,
@@ -631,18 +633,34 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         limit: candidateWindow,
         offset: windowIdx * candidateWindow,
       });
+      if (windowIdx === 0 && batch.length > 0 && excludeSet.size === 0) {
+        setCachedConnections(`${providerId}::routing:${model || "*"}`, batch, CONNECTION_CACHE_TTL_S).catch(() => {});
+      }
+      return batch;
+    };
+    const isAntigravity = providerId === "antigravity";
+    const isFreebuff = providerId === "freebuff";
+    // Antigravity: hydrate the durable quota snapshot cache ONCE, before the
+    // window loop — the snapshot set is per-provider, so re-fetching and
+    // re-hydrating inside every window duplicated identical PG reads up to
+    // MAX_SELECTION_WINDOWS times per selection.
+    if (isAntigravity && model) {
+      try {
+        const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
+        const snapshots = typeof getSnapshots === "function" ? await getSnapshots(providerId).catch(() => []) : [];
+        await hydrateQuotaCacheFromSnapshots(snapshots);
+      } catch {}
+    }
+    let connections = [];
+    let availableConnections = [];
+    let cooledDownIds = new Set();
+    let cooldownHealthy = true;
+    let lastCandidateIds = [];
+    for (let windowIdx = 0; windowIdx < MAX_SELECTION_WINDOWS; windowIdx++) {
+      const batch = await loadWindow(windowIdx);
       if (batch.length === 0) break;
       connections = connections.concat(batch);
       connections = filterConnectionsForModel(providerId, connections, model, settings);
-
-      if (isAntigravity && model) {
-        let snapshots = [];
-        try {
-          const getSnapshots = getLocalDbFn("getBatchProviderQuotas");
-          if (typeof getSnapshots === "function") snapshots = await getSnapshots(providerId).catch(() => []);
-        } catch {}
-        await hydrateQuotaCacheFromSnapshots(snapshots);
-      }
 
       const candidateIds = batch.map(c => c.id).filter(id => !excludeSet.has(id));
       lastCandidateIds = candidateIds;
@@ -658,7 +676,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       availableConnections = batch.filter(c => isConnectionRoutable(c, ctx));
       if (availableConnections.length > 0) break;
     }
-    let connectionsFromCache = false;
 
     log.debug("AUTH", `${provider} | total connections: ${connections.length}, excludeIds: ${excludeSet.size > 0 ? [...excludeSet].join(",") : "none"}, model: ${model || "any"}`);
     if (connections.length === 0) {
@@ -912,11 +929,16 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       if (current && current.lastUsedAt && currentCount < stickyLimit) {
         // Stay with current account
         connection = current;
-        // Update lastUsedAt and increment count (await to ensure persistence)
-        await updateProviderConnection(connection.id, {
-          lastUsedAt: new Date().toISOString(),
-          consecutiveUseCount: (connection.consecutiveUseCount || 0) + 1
-        });
+        // Fire-and-forget: cheap last_used_at-only UPDATE (no transaction, no
+        // row lock, no full-row rewrite) — same durability contract as the
+        // fill-first branch. consecutiveUseCount is in-memory only until the
+        // account rotates.
+        if (connection?.id) {
+          try {
+            const touch = localDb.touchAccountLastUsed(connection.id);
+            if (touch && typeof touch.catch === "function") touch.catch(() => {});
+          } catch {}
+        }
       } else {
         // Pick the least recently used (excluding current if possible)
         const sortedByOldest = [...availableConnections].sort((a, b) => {
@@ -928,11 +950,14 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
         connection = sortedByOldest[0];
 
-        // Update lastUsedAt and reset count to 1 (await to ensure persistence)
-        await updateProviderConnection(connection.id, {
-          lastUsedAt: new Date().toISOString(),
-          consecutiveUseCount: 1
-        });
+        // Fire-and-forget touch (same cheap UPDATE as the sticky branch);
+        // persistence of the rotation state rides on last_used_at itself.
+        if (connection?.id) {
+          try {
+            const touch = localDb.touchAccountLastUsed(connection.id);
+            if (touch && typeof touch.catch === "function") touch.catch(() => {});
+          } catch {}
+        }
       }
     } else {
       // Default: fill-first with Top-5 Fair-Share Jitter (Decision #6)
@@ -948,10 +973,8 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       // Fire-and-forget touch last_used_at for fair-share distribution
       if (connection?.id) {
         try {
-          const res = updateProviderConnection(connection.id, {
-            lastUsedAt: new Date().toISOString(),
-          });
-          if (res && typeof res.catch === "function") res.catch(() => {});
+          const touch = localDb.touchAccountLastUsed(connection.id);
+          if (touch && typeof touch.catch === "function") touch.catch(() => {});
         } catch {}
       }
     }
@@ -1154,8 +1177,11 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (status === 499 || /request aborted|client closed|client disconnected/i.test(String(errorText || ""))) {
     return { shouldFallback: false, cooldownMs: 0 };
   }
-  const connections = await getProviderConnections({ provider });
-  const conn = connections.find(c => c.id === connectionId);
+  // Single-row read: only backoffLevel/status/proxy data of THIS connection
+  // is consumed below. The old fleet-wide getProviderConnections({ provider })
+  // load pulled every row + parsed jsonb data just to .find() one id — a
+  // per-error PG tax that amplified every upstream error storm.
+  const conn = await localDb.getProviderConnectionById(connectionId).catch(() => null);
   const backoffLevel = conn?.backoffLevel || 0;
 
   // A Freebuff proxy-egress refusal (free_mode_unavailable / anonymous_network)

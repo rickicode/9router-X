@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: mocks.getProviderConnections,
   updateProviderConnection: mocks.updateProviderConnection,
 }));

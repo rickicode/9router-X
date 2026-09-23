@@ -21,6 +21,7 @@ vi.mock("next/server", () => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getSettings: mocks.getSettings,
   validateApiKey: mocks.validateApiKey,
 }));

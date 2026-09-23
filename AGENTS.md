@@ -21,6 +21,16 @@ Valkey/Redis L2 cache. Deployed at `http://192.168.90.101:10128`.
 - `src/app/dashboard/` — usage/providers UI
 - `custom-server.js` — entrypoint (`npm start` → port 20127; prod runs 10128)
 
+## Graft — MANDATORY code navigation (strict rules)
+A `graft/` context graph (wiring graph + per-file cards, exact `file:line`) is committed at the repo root. Code search MUST go through graft, not raw rg/grep/Read-first:
+1. Orientation / "where is X": `graft ask "<plain words>"` (+ `--in <path>` to scope, `--source` to inline code).
+2. Literal/regex search: `graft grep "<pattern>"` (auto-ranked by coupling, grouped by symbol).
+3. Callers/callees/blast radius: `graft callers <symbol>` (default in; `--direction out`, `--depth all`), `graft blast` after edits.
+4. File API surface without reading the whole file: `graft skeleton <file>`.
+5. Repo-wide map & hotspots: `graft map`.
+Raw `rg`/`grep`/`cat` are a last resort ONLY for files the graph doesn't index or after graft pointed you at the exact `file:line` (then Read that span, not the whole file).
+Keep graft in sync after structural changes: `graft build` (fast, no key).
+
 ## Commands
 - Dev: `npm run dev` · Build: `npm run build` · Start: `npm start`
 - Tests: `cd tests && npx vitest run` (full), `npx vitest run unit/<file>` (targeted)

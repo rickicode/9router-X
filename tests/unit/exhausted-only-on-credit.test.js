@@ -39,6 +39,7 @@ vi.mock("../../src/sse/utils/logger.js", () => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: vi.fn(async (args) =>
     CONNS.filter((c) => !args?.provider || c.provider === args.provider),
   ),

@@ -19,6 +19,7 @@ vi.mock("../../open-sse/services/proxyPoolFitness.js", () => ({
   isPoolFit: vi.fn(() => true),
 }));
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: mocks.getProviderConnections,
   getSettings: vi.fn(async () => ({})),
   updateProviderConnection: mocks.updateProviderConnection,

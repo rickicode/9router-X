@@ -4,7 +4,9 @@ import postgres from "postgres";
 if (!global._pgSql) {
   const connectionString = process.env.DATABASE_URL || "postgres://9router:password123@localhost:5432/9router";
   global._pgSql = postgres(connectionString, {
-    max: 25,
+    // Tunable to match MAX_CONCURRENT_UPSTREAM: a 128-wide upstream semaphore
+    // behind a 25-connection pool queues inside the DB layer at peak.
+    max: Number(process.env.PG_POOL_MAX) || 25,
     idle_timeout: 30,
     connect_timeout: 10,
     max_lifetime: 60 * 30,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  getProviderConnectionById: vi.fn(async () => null),
   handleEmbeddingsCore: vi.fn(),
   saveRequestUsage: vi.fn(),
 }));

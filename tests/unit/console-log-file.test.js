@@ -27,7 +27,7 @@ afterEach(() => {
 describe("consoleLogBuffer file logging & rotation", () => {
   it("writes lines to the log file", async () => {
     const mod = await import("../../src/lib/consoleLogBuffer.js");
-    mod.writeLogLines(["[INFO] test line 1", "[WARN] test line 2"]);
+    await mod.writeLogLines(["[INFO] test line 1", "[WARN] test line 2"]);
 
     expect(existsSync(TEST_LOG_FILE)).toBe(true);
     const content = readFileSync(TEST_LOG_FILE, "utf8");
@@ -43,7 +43,7 @@ describe("consoleLogBuffer file logging & rotation", () => {
 
     // Write enough batches to trigger multiple rotations
     for (let i = 0; i < 10; i++) {
-      mod.writeLogLines([`batch-${i}: ` + "x".repeat(150)]);
+      await mod.writeLogLines([`batch-${i}: ` + "x".repeat(150)]);
     }
 
     const dir = path.dirname(TEST_LOG_FILE);
@@ -62,11 +62,11 @@ describe("consoleLogBuffer file logging & rotation", () => {
   it("rotateLogFiles shifts files properly", async () => {
     const mod = await import("../../src/lib/consoleLogBuffer.js");
 
-    mod.writeLogLines(["line A"]);
+    await mod.writeLogLines(["line A"]);
     mod.rotateLogFiles(TEST_LOG_FILE, 3);
-    mod.writeLogLines(["line B"]);
+    await mod.writeLogLines(["line B"]);
     mod.rotateLogFiles(TEST_LOG_FILE, 3);
-    mod.writeLogLines(["line C"]);
+    await mod.writeLogLines(["line C"]);
 
     const dir = path.dirname(TEST_LOG_FILE);
     const files = readdirSync(dir).sort();
@@ -78,7 +78,7 @@ describe("consoleLogBuffer file logging & rotation", () => {
 
     // Rotate again -> oldest (line A) should be dropped
     mod.rotateLogFiles(TEST_LOG_FILE, 3);
-    mod.writeLogLines(["line D"]);
+    await mod.writeLogLines(["line D"]);
 
     const filesAfter = readdirSync(dir).sort();
     expect(filesAfter).toEqual(["console.1.log", "console.2.log", "console.log"]);
@@ -92,7 +92,7 @@ describe("consoleLogBuffer file logging & rotation", () => {
     mod.initConsoleLogCapture();
 
     console.log("\x1b[32m[TEST]\x1b[0m Hello World");
-    mod.flushPendingLines();
+    await mod.flushPendingLines();
 
     expect(existsSync(TEST_LOG_FILE)).toBe(true);
     const content = readFileSync(TEST_LOG_FILE, "utf8");

@@ -4,6 +4,7 @@ const connectionsDb = new Map();
 let settingsDb = {};
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: vi.fn(async ({ provider, isActive } = {}) => {
     let list = Array.from(connectionsDb.values());
     if (provider) list = list.filter((c) => c.provider === provider);

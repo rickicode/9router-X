@@ -8,6 +8,7 @@ const MOCK_CONNECTIONS = [
 let connectionUpdateCalls = [];
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getProviderConnections: vi.fn(async () => MOCK_CONNECTIONS),
   updateProviderConnection: vi.fn(async (...a) => {
     connectionUpdateCalls.push(a);

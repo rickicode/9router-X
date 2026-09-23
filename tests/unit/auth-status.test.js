@@ -20,6 +20,7 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: vi.fn(async () => null),
   getSettings: mocks.getSettings,
 }));
 
