@@ -8,6 +8,13 @@ import { acquireLock, releaseLock, isCacheAvailable } from "@/lib/cache/client.j
 // refreshOne silently skips every connection (acquireLock fails open
 // with `false`) while logging a misleading "finished" line.
 const localRefreshLocks = new Set();
+// Transient-failure backoff: connections whose refresh failed with a
+// non-permanent error get an escalating retry delay instead of re-firing
+// every 60s tick (prevents endless churn on dead proxy pools / flaky upstreams).
+const transientFailures = new Map(); // connectionId -> { count, nextRetryAt }
+const TRANSIENT_RETRY_BASE_MS = 5 * 60 * 1000; // first retry after 5 min
+const TRANSIENT_RETRY_MAX_MS = 60 * 60 * 1000; // cap at 1 hour
+
 import { getRefreshLeadMs } from "open-sse/services/tokenRefresh.js";
 import { getCredentialExpiryMs, shouldRefreshCredentials } from "open-sse/services/oauthCredentialManager.js";
 
@@ -64,6 +71,10 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
     // Refresh token known-dead (invalid_grant/invalid_request) — stop retrying
     // every tick; surfaced as "re-login required" instead.
     if (conn.providerSpecificData?.refreshBlocked) continue;
+
+    // Transient-failure backoff: skip until the next retry slot opens.
+    const backoff = transientFailures.get(conn.id);
+    if (backoff && nowMs < backoff.nextRetryAt) continue;
 
     if (shouldRefreshCredentials(conn.provider, conn, nowMs)) {
       out.push(conn);
@@ -128,6 +139,21 @@ async function refreshOne(connection) {
     const { checkAndRefreshToken } = await import("./tokenRefresh.js");
     const result = await checkAndRefreshToken(connection.provider, connection, { force: true });
 
+    if (result?.refreshError) {
+      // Transient (non-permanent) failure: escalating backoff instead of a
+      // re-fire every tick. Permanent errors are handled below by deletion.
+      const prev = transientFailures.get(connection.id);
+      const count = (prev?.count || 0) + 1;
+      const delay = Math.min(TRANSIENT_RETRY_BASE_MS * 2 ** (count - 1), TRANSIENT_RETRY_MAX_MS);
+      transientFailures.set(connection.id, { count, nextRetryAt: Date.now() + delay });
+      log.debug("BG_TOKEN_REFRESH", `Refresh failed transiently — retry in ${Math.round(delay / 1000)}s (attempt ${count})`, {
+        id: connection.id,
+        provider: connection.provider,
+      });
+    } else {
+      transientFailures.delete(connection.id);
+    }
+
     // Dead refresh token (revoked/reused/expired): persist the block marker and
     // disable the connection from routing so it does not stay "active". The marker is
     // lifted by checkAndRefreshToken on the next successful re-auth.
@@ -138,28 +164,32 @@ async function refreshOne(connection) {
       const isAccessTokenStillValid = expiresAt && expiresAt > Date.now() + 30_000;
 
       if (!isAccessTokenStillValid) {
-        const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
-        await updateProviderConnection(connection.id, {
-          isActive: false,
-          testStatus: "disabled",
-          previousStatus: connection.testStatus || "active",
-          disabledReason: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
-          disabledAt: result.refreshErrorAt || new Date().toISOString(),
-          disabledBy: "system",
-          lastError: `OAuth refresh unrecoverable: ${result.refreshError}. Re-login required.`,
-          errorCode: 401,
-          lastErrorAt: new Date().toISOString(),
-          providerSpecificData: {
-            ...(connection.providerSpecificData || {}),
-            refreshBlocked: result.refreshError,
-            refreshBlockedAt: result.refreshErrorAt,
-          },
-        });
-        log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection DISABLED, re-login required", {
-          id: connection.id,
-          provider: connection.provider,
-          error: result.refreshError,
-        });
+        // Dead grant (revoked/expired/access_denied): DELETE the connection
+        // outright — a tombstone row keeps accumulating disabled entries that
+        // nothing revives (re-auth creates a fresh connection anyway).
+        const { deleteProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
+        const deleted = await deleteProviderConnection(connection.id).catch(() => false);
+        if (deleted) {
+          log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection DELETED (dead grant, re-auth to restore)", {
+            id: connection.id,
+            provider: connection.provider,
+            email: connection.email || connection.name || "",
+            error: result.refreshError,
+          });
+        } else {
+          // Delete raced with another worker — make sure it's at least inactive.
+          const { updateProviderConnection } = await import("../../lib/db/repos/connectionsRepo.js");
+          await updateProviderConnection(connection.id, {
+            isActive: false,
+            testStatus: "disabled",
+            disabledBy: "system",
+            errorCode: 401,
+          }).catch(() => {});
+          log.warn("BG_TOKEN_REFRESH", "Refresh token unrecoverable — connection delete raced, marked inactive", {
+            id: connection.id,
+            provider: connection.provider,
+          });
+        }
       } else {
         log.warn("BG_TOKEN_REFRESH", "Refresh token failed, but access token is still valid — keeping connection active", {
           id: connection.id,

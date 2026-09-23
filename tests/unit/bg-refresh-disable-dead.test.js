@@ -1,7 +1,8 @@
 /**
- * Background refresh must DISABLE connections whose refresh token is
- * unrecoverable (e.g. "Account has been deleted"), not just tag them.
- * Otherwise dead accounts keep showing "active" in the UI forever.
+ * Background refresh must DELETE connections whose refresh token is
+ * unrecoverable (e.g. "Account has been deleted" / access_denied) —
+ * a tombstone row is never revived (re-auth creates a fresh connection),
+ * so keeping it just accumulates dead entries.
  *
  * Exercises the real refreshOne path: dynamic imports inside
  * backgroundTokenRefresh.js are intercepted via doMock on the same specifiers.
@@ -29,7 +30,7 @@ vi.mock("open-sse/services/oauthCredentialManager.js", async () => {
   };
 });
 
-describe("refreshOne unrecoverable refresh error disables connection", () => {
+describe("refreshOne unrecoverable refresh error deletes connection", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
@@ -41,11 +42,12 @@ describe("refreshOne unrecoverable refresh error disables connection", () => {
     vi.restoreAllMocks();
   });
 
-  it("writes isActive=false + testStatus disabled on refreshError", async () => {
+  it("DELETES the connection on unrecoverable refreshError", async () => {
     const checkAndRefreshToken = vi.fn(async () => ({
       refreshError: "Account has been deleted",
       refreshErrorAt: new Date(NOW).toISOString(),
     }));
+    const deleteProviderConnection = vi.fn(async () => true);
     const updateProviderConnection = vi.fn(async () => true);
 
     vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
@@ -54,6 +56,7 @@ describe("refreshOne unrecoverable refresh error disables connection", () => {
     vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
       getProviderConnections: vi.fn(async () => []),
       updateProviderConnection,
+      deleteProviderConnection,
     }));
 
     const { runBackgroundTokenRefreshTick } = await import(
@@ -75,23 +78,17 @@ describe("refreshOne unrecoverable refresh error disables connection", () => {
     });
 
     expect(checkAndRefreshToken).toHaveBeenCalledTimes(1);
-    expect(updateProviderConnection).toHaveBeenCalledWith(
-      "ag-1",
-      expect.objectContaining({
-        isActive: false,
-        testStatus: "disabled",
-        errorCode: 401,
-      })
-    );
-    const patch = updateProviderConnection.mock.calls[0][1];
-    expect(patch.providerSpecificData.refreshBlocked).toBe("Account has been deleted");
-    expect(patch.providerSpecificData.refreshBlockedAt).toBe(new Date(NOW).toISOString());
+    expect(deleteProviderConnection).toHaveBeenCalledWith("ag-1");
+    // No tombstone patch on the happy delete path.
+    expect(updateProviderConnection).not.toHaveBeenCalled();
   });
 
-  it("does NOT disable when refresh succeeds", async () => {
+  it("falls back to marking inactive when delete races (returns false)", async () => {
     const checkAndRefreshToken = vi.fn(async () => ({
-      accessToken: "new-tok",
+      refreshError: "Account has been deleted",
+      refreshErrorAt: new Date(NOW).toISOString(),
     }));
+    const deleteProviderConnection = vi.fn(async () => false);
     const updateProviderConnection = vi.fn(async () => true);
 
     vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
@@ -100,6 +97,48 @@ describe("refreshOne unrecoverable refresh error disables connection", () => {
     vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
       getProviderConnections: vi.fn(async () => []),
       updateProviderConnection,
+      deleteProviderConnection,
+    }));
+
+    const { runBackgroundTokenRefreshTick } = await import(
+      "../../src/sse/services/backgroundTokenRefresh.js"
+    );
+
+    const due = {
+      id: "ag-1b",
+      provider: "antigravity",
+      authType: "oauth",
+      refreshToken: "rt-dead",
+      expiresAt: new Date(NOW - 60 * 1000).toISOString(),
+      providerSpecificData: {},
+    };
+
+    await runBackgroundTokenRefreshTick({
+      loadConnections: async () => [due],
+      sleep: async () => {},
+    });
+
+    expect(deleteProviderConnection).toHaveBeenCalledWith("ag-1b");
+    expect(updateProviderConnection).toHaveBeenCalledWith(
+      "ag-1b",
+      expect.objectContaining({ isActive: false })
+    );
+  });
+
+  it("does NOT delete when refresh succeeds", async () => {
+    const checkAndRefreshToken = vi.fn(async () => ({
+      accessToken: "new-tok",
+    }));
+    const deleteProviderConnection = vi.fn(async () => true);
+    const updateProviderConnection = vi.fn(async () => true);
+
+    vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
+      checkAndRefreshToken,
+    }));
+    vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
+      getProviderConnections: vi.fn(async () => []),
+      updateProviderConnection,
+      deleteProviderConnection,
     }));
 
     const { runBackgroundTokenRefreshTick } = await import(
@@ -121,6 +160,115 @@ describe("refreshOne unrecoverable refresh error disables connection", () => {
     });
 
     expect(checkAndRefreshToken).toHaveBeenCalledTimes(1);
+    expect(deleteProviderConnection).not.toHaveBeenCalled();
     expect(updateProviderConnection).not.toHaveBeenCalled();
+  });
+
+  it("keeps access-token-still-valid connections active (no delete)", async () => {
+    const checkAndRefreshToken = vi.fn(async () => ({
+      refreshError: "temporarily_unavailable",
+      refreshErrorAt: new Date(NOW).toISOString(),
+    }));
+    const deleteProviderConnection = vi.fn(async () => true);
+    const updateProviderConnection = vi.fn(async () => true);
+
+    vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
+      checkAndRefreshToken,
+    }));
+    vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
+      getProviderConnections: vi.fn(async () => []),
+      updateProviderConnection,
+      deleteProviderConnection,
+    }));
+
+    const { runBackgroundTokenRefreshTick } = await import(
+      "../../src/sse/services/backgroundTokenRefresh.js"
+    );
+
+    const due = {
+      id: "ag-3",
+      provider: "antigravity",
+      authType: "oauth",
+      refreshToken: "rt-ok",
+      // Access token still valid for 10 minutes — must NOT be touched.
+      expiresAt: new Date(NOW + 10 * 60 * 1000).toISOString(),
+      providerSpecificData: {},
+    };
+
+    await runBackgroundTokenRefreshTick({
+      loadConnections: async () => [due],
+      sleep: async () => {},
+    });
+
+    expect(deleteProviderConnection).not.toHaveBeenCalled();
+    expect(updateProviderConnection).not.toHaveBeenCalled();
+  });
+});
+
+describe("transient-failure backoff skips re-fire within window", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("does not retry a transiently-failed connection on the next tick", async () => {
+    const checkAndRefreshToken = vi.fn(async () => ({
+      refreshError: "upstream_timeout",
+      refreshErrorAt: new Date(NOW).toISOString(),
+    }));
+    const deleteProviderConnection = vi.fn(async () => true);
+    const updateProviderConnection = vi.fn(async () => true);
+
+    vi.doMock("../../src/sse/services/tokenRefresh.js", () => ({
+      checkAndRefreshToken,
+    }));
+    vi.doMock("../../src/lib/db/repos/connectionsRepo.js", () => ({
+      getProviderConnections: vi.fn(async () => []),
+      updateProviderConnection,
+      deleteProviderConnection,
+    }));
+
+    const { runBackgroundTokenRefreshTick } = await import(
+      "../../src/sse/services/backgroundTokenRefresh.js"
+    );
+
+    // Access token still valid → refreshError path keeps it active, and the
+    // transient backoff should suppress the next-tick re-fire.
+    const due = {
+      id: "t-1",
+      provider: "antigravity",
+      authType: "oauth",
+      refreshToken: "rt-t",
+      expiresAt: new Date(NOW + 10 * 60 * 1000).toISOString(),
+      providerSpecificData: {},
+    };
+
+    await runBackgroundTokenRefreshTick({
+      loadConnections: async () => [due],
+      sleep: async () => {},
+    });
+    expect(checkAndRefreshToken).toHaveBeenCalledTimes(1);
+
+    // Advance 1 minute (one tick) — still inside the 5-minute backoff window.
+    vi.setSystemTime(NOW + 60 * 1000);
+    await runBackgroundTokenRefreshTick({
+      loadConnections: async () => [due],
+      sleep: async () => {},
+    });
+    expect(checkAndRefreshToken).toHaveBeenCalledTimes(1); // no second fire
+
+    // Advance past the 5-minute base window → retry allowed again.
+    vi.setSystemTime(NOW + 6 * 60 * 1000);
+    await runBackgroundTokenRefreshTick({
+      loadConnections: async () => [due],
+      sleep: async () => {},
+    });
+    expect(checkAndRefreshToken).toHaveBeenCalledTimes(2);
   });
 });
