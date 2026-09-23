@@ -108,6 +108,8 @@ function CombosPageContent() {
           ]}
           value={activeTab}
           onChange={handleTabChange}
+          size="touch"
+          snap
           className="w-full sm:w-auto min-w-max"
         />
       </div>
@@ -396,6 +398,8 @@ function CombosContent({ activeTab }) {
             ]}
             value={comboCategory}
             onChange={setComboCategory}
+            size="touch"
+            snap
             className="w-full sm:w-auto min-w-max"
           />
         </div>
