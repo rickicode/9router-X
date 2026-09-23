@@ -1357,7 +1357,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => refreshAll(true)}
  disabled={refreshingAll}
-              className="flex w-9 shrink-0 items-center justify-center rounded-sm border border-border bg-surface py-2 text-xs text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
+              className="flex min-h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-border bg-surface py-2 text-xs text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors sm:min-h-9 sm:w-9"
  title="Refresh all quotas"
  >
  <span
@@ -1493,7 +1493,7 @@ export default function ProviderLimits() {
  onClick={() => refreshProvider(conn.id, conn.provider)}
  disabled={isLoading || rowBusy}
  aria-label="Refresh quota"
-                  className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main disabled:opacity-50 transition-colors"
+                  className="flex size-11 items-center justify-center rounded-sm text-text-muted sm:size-9 hover:bg-surface-2 hover:text-text-main disabled:opacity-50 transition-colors"
  >
  <span
  className={`material-symbols-outlined text-[18px] ${isLoading ? "animate-spin" : ""}`}
@@ -1527,7 +1527,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => setOpenMenuConnectionId((prev) => (prev === conn.id ? null : conn.id))}
  aria-label="More actions"
-                  className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+                  className="flex size-11 items-center justify-center rounded-sm text-text-muted sm:size-9 hover:bg-surface-2 hover:text-text-main transition-colors"
  >
  <span className="material-symbols-outlined text-[18px]">more_vert</span>
  </button>
@@ -1787,7 +1787,7 @@ export default function ProviderLimits() {
  setCustomPageSizeInput(String(nextPageSize));
  }
  }}
-                className="rounded-sm border border-border bg-surface px-2 py-2 text-xs text-text-main outline-none hover:bg-surface-2 transition-colors"
+                className="rounded-sm border border-border bg-surface px-3 py-2.5 text-xs min-h-11 text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Accounts per page"
  >
  {ACCOUNT_PAGE_SIZE_OPTIONS.map((option) => (
@@ -1827,7 +1827,7 @@ export default function ProviderLimits() {
  setPageSize(nextPageSize);
  setCustomPageSizeInput(String(nextPageSize));
  }}
-                className="w-20 rounded-sm border border-border bg-surface px-2 py-2 text-xs text-text-main outline-none hover:bg-surface-2 transition-colors"
+                className="w-20 rounded-sm border border-border bg-surface px-3 py-2.5 text-xs min-h-11 text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Custom accounts per page"
  placeholder="Custom"
  />
@@ -1852,7 +1852,7 @@ export default function ProviderLimits() {
  disabled={
  pagination.page <= 1 || connectionsLoading || refreshingAll
  }
-              className="flex w-9 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              className="flex min-h-11 w-11 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors sm:min-h-9 sm:w-9"
  aria-label="Previous accounts page"
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -1871,7 +1871,7 @@ export default function ProviderLimits() {
  connectionsLoading ||
  refreshingAll
  }
-              className="flex w-9 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              className="flex min-h-11 w-11 items-center justify-center rounded-sm border border-border py-2 text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors sm:min-h-9 sm:w-9"
  aria-label="Next accounts page"
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -1927,7 +1927,7 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setResetCreditsState(null)}
-              className="flex size-9 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+              className="flex size-11 items-center justify-center rounded-sm text-text-muted sm:size-9 hover:bg-surface-2 hover:text-text-main transition-colors"
  aria-label="Close reset credit expiry modal"
  >
  <span className="material-symbols-outlined text-[18px]">close</span>

@@ -43,8 +43,8 @@ export default function Toggle({
  title={title}
  onClick={handleClick}
  className={cn(
- "relative inline-flex shrink-0 cursor-pointer rounded-full",
- " ease-in-out",
+ "relative inline-flex shrink-0 cursor-pointer items-center rounded-full",
+ " min-h-11 min-w-11 px-1 sm:min-h-0 sm:min-w-0 sm:px-0",
  "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
  checked ? "bg-primary" : "bg-surface-3",
  sizes[size].track,
