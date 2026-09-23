@@ -373,7 +373,7 @@ export default function SmartRoutingSection({
               className={`group flex flex-col justify-between gap-3 rounded-md border ${tier.cardBorder} ${tier.cardBg} p-3.5 hover:border-primary/50 transition-all cursor-pointer shadow-sm`}
             >
               <div>
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${tier.headerBg}`}>
                       <span className="material-symbols-outlined text-[18px]">{tier.icon}</span>
@@ -483,6 +483,7 @@ export default function SmartRoutingSection({
                     }
                   }}
                   className="text-xs font-mono w-full"
+                  inputClassName="h-9 text-xs font-mono py-1"
                 />
                 <Button
                   size="sm"

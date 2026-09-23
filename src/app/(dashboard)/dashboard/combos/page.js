@@ -793,14 +793,15 @@ function ComboCard({
         </div>
 
         {/* Right Action Bar */}
-        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3 sm:shrink-0">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2.5 sm:shrink-0">
           {/* Strategy selector */}
           <div className="w-full sm:w-[260px] relative">
             <Select
               options={STRATEGY_OPTIONS}
               value={current}
               onChange={(e) => onSetStrategy({ fallbackStrategy: e.target.value })}
-              selectClassName="py-1.5 text-xs font-medium w-full"
+              className="w-full"
+              selectClassName="h-8 py-0 px-2.5 text-xs font-medium w-full leading-none"
             />
             {isUpdatingStrategy && (
               <span className="absolute right-8 top-1/2 -translate-y-1/2 text-primary animate-spin material-symbols-outlined text-[14px]">
@@ -810,48 +811,48 @@ function ComboCard({
           </div>
 
           {/* Quick Buttons */}
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onCopy(combo.name, `combo-${combo.id}`);
               }}
-              className="flex size-8 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+              className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
               title="Copy endpoint name"
               aria-label="Copy endpoint name"
             >
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-outlined text-[17px]">
                 {copied === `combo-${combo.id}` ? "check" : "content_copy"}
               </span>
             </button>
 
             <button
               onClick={onEdit}
-              className="flex size-8 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+              className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
               title="Edit combo"
               aria-label="Edit combo"
             >
-              <span className="material-symbols-outlined text-[18px]">edit</span>
+              <span className="material-symbols-outlined text-[17px]">edit</span>
             </button>
 
             {!isBuiltin && (
               <button
                 onClick={onDelete}
-                className="flex size-8 items-center justify-center rounded text-text-muted hover:bg-danger/10 hover:text-danger transition-colors"
+                className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-danger/50 hover:bg-danger/10 hover:text-danger transition-all shadow-xs"
                 title="Delete combo"
                 aria-label="Delete combo"
               >
-                <span className="material-symbols-outlined text-[18px]">delete</span>
+                <span className="material-symbols-outlined text-[17px]">delete</span>
               </button>
             )}
 
             {isDifficulty && (
               <button
                 onClick={() => setExpandedSmartRouting(!expandedSmartRouting)}
-                className="flex size-8 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors ml-1"
+                className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all ml-0.5 shadow-xs"
                 title={expandedSmartRouting ? "Collapse Smart Routing panel" : "Expand Smart Routing panel"}
               >
-                <span className="material-symbols-outlined text-[18px]">
+                <span className="material-symbols-outlined text-[17px]">
                   {expandedSmartRouting ? "expand_less" : "expand_more"}
                 </span>
               </button>
