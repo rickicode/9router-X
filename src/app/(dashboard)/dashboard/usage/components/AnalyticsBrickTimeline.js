@@ -116,6 +116,7 @@ export default function AnalyticsBrickTimeline({ data = [] }) {
             style={{
               gridTemplateColumns: `repeat(${Math.min(validPoints.length, 31)}, minmax(0, 1fr))`,
               gridTemplateRows: `repeat(${MAX_ROWS}, minmax(0, 1fr))`,
+              gridAutoFlow: "column",
             }}
             role="img"
             aria-label={`${mode.label} grid across ${validPoints.length} buckets, peak ${fmtValue(viewMode, max)}`}

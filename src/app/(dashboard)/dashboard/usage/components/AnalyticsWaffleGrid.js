@@ -47,7 +47,7 @@ function Waffle({ segments, emptyLabel }) {
   return (
     <div
       className="grid gap-[3px]"
-      style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+      style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))", gridAutoFlow: "row" }}
       role="img"
       aria-label={segments.map((s) => `${s.label} ${s.display}`).join(", ")}
     >

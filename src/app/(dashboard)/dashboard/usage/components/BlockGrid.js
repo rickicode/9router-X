@@ -64,6 +64,7 @@ export default function BlockGrid({
           style={{
             gridTemplateColumns: `repeat(${Math.min(visible.length, 31)}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+            gridAutoFlow: "column",
           }}
           role="img"
           aria-label={`${label} grid, peak ${valueFormatter(max)}`}
