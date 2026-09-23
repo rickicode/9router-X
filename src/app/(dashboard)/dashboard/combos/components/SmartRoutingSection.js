@@ -292,7 +292,7 @@ export default function SmartRoutingSection({
               <button
                 type="button"
                 onClick={() => setShowJudgeSelect(true)}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-xs font-medium text-primary hover:border-primary hover:bg-primary/15 transition-all"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-2.5 font-mono min-h-11 sm:min-h-9 sm:py-1 text-xs font-medium text-primary hover:border-primary hover:bg-primary/15 transition-all"
                 title="Select judge model"
               >
                 <span className="material-symbols-outlined text-[16px]">gavel</span>
@@ -303,7 +303,7 @@ export default function SmartRoutingSection({
                 <button
                   type="button"
                   onClick={() => onSetStrategy({ judgeModel: "" })}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-md px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:py-1 sm:px-2 hover:text-danger hover:bg-danger/10 transition-colors"
                   title="Reset to Auto"
                 >
                   <span className="material-symbols-outlined text-[16px]">restart_alt</span>
@@ -325,7 +325,7 @@ export default function SmartRoutingSection({
           <select
             value={policy}
             onChange={(e) => onSetStrategy({ difficultyPolicy: e.target.value })}
-            className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+            className="rounded-md border border-border bg-surface px-3 py-2.5 text-xs font-medium min-h-11 sm:min-h-9 text-text-main focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
           >
             <option value="balanced">Balanced (Optimal Tradeoff)</option>
             <option value="cost_efficient">Cost Efficient (Aggressive Fast Tiers)</option>
