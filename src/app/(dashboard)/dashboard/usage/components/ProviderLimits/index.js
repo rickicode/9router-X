@@ -1840,7 +1840,7 @@ export default function ProviderLimits() {
  disabled={
  pagination.page <= 1 || connectionsLoading || refreshingAll
  }
-              className="flex items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              className="flex min-h-11 items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors sm:min-h-9"
  >
  First Page
  </button>
@@ -1886,7 +1886,7 @@ export default function ProviderLimits() {
  connectionsLoading ||
  refreshingAll
  }
-              className="flex items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              className="flex min-h-11 items-center rounded-sm border border-border px-3 py-2 text-xs text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 transition-colors sm:min-h-9"
  >
  Last Page
  </button>
