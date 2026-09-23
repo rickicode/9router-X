@@ -134,7 +134,7 @@ export default function QuotaTable({
  const pageStart = sortedQuotas.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
  const pageEnd = Math.min(page * PAGE_SIZE, sortedQuotas.length);
 
- const cellPad = compact ? "py-1 px-1.5" : "h-8 px-3";
+ const cellPad = compact ? "py-1.5 px-2.5 sm:px-1.5" : "px-3 py-2.5 sm:h-8 sm:py-0";
  const nameText = compact ? "text-[11px]" : "text-sm";
  const resetPrimary = compact ? "text-[11px]" : "text-sm";
  const resetSecondary = compact ? "text-[11px]" : "text-xs";
@@ -169,10 +169,10 @@ export default function QuotaTable({
  return (
  <div
  key={`${quota.name}-${quota.index}`}
- className={`flex items-center gap-2 border-b border-border hover:bg-surface-2 ${cellPad}`}
+ className={`relative flex flex-col gap-1.5 border-b border-border hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-2 ${cellPad}`}
  >
- {/* Name */}
- <div className="flex w-36 min-w-0 items-center gap-1.5">
+ {/* Name + identity */}
+ <div className="flex min-w-0 items-center gap-1.5 sm:w-36 sm:shrink-0">
  <span className="text-[11px] shrink-0">{colors.emoji}</span>
  <div className="min-w-0">
  <div className={`${nameText} font-medium text-text-main truncate`}>
@@ -188,12 +188,18 @@ export default function QuotaTable({
  </div>
  )}
  </div>
+ {/* Reset time rides the name row on mobile so the value column keeps its width */}
+ <span className={`${resetPrimary} ml-auto shrink-0 truncate text-text-muted sm:hidden`}>
+ {countdown !== "-" ? countdownLabel : resetDisplay || "N/A"}
+ </span>
  </div>
 
- {/* Progress + used/total */}
- <div className={`min-w-0 flex-1 ${compact ? "space-y-3" : "space-y-3"}`}>
+ {/* Progress + used/total. On mobile this owns a full row, because at 360 the
+     fixed 144px name column plus the reset column left it 0-27px wide and the
+     used/total string was cut to two glyphs. */}
+ <div className="min-w-0 flex-1 sm:min-w-[7rem]">
  {!isUnlimited && (
- <div className={`${compact ? "h-1" : "h-1.5"} rounded-full overflow-hidden border ${colors.bgLight} ${
+ <div className={`${compact ? "h-1" : "h-1.5"} mb-1 rounded-full overflow-hidden border ${colors.bgLight} ${
  quota.remaining === 0 ? "border-border" : "border-transparent"
  }`}>
  <div
@@ -222,8 +228,8 @@ export default function QuotaTable({
  </div>
  </div>
 
- {/* Reset time */}
- <div className="min-w-0 shrink">
+ {/* Reset time (desktop only; mobile shows it on the name row) */}
+ <div className="hidden min-w-0 shrink sm:block">
  {countdown !== "-" || resetDisplay ? (
  compact ? (
  <div
@@ -256,7 +262,7 @@ export default function QuotaTable({
  <button
  type="button"
  onClick={() => onHideQuota(quota)}
- className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
+ className="absolute right-1 top-1 inline-flex size-11 items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main sm:static sm:size-8"
  title="Hide this quota row"
  aria-label={`Hide quota ${quota.name}`}
  >

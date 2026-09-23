@@ -1011,7 +1011,7 @@ export default function ProviderLimits() {
  role="tablist"
  aria-orientation="horizontal"
  aria-label="Account status filters"
- className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-sm border border-border bg-surface p-1"
+ className="tab-scroll-fade inline-flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-sm border border-border bg-surface p-1"
  onKeyDown={(e) => {
  const statusKeys = ["all", "active", "exhausted", "unavailable", "disabled"];
  const currentIndex = statusKeys.indexOf(accountFilter);
@@ -1058,7 +1058,7 @@ export default function ProviderLimits() {
  }
  setAccountFilter(tab.key);
  }}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 py-2 text-xs font-medium transition-colors ${
+                className={`scroll-snap-align-start inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-sm px-3 py-2 text-xs font-medium transition-colors sm:min-h-9 sm:px-2.5 ${
                   isSelected
                     ? "bg-primary text-white"
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -1140,7 +1140,7 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setProviderMenuOpen((prev) => !prev)}
-              className={`flex items-center justify-between gap-1.5 rounded-sm border px-2.5 py-2 text-xs font-medium transition-colors ${
+              className={`flex items-center justify-between gap-1.5 rounded-sm border px-3 py-2.5 text-xs font-medium transition-colors min-h-11 sm:min-h-9 sm:px-2.5 ${
                 providerFilter !== "all"
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border bg-surface text-text-main hover:bg-surface-2"
@@ -1251,7 +1251,7 @@ export default function ProviderLimits() {
  <select
  value={quotaSortMode}
  onChange={(event) => setQuotaSortMode(event.target.value)}
-              className="rounded-sm border border-border bg-surface px-2 py-2 text-xs font-medium text-text-main outline-none hover:bg-surface-2 transition-colors"
+              className="rounded-sm border border-border bg-surface px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-text-main outline-none hover:bg-surface-2 transition-colors"
  aria-label="Sort Codex quotas by remaining"
  >
  {QUOTA_SORT_OPTIONS.map((option) => (
@@ -1267,7 +1267,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={() => setExpiringFirst((prev) => !prev)}
  aria-pressed={expiringFirst}
-              className={`flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-2 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-sm border px-3 py-2.5 text-xs font-medium transition-colors min-h-11 sm:min-h-9 sm:px-2.5 ${
                 expiringFirst
                   ? "border-warning/30 bg-warning/10 text-warning font-medium"
                   : "border-border bg-surface text-text-main hover:bg-surface-2"
@@ -1293,7 +1293,7 @@ export default function ProviderLimits() {
  setExpiringFirst(false);
  setPage(1);
  }}
-              className="flex items-center gap-1 rounded-sm px-2 py-2 text-xs font-medium text-text-muted hover:text-text-main transition-colors"
+              className="flex items-center gap-1 rounded-sm px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-text-muted hover:text-text-main transition-colors"
  title="Reset all filters"
  >
  <span className="material-symbols-outlined text-[18px]">restart_alt</span>
@@ -1309,7 +1309,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={handleDisableDepleted}
  disabled={bulkToggling}
-              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-danger/30 bg-danger/10 px-2.5 py-2 text-xs font-medium text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
  title="Disable connections with depleted quota on the current page"
  >
  <span className="material-symbols-outlined text-[18px]">block</span>
@@ -1321,7 +1321,7 @@ export default function ProviderLimits() {
  type="button"
  onClick={handleEnableAvailable}
  disabled={bulkToggling}
-              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-success/30 bg-success/10 px-2.5 py-2 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-success/30 bg-success/10 px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
  title="Enable connections that still have quota on the current page"
  >
  <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -1334,7 +1334,7 @@ export default function ProviderLimits() {
  <button
  type="button"
  onClick={() => setAutoRefresh((prev) => !prev)}
-              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-2.5 text-xs font-medium min-h-11 sm:min-h-9 sm:px-2.5 text-text-main hover:bg-surface-2 transition-colors"
  title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
  >
  <span
