@@ -4,13 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import BlockGrid, { buildColumns, GridLegend } from "./BlockGrid";
+import { formatTokens } from "@/shared/utils/formatTokens";
 
-const fmtTokens = (n) => {
-  const value = Number(n) || 0;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return `${Math.round(value)}`;
-};
+const fmtTokens = formatTokens;
 
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
 

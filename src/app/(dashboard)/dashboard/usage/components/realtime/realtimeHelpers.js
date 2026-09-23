@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatTokens } from "@/shared/utils/formatTokens";
 
 export function timeAgo(timestamp) {
  if (!timestamp) return "just now";
@@ -31,9 +32,4 @@ export function TimeAgo({ timestamp }) {
  return <>{timeAgo(timestamp)}</>;
 }
 
-export const fmt = (n) => {
- const num = Number(n) || 0;
- if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
- if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
- return String(num);
-};
+export const fmt = (n) => formatTokens(n);

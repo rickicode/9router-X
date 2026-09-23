@@ -1,8 +1,12 @@
 export {
- validateProviderFilter,
- validateModelFilter,
- validateFilterDimension,
+  validateProviderFilter,
+  validateModelFilter,
+  validateFilterDimension,
 } from "../../../../../lib/analyticsFilters.js";
+
+import { formatTokens, formatTokensExact } from "@/shared/utils/formatTokens";
+
+export { formatTokensExact };
 
 export const MIN_SAMPLES = 30;
 const metric = (v) =>
@@ -395,12 +399,7 @@ export function formatMetric(value, kind) {
 
 export const fmtNumber = (n) => new Intl.NumberFormat("en-US").format(Number(n) || 0);
 
-export const fmtTokens = (n) => {
- const num = Number(n) || 0;
- if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
- if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
- return String(num);
-};
+export const fmtTokens = formatTokens;
 
 export function buildAnalyticsCsv(models = []) {
  const list = Array.isArray(models) ? models : [];

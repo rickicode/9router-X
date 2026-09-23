@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
+import { formatTokens } from "@/shared/utils/formatTokens";
 import { cn } from "@/shared/utils/cn";
 
 const ERROR_CATEGORY_LABELS = {
@@ -16,12 +17,7 @@ const ERROR_CATEGORY_LABELS = {
  unknown: { label: "Unknown", color: "bg-text-muted", textColor: "text-text-muted" },
 };
 
-const fmt = (n) => {
- const num = Number(n) || 0;
- if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
- if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
- return String(num);
-};
+const fmt = (n) => formatTokens(n);
 
 const fmtMs = (ms) => {
  if (!ms && ms !== 0) return "—";

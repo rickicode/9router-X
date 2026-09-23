@@ -3,6 +3,7 @@
 import PropTypes from "prop-types";
 import Link from "next/link";
 import Tooltip from "@/shared/components/Tooltip";
+import { formatTokens, formatTokensExact } from "@/shared/utils/formatTokens";
 
 const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
@@ -40,7 +41,7 @@ const CARDS = [
   },
 ];
 
-function Metric({ label, icon, tone, value, valueClass, note, extra, compact = false }) {
+function Metric({ label, icon, tone, value, valueClass, note, extra, exact, compact = false }) {
   return (
     <div
       className={`flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3 sm:gap-3 sm:p-4 ${
@@ -57,6 +58,7 @@ function Metric({ label, icon, tone, value, valueClass, note, extra, compact = f
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
         <span
+          title={exact ? `${exact} · exact count` : undefined}
           className={`text-lg font-semibold tabular-nums whitespace-nowrap sm:text-2xl ${valueClass || "text-text-main"}`}
         >
           {value}
@@ -93,9 +95,24 @@ export default function OverviewCards({ stats }) {
           </span>
         }
       />
-      <Metric {...CARDS[1]} value={fmt(stats.totalPromptTokens)} valueClass="text-primary" />
-      <Metric {...CARDS[2]} value={fmt(stats.totalCachedTokens)} valueClass="text-cyan-400" />
-      <Metric {...CARDS[3]} value={fmt(stats.totalCompletionTokens)} valueClass="text-emerald-400" />
+      <Metric
+        {...CARDS[1]}
+        value={formatTokens(stats.totalPromptTokens)}
+        exact={formatTokensExact(stats.totalPromptTokens)}
+        valueClass="text-primary"
+      />
+      <Metric
+        {...CARDS[2]}
+        value={formatTokens(stats.totalCachedTokens)}
+        exact={formatTokensExact(stats.totalCachedTokens)}
+        valueClass="text-cyan-400"
+      />
+      <Metric
+        {...CARDS[3]}
+        value={formatTokens(stats.totalCompletionTokens)}
+        exact={formatTokensExact(stats.totalCompletionTokens)}
+        valueClass="text-emerald-400"
+      />
       <Metric
         {...CARDS[4]}
         value={`~${fmtCost(stats.totalCost)}`}
