@@ -1,4 +1,51 @@
 services:
+  # API gateway — Hono + node:cluster. Serves /v1/*, /v1beta/*, /codex,
+  # /responses. Runs SEPARATELY from the dashboard so gateway traffic never
+  # contends with the dashboard's event loop. Auto-restart via restart:always
+  # + Docker HEALTHCHECK.
+  9router-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    image: 9router-api:latest
+    container_name: 9router-api
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    mem_limit: 2g
+    memswap_limit: 2g
+    ports:
+      - "10129:10129"
+    volumes:
+      - 9router-data:/app/data
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/data
+      GATEWAY_PORT: "10129"
+      GATEWAY_WORKERS: "4"
+      HOSTNAME: "0.0.0.0"
+      TZ: Asia/Jakarta
+      NODE_ENV: production
+      MALLOC_ARENA_MAX: "2"
+      DATABASE_URL: postgres://9router:${POSTGRES_PASSWORD:-password123}@postgres:5432/9router
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:10129/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   9router-x:
     build:
       context: .
