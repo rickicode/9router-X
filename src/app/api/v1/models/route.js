@@ -156,6 +156,12 @@ const parseOpenAIStyleModels = (data) => {
   return data?.data || data?.models || data?.results || [];
 };
 
+// In-memory cache for /v1/models. The list only changes when connections,
+// combos, custom models, or aliases change — but rebuild costs seconds (live
+// upstream catalog fetches). At 1000 req/min rebuilding per-request is fatal.
+const MODELS_CACHE_TTL_MS = 30 * 1000;
+let modelsListCache = new Map();
+
 // Header sent by fetchCompatibleModelIds to detect cross-instance /models fetches
 // and break recursive loops between 9router instances connected to each other.
 const INTERNAL_MODELS_FETCH_HEADER = "x-9r-internal-models-fetch";
@@ -380,6 +386,31 @@ export async function buildModelsList(kindFilter, options = {}) {
     models.push(entry);
   }
 
+  // Prefetch ALL live catalog resolvers IN PARALLEL before the per-provider loop.
+  // Previously each resolver was awaited sequentially inside the loop (5s timeout
+  // each), so 10 live-catalog providers pushed /v1/models past 10s client timeouts.
+  const liveResolverResults = new Map();
+  if (!skipDynamicFetch && connections.length > 0 && kindFilter.includes(LLM_KIND)) {
+    const resolverTasks = [...activeConnectionByProvider.entries()]
+      .filter(([providerId, conn]) => {
+        const liveResolver = LIVE_MODEL_RESOLVERS[providerId];
+        if (!liveResolver) return false;
+        const hasExplicit =
+          Array.isArray(conn?.providerSpecificData?.enabledModels)
+          && conn.providerSpecificData.enabledModels.length > 0;
+        return !hasExplicit;
+      })
+      .map(async ([providerId, conn]) => {
+        try {
+          const live = await LIVE_MODEL_RESOLVERS[providerId](conn);
+          if (live?.models?.length) liveResolverResults.set(providerId, live.models);
+        } catch (err) {
+          console.log(`Live model fetch failed for ${providerId}: ${err?.message || err}`);
+        }
+      });
+    await Promise.all(resolverTasks);
+  }
+
   if (connections.length === 0) {
     // DB unavailable -> return static models, filtered by per-model kind
     const aliasToProviderId = Object.fromEntries(
@@ -456,26 +487,20 @@ export async function buildModelsList(kindFilter, options = {}) {
       // Config-driven live catalog override (e.g. Kiro returns dynamic
       // -thinking/-agentic variants per account). On failure, fall back to
       // whatever rawModelIds already holds.
-      const liveResolver = LIVE_MODEL_RESOLVERS[providerId];
-      if (liveResolver && !hasExplicitEnabledModels) {
-        try {
-          const live = await liveResolver(conn);
-          if (live?.models?.length) {
-            rawModelIds = live.models.map((m) => m.id);
-            liveModelKindById = new Map(
-              live.models
-                .filter((m) => m?.id)
-                .map((m) => [m.id, modelKind(m)])
-            );
-            liveCapabilitiesById = new Map(
-              live.models
-                .filter((m) => m?.id && m.capabilities)
-                .map((m) => [m.id, m.capabilities])
-            );
-          }
-        } catch (err) {
-          console.log(`Live model fetch failed for ${providerId}: ${err?.message || err}`);
-        }
+      // Live resolver results are prefetched in parallel above this loop.
+      const liveModels = liveResolverResults.get(providerId);
+      if (liveModels?.length) {
+        rawModelIds = liveModels.map((m) => m.id);
+        liveModelKindById = new Map(
+          liveModels
+            .filter((m) => m?.id)
+            .map((m) => [m.id, modelKind(m)])
+        );
+        liveCapabilitiesById = new Map(
+          liveModels
+            .filter((m) => m?.id && m.capabilities)
+            .map((m) => [m.id, m.capabilities])
+        );
       }
 
       const modelIds = rawModelIds
@@ -654,9 +679,23 @@ export async function GET(request) {
   try {
     // Detect cross-instance recursive /models fetch (another 9router fetching our /models)
     const skipDynamicFetch = request?.headers?.get(INTERNAL_MODELS_FETCH_HEADER) === "1";
+    const cacheKey = skipDynamicFetch ? "skip" : "full";
+    const cached = modelsListCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return Response.json({ object: "list", data: cached.data }, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=30",
+        },
+      });
+    }
     const data = await buildModelsList([LLM_KIND], { skipDynamicFetch });
+    modelsListCache.set(cacheKey, { data, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
     return Response.json({ object: "list", data }, {
-      headers: { "Access-Control-Allow-Origin": "*" },
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=30",
+      },
     });
   } catch (error) {
     console.log("Error fetching models:", error);

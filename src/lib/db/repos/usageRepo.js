@@ -210,8 +210,8 @@ async function flushUsageQueue() {
 
       await tx.run(
         `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1)
-         ON CONFLICT (key) DO UPDATE SET value = (COALESCE(_meta.value, '0')::bigint + $1)::text`,
-        [String(aggregated.length)],
+         ON CONFLICT (key) DO UPDATE SET value = (COALESCE(_meta.value, '0')::bigint + $1::bigint)::text`,
+        [String(batch.length)],
       );
     });
     for (const item of batch) item.resolve?.();

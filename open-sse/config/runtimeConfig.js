@@ -36,8 +36,10 @@ function envInt(name, def) {
 // streams on a 4GB box). Past the cap, requests wait FIFO up to the queue
 // timeout, then fail fast with 503 + retry_after instead of OOM-killing the
 // box and taking every in-flight request down with it.
-export const MAX_CONCURRENT_UPSTREAM = envInt("MAX_CONCURRENT_UPSTREAM", 32);
-export const UPSTREAM_QUEUE_TIMEOUT_MS = envInt("UPSTREAM_QUEUE_TIMEOUT_MS", 30000);
+// Raised to 128: at 32 the semaphore saturated at ~30 concurrent and queued
+// the rest for 30s (503), capping throughput at ~60 req/min.
+export const MAX_CONCURRENT_UPSTREAM = envInt("MAX_CONCURRENT_UPSTREAM", 128);
+export const UPSTREAM_QUEUE_TIMEOUT_MS = envInt("UPSTREAM_QUEUE_TIMEOUT_MS", 10000);
 
 // Memory management config
 export const MEMORY_CONFIG = {
