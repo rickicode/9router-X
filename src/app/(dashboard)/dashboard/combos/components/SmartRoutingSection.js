@@ -483,7 +483,7 @@ export default function SmartRoutingSection({
                     }
                   }}
                   className="text-xs font-mono w-full"
-                  inputClassName="h-9 text-xs font-mono py-1"
+                  inputClassName="h-11 text-xs font-mono py-2 sm:h-9 sm:py-1"
                 />
                 <Button
                   size="sm"

@@ -368,7 +368,7 @@ function CombosContent({ activeTab }) {
         <div className="flex items-center gap-2.5 shrink-0">
           <Button
             variant="secondary"
-            size="sm" className="sm:!h-10"
+            size="sm"
             icon="help_outline"
             onClick={() => setShowStrategyGuide(true)}
             title="View routing strategies and tradeoffs"
@@ -377,7 +377,7 @@ function CombosContent({ activeTab }) {
           </Button>
           <Button
             variant="primary"
-            size="sm" className="sm:!h-10"
+            size="sm"
             icon="add"
             onClick={() => setShowCreateModal(true)}
             className="shadow-sm"
@@ -470,7 +470,7 @@ function CombosContent({ activeTab }) {
                     : "Create a custom combo to group models with fallback or round-robin strategies."}
                 </p>
                 {!searchQuery && (
-                  <Button icon="add" size="sm" className="sm:!h-10" onClick={() => setShowCreateModal(true)}>
+                  <Button icon="add" size="sm" onClick={() => setShowCreateModal(true)}>
                     Create Custom Combo
                   </Button>
                 )}
@@ -561,7 +561,7 @@ function CombosContent({ activeTab }) {
                 <p className="text-[11px] text-text-muted/70 mt-1 mb-3">
                   Create your own model groups with custom fallback or round-robin strategies.
                 </p>
-                <Button icon="add" size="sm" className="sm:!h-10" variant="secondary" onClick={() => setShowCreateModal(true)}>
+                <Button icon="add" size="sm" variant="secondary" onClick={() => setShowCreateModal(true)}>
                   Create Custom Combo
                 </Button>
               </div>
