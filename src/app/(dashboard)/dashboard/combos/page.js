@@ -805,7 +805,7 @@ function ComboCard({
               value={current}
               onChange={(e) => onSetStrategy({ fallbackStrategy: e.target.value })}
               className="w-full"
-              selectClassName="h-8 py-0 px-2.5 text-xs font-medium w-full leading-none"
+              selectClassName="h-11 py-0 px-3 text-xs font-medium w-full leading-none sm:h-8 sm:px-2.5"
             />
             {isUpdatingStrategy && (
               <span className="absolute right-8 top-1/2 -translate-y-1/2 text-primary animate-spin material-symbols-outlined text-[14px]">
@@ -821,7 +821,7 @@ function ComboCard({
                 e.stopPropagation();
                 onCopy(combo.name, `combo-${combo.id}`);
               }}
-              className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
+              className="flex size-11 items-center justify-center rounded-md border sm:size-8 border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
               title="Copy endpoint name"
               aria-label="Copy endpoint name"
             >
@@ -832,7 +832,7 @@ function ComboCard({
 
             <button
               onClick={onEdit}
-              className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
+              className="flex size-11 items-center justify-center rounded-md border sm:size-8 border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all shadow-xs"
               title="Edit combo"
               aria-label="Edit combo"
             >
@@ -842,7 +842,7 @@ function ComboCard({
             {!isBuiltin && (
               <button
                 onClick={onDelete}
-                className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-danger/50 hover:bg-danger/10 hover:text-danger transition-all shadow-xs"
+                className="flex size-11 items-center justify-center rounded-md border sm:size-8 border-border/70 bg-surface text-text-muted hover:border-danger/50 hover:bg-danger/10 hover:text-danger transition-all shadow-xs"
                 title="Delete combo"
                 aria-label="Delete combo"
               >
@@ -853,7 +853,7 @@ function ComboCard({
             {isDifficulty && (
               <button
                 onClick={() => setExpandedSmartRouting(!expandedSmartRouting)}
-                className="flex size-8 items-center justify-center rounded-md border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all ml-0.5 shadow-xs"
+                className="flex size-11 items-center justify-center rounded-md border sm:size-8 border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all ml-0.5 shadow-xs"
                 title={expandedSmartRouting ? "Collapse Smart Routing panel" : "Expand Smart Routing panel"}
               >
                 <span className="material-symbols-outlined text-[17px]">
