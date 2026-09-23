@@ -55,9 +55,9 @@ function Metric({ label, icon, tone, value, valueClass, note, extra, compact = f
           <span className="material-symbols-outlined text-[15px] sm:text-[16px]" aria-hidden="true">{icon}</span>
         </span>
       </div>
-      <div className="flex flex-wrap items-baseline gap-x-2">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <span
-          className={`text-xl font-semibold tabular-nums break-all sm:text-2xl ${valueClass || "text-text-main"}`}
+          className={`text-lg font-semibold tabular-nums whitespace-nowrap sm:text-2xl ${valueClass || "text-text-main"}`}
         >
           {value}
         </span>
