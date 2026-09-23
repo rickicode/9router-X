@@ -2,6 +2,48 @@ import { getUsageStats, statsEmitter, getActiveRequests, getLast10Minutes } from
 
 export const dynamic = "force-dynamic";
 
+// Full getUsageStats(period=all) seq-scans the entire month partition
+// (~200ms DB + heavy JS aggregation). On busy gateways the "update" event
+// fires on every saved request — without coalescing that is one full scan
+// per event per open stream (measured 0.6 cores of Postgres CPU on prod).
+// Share ONE coalesced recalc across all connected streams: at most one
+// scan every STATS_RECALC_MIN_GAP_MS, results broadcast to everyone.
+const STATS_RECALC_MIN_GAP_MS = 5000;
+const shared = (globalThis.__usageStreamShared ??= {
+  recalcTimer: null,
+  recalcInFlight: null,
+  lastRecalcAt: 0,
+  lastStats: null,
+});
+
+function scheduleSharedRecalc(onDone) {
+  const elapsed = Date.now() - shared.lastRecalcAt;
+  const fire = () => {
+    if (!shared.recalcInFlight) {
+      shared.recalcInFlight = getUsageStats()
+        .then((stats) => {
+          shared.lastStats = stats;
+          shared.lastRecalcAt = Date.now();
+        })
+        .finally(() => {
+          shared.recalcInFlight = null;
+        });
+    }
+    shared.recalcInFlight.then(onDone, onDone);
+  };
+  if (elapsed >= STATS_RECALC_MIN_GAP_MS) {
+    fire();
+  } else if (!shared.recalcTimer) {
+    shared.recalcTimer = setTimeout(() => {
+      shared.recalcTimer = null;
+      fire();
+    }, STATS_RECALC_MIN_GAP_MS - elapsed);
+    shared.recalcTimer.unref?.();
+  } else {
+    shared.recalcInFlight.then(onDone, onDone);
+  }
+}
+
 export async function GET() {
   const encoder = new TextEncoder();
   const state = { closed: false, keepalive: null, send: null, sendPending: null, cachedStats: null };
@@ -17,16 +59,25 @@ export async function GET() {
         if (state.closed) return;
         try {
           // Push lightweight update immediately so UI reflects changes fast
-          if (state.cachedStats) {
+          if (state.cachedStats || shared.lastStats) {
+            state.cachedStats ??= shared.lastStats;
             const { activeRequests, recentRequests, errorProvider } = await getActiveRequests();
             const last10Minutes = await getLast10Minutes();
             const quickStats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider, last10Minutes };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(quickStats)}\n\n`));
           }
-          // Then do full recalc and update cache
-          const stats = await getUsageStats();
-          state.cachedStats = stats;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
+          // Full recalc is shared+coalesced across streams; update cache when done
+          scheduleSharedRecalc(() => {
+            if (state.closed) return;
+            if (shared.lastStats) {
+              state.cachedStats = shared.lastStats;
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(shared.lastStats)}\n\n`));
+              } catch {
+                state.closed = true;
+              }
+            }
+          });
         } catch {
           state.closed = true;
           statsEmitter.off("update", state.send);
