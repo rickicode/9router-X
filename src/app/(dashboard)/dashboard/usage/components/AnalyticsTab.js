@@ -4,6 +4,7 @@ import { useState } from "react";
 import Card from "@/shared/components/Card";
 import AnalyticsWaffleGrid from "./AnalyticsWaffleGrid";
 import AnalyticsBrickTimeline from "./AnalyticsBrickTimeline";
+import TopProvidersCard from "./TopProvidersCard";
 import { useAnalytics } from "./useAnalytics";
 import AnalyticsFilterBar from "./AnalyticsFilterBar";
 import AnalyticsSummaryCards from "./AnalyticsSummaryCards";
