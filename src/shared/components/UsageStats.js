@@ -784,6 +784,8 @@ export default function UsageStats({
  options={OVERVIEW_SUBTABS}
  value={activeSubTab}
  onChange={handleSubTabChange}
+ size="touch"
+ snap
  className="w-full sm:w-auto min-w-max"
  />
  </div>

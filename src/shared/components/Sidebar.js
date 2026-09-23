@@ -170,7 +170,7 @@ export default function Sidebar({ onClose }) {
  <>
  <aside className="flex w-60 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" aria-label="Dashboard">
+        <Link href="/dashboard" className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
  </div>
@@ -462,12 +462,12 @@ export default function Sidebar({ onClose }) {
         </div>
       </nav>
 
- <div className="flex h-8 items-center border-t border-border px-3">
+ <div className="flex min-h-11 items-center border-t border-border px-1">
  <a
  href="https://github.com/rickicode/9router-X"
  target="_blank"
  rel="noreferrer"
- className="text-xs text-text-muted hover:text-text-main"
+ className="flex min-h-11 items-center rounded-sm px-2 text-xs text-text-muted hover:text-text-main"
  >
  X Version · GitHub
  </a>
