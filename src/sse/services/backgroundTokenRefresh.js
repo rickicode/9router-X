@@ -197,13 +197,22 @@ export async function runBackgroundTokenRefreshTick(deps = {}) {
 
     const baseSensitiveDelay = Number(process.env.BG_REFRESH_GOOGLE_DELAY_MS) || 12_000;
     const baseNormalDelay = Number(process.env.BG_REFRESH_DELAY_MS) || 1_500;
+    const maxConcurrent = Math.max(1, Number(process.env.BG_REFRESH_CONCURRENCY) || 4);
 
-    for (let i = 0; i < due.length; i++) {
-      const conn = due[i];
-      let refreshResult = null;
+    // Group by provider so the concurrency cap and pacing apply per provider
+    // (a burst of grok-cli refreshes must not starve antigravity slots, and
+    // sensitive Google providers keep their strict 12s spacing).
+    const byProvider = new Map();
+    for (const conn of due) {
+      const list = byProvider.get(conn.provider) || [];
+      list.push(conn);
+      byProvider.set(conn.provider, list);
+    }
+
+    const refreshWithLog = async (conn) => {
       try {
-        refreshResult = await refresh(conn);
-        if (refreshResult !== null) {
+        const result = await refresh(conn);
+        if (result !== null) {
           log.info("BG_TOKEN_REFRESH", "Connection refresh finished", {
             id: conn.id,
             email: conn.email || conn.name || conn.id,
@@ -218,16 +227,30 @@ export async function runBackgroundTokenRefreshTick(deps = {}) {
           error: err?.message ?? String(err),
         });
       }
+    };
 
-      // Sequential delay between accounts to prevent bursting upstream providers (especially Google Cloud)
-      // Only sleep if an actual refresh took place to avoid pausing on skipped/locked accounts
-      if (refreshResult !== null && i < due.length - 1) {
-        const isSensitive = SENSITIVE_PROVIDERS.has(conn.provider);
-        const baseDelay = isSensitive ? baseSensitiveDelay : baseNormalDelay;
-        const jitter = isSensitive ? Math.floor(Math.random() * 4000) : 200;
-        await sleep(baseDelay + jitter);
-      }
-    }
+    const runProviderQueue = async (provider, list) => {
+      const isSensitive = SENSITIVE_PROVIDERS.has(provider);
+      const baseDelay = isSensitive ? baseSensitiveDelay : baseNormalDelay;
+      let idx = 0;
+      const workers = Array.from({ length: Math.min(maxConcurrent, list.length) }, async () => {
+        while (idx < list.length) {
+          const conn = list[idx++];
+          await refreshWithLog(conn);
+          // Stagger only after an actual refresh ran; skipped/locked
+          // connections return quickly and must not throttle the queue.
+          if (idx < list.length) {
+            const jitter = isSensitive ? Math.floor(Math.random() * 4000) : 200;
+            await sleep(baseDelay + jitter);
+          }
+        }
+      });
+      await Promise.all(workers);
+    };
+
+    await Promise.all(
+      Array.from(byProvider.entries(), ([provider, list]) => runProviderQueue(provider, list)),
+    );
   } catch (err) {
     log.warn("BG_TOKEN_REFRESH", "Tick failed (swallowed)", {
       error: err?.message ?? String(err),

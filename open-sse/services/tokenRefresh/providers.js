@@ -26,6 +26,9 @@ export async function refreshXaiToken(refreshToken, log) {
       if (msg.includes("invalid_grant") || msg.includes("invalid_request")) {
         return { error: "invalid_grant" };
       }
+      if (msg.includes("access_denied")) {
+        return { error: "unrecoverable_refresh_error", code: "access_denied" };
+      }
       return null;
     }
   }, log);
@@ -262,9 +265,15 @@ export function classifyOAuthRefreshError(errorText = "", status = 0) {
     "refresh_token_reused",
     "refresh_token_invalidated",
     "invalid_grant",
+    "access_denied",
   ].some((marker) => combined.includes(marker));
 
-  return { status, code, description, permanent };
+  // AWS SSO OIDC (Kiro) signals dead grants with a bare 400 "access_denied"
+  // (no OAuth error_description) — a 400 here is always a permanent grant
+  // failure, never a transient one (5xx/transient responses don't use 400).
+  const awsOidcPermanent = status === 400 && combined.includes("access_denied");
+
+  return { status, code, description, permanent: permanent || awsOidcPermanent };
 }
 
 export async function refreshCodexToken(refreshToken, log, proxyOptions = null) {
@@ -369,6 +378,10 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
         status: response.status,
         error: errorText,
       });
+      const failure = classifyOAuthRefreshError(errorText, response.status);
+      if (failure.permanent) {
+        return { error: "unrecoverable_refresh_error", code: failure.code || "access_denied" };
+      }
       return null;
     }
 
@@ -414,6 +427,12 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
         status: response.status,
         error: errorText,
       });
+      // Permanent grant failure (e.g. AWS SSO 400 access_denied) — surface as
+      // unrecoverable so the background scheduler stops retrying every tick.
+      const failure = classifyOAuthRefreshError(errorText, response.status);
+      if (failure.permanent) {
+        return { error: "unrecoverable_refresh_error", code: failure.code || "access_denied" };
+      }
       return null;
     }
 
@@ -450,6 +469,10 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
       status: response.status,
       error: errorText,
     });
+    const failure = classifyOAuthRefreshError(errorText, response.status);
+    if (failure.permanent) {
+      return { error: "unrecoverable_refresh_error", code: failure.code || "access_denied" };
+    }
     return null;
   }
 
