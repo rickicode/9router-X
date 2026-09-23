@@ -654,20 +654,20 @@ export default function UsageStats({
  )}
  {/* Period selector (hidden when controlled by parent); pinned right end */}
  {!hidePeriodSelector && (
- <div className="flex w-full items-center justify-end gap-2">
- <div className="flex flex-1 flex-wrap items-center justify-end gap-1 rounded-sm border border-border bg-surface-2 sm:flex-none">
- {PERIODS.map((p) => (
- <button
- key={p.value}
- onClick={() => setPeriod(p.value)}
- disabled={fetching}
- aria-pressed={period === p.value}
- className={`rounded-sm px-3 py-1 text-sm font-medium ${period === p.value ? "bg-primary text-white " : "text-text-muted hover:bg-surface-2 hover:text-text"}`}
- >
- {p.label}
- </button>
- ))}
- </div>
+  <div className="flex w-full items-center justify-end gap-2">
+  <div className="flex flex-1 flex-wrap items-center justify-end gap-1 rounded-sm border border-border bg-surface p-1 sm:flex-none">
+  {PERIODS.map((p) => (
+  <button
+  key={p.value}
+  onClick={() => setPeriod(p.value)}
+  disabled={fetching}
+  aria-pressed={period === p.value}
+  className={`rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors ${period === p.value ? "bg-primary text-white" : "text-text-muted hover:bg-surface-2 hover:text-text-main"}`}
+  >
+  {p.label}
+  </button>
+  ))}
+  </div>
  {fetching && (
  <span role="status" aria-label="Refreshing usage data">
  <span
@@ -717,30 +717,30 @@ export default function UsageStats({
  </option>
  ))}
  </select>
- <div className="grid grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface-2 sm:flex">
- <button
- onClick={() => setViewMode("costs")}
- aria-pressed={viewMode === "costs"}
- className={`px-3 py-1 rounded-sm text-sm font-medium ${
- viewMode === "costs"
- ? "bg-primary text-white "
- : "text-text-muted hover:text-text hover:bg-surface-2"
- }`}
- >
- Costs
- </button>
- <button
- onClick={() => setViewMode("tokens")}
- aria-pressed={viewMode === "tokens"}
- className={`px-3 py-1 rounded-sm text-sm font-medium ${
- viewMode === "tokens"
- ? "bg-primary text-white "
- : "text-text-muted hover:text-text hover:bg-surface-2"
- }`}
- >
- Tokens
- </button>
- </div>
+  <div className="grid grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface p-1 sm:flex">
+  <button
+  onClick={() => setViewMode("costs")}
+  aria-pressed={viewMode === "costs"}
+  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${
+  viewMode === "costs"
+  ? "bg-primary text-white"
+  : "text-text-muted hover:text-text-main hover:bg-surface-2"
+  }`}
+  >
+  Costs
+  </button>
+  <button
+  onClick={() => setViewMode("tokens")}
+  aria-pressed={viewMode === "tokens"}
+  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${
+  viewMode === "tokens"
+  ? "bg-primary text-white"
+  : "text-text-muted hover:text-text-main hover:bg-surface-2"
+  }`}
+  >
+  Tokens
+  </button>
+  </div>
  </div>
  {activeTableConfig && (
  <UsageTable

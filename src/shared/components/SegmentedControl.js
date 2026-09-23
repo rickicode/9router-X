@@ -15,17 +15,19 @@ export default function SegmentedControl({
 }) {
  const tabRefs = useRef([]);
 
- const sizes = {
- sm: "h-8 text-xs px-2",
- md: "h-8 text-sm px-2.5",
- lg: "h-8 text-sm px-3",
- };
+// Matches the Quota Tracker tab bar: padding-based height, text-xs labels,
+  // selected tab filled with the primary color.
+  const sizes = {
+  sm: "px-2 py-1.5 text-[11px]",
+  md: "px-2.5 py-2 text-xs",
+  lg: "px-3 py-2 text-sm",
+  };
 
- const iconSizes = {
- sm: "text-[18px]",
- md: "text-[18px]",
- lg: "text-[18px]",
- };
+  const iconSizes = {
+  sm: "text-[16px]",
+  md: "text-[18px]",
+  lg: "text-[18px]",
+  };
 
  const selectedIndex = options.findIndex((opt) => opt.value === value);
  const activeTabStopIndex = selectedIndex >= 0 ? selectedIndex : 0;
@@ -64,11 +66,11 @@ export default function SegmentedControl({
  aria-orientation="horizontal"
  aria-label={ariaLabelProp || ariaLabel || "Options"}
  onKeyDown={handleKeyDown}
- className={cn(
- "inline-flex items-center border border-border bg-bg",
- "max-w-full overflow-x-auto no-scrollbar",
- className
- )}
+  className={cn(
+  "inline-flex items-center gap-1 rounded-sm border border-border bg-surface p-1",
+  "max-w-full overflow-x-auto no-scrollbar",
+  className
+  )}
  {...props}
  >
  {options.map((option, index) => {
@@ -86,14 +88,14 @@ export default function SegmentedControl({
  aria-selected={isSelected}
  tabIndex={isTabStop ? 0 : -1}
  onClick={() => onChange?.(option.value)}
- className={cn(
- "inline-flex items-center justify-center shrink-0 rounded-sm font-medium gap-1.5 cursor-pointer select-none",
- "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
- sizes[size],
- isSelected
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main hover:bg-surface-2"
- )}
+  className={cn(
+  "inline-flex items-center justify-center shrink-0 rounded-sm font-medium gap-1.5 cursor-pointer select-none",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+  sizes[size],
+  isSelected
+  ? "bg-primary text-white"
+  : "text-text-muted hover:text-text-main hover:bg-surface-2"
+  )}
  >
  {option.icon && (
  <span

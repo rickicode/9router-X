@@ -59,20 +59,20 @@ export default function UsageChart({ period = "7d" }) {
 
  return (
  <Card className="flex min-w-0 flex-col gap-3 p-3 sm:p-3">
- <div className="grid w-full grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface-2 size-8 sm:w-auto sm:self-start h-8">
- <button
- onClick={() => setViewMode("tokens")}
- className={`px-3 py-1 rounded-sm text-sm font-medium ${viewMode === "tokens" ? "bg-primary text-white " : "text-text-muted hover:text-text hover:bg-surface-2"}`}
- >
- Tokens
- </button>
- <button
- onClick={() => setViewMode("cost")}
- className={`px-3 py-1 rounded-sm text-sm font-medium ${viewMode === "cost" ? "bg-primary text-white " : "text-text-muted hover:text-text hover:bg-surface-2"}`}
- >
- Cost
- </button>
- </div>
+  <div className="grid w-full grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface p-1 sm:w-auto sm:self-start">
+  <button
+  onClick={() => setViewMode("tokens")}
+  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white" : "text-text-muted hover:text-text-main hover:bg-surface-2"}`}
+  >
+  Tokens
+  </button>
+  <button
+  onClick={() => setViewMode("cost")}
+  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${viewMode === "cost" ? "bg-primary text-white" : "text-text-muted hover:text-text-main hover:bg-surface-2"}`}
+  >
+  Cost
+  </button>
+  </div>
 
  {error ? (
  <div className="h-48 flex flex-col items-center justify-center gap-2 text-danger text-sm" role="alert">
