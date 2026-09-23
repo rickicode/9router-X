@@ -30,7 +30,7 @@ export default function HeaderLanguage() {
  <>
  <button
  onClick={() => setOpen(true)}
- className="flex size-8 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main h-8"
+ className="flex size-11 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main"
  title="Language"
  data-i18n-skip="true"
  >

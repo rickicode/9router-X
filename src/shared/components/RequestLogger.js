@@ -244,10 +244,10 @@ export default function RequestLogger() {
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  icon="search"
- inputClassName="h-8"
+ inputClassName="h-11 sm:h-8"
  />
  </div>
- <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="Filter status">
+ <div className="tab-scroll-fade flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="Filter status">
  {STATUS_FILTERS.map((f) => {
  const active = statusFilter === f.value;
  const count = f.value === "all" ? logs.length : counts[f.value] ?? 0;
@@ -258,7 +258,7 @@ export default function RequestLogger() {
  onClick={() => setStatusFilter(f.value)}
  aria-pressed={active}
  className={cn(
- "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2 text-xs font-medium",
+ "scroll-snap-align-start inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border px-3 text-xs font-medium sm:min-h-8 sm:px-2",
  active
  ? "bg-primary/10 border-primary/30 text-primary"
  : "bg-surface border-border text-text-muted hover:text-text-main hover:bg-surface-2"

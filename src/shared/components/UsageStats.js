@@ -595,17 +595,17 @@ export default function UsageStats({
  emptyMessage: "No usage recorded yet.",
  renderSummaryCells: (group) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
  </>
  ),
  renderDetailCells: (item) => (
  <>
- <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
  </>
  ),
  };
@@ -628,19 +628,19 @@ export default function UsageStats({
  emptyMessage: "No account-specific usage recorded yet.",
  renderSummaryCells: (group) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
  </>
  ),
  renderDetailCells: (item) => (
  <>
- <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.accountName || `Account ${item.connectionId?.slice(0, 8)}...`}</td>
- <td className={`h-8 px-3 text-sm text-text-main px-3 sm:px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.accountName || `Account ${item.connectionId?.slice(0, 8)}...`}</td>
+ <td className={`h-8 px-3 text-sm text-text-main px-3 h-8 sm:py-3 font-medium ${item.pending > 0 ? "text-primary" : ""}`}>{item.rawModel}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm"><Badge variant={item.pending > 0 ? "primary" : "neutral"} size="sm">{item.provider}</Badge></td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
  </>
  ),
  };
@@ -653,19 +653,19 @@ export default function UsageStats({
  emptyMessage: "No API key usage recorded yet.",
  renderSummaryCells: (group) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
  </>
  ),
  renderDetailCells: (item) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 font-medium text-sm">{item.keyName}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm">{item.rawModel}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant="neutral" size="sm">{item.provider}</Badge></td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 font-medium text-sm">{item.keyName}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm">{item.rawModel}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm"><Badge variant="neutral" size="sm">{item.provider}</Badge></td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
  </>
  ),
  };
@@ -679,19 +679,19 @@ export default function UsageStats({
  emptyMessage: "No endpoint usage recorded yet.",
  renderSummaryCells: (group) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-text-muted text-sm">—</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(group.summary.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(group.summary.lastUsed)}</td>
  </>
  ),
  renderDetailCells: (item) => (
  <>
- <td className="px-3 sm:px-3 h-8 sm:py-3 font-medium font-mono text-sm">{item.endpoint}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm">{item.rawModel}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-sm"><Badge variant="neutral" size="sm">{item.provider}</Badge></td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
- <td className="px-3 sm:px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
+ <td className="px-3 h-8 sm:py-3 font-medium font-mono text-sm">{item.endpoint}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm">{item.rawModel}</td>
+ <td className="px-3 h-8 sm:py-3 text-sm"><Badge variant="neutral" size="sm">{item.provider}</Badge></td>
+ <td className="px-3 h-8 sm:py-3 text-right text-sm">{fmt(item.requests)}</td>
+ <td className="px-3 h-8 sm:py-3 text-right text-text-muted whitespace-nowrap text-sm">{fmtTime(item.lastUsed)}</td>
  </>
  ),
  };

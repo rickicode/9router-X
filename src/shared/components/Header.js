@@ -224,7 +224,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
  };
 
  return (
- <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-bg px-3 z-20">
+ <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-border bg-bg px-3 z-20">
  {showMenuButton && (
  <button
  type="button"
