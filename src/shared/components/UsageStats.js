@@ -135,33 +135,73 @@ function RequestStream({ buckets = [] }) {
  const total = buckets.reduce((sum, bucket) => sum + Number(bucket.requests || 0), 0);
  const current = buckets.length ? Number(buckets[buckets.length - 1]?.requests || 0) : 0;
  const max = Math.max(1, ...buckets.map((bucket) => Number(bucket.requests || 0)));
+ const peak = buckets.length ? Math.max(...buckets.map((b) => Number(b.requests || 0))) : 0;
 
  return (
- <Card className="min-w-0 overflow-hidden" padding="sm">
- <div className="flex items-center justify-between border-b border-border px-1 h-8">
- <span className="text-xs font-medium text-text-muted">Request Stream</span>
- <span className="text-sm font-semibold text-primary" title={`Total last 10m: ${total.toLocaleString("en-US")} requests`}>
- {current.toLocaleString("en-US")} requests / 1 min
+ <Card
+ title="Request Stream"
+ subtitle="Requests per minute across the last 10 minutes"
+ icon="stream"
+ padding="md"
+ className="min-w-0 overflow-hidden"
+ action={
+ <span
+ className="text-sm font-semibold tabular-nums text-primary"
+ title={`Total last 10m: ${total.toLocaleString("en-US")} requests`}
+ >
+ {current.toLocaleString("en-US")}
+ <span className="ml-1 text-[11px] font-normal text-text-muted">req / min</span>
  </span>
- </div>
+ }
+ >
  {!buckets.length ? (
- <div className="flex h-32 items-center justify-center text-sm text-text-muted">No requests yet.</div>
+ <div className="flex h-24 items-center justify-center text-sm text-text-muted" role="status">
+ No requests yet.
+ </div>
  ) : (
- <div className="flex h-32 items-end gap-1 px-1 py-3" aria-label="Requests per minute for last 10 minutes">
+ <>
+ {/* Block grid: one column per minute, blocks scaled to the 10-minute peak.
+ Mobile keeps the same physical reading as desktop — no squeezed bar chart. */}
+ <div
+ className="flex h-28 items-end gap-1 sm:h-32"
+ role="img"
+ aria-label={`Requests per minute for the last ${buckets.length} minutes, peak ${peak}`}
+ >
  {buckets.map((bucket, index) => {
  const requests = Number(bucket.requests || 0);
- const height = requests > 0 ? Math.max(8, Math.round((requests / max) * 100)) : 2;
+ const filled = requests > 0 ? Math.max(1, Math.round((requests / max) * 10)) : 0;
  const timeLabel = bucket.timestamp
  ? new Date(bucket.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
- : "";
+ : `${index + 1}m ago`;
  return (
- <div key={`${bucket.timestamp || index}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={timeLabel ? `${timeLabel}: ${requests} requests` : `${requests} requests`}>
- <span className="text-[11px] text-text-muted">{requests || ""}</span>
- <div className="w-full rounded-t bg-primary/70" style={{ height: `${height}%` }} />
+ <div
+ key={`${bucket.timestamp || index}`}
+ className="flex h-full min-w-0 flex-1 flex-col justify-end gap-[3px]"
+ title={`${timeLabel}: ${requests} requests`}
+ >
+ <span className="text-center text-[10px] leading-none tabular-nums text-text-muted">
+ {requests || ""}
+ </span>
+ <div className="grid flex-1 content-end gap-[3px]" style={{ gridTemplateRows: "repeat(10, minmax(0,1fr))" }}>
+ {Array.from({ length: 10 }, (_, row) => (
+ <span
+ key={row}
+ className={`rounded-[2px] ${row < filled ? "bg-primary/80" : "bg-surface-2"}`}
+ />
+ ))}
+ </div>
  </div>
  );
  })}
  </div>
+
+ {/* Time axis: readable at 360px, labels thinned to avoid collision */}
+ <div className="mt-2 flex min-w-0 justify-between gap-1 border-t border-border pt-2">
+ <span className="truncate font-mono text-[10px] text-text-muted">-10 min</span>
+ <span className="truncate font-mono text-[10px] text-text-muted">-5 min</span>
+ <span className="truncate font-mono text-[10px] text-text-muted">now</span>
+ </div>
+ </>
  )}
  </Card>
  );
@@ -764,6 +804,7 @@ export default function UsageStats({
 
  {activeSubTab !== "breakdown" && (
  <div className="flex flex-col gap-3">
+ <RequestStream buckets={stats?.last10Minutes || []} />
  <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
  <ProviderTopology
  providers={providers}
@@ -777,7 +818,6 @@ export default function UsageStats({
  activeRequests={stats?.activeRequests || []}
  recentRequests={stats?.recentRequests || []}
  />
- <RequestStream buckets={stats?.last10Minutes || []} />
  </div>
  )}
  </>
