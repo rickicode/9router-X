@@ -2,173 +2,143 @@
 
 import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import {
- AreaChart,
- Area,
- XAxis,
- YAxis,
- CartesianGrid,
- Tooltip,
- ResponsiveContainer,
- Legend,
-} from "recharts";
 import Card from "@/shared/components/Card";
+import BlockGrid, { buildColumns, GridLegend } from "./BlockGrid";
 
 const fmtTokens = (n) => {
- const num = Number(n) || 0;
- if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
- if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
- return String(num);
+  const value = Number(n) || 0;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return `${Math.round(value)}`;
 };
 
-const fmtCost = (n) => `$${(Number(n) || 0).toFixed(4)}`;
+const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
+
+const MODES = [
+  { value: "tokens", label: "Tokens", color: "bg-primary", hover: "hover:bg-primary/80", fmt: fmtTokens },
+  { value: "cost", label: "Cost", color: "bg-amber-500", hover: "hover:bg-amber-400", fmt: fmtCost },
+];
 
 export default function UsageChart({ period = "7d" }) {
- const [data, setData] = useState([]);
- const [loading, setLoading] = useState(true);
- const [error, setError] = useState(null);
- const [viewMode, setViewMode] = useState("tokens");
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState("tokens");
 
- const fetchData = useCallback(async () => {
- setLoading(true);
- setError(null);
- try {
- const res = await fetch(`/api/usage/chart?period=${period}`);
- if (!res.ok) {
- throw new Error(`Failed to fetch chart data (${res.status})`);
- }
- const json = await res.json();
- setData(json);
- } catch (e) {
- console.error("Failed to fetch chart data:", e);
- setError(e.message || "Failed to fetch chart data");
- } finally {
- setLoading(false);
- }
- }, [period]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/usage/chart?period=${period}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch chart data (${res.status})`);
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      console.error("Failed to fetch chart data:", e);
+      setError(e.message || "Failed to fetch chart data");
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
 
- useEffect(() => {
- let cancelled = false;
- queueMicrotask(() => {
- if (!cancelled) fetchData();
- });
- return () => { cancelled = true; };
- }, [fetchData]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) fetchData();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchData]);
 
- const hasData = data.some((d) => d.tokens > 0 || d.cost > 0);
+  const mode = MODES.find((m) => m.value === viewMode);
+  const hasData = data.some((d) => Number(d.tokens) > 0 || Number(d.cost) > 0);
 
- return (
- <Card className="flex min-w-0 flex-col gap-3 p-3 sm:p-3">
-  <div className="grid w-full grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface p-1 sm:w-auto sm:self-start">
-  <button
-  onClick={() => setViewMode("tokens")}
-  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white" : "text-text-muted hover:text-text-main hover:bg-surface-2"}`}
-  >
-  Tokens
-  </button>
-  <button
-  onClick={() => setViewMode("cost")}
-  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${viewMode === "cost" ? "bg-primary text-white" : "text-text-muted hover:text-text-main hover:bg-surface-2"}`}
-  >
-  Cost
-  </button>
-  </div>
+  const points = data.map((d) => ({ ...d, value: Number(d[viewMode]) || 0 }));
+  const { columns, step, max } = buildColumns(points, (point) => point.value);
 
- {error ? (
- <div className="h-48 flex flex-col items-center justify-center gap-2 text-danger text-sm" role="alert">
- <div className="flex items-center gap-1.5 font-medium">
- <span className="material-symbols-outlined text-[18px]">error</span>
- <span>{error}</span>
- </div>
- <button
- type="button"
- onClick={fetchData}
- className="px-3 py-1 rounded-sm text-xs border border-danger/30 bg-danger/10 hover:bg-danger/10 text-text-main"
- >
- Retry
- </button>
- </div>
- ) : loading ? (
- <div className="h-48 flex items-center justify-center text-text-muted text-sm" role="status" aria-live="polite">Loading...</div>
- ) : !hasData ? (
- <div className="h-48 flex items-center justify-center text-text-muted text-sm" role="status">No data for this period</div>
- ) : (
- <div
- role="region"
- aria-label={`Usage trend chart for ${period} period showing ${viewMode === "tokens" ? "tokens" : "cost"}`}
- tabIndex={0}
- className="focus-visible:outline-none rounded-sm"
- >
- <div className="sr-only">
- {`Interactive usage chart for ${period} showing ${viewMode === "tokens" ? "token consumption" : "cost"} over time.`}
- </div>
- <ResponsiveContainer width="100%" height={220}>
- <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
- <defs>
- <linearGradient id="gradTokens" x1="0" y1="0" x2="0" y2="1">
- <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
- <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
- </linearGradient>
- <linearGradient id="gradCost" x1="0" y1="0" x2="0" y2="1">
- <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
- <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
- </linearGradient>
- </defs>
- <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
- <XAxis
- dataKey="label"
- tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }}
- tickLine={false}
- axisLine={false}
- interval="preserveStartEnd"
- />
- <YAxis
- tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }}
- tickLine={false}
- axisLine={false}
- tickFormatter={viewMode === "tokens" ? fmtTokens : fmtCost}
- width={50}
- />
- <Tooltip
- contentStyle={{
- backgroundColor: "var(--color-bg)",
- border: "1px solid var(--color-border)",
- borderRadius: "8px",
- fontSize: "12px",
- }}
- formatter={(value, name) =>
- name === "tokens" ? [fmtTokens(value), "Tokens"] : [fmtCost(value), "Cost"]
- }
- />
- {viewMode === "tokens" ? (
- <Area
- type="monotone"
- dataKey="tokens"
- stroke="#6366f1"
- strokeWidth={2}
- fill="url(#gradTokens)"
- dot={false}
- activeDot={{ r: 4 }}
- />
- ) : (
- <Area
- type="monotone"
- dataKey="cost"
- stroke="#f59e0b"
- strokeWidth={2}
- fill="url(#gradCost)"
- dot={false}
- activeDot={{ r: 4 }}
- />
- )}
- </AreaChart>
- </ResponsiveContainer>
- </div>
- )}
- </Card>
- );
+  return (
+    <Card
+      title="Volume Grid"
+      subtitle="One block equals a fixed share of the peak bucket in this period"
+      icon="grid_view"
+      padding="md"
+      className="flex min-w-0 flex-col gap-4 p-4 sm:p-4"
+      action={
+        <div className="flex items-center gap-1.5">
+          {MODES.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setViewMode(option.value)}
+              aria-pressed={viewMode === option.value}
+              className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === option.value
+                  ? "border-border bg-surface-3 font-semibold text-text-main"
+                  : "border-transparent text-text-muted hover:text-text-main"
+              }`}
+            >
+              <span className={`size-2 rounded-[2px] ${option.color}`} />
+              {option.label}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {error ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 text-sm text-danger" role="alert">
+          <div className="flex items-center gap-1.5 font-medium">
+            <span className="material-symbols-outlined text-[18px]">error</span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="rounded-sm border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-text-main"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
+        <div className="flex h-48 items-center justify-center text-sm text-text-muted" role="status" aria-live="polite">
+          Loading…
+        </div>
+      ) : !hasData ? (
+        <div className="flex h-48 items-center justify-center text-sm text-text-muted" role="status">
+          No usage recorded for this period
+        </div>
+      ) : (
+        <>
+          <BlockGrid
+            columns={columns}
+            color={mode.color}
+            hoverColor={mode.hover}
+            label={`${mode.label} per bucket`}
+            valueFormatter={mode.fmt}
+            axisFormatter={mode.fmt}
+            step={step}
+            max={max}
+          />
+          <GridLegend
+            items={[
+              { label: `1 block ≈ ${mode.fmt(step)}`, color: mode.color },
+              { label: "Peak", value: mode.fmt(max) },
+              {
+                label: "Estimated",
+                value: viewMode === "cost" ? "not billed" : "",
+                hint: "Cost figures are estimated from configured pricing, not provider invoices.",
+              },
+            ]}
+            note={`${columns.length} buckets · ${period}`}
+          />
+        </>
+      )}
+    </Card>
+  );
 }
 
 UsageChart.propTypes = {
- period: PropTypes.string,
+  period: PropTypes.string,
 };
