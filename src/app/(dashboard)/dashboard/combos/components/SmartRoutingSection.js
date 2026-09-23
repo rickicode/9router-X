@@ -397,7 +397,7 @@ export default function SmartRoutingSection({
                       e.stopPropagation();
                       handleOpenTierModal(tier.key);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text-main shadow-xs hover:border-primary/50 hover:bg-surface-2 hover:text-primary transition-all shrink-0"
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main shadow-xs transition-all hover:border-primary/50 hover:bg-surface-2 hover:text-primary sm:min-h-9 sm:px-2.5 sm:py-1"
                     title={`Configure ${tier.label} models`}
                   >
                     <span className="material-symbols-outlined text-[15px]">tune</span>

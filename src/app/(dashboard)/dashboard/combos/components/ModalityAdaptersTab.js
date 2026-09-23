@@ -215,7 +215,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                   <button
                     onClick={() => handleMove(index, -1)}
                     disabled={index === 0 || !enabled}
-                    className={`size-7 rounded flex items-center justify-center transition-colors ${
+                    className={`size-11 rounded flex items-center justify-center transition-colors sm:size-7 ${
                       index === 0 || !enabled
                         ? "text-text-muted/20 cursor-not-allowed"
                         : "text-text-muted hover:text-primary hover:bg-surface"
@@ -230,7 +230,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                   <button
                     onClick={() => handleMove(index, 1)}
                     disabled={index === models.length - 1 || !enabled}
-                    className={`size-7 rounded flex items-center justify-center transition-colors ${
+                    className={`size-11 rounded flex items-center justify-center transition-colors sm:size-7 ${
                       index === models.length - 1 || !enabled
                         ? "text-text-muted/20 cursor-not-allowed"
                         : "text-text-muted hover:text-primary hover:bg-surface"
@@ -245,7 +245,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                   <button
                     onClick={() => handleRemove(index)}
                     disabled={!enabled}
-                    className="size-7 rounded flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                    className="size-11 rounded flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/10 transition-colors sm:size-7"
                     title="Remove model from pool"
                     aria-label="Remove model from pool"
                   >

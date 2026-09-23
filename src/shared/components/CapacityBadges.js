@@ -1,28 +1,39 @@
 "use client";
 
 import { CAPACITY_META } from "@/shared/constants/models";
-import Tooltip from "./Tooltip";
 
 // Render small icon badges for a model's capabilities (only those set true).
+//
+// These render inside cards that carry `overflow-hidden`, and a positioned
+// tooltip popover would be clipped by that ancestor (measurably inflating the
+// card's scrollWidth by 50-90px and never becoming visible). A native `title`
+// carries the same label and description without a positioned descendant, and
+// it works on touch press-hold as well as hover.
+//
 // colorOverride: force a single color class for all badges (default: per-cap color).
 // size: icon font-size in px (default 16).
 export default function CapacityBadges({ caps, className = "", colorOverride, size = 16 }) {
- if (!caps) return null;
- const active = Object.keys(CAPACITY_META).filter((k) => caps[k]);
- if (active.length === 0) return null;
+  if (!caps) return null;
+  const active = Object.keys(CAPACITY_META).filter((k) => caps[k]);
+  if (active.length === 0) return null;
 
- return (
- <span className={`inline-flex items-center gap-0.5 ${className}`}>
- {active.map((k) => (
- <Tooltip key={k} text={`${CAPACITY_META[k].label} — ${CAPACITY_META[k].desc}`}>
- <span
- className={`material-symbols-outlined cursor-help ${colorOverride || CAPACITY_META[k].color}`}
- style={{ fontSize: `${size}px` }}
- >
- {CAPACITY_META[k].icon}
- </span>
- </Tooltip>
- ))}
- </span>
- );
+  return (
+    <span className={`inline-flex items-center gap-0.5 ${className}`}>
+      {active.map((k) => {
+        const meta = CAPACITY_META[k];
+        return (
+          <span
+            key={k}
+            title={`${meta.label} — ${meta.desc}`}
+            className={`material-symbols-outlined cursor-help ${colorOverride || meta.color}`}
+            style={{ fontSize: `${size}px` }}
+            role="img"
+            aria-label={`${meta.label}: ${meta.desc}`}
+          >
+            {meta.icon}
+          </span>
+        );
+      })}
+    </span>
+  );
 }
