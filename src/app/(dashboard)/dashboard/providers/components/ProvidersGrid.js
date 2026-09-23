@@ -375,7 +375,7 @@ function TestAllButton({ mode, testingMode, onBatchTest }) {
     <button
       onClick={() => onBatchTest(mode)}
       disabled={!!testingMode}
-      className={`flex w-full items-center justify-center gap-1.5 rounded-sm border px-3 h-8 text-xs font-medium sm:w-auto sm:py-2 ${
+      className={`flex w-full items-center justify-center gap-1.5 rounded-sm border px-3 min-h-11 text-xs font-medium sm:w-auto sm:h-10 sm:py-2 ${
         active
           ? "bg-primary/10 border-primary/30 text-primary animate-pulse"
           : "bg-bg border-border text-text-muted hover:text-text-main hover:border-primary/30"

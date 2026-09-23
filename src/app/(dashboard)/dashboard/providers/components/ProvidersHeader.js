@@ -28,7 +28,7 @@ function ProvidersHeader({ globalSummary, statusFilter, onStatusFilterChange }) 
  <select
  value={statusFilter}
  onChange={(e) => onStatusFilterChange(e.target.value)}
- className="h-8 rounded-sm border border-border bg-surface px-2 text-xs text-text-main outline-none hover:bg-surface-2"
+ className="min-h-11 rounded-sm border border-border bg-surface px-3 py-2.5 text-xs text-text-main outline-none hover:bg-surface-2 sm:min-h-9 sm:px-2 sm:py-2"
  aria-label="Filter providers by connection status"
  >
  {STATUS_FILTER_OPTIONS.map((option) => (
