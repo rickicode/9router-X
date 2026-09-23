@@ -21,7 +21,6 @@ import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { serve as serveStatic } from "@hono/node-server/serve-static";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
