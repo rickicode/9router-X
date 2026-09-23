@@ -143,15 +143,6 @@ export const ERROR_RULES = [
     lockAll: false,
     shouldFallback: true,
   },
-  // Upstream 404 "No endpoints found (that support tool use)": the model has
-  // no routable endpoint with tool-calling support on this route. Lock ONLY
-  // the model (never the account) and rotate to the next account / combo member.
-  {
-    text: "no endpoints found",
-    cooldownMs: 24 * 60 * 60 * 1000,
-    lockAll: false,
-    shouldFallback: true,
-  },
   // Cline free-tier daily cap: quota is strictly per-model on Cline Free.
   // Lock ONLY the affected model for 24h (or until resetsAtMs), never the entire account!
   {

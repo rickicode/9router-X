@@ -71,7 +71,7 @@ const ProviderNode = memo(function ProviderNode({ data }) {
  const pingStyle = useMemo(() => ({ backgroundColor: color }), [color]);
  return (
  <div
- className="flex items-center gap-2 px-3 h-8 rounded-sm border border-border bg-surface focus-visible:outline-none"
+ className="flex items-center gap-2 px-3 h-8 rounded-sm border border-border bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
  style={rootStyle}
  tabIndex={0}
  role="group"

@@ -288,7 +288,7 @@ describe("[9router-X usage] P2 harden silent fetch + Blob CSV + bilingual single
       const tableFiles = [
         "src/app/(dashboard)/dashboard/usage/components/RealtimeRequestsCard.js",
         "src/app/(dashboard)/dashboard/usage/components/RequestDetailsTab.js",
-        "src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js",
+        "src/app/(dashboard)/dashboard/usage/components/AnalyticsModelTable.js",
         "src/app/(dashboard)/dashboard/usage/components/UsageTable.js",
         "src/app/(dashboard)/dashboard/usage/components/TopProvidersCard.js",
         "src/app/(dashboard)/dashboard/usage/components/ProviderLimits/index.js",
@@ -360,7 +360,7 @@ describe("[9router-X usage] P2 harden silent fetch + Blob CSV + bilingual single
       const file = fs.readFileSync(
         path.join(
           ROOT,
-          "src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js",
+          "src/app/(dashboard)/dashboard/usage/components/AnalyticsModelTable.js",
         ),
         "utf8",
       );

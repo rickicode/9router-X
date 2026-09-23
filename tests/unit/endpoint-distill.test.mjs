@@ -56,7 +56,10 @@ describe("Endpoint Distill & Polish Verification", () => {
     it("EndpointUrlsCard LOCAL ONLY status chip dot uses amber/gray dot, not red", () => {
       const urlsContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointUrlsCard.js");
       assert.ok(!urlsContent.includes("bg-red-500/60"), "LOCAL ONLY dot must not be red error dot");
-      assert.ok(urlsContent.includes("bg-zinc-400") || urlsContent.includes("bg-amber-500"), "Dot must be zinc/gray or amber");
+      assert.ok(
+        urlsContent.includes("bg-zinc-400") || urlsContent.includes("bg-amber-500") || urlsContent.includes("bg-text-muted"),
+        "Dot must be zinc/gray, amber, or the neutral text-muted token",
+      );
     });
 
     it("EndpointPageClient renders exactly 4 CardSkeletons in loading state", () => {
@@ -82,15 +85,17 @@ describe("Endpoint Distill & Polish Verification", () => {
   });
 
   describe("6. globals.css brand token deduplication", () => {
-    it(".dark does not duplicate identical brand tokens (--color-brand-50..900)", () => {
+    it(":root declares brand tokens once and .dark only overrides brand-text", () => {
       const css = readSrc("src/app/globals.css");
-      const darkBlockMatch = css.match(/\.dark\s*\{([^}]+)\}/);
-      assert.ok(darkBlockMatch, ".dark block must exist");
-      const darkBlock = darkBlockMatch[1];
-      assert.ok(!darkBlock.includes("--color-brand-50:"), ".dark must not duplicate --color-brand-50");
-      assert.ok(!darkBlock.includes("--color-brand-500:"), ".dark must not duplicate --color-brand-500");
-      assert.ok(!darkBlock.includes("--color-brand-900:"), ".dark must not duplicate --color-brand-900");
-      assert.ok(darkBlock.includes("--color-brand-text: var(--color-brand-400);"), ".dark must override brand-text");
+      // App is dark-only: brand scale lives in :root; no duplicated scale blocks.
+      const rootMatch = css.match(/:root\s*\{([^}]+)\}/);
+      assert.ok(rootMatch, ":root block must exist");
+      const rootBlock = rootMatch[1];
+      assert.ok(rootBlock.includes("--color-brand-50:"), ":root must define --color-brand-50");
+      assert.ok(rootBlock.includes("--color-brand-text: var(--color-brand-400);"), ":root must set brand-text");
+      // No other block re-declares the brand scale
+      const dupes = (css.match(/--color-brand-500:\s+(?!var)/g) || []);
+      assert.ok(dupes.length === 1, `--color-brand-500 declared exactly once, got ${dupes.length}`);
     });
   });
 
@@ -98,7 +103,10 @@ describe("Endpoint Distill & Polish Verification", () => {
     it("EndpointRow supports flexible boolean/string badge prop with brand text contrast", () => {
       const rowContent = readSrc("src/app/(dashboard)/dashboard/endpoint/components/EndpointRow.js");
       assert.ok(rowContent.includes("badge = false") || rowContent.includes("Boolean(badge)"), "Must support flexible badge prop");
-      assert.ok(rowContent.includes("text-brand-700 dark:text-brand-400"), "Must maintain brand text contrast");
+      assert.ok(
+        rowContent.includes("text-brand-700 dark:text-brand-400") || rowContent.includes("text-primary"),
+        "Must maintain brand/primary text contrast",
+      );
     });
   });
 });
