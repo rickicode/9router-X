@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Card from "@/shared/components/Card";
-import GlobalAnalyticsChart from "./GlobalAnalyticsChart";
-import TopProvidersCard from "./TopProvidersCard";
+import AnalyticsWaffleGrid from "./AnalyticsWaffleGrid";
+import AnalyticsBrickTimeline from "./AnalyticsBrickTimeline";
 import { useAnalytics } from "./useAnalytics";
 import AnalyticsFilterBar from "./AnalyticsFilterBar";
 import AnalyticsSummaryCards from "./AnalyticsSummaryCards";
@@ -147,11 +147,8 @@ export default function AnalyticsTab({ period }) {
  </Card>
  ) : (
  <>
- <GlobalAnalyticsChart
- data={analytics.data.series}
- summary={analytics.data.summary}
- yesterdaySummary={analytics.data.yesterdaySummary}
- />
+                <AnalyticsBrickTimeline data={analytics.data.series} />
+                <AnalyticsWaffleGrid data={analytics.data} />
 
  <TopProvidersCard
  byProvider={analytics.data.byProvider || []}
