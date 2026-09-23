@@ -103,21 +103,32 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
 async function loadActiveConnections() {
   // Sweep legacy tombstones: rows disabled or refreshBlocked with an EXPIRED
   // token are dead grants by definition — nothing revives them (re-auth
-  // creates a fresh connection). One bounded batch per tick.
+  // creates a fresh connection). Covers BOTH isActive=false tombstones and
+  // active-but-refreshBlocked rows (limbo: skipped by selection, never
+  // cleaned). One bounded batch per tick.
   try {
     const { getProviderConnections, deleteProviderConnectionsByIds } = await import(
       "../../lib/db/repos/connectionsRepo.js"
     );
     const dead = await getProviderConnections({ isActive: false, limit: 200 });
+    const limbo = await getProviderConnections({
+      isActive: true,
+      authType: "oauth",
+      tokenExpiresBefore: new Date().toISOString(),
+      limit: 200,
+    });
     const tombstoned = dead.filter((c) => {
       const expiresAtMs = getCredentialExpiryMs(c);
       return expiresAtMs !== null && expiresAtMs < Date.now();
     });
-    if (tombstoned.length > 0) {
-      const n = await deleteProviderConnectionsByIds(tombstoned.map((c) => c.id)).catch(() => 0);
+    // Active + refreshBlocked + token already expired = permanent dead grant.
+    const limboDead = limbo.filter((c) => c.providerSpecificData?.refreshBlocked);
+    const doomed = [...tombstoned, ...limboDead];
+    if (doomed.length > 0) {
+      const n = await deleteProviderConnectionsByIds(doomed.map((c) => c.id)).catch(() => 0);
       if (n > 0) {
-        log.info("BG_TOKEN_REFRESH", `Swept ${n} legacy tombstone(s) (dead grants, expired tokens)`, {
-          providers: [...new Set(tombstoned.map((c) => c.provider))],
+        log.info("BG_TOKEN_REFRESH", `Swept ${n} dead grant(s) (expired tokens, blocked or tombstoned)`, {
+          providers: [...new Set(doomed.map((c) => c.provider))],
         });
       }
     }
