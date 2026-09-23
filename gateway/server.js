@@ -218,15 +218,11 @@ app.get("/api/health", async (c) => {
 app.notFound((c) => c.json({ error: { message: "Not found", type: "invalid_request_error" } }, 404));
 
 // ── Server ────────────────────────────────────────────────────────────────────
-const server = serve({ fetch: app.fetch, port: PORT, hostname: process.env.HOSTNAME || "0.0.0.0" });
-server.keepAliveTimeout = 75_000;   // > LB idle (default 65s) — avoids reset storms
-server.headersTimeout = 80_000;
-server.maxRequestsPerSocket = 0;    // unlimited reuse; keepalive on by default
-
-console.log(`[Gateway] worker ${process.pid} listening on ${PORT} (node ${process.version})`);
+// serve() is called per-cluster-worker below (primary never binds the port).
 
 // ── Cluster ───────────────────────────────────────────────────────────────────
 if (cluster.isPrimary) {
+  // Primary only orchestrates — it must NOT bind the port (workers do).
   console.log(`[Gateway] primary ${process.pid} forking ${WORKERS} worker(s)`);
   for (let i = 0; i < WORKERS; i++) cluster.fork();
   cluster.on("exit", (worker, code, signal) => {
@@ -234,6 +230,12 @@ if (cluster.isPrimary) {
     cluster.fork();
   });
 } else {
-  // Worker: pipeline warm-up in the background so first client request is fast.
+  // Worker: bind the shared listen socket (kernel round-robins accepts).
+  const server = serve({ fetch: app.fetch, port: PORT, hostname: process.env.HOSTNAME || "0.0.0.0" });
+  server.keepAliveTimeout = 75_000;   // > LB idle (default 65s) — avoids reset storms
+  server.headersTimeout = 80_000;
+  server.maxRequestsPerSocket = 0;    // unlimited reuse; keepalive on by default
+  console.log(`[Gateway] worker ${process.pid} listening on ${PORT} (node ${process.version})`);
+  // Pipeline warm-up in the background so the first client request is fast.
   ensureInitialized().catch(() => {});
 }
