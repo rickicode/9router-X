@@ -167,7 +167,7 @@ export default function RealtimeRequestsCard({
  variant="outline"
  size="sm"
  onClick={() => setShowActiveModal(true)}
- className="!h-8 !px-2 !text-xs font-medium inline-flex items-center gap-1"
+ className="font-medium inline-flex items-center gap-1"
  >
  <span className="material-symbols-outlined !text-[18px]">
  visibility

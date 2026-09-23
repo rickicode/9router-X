@@ -413,7 +413,7 @@ function CombosContent({ activeTab }) {
             placeholder="Search combos or member models..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1.5 text-xs text-text-main placeholder:text-text-muted/60 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+            className="w-full min-h-11 rounded-md border border-border bg-surface pl-8 pr-7 py-2.5 text-xs text-text-main placeholder:text-text-muted/60 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all sm:min-h-9 sm:py-1.5"
           />
           {searchQuery && (
             <button
