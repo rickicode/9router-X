@@ -142,11 +142,6 @@ function UsageContent() {
             className="w-full min-w-max sm:w-auto"
           />
         </div>
-        {showPeriod && (
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
-            <SegmentedControl options={PERIODS} value={period} onChange={setPeriod} size="touch" />
-          </div>
-        )}
       </div>
 
       {activeTab === "overview" && (

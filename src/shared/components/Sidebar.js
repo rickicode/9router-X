@@ -168,7 +168,7 @@ export default function Sidebar({ onClose }) {
 
  return (
  <>
- <aside className="flex w-60 flex-col border-r border-border bg-sidebar min-h-full">
+ <aside className="flex w-72 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">

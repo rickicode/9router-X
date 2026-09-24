@@ -783,16 +783,54 @@ export async function getLast10Minutes(dbArg) {
      WHERE timestamp >= $1 AND timestamp <= $2`,
     [tenMinutesAgo.toISOString(), now.toISOString()],
   );
-  for (const row of recent10) {
-    const tt = new Date(row.timestamp).getTime();
-    const minuteStart = Math.floor(tt / 60000) * 60000;
-    if (bucketMap[minuteStart]) {
-      bucketMap[minuteStart].requests++;
-      bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
-      bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
-      bucketMap[minuteStart].cost += row.cost || 0;
+  if (recent10.length > 0) {
+    for (const row of recent10) {
+      const tt = new Date(row.timestamp).getTime();
+      const minuteStart = Math.floor(tt / 60000) * 60000;
+      if (bucketMap[minuteStart]) {
+        bucketMap[minuteStart].requests++;
+        bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
+        bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
+        bucketMap[minuteStart].cost += row.cost || 0;
+      }
     }
+    return buckets;
   }
+
+  // If the server is currently idle (no requests in the last 10 minutes), anchor
+  // to the 10-minute window of latest activity so the dashboard is not blank.
+  try {
+    const latestRows = await db.all(`SELECT timestamp FROM usage_history ORDER BY id DESC LIMIT 1`);
+    if (latestRows.length > 0 && latestRows[0].timestamp) {
+      const latestTime = new Date(latestRows[0].timestamp);
+      const anchorMinuteEnd = new Date(Math.ceil(latestTime.getTime() / 60000) * 60000);
+      const anchorStart = new Date(anchorMinuteEnd.getTime() - 9 * 60 * 1000);
+      const histMap = {};
+      const histBuckets = [];
+      for (let i = 0; i < 10; i++) {
+        const ts = anchorMinuteEnd.getTime() - (9 - i) * 60 * 1000;
+        histMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0, isHistorical: true };
+        histBuckets.push(histMap[ts]);
+      }
+      const histRows = await db.all(
+        `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
+         WHERE timestamp >= $1 AND timestamp <= $2`,
+        [anchorStart.toISOString(), anchorMinuteEnd.toISOString()],
+      );
+      for (const row of histRows) {
+        const tt = new Date(row.timestamp).getTime();
+        const minuteStart = Math.floor(tt / 60000) * 60000;
+        if (histMap[minuteStart]) {
+          histMap[minuteStart].requests++;
+          histMap[minuteStart].promptTokens += row.prompt_tokens || 0;
+          histMap[minuteStart].completionTokens += row.completion_tokens || 0;
+          histMap[minuteStart].cost += row.cost || 0;
+        }
+      }
+      return histBuckets;
+    }
+  } catch {}
+
   return buckets;
 }
 
