@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
   npm ci
+COPY . ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
 
 # Runtime tools are independent of application sources/build output.
 FROM ${NODE_IMAGE} AS runtime-deps
