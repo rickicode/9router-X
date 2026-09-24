@@ -1264,7 +1264,7 @@ function ProxyPoolsContent() {
       </div>
 
       {/* Sticky Tab Bar */}
-      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+      <div className="-mx-3 flex items-center gap-2 border-b border-border bg-bg px-3 py-2 sm:mx-0 sm:rounded-lg sm:border sm:px-3">
         <div
           ref={tabsRef}
           className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar"

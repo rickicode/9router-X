@@ -254,9 +254,8 @@ function AppContent({ machineId }) {
         )}
       </div>
 
-      {/* Sticky control bar: the tab control drives every panel below, so it
-          stays reachable instead of scrolling off in a long page. */}
-      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+      {/* Control bar: the tab control drives every panel below. */}
+      <div className="-mx-3 flex items-center gap-2 border-b border-border bg-bg px-3 py-2 sm:mx-0 sm:rounded-lg sm:border sm:px-3">
         <div
           ref={tabsRef}
           className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar"
