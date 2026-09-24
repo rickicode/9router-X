@@ -13,6 +13,9 @@
  * runs an independent Hono server; the OS load-balances accepted sockets.
  */
 
+import { register } from "node:module";
+register("./alias-resolver.mjs", import.meta.url);
+
 import http from "node:http";
 import cluster from "node:cluster";
 import os from "node:os";
@@ -38,7 +41,7 @@ const PUBLIC_LLM_PREFIXES = ["/v1", "/v1beta", "/api/v1", "/api/v1beta", "/codex
 let cliToken = null;
 async function getCliToken() {
   if (cliToken) return cliToken;
-  const mod = await import("./src/shared/utils/machineId.js");
+  const mod = await import("@/shared/utils/machineId.js");
   cliToken = await mod.getConsistentMachineId("9r-cli-auth");
   return cliToken;
 }
@@ -52,7 +55,7 @@ function extractApiKey(req) {
 async function canAccessPublicLlmApi(c) {
   const apiKey = extractApiKey(c);
   if (!apiKey) return false;
-  const { validateApiKey } = await import("./src/lib/db/repos/apiKeysRepo.js");
+  const { validateApiKey } = await import("@/lib/db/repos/apiKeysRepo.js");
   return Boolean(await validateApiKey(apiKey));
 }
 
@@ -74,7 +77,7 @@ async function requireLlmAccess(c, next) {
 }
 
 // ── Handlers (imported from the existing pipeline — untouched) ───────────────
-const srcSse = "./src/sse/handlers";
+const srcSse = "@/sse/handlers";
 let translatorsInitialized = false;
 async function ensureInitialized() {
   if (translatorsInitialized) return;
@@ -115,7 +118,7 @@ app.post("/v1/chat/completions", chatHandler);
 app.post("/v1/messages", chatHandler);            // Anthropic protocol
 app.post("/v1/messages/count_tokens", async (c) => {
   // Ported inline handler (framework-free estimate; kept byte-identical logic)
-  const mod = await import("./gateway/shims/countTokens.js");
+  const mod = await import("./shims/countTokens.js");
   return mod.countTokens(c.req.raw);
 });
 app.post("/v1/responses", chatHandler);
@@ -132,15 +135,15 @@ app.post("/v1/api/chat", chatHandler);            // Ollama-compat
 // ── Models ────────────────────────────────────────────────────────────────────
 app.get("/v1/models", async (c) => {
   await ensureInitialized();
-  const mod = await import("./src/app/api/v1/models/route.js");
+  const mod = await import("@/app/api/v1/models/route.js");
   return mod.GET(c.req.raw);
 });
 app.get("/v1/models/info", async (c) => {
-  const mod = await import("./src/app/api/v1/models/info/route.js");
+  const mod = await import("@/app/api/v1/models/info/route.js");
   return mod.GET(c.req.raw);
 });
 app.get("/v1/models/*", async (c) => {
-  const mod = await import("./src/app/api/v1/models/[...model]/route.js");
+  const mod = await import("@/app/api/v1/models/[...model]/route.js");
   const kindPath = c.req.path.replace(/^\/v1\/models\/?/, "").split("/").filter(Boolean);
   // Next shim awaits params.model (string or array); pass the path segments.
   return mod.GET(c.req.raw, { params: Promise.resolve({ model: kindPath }) });
@@ -168,7 +171,7 @@ app.post("/v1/audio/transcriptions", async (c) => {
   return handleStt(c.req.raw);
 });
 app.get("/v1/audio/voices", async (c) => {
-  const mod = await import("./src/app/api/v1/audio/voices/route.js");
+  const mod = await import("@/app/api/v1/audio/voices/route.js");
   return mod.GET(c.req.raw);
 });
 app.post("/v1/videos/generations", async (c) => {
@@ -206,7 +209,7 @@ app.post("/v1/web/fetch", async (c) => {
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get("/api/health", async (c) => {
   try {
-    const { getProviderConnections } = await import("./src/lib/db/repos/connectionsRepo.js");
+    const { getProviderConnections } = await import("@/lib/db/repos/connectionsRepo.js");
     await getProviderConnections({ isActive: true, limit: 1 });
     return c.json({ status: "healthy", service: "gateway", timestamp: new Date().toISOString() });
   } catch (e) {

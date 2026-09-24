@@ -26,13 +26,7 @@ COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machin
 # Gateway runtime code: Hono server + shims + the pipeline it serves
 COPY gateway ./gateway
 COPY open-sse ./open-sse
-COPY src/sse ./src/sse
-COPY src/lib ./src/lib
-COPY src/domain ./src/domain
-COPY src/shared ./src/shared
-COPY src/app/api/v1 ./src/app/api/v1
-COPY src/app/api/v1beta ./src/app/api/v1beta
-COPY src/instrumentation.js ./src/instrumentation.js
+COPY src ./src
 
 ENV NODE_ENV=production
 ENV GATEWAY_PORT=10129
@@ -48,5 +42,5 @@ EXPOSE 10129
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:10129/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Alias resolver bootstraps "@/..." imports without a bundler.
-CMD ["node", "--import", "./gateway/alias-resolver.mjs", "--max-old-space-size=2048", "gateway/server.js"]
+# Alias resolver is registered programmatically at top of gateway/server.js
+CMD ["node", "--max-old-space-size=2048", "gateway/server.js"]
