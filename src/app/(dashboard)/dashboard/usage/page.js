@@ -36,7 +36,6 @@ const PERIODS = [
 const TABS = [
   { value: "overview", label: "Overview" },
   { value: "analytics", label: "Analytics" },
-  { value: "details", label: "Request Details" },
   { value: "logs", label: "Request Logs" },
 ];
 
@@ -48,10 +47,6 @@ const TAB_COPY = {
   analytics: {
     title: "Reliability & Speed",
     body: "New routed LLM attempts only. Retries count separately. Reliability and latency describe service performance, not answer quality.",
-  },
-  details: {
-    title: "Request Details",
-    body: "Inspect a single request: provider, model, tokens, latency, and the upstream error when one was returned.",
   },
   logs: {
     title: "Request Logs",
@@ -72,16 +67,31 @@ function UsageContent() {
   const router = useRouter();
   const [period, setPeriod] = useState("today");
 
-  const tabFromUrl = searchParams.get("tab");
+  // Legacy deep links: `?tab=details` used to be its own tab; merge into logs.
+  const tabParam = searchParams.get("tab");
+  const tabFromUrl = tabParam === "details" ? "logs" : tabParam;
   const activeTab =
-    tabFromUrl && ["overview", "logs", "details", "analytics"].includes(tabFromUrl)
+    tabFromUrl && ["overview", "logs", "analytics"].includes(tabFromUrl)
       ? tabFromUrl
       : "overview";
+  const showDetails =
+    activeTab === "logs" &&
+    (tabParam === "details" || searchParams.get("details") === "1");
 
   const handleTabChange = (value) => {
     if (value === activeTab) return;
     const params = new URLSearchParams(searchParams);
     params.set("tab", value);
+    // The details panel only exists inside logs; drop its param elsewhere.
+    if (value !== "logs") params.delete("details");
+    router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
+  };
+
+  const toggleDetails = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", "logs");
+    if (showDetails) params.delete("details");
+    else params.set("details", "1");
     router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
   };
 
@@ -154,8 +164,18 @@ function UsageContent() {
           />
         </Suspense>
       )}
-      {activeTab === "logs" && <RequestLogger />}
-      {activeTab === "details" && <RequestDetailsTab />}
+      {activeTab === "logs" && (
+        <>
+          <RequestLogger detailsOpen={showDetails} onToggleDetails={toggleDetails} />
+          {showDetails && (
+            <Suspense fallback={<CardSkeleton />}>
+              <RequestDetailsTab
+                initialFilters={{ status: searchParams.get("status") || "" }}
+              />
+            </Suspense>
+          )}
+        </>
+      )}
       {activeTab === "analytics" && <AnalyticsTab period={period} />}
     </div>
   );

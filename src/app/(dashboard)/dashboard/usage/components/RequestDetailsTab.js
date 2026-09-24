@@ -99,7 +99,7 @@ function getInputTokens(tokens) {
  return prompt < cache ? cache : prompt;
 }
 
-export default function RequestDetailsTab() {
+export default function RequestDetailsTab({ initialFilters }) {
  const [details, setDetails] = useState([]);
  const [pagination, setPagination] = useState({
  page: 1,
@@ -113,12 +113,13 @@ export default function RequestDetailsTab() {
  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
  const [providers, setProviders] = useState([]);
  const [providerNameCache, setProviderNameCache] = useState(null);
- const [filters, setFilters] = useState({
- provider: "",
- status: "",
- startDate: "",
- endDate: ""
- });
+  const [filters, setFilters] = useState({
+    provider: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+    ...initialFilters,
+  });
 
  const STATUS_OPTIONS = [
  { value: "", label: "All Status" },

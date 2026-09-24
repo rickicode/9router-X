@@ -83,7 +83,7 @@ function StatusChip({ status, size = "md" }) {
  );
 }
 
-export default function RequestLogger() {
+export default function RequestLogger({ detailsOpen = false, onToggleDetails }) {
  const [logs, setLogs] = useState([]);
  const [loading, setLoading] = useState(true);
  const [autoRefresh, setAutoRefresh] = useState(true);
@@ -229,6 +229,18 @@ export default function RequestLogger() {
  />
  </button>
  </label>
+          {onToggleDetails && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="manage_search"
+              onClick={onToggleDetails}
+              aria-pressed={detailsOpen}
+              className={detailsOpen ? "border-primary/40 bg-primary/10 text-primary" : ""}
+            >
+              Details
+            </Button>
+          )}
  <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} icon="refresh" aria-label="Refresh logs">
  <span className="hidden sm:inline">Refresh</span>
  </Button>
@@ -247,7 +259,7 @@ placeholder="Search model, provider, account…"
  inputClassName="h-11 sm:h-8"
  />
  </div>
- <div className="tab-scroll-fade flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="Filter status">
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter status">
  {STATUS_FILTERS.map((f) => {
  const active = statusFilter === f.value;
  const count = f.value === "all" ? logs.length : counts[f.value] ?? 0;
@@ -258,7 +270,7 @@ placeholder="Search model, provider, account…"
  onClick={() => setStatusFilter(f.value)}
  aria-pressed={active}
  className={cn(
- "scroll-snap-align-start inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border px-3 text-xs font-medium sm:min-h-8 sm:px-2",
+            "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border px-3 text-xs font-medium sm:min-h-8 sm:px-2",
  active
  ? "bg-primary/10 border-primary/30 text-primary"
  : "bg-surface border-border text-text-muted hover:text-text-main hover:bg-surface-2"

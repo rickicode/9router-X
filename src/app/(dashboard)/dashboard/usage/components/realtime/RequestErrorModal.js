@@ -94,18 +94,18 @@ export default function RequestErrorModal({ selectedError, fetchedError, loading
  ? (typeof (selectedError.error || fetchedError) === "object"
  ? JSON.stringify(selectedError.error || fetchedError, null, 2)
  : (selectedError.error || fetchedError))
- : `[${selectedError.status || "FAILED"}]: Request failed with HTTP status ${selectedError.status}. Check Request Details tab for archived traces.`}
+    : `[${selectedError.status || "FAILED"}]: Request failed with HTTP status ${selectedError.status}. Check Request Details for archived traces.`}
  </pre>
  )}
  </div>
 
  <div className="flex items-center justify-between pt-2 border-t border-border h-8">
  <a
- href="/dashboard/usage?tab=details"
+          href="/dashboard/usage?tab=logs&details=1"
  className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
  >
  <span className="material-symbols-outlined !text-[18px]">open_in_new</span>
- View in Request Details Tab
+          Open Request Details
  </a>
  <Button
  variant="ghost"

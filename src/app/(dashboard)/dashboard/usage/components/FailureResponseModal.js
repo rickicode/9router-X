@@ -84,12 +84,12 @@ export default function FailureResponseModal({
  analytics was aggregated from telemetry events or older requests.
  </p>
  <a
- href={`/dashboard/usage?tab=details&status=failed${
- targetType === "provider" ? `&provider=${encodeURIComponent(targetTitle)}` : `&model=${encodeURIComponent(targetTitle)}`
- }`}
+          href={`/dashboard/usage?tab=logs&details=1&status=failed${
+            targetType === "provider" ? `&provider=${encodeURIComponent(targetTitle)}` : `&model=${encodeURIComponent(targetTitle)}`
+          }`}
  className="mt-2 text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
  >
- Check Request Details Tab <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+  Open Request Details <span className="material-symbols-outlined text-[18px]">open_in_new</span>
  </a>
  </div>
  ) : (
@@ -263,13 +263,13 @@ className={cn(
  {/* Footer link to Request Details */}
  <div className="p-3 border-t border-border bg-surface-2/40 flex items-center justify-between h-8">
  <a
- href={`/dashboard/usage?tab=details&status=failed&provider=${encodeURIComponent(
- selected.provider || "",
- )}&model=${encodeURIComponent(selected.model || "")}`}
+          href={`/dashboard/usage?tab=logs&details=1&status=failed&provider=${encodeURIComponent(
+            selected.provider || "",
+          )}&model=${encodeURIComponent(selected.model || "")}`}
  className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
  >
  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
- View trace in Request Details tab
+  View trace in Request Details
  </a>
  <Button variant="ghost" size="sm" onClick={onClose}>
  Close
