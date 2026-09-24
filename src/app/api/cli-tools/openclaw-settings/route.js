@@ -6,6 +6,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { PROVIDER_ID, PROVIDER_IDS, isRouterModelId, stripRouterModelPrefix, routerModelId } from "@/shared/constants/routerIdentity.js";
 
 const execAsync = promisify(exec);
 
@@ -56,20 +57,24 @@ const readSettings = async () => {
   }
 };
 
-// Check if settings has 9Router config
+// Check if settings has gateway config under the current or legacy id
 const has9RouterConfig = (settings) => {
   if (!settings || !settings.models || !settings.models.providers) return false;
-  return !!settings.models.providers["9router"];
+  return PROVIDER_IDS.some((id) => !!settings.models.providers[id]);
 };
 
-// Read per-agent models.json and return current model id (without "9router/" prefix)
+// Read per-agent models.json and return current model id (without provider prefix)
 const readAgentModel = async (agentDir) => {
   try {
     const modelsPath = path.join(agentDir, "models.json");
     const content = await fs.readFile(modelsPath, "utf-8");
     const data = JSON.parse(content);
-    const models = data?.providers?.["9router"]?.models;
-    return models?.[0]?.id || null;
+    const providers = data?.providers || {};
+    for (const id of PROVIDER_IDS) {
+      const models = providers[id]?.models;
+      if (models?.[0]?.id) return stripRouterModelPrefix(models[0].id) || models[0].id;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -125,7 +130,8 @@ const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   } catch { /* No existing */ }
 
   if (!existing.providers) existing.providers = {};
-  existing.providers["9router"] = {
+  for (const id of PROVIDER_IDS) delete existing.providers[id];
+  existing.providers[PROVIDER_ID] = {
     baseUrl,
     apiKey: apiKey || "your_api_key",
     api: "openai-completions",
@@ -163,11 +169,11 @@ export async function POST(request) {
     if (!settings.models.providers) settings.models.providers = {};
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
-    const fullModelId = `9router/${model}`;
+    const fullModelId = routerModelId(model);
 
-    // Remove all old 9router/* entries from agents.defaults.models
+    // Remove all old gateway/* entries (current + legacy) from agents.defaults.models
     Object.keys(settings.agents.defaults.models)
-      .filter((k) => k.startsWith("9router/"))
+      .filter((k) => isRouterModelId(k))
       .forEach((k) => { delete settings.agents.defaults.models[k]; });
 
     // Update default model
@@ -177,16 +183,16 @@ export async function POST(request) {
     const allModelIds = new Set([model]);
     Object.values(agentModels).forEach((m) => { if (m) allModelIds.add(m); });
 
-    // Add fresh 9router models to allowlist
+    // Add fresh gateway models to allowlist
     allModelIds.forEach((m) => {
-      settings.agents.defaults.models[`9router/${m}`] = {};
+      settings.agents.defaults.models[routerModelId(m)] = {};
     });
 
     // Remove old 9router model from each agent in agents.list. The
     // model field may be a plain string or `{ primary, fallbacks }`.
     if (settings.agents.list) {
       settings.agents.list = settings.agents.list.map((agent) => {
-        if (resolveAgentModel(agent.model).startsWith("9router/")) {
+        if (isRouterModelId(resolveAgentModel(agent.model))) {
           const { model: _, ...rest } = agent;
           return rest;
         }
@@ -194,8 +200,9 @@ export async function POST(request) {
       });
     }
 
-    // Update models.providers.9router with all models
-    settings.models.providers["9router"] = {
+    // Update models.providers under the current id; drop any legacy entry
+    for (const id of PROVIDER_IDS) delete settings.models.providers[id];
+    settings.models.providers[PROVIDER_ID] = {
       baseUrl: normalizedBaseUrl,
       apiKey: apiKey || "your_api_key",
       api: "openai-completions",
@@ -206,7 +213,7 @@ export async function POST(request) {
     if (settings.agents.list) {
       settings.agents.list = settings.agents.list.map((agent) => {
         const agentModel = agentModels[agent.id];
-        if (agentModel) return { ...agent, model: `9router/${agentModel}` };
+        if (agentModel) return { ...agent, model: routerModelId(agentModel) };
         return agent;
       });
 
@@ -254,9 +261,9 @@ export async function DELETE() {
       throw error;
     }
 
-    // Remove 9Router from models.providers
+    // Remove gateway provider entries under both current and legacy ids
     if (settings.models && settings.models.providers) {
-      delete settings.models.providers["9router"];
+      for (const id of PROVIDER_IDS) delete settings.models.providers[id];
       
       // Remove providers object if empty
       if (Object.keys(settings.models.providers).length === 0) {
@@ -266,7 +273,7 @@ export async function DELETE() {
 
     // Remove 9router models from agents.defaults.models allowlist
     if (settings.agents?.defaults?.models) {
-      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => k.startsWith("9router/"));
+      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => isRouterModelId(k));
       for (const key of keysToRemove) {
         delete settings.agents.defaults.models[key];
       }
@@ -276,7 +283,7 @@ export async function DELETE() {
     }
 
     // Reset agents.defaults.model.primary if it uses 9router
-    if (settings.agents?.defaults?.model?.primary?.startsWith("9router/")) {
+    if (isRouterModelId(settings.agents?.defaults?.model?.primary)) {
       delete settings.agents.defaults.model.primary;
     }
 

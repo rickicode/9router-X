@@ -146,13 +146,13 @@ const getPageInfo = (pathname) => {
  icon: "monitor",
  breadcrumbs: [],
  };
- if (pathname === "/dashboard")
- return {
- title: "Endpoint",
- description: "API endpoint configuration",
- icon: "api",
- breadcrumbs: [],
- };
+  if (pathname === "/dashboard" || pathname.includes("/app"))
+    return {
+      title: "Overview",
+      description: "Gateway status, system health, and usage overview",
+      icon: "dashboard",
+      breadcrumbs: [],
+    };
  return { title: "", description: "", breadcrumbs: [] };
 };
 

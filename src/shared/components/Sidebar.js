@@ -13,6 +13,7 @@ const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "trave
 
 // Core & Routing
 const coreRoutingItems = [
+  { href: "/dashboard/app", label: "Overview", icon: "dashboard" },
   { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
   { href: "/dashboard/combos", label: "Combo Adapter", icon: "layers" },
@@ -44,8 +45,8 @@ export default function Sidebar({ onClose }) {
   const [mediaOpen, setMediaOpen] = useState(false);
 
   const isActive = (href) => {
-    if (href === "/dashboard/endpoint") {
-      return pathname === "/dashboard" || pathname.startsWith("/dashboard/endpoint");
+    if (href === "/dashboard/app") {
+      return pathname === "/dashboard" || pathname.startsWith("/dashboard/app");
     }
     return pathname.startsWith(href);
   };

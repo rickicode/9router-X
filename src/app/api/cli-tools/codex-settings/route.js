@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { parseTOML, stringifyTOML } from "confbox";
+import { PROVIDER_ID, PROVIDER_DISPLAY_NAME, PROVIDER_IDS, isRouterProviderId } from "@/shared/constants/routerIdentity.js";
 
 const execAsync = promisify(exec);
 
@@ -73,10 +74,12 @@ const readConfig = async () => {
   }
 };
 
-// Check if config has 9Router settings
+// Detect gateway config: current name plus legacy pre-rebrand name (migration read)
 const has9RouterConfig = (config) => {
   if (!config) return false;
-  return config.includes("model_provider = \"9router\"") || config.includes("[model_providers.9router]");
+  return PROVIDER_IDS.some((id) =>
+    config.includes(`model_provider = "${id}"`) || config.includes(`[model_providers.${id}]`)
+  );
 };
 
 // GET - Check codex CLI and read current settings
@@ -128,16 +131,19 @@ export async function POST(request) {
       parsed = parsedToWritable(parseTOML(existingConfig));
     } catch { /* No existing config */ }
 
-    // Update only 9Router related fields (api_key goes to auth.json, not config.toml)
+    // Update gateway fields (api_key goes to auth.json, not config.toml)
     parsed.model = model;
-    parsed.model_provider = "9router";
+    parsed.model_provider = PROVIDER_ID;
 
-    // Update or create 9router provider section (no api_key - Codex reads from auth.json)
+    // Remove the legacy pre-rebrand provider section so Apply migrates in place
+    if (PROVIDER_ID !== "9router") deleteNestedSection(parsed, "model_providers.9router");
+
+    // Update or create the gateway provider section (no api_key - Codex reads from auth.json)
     // Ensure /v1 suffix is added only once
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     // Custom providers ignore auth.json - the key must travel as a static header
-    setNestedSection(parsed, "model_providers.9router", {
-      name: "9Router",
+    setNestedSection(parsed, `model_providers.${PROVIDER_ID}`, {
+      name: PROVIDER_DISPLAY_NAME,
       base_url: normalizedBaseUrl,
       wire_api: "responses",
       http_headers: { Authorization: `Bearer ${apiKey}` },
@@ -182,14 +188,14 @@ export async function DELETE() {
       throw error;
     }
 
-    // Remove 9Router related root fields only if they point to 9router
-    if (parsed.model_provider === "9router") {
+    // Remove gateway root fields only if they point at a gateway provider id
+    if (isRouterProviderId(parsed.model_provider)) {
       delete parsed.model;
       delete parsed.model_provider;
     }
 
-    // Remove 9router provider section
-    deleteNestedSection(parsed, "model_providers.9router");
+    // Remove provider sections for both the current and legacy names
+    for (const id of PROVIDER_IDS) deleteNestedSection(parsed, `model_providers.${id}`);
 
     // Remove subagent configuration (both the current key and the legacy role form)
     deleteNestedSection(parsed, "agents.default_subagent_model");
