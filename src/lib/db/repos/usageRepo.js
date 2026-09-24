@@ -778,7 +778,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
 }
 
 /**
- * Requests per minute for the last 10 minutes, always returning the full window
+ * Requests per minute for the last 30 minutes, always returning the full window
  * of buckets (including zero-traffic minutes) so the client can render a stable
  * series instead of a shrinking one.
  */
@@ -786,18 +786,18 @@ export async function getLast10Minutes(dbArg) {
   const db = dbArg || (await getAdapter());
   const now = new Date();
   const currentMinuteStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
-  const tenMinutesAgo = new Date(currentMinuteStart.getTime() - 9 * 60 * 1000);
+  const windowStart = new Date(currentMinuteStart.getTime() - 29 * 60 * 1000);
   const bucketMap = {};
   const buckets = [];
-  for (let i = 0; i < 10; i++) {
-    const ts = currentMinuteStart.getTime() - (9 - i) * 60 * 1000;
+  for (let i = 0; i < 30; i++) {
+    const ts = currentMinuteStart.getTime() - (29 - i) * 60 * 1000;
     bucketMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
     buckets.push(bucketMap[ts]);
   }
   const recent10 = await db.all(
     `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
      WHERE timestamp >= $1 AND timestamp <= $2`,
-    [tenMinutesAgo.toISOString(), now.toISOString()],
+    [windowStart.toISOString(), now.toISOString()],
   );
   for (const row of recent10) {
     const tt = new Date(row.timestamp).getTime();
@@ -922,10 +922,13 @@ export async function getUsageStats(period = "all") {
 
   stats.last10Minutes = await getLast10Minutes(db);
 
-  const useDailySummary = period !== "24h";
+  // usage_daily is the single source for every period: it is written by the
+  // same batcher as usage_history but never had the recording gap, and it is
+  // one row per day instead of one row per request.
+  const useDailySummary = true;
 
   if (useDailySummary) {
-    const periodDays = { "today": 1, "7d": 7, "30d": 30, "60d": 60 };
+    const periodDays = { "today": 1, "24h": 2, "7d": 7, "30d": 30, "60d": 60 };
     const maxDays = periodDays[period] || null;
 
     const today = new Date();
@@ -944,33 +947,6 @@ export async function getUsageStats(period = "all") {
     }));
     const aggregated = buildAggregatesFromDays(daySummaries, connectionMap, providerNodeNameMap, apiKeyMap);
     Object.assign(stats, aggregated);
-
-    const overlayCutoff = maxDays ? Date.now() - maxDays * 86400000 : 0;
-    const histRows = await db.all(
-      `SELECT timestamp, provider, model, connection_id, api_key, endpoint
-       FROM usage_history WHERE timestamp >= $1`,
-      [new Date(overlayCutoff).toISOString()],
-    );
-    for (const e of histRows) {
-      const ts = e.timestamp;
-      const modelKey = e.provider ? `${e.model} (${e.provider})` : e.model;
-      if (stats.byModel[modelKey] && new Date(ts) > new Date(stats.byModel[modelKey].lastUsed)) stats.byModel[modelKey].lastUsed = ts;
-
-      if (e.connection_id) {
-        const accountName = connectionMap[e.connection_id] || `Account ${e.connection_id.slice(0, 8)}...`;
-        const accountKey = `${e.model} (${e.provider} - ${accountName})`;
-        if (stats.byAccount[accountKey] && new Date(ts) > new Date(stats.byAccount[accountKey].lastUsed)) stats.byAccount[accountKey].lastUsed = ts;
-      }
-
-      const apiKeyKey = (e.api_key && typeof e.api_key === "string")
-        ? `${e.api_key}|${e.model}|${e.provider || "unknown"}`
-        : "local-no-key";
-      if (stats.byApiKey[apiKeyKey] && new Date(ts) > new Date(stats.byApiKey[apiKeyKey].lastUsed)) stats.byApiKey[apiKeyKey].lastUsed = ts;
-
-      const endpoint = e.endpoint || "Unknown";
-      const endpointKey = `${endpoint}|${e.model}|${e.provider || "unknown"}`;
-      if (stats.byEndpoint[endpointKey] && new Date(ts) > new Date(stats.byEndpoint[endpointKey].lastUsed)) stats.byEndpoint[endpointKey].lastUsed = ts;
-    }
   } else {
     let cutoff;
     if (period === "today") {
@@ -1073,6 +1049,29 @@ export async function getUsageStats(period = "all") {
 
   stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
   stats.totalFailedRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.failedRequests || 0), 0);
+
+  if (period === "24h") {
+    // The daily window includes all of yesterday; drop the slice older than 24h.
+    // usage_history is complete for that older slice (the recording gap is recent).
+    const windowStart = new Date(Date.now() - PERIOD_MS["24h"]);
+    const dayStart = new Date(windowStart);
+    dayStart.setHours(0, 0, 0, 0);
+    const stale = await db.get(
+      `SELECT count(*)::int AS requests,
+              COALESCE(SUM(prompt_tokens), 0)::bigint AS prompt,
+              COALESCE(SUM(completion_tokens), 0)::bigint AS completion,
+              COALESCE(SUM(cost), 0)::float8 AS cost
+       FROM usage_history WHERE timestamp >= $1 AND timestamp < $2`,
+      [dayStart.toISOString(), windowStart.toISOString()],
+    );
+    if (stale && Number(stale.requests) > 0) {
+      stats.totalRequests = Math.max(0, stats.totalRequests - Number(stale.requests));
+      stats.totalPromptTokens = Math.max(0, stats.totalPromptTokens - Number(stale.prompt));
+      stats.totalCompletionTokens = Math.max(0, stats.totalCompletionTokens - Number(stale.completion));
+      stats.totalCost = Math.max(0, stats.totalCost - Number(stale.cost));
+    }
+  }
+
   return stats;
 }
 

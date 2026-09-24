@@ -163,14 +163,14 @@ function RequestStream({ buckets = [] }) {
  return (
  <Card
  title="Request Stream"
- subtitle="Requests per minute across the last 10 minutes"
+subtitle="Requests per minute across the last 30 minutes"
  icon="stream"
  padding="md"
  className="min-w-0 overflow-hidden"
  action={
  <span
  className="text-sm font-semibold tabular-nums text-primary"
- title={`Total last 10m: ${total.toLocaleString("en-US")} requests`}
+title={`Total last 30m: ${total.toLocaleString("en-US")} requests`}
  >
  {current.toLocaleString("en-US")}
  <span className="ml-1 text-[11px] font-normal text-text-muted">req / min</span>
@@ -220,8 +220,8 @@ function RequestStream({ buckets = [] }) {
 
  {/* Time axis: readable at 360px, labels thinned to avoid collision */}
  <div className="mt-2 flex min-w-0 justify-between gap-1 border-t border-border pt-2">
- <span className="truncate font-mono text-[10px] text-text-muted">-10 min</span>
- <span className="truncate font-mono text-[10px] text-text-muted">-5 min</span>
+<span className="truncate font-mono text-[10px] text-text-muted">-30 min</span>
+<span className="truncate font-mono text-[10px] text-text-muted">-15 min</span>
  <span className="truncate font-mono text-[10px] text-text-muted">now</span>
  </div>
  </>
