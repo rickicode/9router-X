@@ -233,6 +233,7 @@ async function removeAllDNSEntries(sudoPassword) {
  */
 function removeAllDNSEntriesSync() {
   try {
+    if (fs.existsSync("/.dockerenv") || process.env.DATA_DIR === "/app/data") return;
     if (!fs.existsSync(HOSTS_FILE)) return;
     const allHosts = Object.values(TOOL_HOSTS).flat();
     const content = fs.readFileSync(HOSTS_FILE, "utf8");

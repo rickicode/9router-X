@@ -28,15 +28,6 @@ RUN apt-get -o Acquire::Retries=3 update && \
   apt-get -o Acquire::Retries=3 install -y --no-install-recommends gosu curl tar ca-certificates iptables && \
   rm -rf /var/lib/apt/lists/*
 
-# Download separately: shell pipelines can hide manifest/download failures.
-# Preserve the existing x86_64 Devin artifact selection.
-RUN curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL https://static.devin.ai/cli/current/manifest.json -o /tmp/devin-manifest.json && \
-  node -e 'const fs = require("node:fs"); const m = JSON.parse(fs.readFileSync("/tmp/devin-manifest.json", "utf8")); const url = m.platforms?.["x86_64-unknown-linux"]?.url; if (!url) throw new Error("Missing Devin x86_64 download URL"); fs.writeFileSync("/tmp/devin-url", url)' && \
-  curl --retry 3 --connect-timeout 30 --max-time 300 -fsSL "$(cat /tmp/devin-url)" -o /tmp/devin.tar.gz && \
-  tar -xzf /tmp/devin.tar.gz -C /tmp && \
-  mv /tmp/bin/devin /usr/local/bin/devin && \
-  chmod +x /usr/local/bin/devin && \
-  rm -rf /tmp/bin /tmp/share /tmp/devin-manifest.json /tmp/devin-url /tmp/devin.tar.gz
 
 FROM runtime-deps AS runner
 
@@ -62,8 +53,7 @@ COPY --from=builder /app/node_modules/next ./node_modules/next
 # node-machine-id is createRequire-loaded at runtime; tracing omits it.
 COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machine-id
 
-RUN mkdir -p /app/data && chown -R node:node /app && \
-  mkdir -p /app/data-home && chown node:node /app/data-home && \
+RUN mkdir -p /app/data /app/data-home && chown -R node:node /app/data /app/data-home && \
   ln -sf /app/data-home /root/.9router 2>/dev/null || true
 
 COPY entrypoint.sh /entrypoint.sh

@@ -170,7 +170,7 @@ export default function Sidebar({ onClose }) {
  <>
  <aside className="flex w-60 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        <Link href="/dashboard" className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
+        <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
  </div>
@@ -201,6 +201,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
@@ -232,6 +233,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
@@ -263,6 +265,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
@@ -294,6 +297,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
@@ -348,6 +352,7 @@ export default function Sidebar({ onClose }) {
                 <Link
                   key={kind.id}
                   href={`/dashboard/media-providers/${kind.id}`}
+                  prefetch={false}
                   onClick={onClose}
                   aria-current={pathname.startsWith(`/dashboard/media-providers/${kind.id}`) ? "page" : undefined}
                   className={cn(
@@ -364,6 +369,7 @@ export default function Sidebar({ onClose }) {
               <Link
                 key={COMBINED_WEB_ITEM.id}
                 href={COMBINED_WEB_ITEM.href}
+                prefetch={false}
                 onClick={onClose}
                 aria-current={pathname.startsWith(COMBINED_WEB_ITEM.href) ? "page" : undefined}
                 className={cn(
@@ -383,6 +389,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
@@ -414,6 +421,7 @@ export default function Sidebar({ onClose }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 onClick={onClose}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
@@ -440,8 +448,8 @@ export default function Sidebar({ onClose }) {
           {/* Settings */}
           <Link
             href="/dashboard/profile"
+            prefetch={false}
             onClick={onClose}
-            aria-current={isActive("/dashboard/profile") ? "page" : undefined}
             className={cn(
               "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
               isActive("/dashboard/profile")

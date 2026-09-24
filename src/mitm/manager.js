@@ -247,6 +247,7 @@ async function loadDnsToolState() {
  * Re-apply DNS for tools previously enabled — called on app startup after MITM running.
  */
 async function restoreToolDNS(sudoPassword) {
+  if (fs.existsSync("/.dockerenv") || process.env.DATA_DIR === "/app/data") return;
   const state = await loadDnsToolState();
   const password = sudoPassword || getCachedPassword() || await loadEncryptedPassword();
   for (const [tool, enabled] of Object.entries(state)) {

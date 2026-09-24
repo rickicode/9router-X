@@ -108,7 +108,6 @@ import p108 from "./llm7.js";
 import p109 from "./sambanova.js";
 import p110 from "./tencent.js";
 import p111 from "./morphllm.js";
-import p112 from "./devin-cli.js";
 import p113 from "./windsurf.js";
 import p114 from "./poolside.js";
 import p115 from "./tokenrouter.js";
@@ -244,7 +243,6 @@ export default [
   p109,
   p110,
   p111,
-  p112,
   p113,
   p114,
   p115,

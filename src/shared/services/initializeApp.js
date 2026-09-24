@@ -280,47 +280,7 @@ function getNetworkFingerprint() {
 }
 
 function startNetworkMonitor() {
-  if (g.networkMonitorInterval) return;
-
-  g.lastNetworkFingerprint = getNetworkFingerprint();
-  g.lastWatchdogTick = Date.now();
-  g.lastOnline = null;
-
-  g.networkMonitorInterval = setInterval(async () => {
-    try {
-      const now = Date.now();
-      const elapsed = now - g.lastWatchdogTick;
-      g.lastWatchdogTick = now;
-
-      const currentFingerprint = getNetworkFingerprint();
-      const networkChanged = currentFingerprint !== g.lastNetworkFingerprint;
-      const wasSleep = elapsed > NETWORK_CHECK_INTERVAL_MS * 6;
-      if (networkChanged) g.lastNetworkFingerprint = currentFingerprint;
-
-      // Real reachability check (TCP 1.1.1.1:443) — not just interface presence
-      const online = await checkInternet();
-      const wasOffline = g.lastOnline === false;
-      g.lastOnline = online;
-
-      if (!online) return; // no internet → idle, don't restart
-
-      const onlineEdge = wasOffline; // offline → online transition
-      if (!networkChanged && !wasSleep && !onlineEdge) return;
-
-      // Wait for DHCP/DNS to settle before probing
-      await new Promise((r) => setTimeout(r, NETWORK_SETTLE_MS));
-
-      const reason = onlineEdge ? "online"
-        : wasSleep && networkChanged ? "sleep+netchange"
-        : wasSleep ? "sleep" : "netchange";
-      safeRestartTunnel(reason).catch(() => {});
-      safeRestartTailscale(reason).catch(() => {});
-    } catch (err) {
-      console.log("[NetworkMonitor] error:", err.message);
-    }
-  }, NETWORK_CHECK_INTERVAL_MS);
-
-  if (g.networkMonitorInterval.unref) g.networkMonitorInterval.unref();
+  // Disabled in Docker: container virtual interfaces don't sleep/wake or switch Wi-Fi
 }
 
 
