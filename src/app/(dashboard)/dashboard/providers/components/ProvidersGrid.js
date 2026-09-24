@@ -355,7 +355,7 @@ function ProvidersGrid({
           {!isFiltering && !showAllApikey && hiddenApikeyCount > 0 && (
             <button
               onClick={onShowAllApikey}
-              className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-sm font-medium text-primary hover:border-primary hover:bg-primary/10 transition-colors"
+              className="flex w-full min-h-11 sm:min-h-9 items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2 text-sm font-medium text-primary hover:border-primary hover:bg-primary/10 transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">expand_more</span>
               Show all {apikeyEntries.length} providers
