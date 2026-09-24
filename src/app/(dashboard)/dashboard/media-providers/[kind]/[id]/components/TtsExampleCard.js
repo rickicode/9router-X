@@ -76,10 +76,6 @@ export function TtsExampleCard({ providerId }) {
  .then((r) => r.json())
  .then((d) => { setConnectionCount((d.connections || []).length); })
  .catch(() => {});
- fetch("/api/tunnel/status")
- .then((r) => r.json())
- .then((d) => { if (d.publicUrl) setTunnelEndpoint(d.publicUrl); })
- .catch(() => {});
 
  // Pre-select default voice based on provider config
  if (config.voiceSource === "hardcoded") {

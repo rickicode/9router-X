@@ -42,10 +42,6 @@ export function SttExampleCard({ providerId }) {
  .then((r) => r.json())
  .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
  .catch(() => {});
- fetch("/api/tunnel/status")
- .then((r) => r.json())
- .then((d) => { if (d.publicUrl) setTunnelEndpoint(d.publicUrl); })
- .catch(() => {});
  const loadCustom = () => {
  fetch("/api/models/custom", { cache: "no-store" })
  .then((r) => r.json())

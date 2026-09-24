@@ -48,7 +48,5 @@ async function runHeavyStartup() {
     .catch((e) => console.log("[StateSweeper] scheduler start failed:", e.message));
 }
 
-// No-op for tunnel route compatibility in Docker
-export function configureTunnelMonitoring() {}
 
 export default initializeApp;

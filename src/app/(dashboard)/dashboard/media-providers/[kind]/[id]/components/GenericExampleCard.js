@@ -79,10 +79,6 @@ export function GenericExampleCard({ providerId, kind }) {
  .then((r) => r.json())
  .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
  .catch(() => {});
- fetch("/api/tunnel/status")
- .then((r) => r.json())
- .then((d) => { if (d.publicUrl) setTunnelEndpoint(d.publicUrl); })
- .catch(() => {});
  // Load active connections of this provider for pinning
  fetch("/api/providers/client")
  .then((r) => r.json())

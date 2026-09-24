@@ -42,10 +42,6 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
  .then((r) => r.json())
  .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
  .catch(() => {});
- fetch("/api/tunnel/status")
- .then((r) => r.json())
- .then((d) => { if (d.publicUrl) setTunnelEndpoint(d.publicUrl); })
- .catch(() => {});
  }, []);
 
  const endpoint = useTunnel ? tunnelEndpoint : localEndpoint;
