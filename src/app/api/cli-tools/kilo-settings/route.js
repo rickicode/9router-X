@@ -46,10 +46,10 @@ const readJson = async (filePath) => {
 
 const has9RouterConfig = (auth) => {
   if (!auth) return false;
-  const entry = auth["openai-compatible"] || auth["9router"];
+  const entry = auth["openai-compatible"] || auth["axonrouter"] || auth["9router"];
   if (!entry) return false;
   const baseUrl = entry.baseUrl || entry.baseURL || "";
-  return baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("9router");
+  return baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") || baseUrl.includes("axonrouter") || baseUrl.includes("9router");
 };
 
 export async function GET() {

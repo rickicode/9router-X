@@ -25,7 +25,7 @@ export const TOOL_TEMPLATES = {
     generateConfig: ({ baseUrl, apiKey, models = {}, maxContextTokens }) => {
       const env = {
         ANTHROPIC_BASE_URL: baseUrl,
-        ANTHROPIC_AUTH_TOKEN: apiKey || "sk_9router",
+        ANTHROPIC_AUTH_TOKEN: apiKey || "sk_axonrouter",
         ANTHROPIC_DEFAULT_SONNET_MODEL: models.sonnet || "cc/claude-sonnet-5",
         ANTHROPIC_DEFAULT_OPUS_MODEL: models.opus || "cc/claude-opus-5",
         ANTHROPIC_DEFAULT_HAIKU_MODEL: models.haiku || "cc/claude-haiku-4-5-20251001",
@@ -62,7 +62,7 @@ base_url = "${cleanBase}"
 wire_api = "responses"
 
 [model_providers.9router.http_headers]
-Authorization = "Bearer ${apiKey || "sk_9router"}"
+Authorization = "Bearer ${apiKey || "sk_axonrouter"}"
 
 [agents]
 default_subagent_model = "${subModel}"
@@ -93,7 +93,7 @@ default_subagent_model = "${subModel}"
           providers: {
             "9router": {
               baseUrl: cleanBase,
-              apiKey: apiKey || "sk_9router",
+              apiKey: apiKey || "sk_axonrouter",
               api: "openai-completions",
               models: [
                 {
@@ -125,7 +125,7 @@ default_subagent_model = "${subModel}"
           id: `custom:9Router-${i}`,
           index: i,
           baseUrl: cleanBase,
-          apiKey: apiKey || "sk_9router",
+          apiKey: apiKey || "sk_axonrouter",
           displayName: m,
           maxOutputTokens: 131072,
           noImageSupport: false,
@@ -154,7 +154,7 @@ default_subagent_model = "${subModel}"
       {
         pathPosix: "~/.hermes/.env",
         pathWin: "$env:USERPROFILE\\.hermes\\.env",
-        content: ({ apiKey }) => `OPENAI_API_KEY=${apiKey || "sk_9router"}\n`,
+        content: ({ apiKey }) => `OPENAI_API_KEY=${apiKey || "sk_axonrouter"}\n`,
       },
     ],
     verifyCmd: "hermes --version",
@@ -176,7 +176,7 @@ default_subagent_model = "${subModel}"
             npm: "@ai-sdk/openai-compatible",
             options: {
               baseURL: cleanBase,
-              apiKey: apiKey || "sk_9router",
+              apiKey: apiKey || "sk_axonrouter",
             },
             models: {
               [model]: {
@@ -225,7 +225,7 @@ default_subagent_model = "${subModel}"
         content: ({ apiKey }) =>
           JSON.stringify(
             {
-              openAiApiKey: apiKey || "sk_9router",
+              openAiApiKey: apiKey || "sk_axonrouter",
             },
             null,
             2,
@@ -247,7 +247,7 @@ default_subagent_model = "${subModel}"
       return {
         "openai-compatible": {
           type: "api-key",
-          apiKey: apiKey || "sk_9router",
+          apiKey: apiKey || "sk_axonrouter",
           baseUrl: cleanBase,
           model,
         },
@@ -267,7 +267,7 @@ default_subagent_model = "${subModel}"
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
       return `[providers.openai]
 base_url = "${cleanBase}"
-api_key = "${apiKey || "sk_9router"}"
+api_key = "${apiKey || "sk_axonrouter"}"
 model = "${model}"
 `;
     },
@@ -300,7 +300,7 @@ id = "${model}"
       {
         pathPosix: "~/.config/jcode/provider-9router.env",
         pathWin: "$env:USERPROFILE\\.config\\jcode\\provider-9router.env",
-        content: ({ apiKey }) => `JCODE_9ROUTER_API_KEY="${apiKey || "sk_9router"}"\n`,
+        content: ({ apiKey }) => `JCODE_9ROUTER_API_KEY="${apiKey || "sk_axonrouter"}"\n`,
       },
     ],
   },
@@ -324,7 +324,7 @@ base_url = "${cleanBase}"
 name = "9Router"
 description = "Routed via 9Router gateway"
 api_backend = "chat_completions"
-api_key = "${apiKey || "sk_9router"}"
+api_key = "${apiKey || "sk_axonrouter"}"
 context_window = 200000
 `;
     },
@@ -345,7 +345,7 @@ context_window = 200000
         {
           name: "9Router",
           vendor: "azure",
-          apiKey: apiKey || "sk_9router",
+          apiKey: apiKey || "sk_axonrouter",
           models: modelsList.map((id) => ({
             id,
             name: id,
@@ -374,7 +374,7 @@ context_window = 200000
       return {
         inferenceProvider: "gateway",
         inferenceGatewayBaseUrl: cleanBase,
-        inferenceGatewayApiKey: apiKey || "sk_9router",
+        inferenceGatewayApiKey: apiKey || "sk_axonrouter",
         inferenceModels: modelsList.map((name) => ({ name })),
       };
     },
@@ -394,7 +394,7 @@ context_window = 200000
         security: {
           auth: {
             selectedType: "openai",
-            apiKey: apiKey || "sk_9router",
+            apiKey: apiKey || "sk_axonrouter",
             baseUrl: cleanBase,
           },
         },
@@ -414,7 +414,7 @@ context_window = 200000
     generateConfig: ({ baseUrl, apiKey }) => {
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
       return `export OPENAI_BASE_URL="${cleanBase}"
-export OPENAI_API_KEY="${apiKey || "sk_9router"}"
+export OPENAI_API_KEY="${apiKey || "sk_axonrouter"}"
 `;
     },
   },

@@ -49,10 +49,10 @@ const has9RouterConfig = (config) => {
 
   const providers = config.providers;
 
-  if (providers["9router"]) return true;
+  if (providers["axonrouter"] || providers["9router"]) return true;
 
   for (const [name, provider] of Object.entries(providers)) {
-    if (provider.base_url && provider.base_url.includes("localhost:10128")) {
+    if (provider.base_url && (provider.base_url.includes("10128") || provider.base_url.includes("10129"))) {
       return true;
     }
   }

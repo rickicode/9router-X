@@ -35,9 +35,9 @@ exit 1
     ? `
 # Verification check
 if command -v ${tpl.verifyCmd.split(" ")[0]} >/dev/null 2>&1; then
-  printf "\\033[0;32m[9Router] Detected binary: %s\\033[0m\\n" "$(${tpl.verifyCmd} 2>/dev/null || true)"
+  printf "\\033[0;32m[AxonRouter] Detected binary: %s\\033[0m\\n" "$(${tpl.verifyCmd} 2>/dev/null || true)"
 else
-  printf "\\033[0;33m[9Router] Note: '${tpl.verifyCmd.split(" ")[0]}' binary not found in PATH on this host.\\033[0m\\n"
+  printf "\\033[0;33m[AxonRouter] Note: '${tpl.verifyCmd.split(" ")[0]}' binary not found in PATH on this host.\\033[0m\\n"
   printf "\\033[0;33m          Config written. Run after installing the tool.\\033[0m\\n"
 fi`
     : "";
@@ -49,14 +49,14 @@ fi`
 # ==============================================================================
 set -euo pipefail
 
-printf "\\033[0;36m[9Router] Configuring %s for 9Router host gateway...\\033[0m\\n" "${toolName}"
+printf "\\033[0;36m[AxonRouter] Configuring %s for 9Router host gateway...\\033[0m\\n" "${toolName}"
 
 ${fileOperations}
 
 ${verifySection}
 
-printf "\\033[0;32m[9Router] ✓ Configuration for %s applied successfully!\\033[0m\\n" "${toolName}"
-printf "\\033[0;32m[9Router] Gateway Target: %s\\033[0m\\n" "${params.baseUrl || "http://localhost:10128"}"
+printf "\\033[0;32m[AxonRouter] ✓ Configuration for %s applied successfully!\\033[0m\\n" "${toolName}"
+printf "\\033[0;32m[AxonRouter] Gateway Target: %s\\033[0m\\n" "${params.baseUrl || "http://localhost:10128"}"
 `;
 }
 
@@ -78,12 +78,12 @@ mkdir -p "$DIR_${index}"
 if [ -f "$TARGET_${index}" ]; then
   BAK_${index}="$TARGET_${index}.bak.$(date +%Y%m%d%H%M%S)"
   cp "$TARGET_${index}" "$BAK_${index}"
-  printf "\\033[0;34m[9Router] Backed up existing config to %s\\033[0m\\n" "$BAK_${index}"
+  printf "\\033[0;34m[AxonRouter] Backed up existing config to %s\\033[0m\\n" "$BAK_${index}"
 fi
 
-cat << 'EOF_9R_JSON_${index}' > "$DIR_${index}/.9router_incoming_${index}.json"
+cat << 'EOF_AXON_JSON_${index}' > "$DIR_${index}/\.axonrouter_incoming_${index}.json"
 ${contentStr}
-EOF_9R_JSON_${index}
+EOF_AXON_JSON_${index}
 
 if command -v node >/dev/null 2>&1; then
   node -e '
@@ -105,8 +105,8 @@ if command -v node >/dev/null 2>&1; then
       merged.models = { ...existing.models, ...incoming.models };
     }
     fs.writeFileSync(target, JSON.stringify(merged, null, 2));
-  ' "$TARGET_${index}" "$DIR_${index}/.9router_incoming_${index}.json"
-  rm -f "$DIR_${index}/.9router_incoming_${index}.json"
+  ' "$TARGET_${index}" "$DIR_${index}/\.axonrouter_incoming_${index}.json"
+  rm -f "$DIR_${index}/\.axonrouter_incoming_${index}.json"
 elif command -v python3 >/dev/null 2>&1; then
   python3 -c '
 import json, sys, os
@@ -125,12 +125,12 @@ if "env" in existing and "env" in incoming:
     merged["env"] = {**existing["env"], **incoming["env"]}
 with open(target, "w") as f:
     json.dump(merged, f, indent=2)
-' "$TARGET_${index}" "$DIR_${index}/.9router_incoming_${index}.json"
-  rm -f "$DIR_${index}/.9router_incoming_${index}.json"
+' "$TARGET_${index}" "$DIR_${index}/\.axonrouter_incoming_${index}.json"
+  rm -f "$DIR_${index}/\.axonrouter_incoming_${index}.json"
 else
-  mv "$DIR_${index}/.9router_incoming_${index}.json" "$TARGET_${index}"
+  mv "$DIR_${index}/\.axonrouter_incoming_${index}.json" "$TARGET_${index}"
 fi
-printf "\\033[0;32m[9Router] ✓ Updated %s\\033[0m\\n" "$TARGET_${index}"
+printf "\\033[0;32m[AxonRouter] ✓ Updated %s\\033[0m\\n" "$TARGET_${index}"
 `;
   }
 
@@ -143,12 +143,12 @@ mkdir -p "$DIR_${index}"
 if [ -f "$TARGET_${index}" ]; then
   BAK_${index}="$TARGET_${index}.bak.$(date +%Y%m%d%H%M%S)"
   cp "$TARGET_${index}" "$BAK_${index}"
-  printf "\\033[0;34m[9Router] Backed up existing config to %s\\033[0m\\n" "$BAK_${index}"
+  printf "\\033[0;34m[AxonRouter] Backed up existing config to %s\\033[0m\\n" "$BAK_${index}"
 fi
 
-cat << 'EOF_9R_RAW_${index}' > "$TARGET_${index}"
+cat << 'EOF_AXON_RAW_${index}' > "$TARGET_${index}"
 ${contentStr}
-EOF_9R_RAW_${index}
-printf "\\033[0;32m[9Router] ✓ Written %s\\033[0m\\n" "$TARGET_${index}"
+EOF_AXON_RAW_${index}
+printf "\\033[0;32m[AxonRouter] ✓ Written %s\\033[0m\\n" "$TARGET_${index}"
 `;
 }

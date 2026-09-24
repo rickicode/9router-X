@@ -36,12 +36,12 @@ Write-Error "Unknown tool '${toolId}'"
 # ==============================================================================
 $ErrorActionPreference = "Stop"
 
-Write-Host "[9Router] Configuring ${toolName} for 9Router host gateway..." -ForegroundColor Cyan
+Write-Host "[AxonRouter] Configuring ${toolName} for 9Router host gateway..." -ForegroundColor Cyan
 
 ${fileOperations}
 
-Write-Host "[9Router] ✓ Configuration for ${toolName} applied successfully!" -ForegroundColor Green
-Write-Host "[9Router] Gateway Target: ${params.baseUrl || "http://localhost:10128"}" -ForegroundColor Green
+Write-Host "[AxonRouter] ✓ Configuration for ${toolName} applied successfully!" -ForegroundColor Green
+Write-Host "[AxonRouter] Gateway Target: ${params.baseUrl || "http://localhost:10128"}" -ForegroundColor Green
 `;
 }
 
@@ -76,7 +76,7 @@ if (-not (Test-Path $dir_${index})) {
 if (Test-Path $target_${index}) {
     $bak_${index} = "$target_${index}.bak.$(Get-Date -Format 'yyyyMMddHHmmss')"
     Copy-Item -Path $target_${index} -Destination $bak_${index}
-    Write-Host "[9Router] Backed up existing config to $bak_${index}" -ForegroundColor DarkCyan
+    Write-Host "[AxonRouter] Backed up existing config to $bak_${index}" -ForegroundColor DarkCyan
 }
 
 $rawJson_${index} = @'
@@ -105,7 +105,7 @@ if (Test-Path $target_${index}) {
 } else {
     $rawJson_${index} | Set-Content -Path $target_${index} -Encoding UTF8
 }
-Write-Host "[9Router] ✓ Updated $target_${index}" -ForegroundColor Green
+Write-Host "[AxonRouter] ✓ Updated $target_${index}" -ForegroundColor Green
 `;
   }
 
@@ -120,12 +120,12 @@ if (-not (Test-Path $dir_${index})) {
 if (Test-Path $target_${index}) {
     $bak_${index} = "$target_${index}.bak.$(Get-Date -Format 'yyyyMMddHHmmss')"
     Copy-Item -Path $target_${index} -Destination $bak_${index}
-    Write-Host "[9Router] Backed up existing config to $bak_${index}" -ForegroundColor DarkCyan
+    Write-Host "[AxonRouter] Backed up existing config to $bak_${index}" -ForegroundColor DarkCyan
 }
 
 @'
 ${contentStr}
 '@ | Set-Content -Path $target_${index} -Encoding UTF8
-Write-Host "[9Router] ✓ Written $target_${index}" -ForegroundColor Green
+Write-Host "[AxonRouter] ✓ Written $target_${index}" -ForegroundColor Green
 `;
 }

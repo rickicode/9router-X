@@ -49,7 +49,7 @@ const readSettings = async () => {
 // Check if settings has 9Router customModels
 const has9RouterConfig = (settings) => {
   if (!settings || !settings.customModels) return false;
-  return settings.customModels.some(m => m.id?.startsWith("custom:9Router"));
+  return settings.customModels.some((m) => m.id?.startsWith("custom:AxonRouter") || m.id?.startsWith("custom:9Router"));
 };
 
 // GET - Check droid CLI and read current settings

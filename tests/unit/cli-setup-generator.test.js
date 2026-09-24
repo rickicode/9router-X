@@ -116,7 +116,7 @@ describe("bashGenerator", () => {
     expect(script).toContain("ANTHROPIC_BASE_URL");
     expect(script).toContain("ANTHROPIC_DEFAULT_SONNET_MODEL");
     expect(script).toContain(".bak.");
-    expect(script).toContain("[9Router] ✓ Configuration for %s applied successfully!");
+    expect(script).toContain("[AxonRouter] ✓ Configuration for %s applied successfully!");
   });
 
   it("generates valid Bash script for multi-file tools (hermes)", () => {
@@ -131,7 +131,7 @@ describe("bashGenerator", () => {
     expect(script).toContain(".hermes/.env");
     expect(script).toContain("OPENAI_API_KEY=sk_hermes_test");
     expect(script).toContain("hermes-3-llama-3.1-405b");
-    expect(script).toContain("[9Router] ✓ Configuration for %s applied successfully!");
+    expect(script).toContain("[AxonRouter] ✓ Configuration for %s applied successfully!");
   });
 
   it("returns error script for unknown tool", () => {
@@ -154,7 +154,7 @@ describe("powershellGenerator", () => {
     expect(script).toContain(".claude\\settings.json");
     expect(script).toContain("ConvertFrom-Json");
     expect(script).toContain("ConvertTo-Json -Depth 10");
-    expect(script).toContain("[9Router] ✓ Configuration for Claude Code applied successfully!");
+    expect(script).toContain("[AxonRouter] ✓ Configuration for Claude Code applied successfully!");
   });
 
   it("generates valid PowerShell script for multi-file tools (cline)", () => {
@@ -168,7 +168,7 @@ describe("powershellGenerator", () => {
     expect(script).toContain(".cline\\data\\globalState.json");
     expect(script).toContain(".cline\\data\\secrets.json");
     expect(script).toContain("sk_cline_win");
-    expect(script).toContain("[9Router] ✓ Configuration for Cline applied successfully!");
+    expect(script).toContain("[AxonRouter] ✓ Configuration for Cline applied successfully!");
   });
 
   it("returns error script for unknown tool in PowerShell", () => {
