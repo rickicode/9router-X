@@ -92,7 +92,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   useEffect(() => {
   if (!(status?.opencode?.models
   || status?.opencode?.activeModel
-  || status?.config?.agent?.explorer?.model?.startsWith("9router/"))) return;
+  || status?.config?.agent?.explorer?.model?.match(/^(axonrouter|9router)\//))) return;
   let cancelled = false;
   queueMicrotask(() => {
   if (cancelled) return;
@@ -102,8 +102,8 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   if (status?.opencode?.activeModel) {
   setActiveModel(status.opencode.activeModel);
   }
-  if (status?.config?.agent?.explorer?.model?.startsWith("9router/")) {
-  setSubagentModel(status.config.agent.explorer.model.replace("9router/", ""));
+  if (status?.config?.agent?.explorer?.model?.match(/^(axonrouter|9router)\//)) {
+  setSubagentModel(status.config.agent.explorer.model.replace(/^(axonrouter|9router)\//, ""));
   }
   });
   return () => { cancelled = true; };
@@ -113,7 +113,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  try {
  const keyToUse = (selectedApiKey && selectedApiKey.trim())
  ? selectedApiKey
- : (!cloudEnabled ? "sk_9router" : selectedApiKey);
+ : (!cloudEnabled ? "sk_axonrouter" : selectedApiKey);
  const validActiveModel = models.includes(activeModel) ? activeModel : (models[0] || "");
  await fetch("/api/cli-tools/opencode-settings", {
  method: "POST",
@@ -131,13 +131,17 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  }
  };
 
- const currentBaseUrl = status?.config?.provider?.["9router"]?.options?.baseURL || "";
+ const getProvider = () =>
+ status?.config?.provider?.["axonrouter"] ||
+ status?.config?.provider?.["9router"];
+
+ const currentBaseUrl = getProvider()?.options?.baseURL || "";
 
  const getConfigStatus = () => {
  if (!status?.installed) return null;
  if (!status.config) return "not_configured";
  if (!status.has9Router) return "not_configured";
- const url = status.config?.provider?.["9router"]?.options?.baseURL || "";
+ const url = getProvider()?.options?.baseURL || "";
  return matchKnownEndpoint(url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
  };
 
@@ -156,7 +160,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  try {
  const keyToUse = (selectedApiKey && selectedApiKey.trim())
  ? selectedApiKey
- : (!cloudEnabled ? "sk_9router" : selectedApiKey);
+ : (!cloudEnabled ? "sk_axonrouter" : selectedApiKey);
 
  const res = await fetch("/api/cli-tools/opencode-settings", {
  method: "POST",
@@ -211,7 +215,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  const getManualConfigs = () => {
  const keyToUse = (selectedApiKey && selectedApiKey.trim())
  ? selectedApiKey
- : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
+ : (!cloudEnabled ? "sk_axonrouter" : "<API_KEY_FROM_DASHBOARD>");
 
  const modelsToShow = selectedModels.length > 0 ? selectedModels : ["provider/model-id"];
  const activeModelToShow = activeModel || selectedModels[0] || modelsToShow[0];
@@ -226,18 +230,18 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  filename: "~/.config/opencode/opencode.json",
  content: JSON.stringify({
  provider: {
- "9router": {
+ "axonrouter": {
  npm: "@ai-sdk/openai-compatible",
  options: { baseURL: getEffectiveBaseUrl(), apiKey: keyToUse },
  models: modelsObj,
  },
  },
- model: `9router/${activeModelToShow}`,
+ model: `axonrouter/${activeModelToShow}`,
  agent: {
  explorer: {
  description: "Fast explorer subagent for codebase exploration",
  mode: "subagent",
- model: `9router/${effectiveSubagentModel}`
+ model: `axonrouter/${effectiveSubagentModel}`
  }
  }
  }, null, 2),
@@ -304,12 +308,12 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  </div>
 
  {/* Current configured */}
- {status?.config?.provider?.["9router"]?.options?.baseURL && (
+ {getProvider()?.options?.baseURL && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
  <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
- {status.config.provider["9router"].options.baseURL}
+ {getProvider().options.baseURL}
  </span>
  </div>
  )}

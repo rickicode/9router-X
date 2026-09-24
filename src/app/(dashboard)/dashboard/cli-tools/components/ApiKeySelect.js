@@ -73,7 +73,7 @@ export default function ApiKeySelect({ value, onChange, apiKeys = [], cloudEnabl
  if (noKeys) {
  return (
  <span className={`min-w-0 rounded-sm bg-surface/40 px-2 h-8 text-sm text-text-muted sm:py-2 ${className}`}>
- {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_9router (default)"}
+ {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_axonrouter (default)"}
  </span>
  );
  }

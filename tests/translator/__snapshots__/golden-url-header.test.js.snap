@@ -324,7 +324,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > claude → headers (
     "Anthropic-Dangerous-Direct-Browser-Access": "true",
     "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
-    "User-Agent": "claude-cli/2.1.258 (external, sdk-cli)",
+    "User-Agent": "claude-cli/2.1.280 (external, sdk-cli)",
     "X-App": "cli",
     "X-Stainless-Arch": "arm64",
     "X-Stainless-Helper-Method": "stream",
@@ -342,7 +342,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > claude → headers (
     "Anthropic-Dangerous-Direct-Browser-Access": "true",
     "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
-    "User-Agent": "claude-cli/2.1.258 (external, sdk-cli)",
+    "User-Agent": "claude-cli/2.1.280 (external, sdk-cli)",
     "X-App": "cli",
     "X-Stainless-Arch": "arm64",
     "X-Stainless-Helper-Method": "stream",
@@ -362,7 +362,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > claude → headers (
     "Anthropic-Version": "2023-06-01",
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-    "User-Agent": "claude-cli/2.1.258 (external, sdk-cli)",
+    "User-Agent": "claude-cli/2.1.280 (external, sdk-cli)",
     "X-App": "cli",
     "X-Stainless-Arch": "arm64",
     "X-Stainless-Helper-Method": "stream",
@@ -665,25 +665,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > deepseek → headers
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > devin-cli → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-}
-`;
-
 exports[`GOLDEN buildHeaders (default executor providers) > featherless → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -963,7 +944,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "servX",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.5.81",
+    "X-Msh-Version": "0.1.2",
     "x-api-key": "<CRED>",
   },
   "nonStream": {
@@ -974,7 +955,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "servX",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.5.81",
+    "X-Msh-Version": "0.1.2",
     "x-api-key": "<CRED>",
   },
   "oauth": {
@@ -986,7 +967,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "servX",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.5.81",
+    "X-Msh-Version": "0.1.2",
     "x-api-key": "<CRED>",
   },
 }
@@ -1904,13 +1885,6 @@ exports[`GOLDEN buildUrl (default executor providers) > deepseek → url (stream
 {
   "nonStream": "https://api.deepseek.com/chat/completions",
   "stream": "https://api.deepseek.com/chat/completions",
-}
-`;
-
-exports[`GOLDEN buildUrl (default executor providers) > devin-cli → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "devin://acp/stdio",
-  "stream": "devin://acp/stdio",
 }
 `;
 

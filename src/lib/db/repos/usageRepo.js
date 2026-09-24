@@ -150,7 +150,7 @@ async function insertHistoryChunk(tx, rows) {
   return res?.changes ?? 0;
 }
 
-async function flushUsageQueue() {
+export async function flushUsageQueue() {
   const batch = usageWriteQueue.items.splice(0, Math.max(usageWriteQueue.items.length, USAGE_FLUSH_MAX));
   if (batch.length === 0) return;
   try {

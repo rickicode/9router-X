@@ -18,6 +18,13 @@ export const DEFAULT_LOCAL_API_KEY = "sk_axonrouter";
 export const LEGACY_DEFAULT_LOCAL_API_KEY = "sk_9router";
 
 /** True when `value` is either the current or a legacy provider identifier. */
+
+/** Pick the gateway provider entry from a provider map under any known id. */
+export function pickRouterProvider(map) {
+  if (!map) return null;
+  for (const id of PROVIDER_IDS) if (map[id]) return map[id];
+  return null;
+}
 export function isRouterProviderId(value) {
   return value === PROVIDER_ID || LEGACY_PROVIDER_IDS.includes(value);
 }

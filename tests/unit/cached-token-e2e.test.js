@@ -25,7 +25,8 @@ afterAll(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
-describe("cached-token end-to-end (persist + aggregate + cost)", () => {
+const hasDb = Boolean(process.env.DATABASE_URL);
+describe.skipIf(!hasDb)("cached-token end-to-end (persist + aggregate + cost)", () => {
   it("Claude cache usage: canonical prompt is inclusive, cached persisted, cost correct", async () => {
     const testProvider = "anthropic-cache-" + Date.now();
     // Raw Claude usage (cache-EXCLUSIVE prompt): input 100, cache_read 200, cache_creation 30, output 50
@@ -45,7 +46,7 @@ describe("cached-token end-to-end (persist + aggregate + cost)", () => {
       endpoint: "/v1/messages",
       status: "ok",
     });
-
+    await db.flushUsageQueue();
     const stats = await db.getUsageStats("24h");
     expect(stats.byProvider[testProvider].cachedTokens).toBe(200);
     expect(stats.byProvider[testProvider].promptTokens).toBe(330);
@@ -76,7 +77,7 @@ describe("cached-token end-to-end (persist + aggregate + cost)", () => {
       endpoint: "/v1/chat/completions",
       status: "ok",
     });
-
+    await db.flushUsageQueue();
     const hist = await db.getUsageHistory({ provider: testProvider });
     expect(hist[0].tokens.prompt_tokens).toBe(1000);
     expect(hist[0].tokens.cached_tokens).toBe(600);

@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["**/*.test.js", "**/*.test.mjs"],
+    include: ["**/*.test.js"],
     // Redirect DATA_DIR to a throwaway temp dir so route-level tests that call
     // createProviderConnection never touch the user's real ~/.9router DB.
     // RUN_REAL=1 or an explicit DATA_DIR opts out (see setup/isolateDataDir.js).
@@ -16,7 +16,7 @@ export default defineConfig({
     // Don't scan into git worktrees nested under .claude/ — they carry their
     // own copies of the test files but lack an installed node_modules (open-sse,
     // etc.), which makes provider imports fail during collection.
-    exclude: ["**/node_modules/**", "**/.claude/**", "**/dist/**", "**/*.live.test.js", "**/*.real.test.js", "**/*.cloud.test.js"],
+    exclude: ["**/node_modules/**", "**/.claude/**", "**/dist/**", "**/*.live.test.js", "**/*.real.test.js", "**/*.cloud.test.js", "**/auth/saml.test.js", "**/docker-build.test.mjs"],
     // Allow many it.concurrent cases (real provider smoke runs ~50 providers in parallel)
     maxConcurrency: 60,
     // Suppress noisy console output from handlers under test

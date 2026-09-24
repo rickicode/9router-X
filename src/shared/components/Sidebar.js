@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
@@ -14,7 +15,6 @@ const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "trave
 // Core & Routing
 const coreRoutingItems = [
   { href: "/dashboard/app", label: "Overview", icon: "dashboard" },
-  { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
   { href: "/dashboard/combos", label: "Combo Adapter", icon: "layers" },
   { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
@@ -55,8 +55,8 @@ export default function Sidebar({ onClose }) {
     <aside className="flex w-64 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-2 border border-border">
+            <Image src="/favicon.svg" alt="AxonRouter logo" width={24} height={24} className="size-6 shrink-0" priority />
           </div>
           <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
         </Link>

@@ -76,7 +76,7 @@ export {
 export {
   statsEmitter, trackPendingRequest, getActiveRequests,
   saveRequestUsage, saveFailedRequest, getUsageHistory, getUsageStats, getChartData, getLast10Minutes,
-  appendRequestLog, getRecentLogs,
+  appendRequestLog, getRecentLogs, flushUsageQueue,
 } from "./repos/usageRepo.js";
 
 // Usage snapshots
