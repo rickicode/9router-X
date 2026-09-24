@@ -96,12 +96,6 @@ function ProxyPoolsContent() {
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam && ["pools", "groups", "fitness"].includes(tabParam) ? tabParam : "pools";
 
-  useEffect(() => {
-    if (tabParam && ["pools", "groups", "fitness"].includes(tabParam)) {
-      setActiveTabState(tabParam);
-    }
-  }, [tabParam]);
-
   const handleTabChange = (value) => {
     if (value === activeTab) return;
     const params = new URLSearchParams(searchParams);
