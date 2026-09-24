@@ -59,8 +59,8 @@ export default function EndpointUrlsCard({
               Dedicated streaming reverse proxy with zero GC pauses. Optimized for high-throughput coding agents, CLI tools, and background tasks.
             </p>
 
-            <div className="flex items-center justify-between gap-2 rounded-sm border border-border bg-bg px-3 py-2">
-              <code className="font-mono text-xs sm:text-sm text-text-main truncate select-all">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-sm border border-border bg-bg p-2.5 sm:px-3 sm:py-2">
+              <code className="font-mono text-xs sm:text-sm text-text-main break-all select-all sm:truncate">
                 {gatewayUrl}
               </code>
               <Button
@@ -68,7 +68,7 @@ export default function EndpointUrlsCard({
                 variant="secondary"
                 icon={copied === "gateway_url" ? "check" : "content_copy"}
                 onClick={() => onCopy(gatewayUrl, "gateway_url")}
-                className="shrink-0 text-xs"
+                className="shrink-0 text-xs w-full sm:w-auto"
                 aria-label={copied === "gateway_url" ? "Copied Gateway URL" : "Copy Gateway URL"}
               >
                 {copied === "gateway_url" ? "Copied!" : "Copy"}
@@ -114,8 +114,8 @@ export default function EndpointUrlsCard({
             Direct route through the Next.js application server. Convenient for single-port deployments or reverse proxies that forward to port 10128.
           </p>
 
-          <div className="flex items-center justify-between gap-2 rounded-sm border border-border bg-bg px-3 py-2">
-            <code className="font-mono text-xs sm:text-sm text-text-main truncate select-all">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-sm border border-border bg-bg p-2.5 sm:px-3 sm:py-2">
+            <code className="font-mono text-xs sm:text-sm text-text-main break-all select-all sm:truncate">
               {baseUrl}
             </code>
             <Button
@@ -123,7 +123,7 @@ export default function EndpointUrlsCard({
               variant="secondary"
               icon={copied === "local_url" ? "check" : "content_copy"}
               onClick={() => onCopy(baseUrl, "local_url")}
-              className="shrink-0 text-xs"
+              className="shrink-0 text-xs w-full sm:w-auto"
               aria-label={copied === "local_url" ? "Copied Direct URL" : "Copy Direct URL"}
             >
               {copied === "local_url" ? "Copied!" : "Copy"}
