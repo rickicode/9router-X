@@ -78,8 +78,8 @@ describe("Proxy Groups & Sticky Round-Robin System", () => {
     connectionsDb.clear();
     settingsDb = {};
     resetPoolFitness();
-    if (globalThis.__9routerProxyRotateState__) {
-      globalThis.__9routerProxyRotateState__.clear();
+    if (globalThis.__axonrouterProxyRotateState__) {
+      globalThis.__axonrouterProxyRotateState__.clear();
     }
   });
 

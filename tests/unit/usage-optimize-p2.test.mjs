@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 
-describe("[9router-X audit] P2 optimize + animate — dynamic heavy tabs + UsageStats TimeAgo 30s + topology throttle", () => {
+describe("[axonrouter-X audit] P2 optimize + animate — dynamic heavy tabs + UsageStats TimeAgo 30s + topology throttle", () => {
   const readSrc = (relPath) => fs.readFileSync(path.join(ROOT, relPath), "utf-8");
 
   describe("1. Usage Page Dynamic Heavy Tabs", () => {

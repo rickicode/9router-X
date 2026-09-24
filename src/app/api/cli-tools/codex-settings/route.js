@@ -75,7 +75,7 @@ const readConfig = async () => {
 };
 
 // Detect gateway config: current name plus legacy pre-rebrand name (migration read)
-const has9RouterConfig = (config) => {
+const hasAxonRouterConfig = (config) => {
   if (!config) return false;
   return PROVIDER_IDS.some((id) =>
     config.includes(`model_provider = "${id}"`) || config.includes(`[model_providers.${id}]`)
@@ -100,7 +100,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      has9Router: has9RouterConfig(config),
+      hasAxonRouter: hasAxonRouterConfig(config),
       configPath: getCodexConfigPath(),
     });
   } catch (error) {
@@ -109,7 +109,7 @@ export async function GET() {
   }
 }
 
-// POST - Update 9Router settings (merge with existing config)
+// POST - Update AxonRouter settings (merge with existing config)
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, model, subagentModel } = await request.json();
@@ -136,7 +136,7 @@ export async function POST(request) {
     parsed.model_provider = PROVIDER_ID;
 
     // Remove the legacy pre-rebrand provider section so Apply migrates in place
-    if (PROVIDER_ID !== "9router") deleteNestedSection(parsed, "model_providers.9router");
+    if (PROVIDER_ID !== "axonrouter") deleteNestedSection(parsed, "model_providers.axonrouter");
 
     // Update or create the gateway provider section (no api_key - Codex reads from auth.json)
     // Ensure /v1 suffix is added only once
@@ -168,7 +168,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove 9Router settings only (keep other settings)
+// DELETE - Remove AxonRouter settings only (keep other settings)
 export async function DELETE() {
   try {
     const configPath = getCodexConfigPath();
@@ -223,7 +223,7 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-      message: "9Router settings removed successfully",
+      message: "AxonRouter settings removed successfully",
     });
   } catch (error) {
     console.log("Error resetting codex settings:", error);

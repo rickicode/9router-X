@@ -14,7 +14,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 
-describe("[9router-X usage] P2 harden silent fetch + Blob CSV + bilingual single-locale + tables a11y", () => {
+describe("[axonrouter-X usage] P2 harden silent fetch + Blob CSV + bilingual single-locale + tables a11y", () => {
   describe("1. Blob CSV Generation & Export Logic", () => {
     it("generates CSV with UTF-8 BOM, standard headers, and CRLF line breaks", () => {
       const sampleModels = [

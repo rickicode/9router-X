@@ -6,7 +6,7 @@ import { TOOL_TEMPLATES } from "../../shared/constants/cliToolTemplates.js";
 export function generatePowerShellScript(toolId, params = {}) {
   const tpl = TOOL_TEMPLATES[toolId];
   if (!tpl) {
-    return `# 9Router Host Setup Script
+    return `# AxonRouter Host Setup Script
 $ErrorActionPreference = "Stop"
 Write-Error "Unknown tool '${toolId}'"
 `;
@@ -31,12 +31,12 @@ Write-Error "Unknown tool '${toolId}'"
   }
 
   return `# ==============================================================================
-# 9Router Host Setup Script (PowerShell): ${toolName}
-# Generated automatically by 9Router Gateway
+# AxonRouter Host Setup Script (PowerShell): ${toolName}
+# Generated automatically by AxonRouter Gateway
 # ==============================================================================
 $ErrorActionPreference = "Stop"
 
-Write-Host "[AxonRouter] Configuring ${toolName} for 9Router host gateway..." -ForegroundColor Cyan
+Write-Host "[AxonRouter] Configuring ${toolName} for AxonRouter host gateway..." -ForegroundColor Cyan
 
 ${fileOperations}
 

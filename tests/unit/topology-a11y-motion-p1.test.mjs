@@ -15,7 +15,7 @@ function readSrc(relPath) {
 const TOPO = "src/app/(dashboard)/dashboard/usage/components/ProviderTopology.js";
 const CSS = "src/app/globals.css";
 
-describe("[9router-X audit v2] P1 harden — topology graph + motion", () => {
+describe("[axonrouter-X audit v2] P1 harden — topology graph + motion", () => {
   describe("1. Topology AT fallback (role=img + aria-label + offscreen table)", () => {
     it("container exposes role=img with dynamic aria-label", () => {
       const content = readSrc(TOPO);

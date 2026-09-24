@@ -87,7 +87,7 @@ const probeRequest = (headers = {}) => ({
   url: "http://x/api/v1/chat/completions",
   headers: {
     get: (k) => ({
-      "x-9router-test-request": "1",
+      "x-axonrouter-test-request": "1",
       "x-connection-id": "c-probe",
       "x-connection-pin": "strict",
       ...headers,

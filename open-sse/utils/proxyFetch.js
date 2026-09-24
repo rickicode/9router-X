@@ -3,7 +3,7 @@ import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
 import { dbg } from "./debugLog.js";
 
 const originalFetch = globalThis.fetch;
-const proxyDispatchers = (globalThis.__9routerProxyDispatchers__ ??= new Map());
+const proxyDispatchers = (globalThis.__axonrouterProxyDispatchers__ ??= new Map());
 
 // ─── TLS fingerprinting via got-scraping (browser-like JA3) ───────────────
 // Disabled: not in use. Kept commented for future re-enable.

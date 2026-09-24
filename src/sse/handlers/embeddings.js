@@ -53,7 +53,7 @@ function estimateEmbeddingTokens(input) {
  */
 export async function handleEmbeddings(request) {
   // Model probes must not pollute production usage or routing state.
-  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
+  const isTestRequest = request.headers.get("x-axonrouter-test-request") === "1";
   let body;
   try {
     body = await request.json();

@@ -13,7 +13,7 @@ const CAPACITY_ADAPTER_CAPS = [
     icon: "visibility",
     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
     desc: "PNG, JPG, WebP, GIF, SVG input modalities",
-    doc: "When a target model lacks image perception, 9Router reroutes to this pool seamlessly.",
+    doc: "When a target model lacks image perception, AxonRouter reroutes to this pool seamlessly.",
   },
   {
     key: "audioInput",
@@ -54,7 +54,7 @@ export default function ModalityAdaptersTab({
             <h2 className="text-base font-semibold text-text-main">Input Modality Fallback Adapters</h2>
           </div>
           <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
-            Global fallback pools for missing model modalities. If an incoming prompt includes images or audio but the requested model or combo does not support that input type, 9Router automatically reroutes to the first healthy model in the respective pool below instead of returning a 400 bad request error.
+            Global fallback pools for missing model modalities. If an incoming prompt includes images or audio but the requested model or combo does not support that input type, AxonRouter automatically reroutes to the first healthy model in the respective pool below instead of returning a 400 bad request error.
           </p>
         </div>
       </div>

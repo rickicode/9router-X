@@ -58,7 +58,7 @@ const readSettings = async () => {
 };
 
 // Check if settings has gateway config under the current or legacy id
-const has9RouterConfig = (settings) => {
+const hasAxonRouterConfig = (settings) => {
   if (!settings || !settings.models || !settings.models.providers) return false;
   return PROVIDER_IDS.some((id) => !!settings.models.providers[id]);
 };
@@ -110,7 +110,7 @@ export async function GET() {
       installed: true,
       settings,
       agents: enrichedAgents,
-      has9Router: has9RouterConfig(settings),
+      hasAxonRouter: hasAxonRouterConfig(settings),
       settingsPath: getOpenClawSettingsPath(),
     });
   } catch (error) {
@@ -140,7 +140,7 @@ const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   await fs.writeFile(modelsPath, JSON.stringify(existing, null, 2));
 };
 
-// POST - Update 9Router settings (merge with existing settings)
+// POST - Update AxonRouter settings (merge with existing settings)
 export async function POST(request) {
   try {
     // agentModels: { [agentId]: modelId } for per-agent override
@@ -188,7 +188,7 @@ export async function POST(request) {
       settings.agents.defaults.models[routerModelId(m)] = {};
     });
 
-    // Remove old 9router model from each agent in agents.list. The
+    // Remove old axonrouter model from each agent in agents.list. The
     // model field may be a plain string or `{ primary, fallbacks }`.
     if (settings.agents.list) {
       settings.agents.list = settings.agents.list.map((agent) => {
@@ -241,7 +241,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove 9Router settings only (keep other settings)
+// DELETE - Remove AxonRouter settings only (keep other settings)
 export async function DELETE() {
   try {
     const settingsPath = getOpenClawSettingsPath();
@@ -271,7 +271,7 @@ export async function DELETE() {
       }
     }
 
-    // Remove 9router models from agents.defaults.models allowlist
+    // Remove axonrouter models from agents.defaults.models allowlist
     if (settings.agents?.defaults?.models) {
       const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => isRouterModelId(k));
       for (const key of keysToRemove) {
@@ -282,7 +282,7 @@ export async function DELETE() {
       }
     }
 
-    // Reset agents.defaults.model.primary if it uses 9router
+    // Reset agents.defaults.model.primary if it uses axonrouter
     if (isRouterModelId(settings.agents?.defaults?.model?.primary)) {
       delete settings.agents.defaults.model.primary;
     }
@@ -292,7 +292,7 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-      message: "9Router settings removed successfully",
+      message: "AxonRouter settings removed successfully",
     });
   } catch (error) {
     console.log("Error resetting openclaw settings:", error);

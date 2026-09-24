@@ -1,8 +1,8 @@
 /**
- * Unified Quota Cache — Domain Layer (9router-X, PostgreSQL-backed).
+ * Unified Quota Cache — Domain Layer (axonrouter-X, PostgreSQL-backed).
  * Ported from OmniRoute src/domain/quotaCache.ts, adapted:
  * - persistence via usageSnapshotsRepo.upsertUsageSnapshot + provider_connections columns
- * - no codex/spark child-pool overlay (9router-X has no codexAccount pool)
+ * - no codex/spark child-pool overlay (axonrouter-X has no codexAccount pool)
  * - lazy dynamic imports to avoid circular deps on hot path
  */
 
@@ -13,15 +13,15 @@ const REFRESH_INTERVAL_MS = 60 * 1000;
 const MAX_CONCURRENT_REFRESHES = 5;
 
 function getState() {
-  if (!globalThis.__9routerQuotaCache) {
-    globalThis.__9routerQuotaCache = {
+  if (!globalThis.__axonrouterQuotaCache) {
+    globalThis.__axonrouterQuotaCache = {
       cache: new Map(),
       refreshingSet: new Set(),
       refreshTimer: null,
       tickRunning: false,
     };
   }
-  return globalThis.__9routerQuotaCache;
+  return globalThis.__axonrouterQuotaCache;
 }
 
 function parseDate(value) {
@@ -272,7 +272,7 @@ function persistAsync(connectionId, provider, quotas, exhausted, nextResetAt, ex
     } catch (e) { console.warn("[quotaCache] status write failed:", e?.message); }
     try {
       const { publishEvent } = await import("@/lib/cache/client.js");
-      await publishEvent("9router:events", { type: "quota_updated", connectionId, provider, quotas }).catch((e) => console.warn("[quotaCache] event failed:", e?.message));
+      await publishEvent("axonrouter:events", { type: "quota_updated", connectionId, provider, quotas }).catch((e) => console.warn("[quotaCache] event failed:", e?.message));
     } catch {}
   })();
 }

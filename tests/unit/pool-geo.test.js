@@ -18,7 +18,7 @@ describe("pool egress geo cache", () => {
   it("prunes TTL-stale entries (ipHistory rides along)", () => {
     setPoolGeo("p1", { ip: "1.1.1.1", country: "US" });
     setPoolGeo("p1", { ip: "2.2.2.2", country: "US" });
-    const cache = globalThis["__9routerPoolGeo__"];
+    const cache = globalThis["__axonrouterPoolGeo__"];
     cache.get("p1").ts = Date.now() - 2 * 60 * 60 * 1000;
     expect(pruneStaleGeo()).toBe(1);
     expect(poolGeoSnapshot()).toEqual({});

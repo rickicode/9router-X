@@ -17,7 +17,7 @@ async function saveDetail(detail) {
 }
 
 beforeAll(async () => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-details-tab-"));
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "axonrouter-details-tab-"));
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
   db = await import("@/lib/db/index.js");

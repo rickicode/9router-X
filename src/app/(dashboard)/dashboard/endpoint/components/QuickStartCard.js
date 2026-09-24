@@ -24,7 +24,7 @@ export default function QuickStartCard({
   const { copied, copy } = useCopyToClipboard();
 
   const targetUrl = gatewayUrl || baseUrl;
-  const keyDisplay = activeKey || "YOUR_9ROUTER_KEY";
+  const keyDisplay = activeKey || "YOUR_AXONROUTER_KEY";
 
   const handleTestConnection = async () => {
     setTestStatus("testing");
@@ -77,7 +77,7 @@ curl -X POST "${targetUrl}/chat/completions" \\
   -d '{
     "model": "auto/coding",
     "messages": [
-      {"role": "user", "content": "Hello 9Router!"}
+      {"role": "user", "content": "Hello AxonRouter!"}
     ]
   }'`;
 
@@ -92,7 +92,7 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="auto/coding",
     messages=[
-        {"role": "user", "content": "Hello 9Router!"}
+        {"role": "user", "content": "Hello AxonRouter!"}
     ],
 )
 
@@ -108,7 +108,7 @@ const openai = new OpenAI({
 
 const completion = await openai.chat.completions.create({
   model: "auto/coding",
-  messages: [{ role: "user", content: "Hello 9Router!" }],
+  messages: [{ role: "user", content: "Hello AxonRouter!" }],
 });
 
 console.log(completion.choices[0].message.content);`;
@@ -139,7 +139,7 @@ claude`;
   return (
     <Card
       title="Client Integration"
-      subtitle="Connect any OpenAI-compatible client, IDE extension, or CLI tool to 9Router"
+      subtitle="Connect any OpenAI-compatible client, IDE extension, or CLI tool to AxonRouter"
       icon="terminal"
       action={
         <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ claude`;
         </div>
 
         <p className="text-[11px] text-text-muted font-mono">
-          Tip: 9Router supports streaming (SSE), JSON mode, function calling, tool use, and multi-turn chat for all configured upstream providers.
+          Tip: AxonRouter supports streaming (SSE), JSON mode, function calling, tool use, and multi-turn chat for all configured upstream providers.
         </p>
       </div>
     </Card>

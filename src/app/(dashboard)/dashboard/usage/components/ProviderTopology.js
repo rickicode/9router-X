@@ -130,7 +130,7 @@ ProviderNode.propTypes = {
  data: PropTypes.object.isRequired,
 };
 
-// Center 9Router node — pulse/glow on card only (no expanding rings) — memoized
+// Center AxonRouter node — pulse/glow on card only (no expanding rings) — memoized
 const RouterNode = memo(function RouterNode({ data }) {
  const powering = (data.activeCount || 0) > 0;
  return (

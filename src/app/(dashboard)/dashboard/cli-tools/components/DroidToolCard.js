@@ -41,12 +41,12 @@ export default function DroidToolCard({
  const [customBaseUrl, setCustomBaseUrl] = useState("");
  const hasInitializedModel = useRef(false);
 
- const currentBaseUrl = droidStatus?.settings?.customModels?.find((m) => m.id?.startsWith("custom:9Router"))?.baseUrl || "";
+ const currentBaseUrl = droidStatus?.settings?.customModels?.find((m) => m.id?.startsWith("custom:AxonRouter"))?.baseUrl || "";
 
  const getConfigStatus = () => {
  if (!droidStatus?.installed) return null;
- // Check for any 9Router model entry (support multi-model: custom:9Router-0, custom:9Router-1, ...)
- const currentConfig = droidStatus.settings?.customModels?.find(m => m.id?.startsWith("custom:9Router"));
+ // Check for any AxonRouter model entry (support multi-model: custom:AxonRouter-0, custom:AxonRouter-1, ...)
+ const currentConfig = droidStatus.settings?.customModels?.find(m => m.id?.startsWith("custom:AxonRouter"));
  if (!currentConfig) return "not_configured";
  return matchKnownEndpoint(currentConfig.baseUrl, { tunnelPublicUrl, tailscaleUrl, cloudUrl: cloudEnabled ? CLOUD_URL : null }) ? "configured" : "other";
  };
@@ -117,14 +117,14 @@ export default function DroidToolCard({
   if (cancelled || hasInitializedModel.current) return;
   hasInitializedModel.current = true;
   const existingModels = (droidStatus.settings?.customModels || [])
-  .filter(m => m.id?.startsWith("custom:9Router"))
+  .filter(m => m.id?.startsWith("custom:AxonRouter"))
   .sort((a, b) => (a.index || 0) - (b.index || 0))
   .map(m => m.model);
   if (existingModels.length > 0) {
   setModelList(existingModels);
   } else {
-  // Legacy: single model stored as custom:9Router-0
-  const legacy = droidStatus.settings?.customModels?.find(m => m.id === "custom:9Router-0");
+  // Legacy: single model stored as custom:AxonRouter-0
+  const legacy = droidStatus.settings?.customModels?.find(m => m.id === "custom:AxonRouter-0");
   if (legacy?.model) {
   setModelList([legacy.model]);
   }
@@ -220,7 +220,7 @@ export default function DroidToolCard({
  const settingsContent = {
  customModels: modelList.map((m, i) => ({
  model: m,
- id: `custom:9Router-${i}`,
+ id: `custom:AxonRouter-${i}`,
  index: i,
  baseUrl: getEffectiveBaseUrl(),
  apiKey: keyToUse,
@@ -302,12 +302,12 @@ export default function DroidToolCard({
  </div>
 
  {/* Current configured */}
- {droidStatus?.settings?.customModels?.find(m => m.id?.startsWith("custom:9Router"))?.baseUrl && (
+ {droidStatus?.settings?.customModels?.find(m => m.id?.startsWith("custom:AxonRouter"))?.baseUrl && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
  <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
- {droidStatus.settings.customModels.find(m => m.id?.startsWith("custom:9Router")).baseUrl}
+ {droidStatus.settings.customModels.find(m => m.id?.startsWith("custom:AxonRouter")).baseUrl}
  </span>
  </div>
  )}
@@ -375,7 +375,7 @@ export default function DroidToolCard({
  <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={modelList.length === 0} loading={applying}>
  <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
  </Button>
- <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!droidStatus?.has9Router} loading={restoring}>
+ <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!droidStatus?.hasAxonRouter} loading={restoring}>
  <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

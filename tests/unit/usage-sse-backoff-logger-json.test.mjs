@@ -17,7 +17,7 @@ const PAGE = "src/app/(dashboard)/dashboard/usage/page.js";
 const STREAM = "src/app/api/usage/stream/route.js";
 const REPO = "src/lib/db/repos/usageRepo.js";
 
-describe("[9router-X usage] SSE backoff + logger JSON + mobile wrap", () => {
+describe("[axonrouter-X usage] SSE backoff + logger JSON + mobile wrap", () => {
   describe("1. UsageStats SSE: exponential backoff + visibility pause", () => {
     it("SSE useEffect has connect() function with exponential backoff", () => {
       const src = readSrc(STATS);

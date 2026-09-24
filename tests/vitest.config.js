@@ -10,7 +10,7 @@ export default defineConfig({
     globals: true,
     include: ["**/*.test.js"],
     // Redirect DATA_DIR to a throwaway temp dir so route-level tests that call
-    // createProviderConnection never touch the user's real ~/.9router DB.
+    // createProviderConnection never touch the user's real ~/.axonrouter DB.
     // RUN_REAL=1 or an explicit DATA_DIR opts out (see setup/isolateDataDir.js).
     setupFiles: ["./setup/isolateDataDir.js"],
     // Don't scan into git worktrees nested under .claude/ — they carry their

@@ -92,7 +92,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   useEffect(() => {
   if (!(status?.opencode?.models
   || status?.opencode?.activeModel
-  || status?.config?.agent?.explorer?.model?.match(/^(axonrouter|9router)\//))) return;
+  || status?.config?.agent?.explorer?.model?.match(/^(axonrouter|axonrouter)\//))) return;
   let cancelled = false;
   queueMicrotask(() => {
   if (cancelled) return;
@@ -102,8 +102,8 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   if (status?.opencode?.activeModel) {
   setActiveModel(status.opencode.activeModel);
   }
-  if (status?.config?.agent?.explorer?.model?.match(/^(axonrouter|9router)\//)) {
-  setSubagentModel(status.config.agent.explorer.model.replace(/^(axonrouter|9router)\//, ""));
+  if (status?.config?.agent?.explorer?.model?.match(/^(axonrouter|axonrouter)\//)) {
+  setSubagentModel(status.config.agent.explorer.model.replace(/^(axonrouter|axonrouter)\//, ""));
   }
   });
   return () => { cancelled = true; };
@@ -133,14 +133,14 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
 
  const getProvider = () =>
  status?.config?.provider?.["axonrouter"] ||
- status?.config?.provider?.["9router"];
+ status?.config?.provider?.["axonrouter"];
 
  const currentBaseUrl = getProvider()?.options?.baseURL || "";
 
  const getConfigStatus = () => {
  if (!status?.installed) return null;
  if (!status.config) return "not_configured";
- if (!status.has9Router) return "not_configured";
+ if (!status.hasAxonRouter) return "not_configured";
  const url = getProvider()?.options?.baseURL || "";
  return matchKnownEndpoint(url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
  };
@@ -446,7 +446,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
  <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying}>
  <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
  </Button>
- <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.has9Router} loading={restoring}>
+ <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.hasAxonRouter} loading={restoring}>
  <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

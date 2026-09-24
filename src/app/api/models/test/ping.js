@@ -49,7 +49,7 @@ async function getInternalHeaders(connectionId = null) {
   const headers = {
     "Content-Type": "application/json",
     // Probes use the gateway pipeline but must not pollute production usage.
-    "x-9router-test-request": "1",
+    "x-axonrouter-test-request": "1",
   };
   // Pin the probe to the exact connection under test. Strict pin turns a
   // missed pin into an honest error instead of silently testing a sibling.
@@ -58,7 +58,7 @@ async function getInternalHeaders(connectionId = null) {
     headers["x-connection-pin"] = "strict";
   }
   if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-  headers["x-9r-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
+  headers["x-axonrouter-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
   return headers;
 }
 

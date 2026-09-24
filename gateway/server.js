@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 9router API Gateway — Hono + @hono/node-server, framework-free.
+ * axonrouter API Gateway — Hono + @hono/node-server, framework-free.
  *
  * Serves the public LLM API (/v1/*, /v1beta/*, /codex, /responses) in a
  * SEPARATE process from the Next.js dashboard so gateway traffic never
@@ -76,8 +76,8 @@ async function requireLlmAccess(c, next) {
   const peer = c.env?.incoming?.socket?.remoteAddress || "";
   if (peer === "127.0.0.1" || peer === "::1" || peer === "::ffff:127.0.0.1") return next();
 
-  if (c.req.header("x-9r-cli-token")) {
-    if (c.req.header("x-9r-cli-token") === (await getCliToken())) return next();
+  if (c.req.header("x-axonrouter-cli-token")) {
+    if (c.req.header("x-axonrouter-cli-token") === (await getCliToken())) return next();
   }
   if (await canAccessPublicLlmApi(c)) return next();
   return c.json({ error: "API key required for remote API access" }, 401);

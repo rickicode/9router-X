@@ -13,7 +13,7 @@
 // probe and the /api/proxy-pools reader must share ONE cache across Next dev
 // bundles.
 
-const GEO_STATE_KEY = "__9routerPoolGeo__";
+const GEO_STATE_KEY = "__axonrouterPoolGeo__";
 const geoCache = (globalThis[GEO_STATE_KEY] ??= new Map()); // poolId -> { ip, country, ..., ts, ipHistory }
 
 export const POOL_GEO_TTL_MS = 60 * 60 * 1000;

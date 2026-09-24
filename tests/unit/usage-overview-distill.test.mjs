@@ -13,7 +13,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 
-describe("[9router-X usage] P1 distill overview sub-tabs + lazy topology/chart (LCP)", () => {
+describe("[axonrouter-X usage] P1 distill overview sub-tabs + lazy topology/chart (LCP)", () => {
   const readSrc = (relPath) => fs.readFileSync(path.join(ROOT, relPath), "utf-8");
 
   describe("1. OVERVIEW_SUBTABS Specification & Resolver", () => {

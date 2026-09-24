@@ -140,7 +140,7 @@ async function callGateway({ model, connectionId, suite, key, signal = null }) {
   const headers = {
     Authorization: `Bearer ${key}`,
     "Content-Type": "application/json",
-    "x-9router-test-request": "1",
+    "x-axonrouter-test-request": "1",
   };
   if (connectionId && connectionId !== "noauth") {
     headers["x-connection-id"] = connectionId;

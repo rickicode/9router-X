@@ -49,7 +49,7 @@ export const ERROR_METADATA = {
  },
  internal: {
  label: "Internal Gateway Error",
- description: "Internal 9router pipeline error or uncaught exception.",
+ description: "Internal axonrouter pipeline error or uncaught exception.",
  variant: "error",
  icon: "dns",
  color: "text-danger",

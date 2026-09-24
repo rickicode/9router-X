@@ -1,5 +1,5 @@
 // Global test isolation: never let the unit/translator suite write to the user's
-// real database (~/.9router). Some tests (e.g. zed-live-models, zed-native-auth)
+// real database (~/.axonrouter). Some tests (e.g. zed-live-models, zed-native-auth)
 // exercise real route handlers that call createProviderConnection — without this
 // they append test rows ("zed-live-*@example.com", "guard-*@example.com",
 // "Account N") straight into the live DB.
@@ -21,7 +21,7 @@ const RUN_REAL = process.env.RUN_REAL === "1";
 const explicit = process.env.DATA_DIR;
 
 if (!RUN_REAL && !explicit) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "axonrouter-test-"));
   process.env.DATA_DIR = dir;
   process.on("exit", () => {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }

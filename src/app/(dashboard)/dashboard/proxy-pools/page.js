@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Badge, Button, Card, CardSkeleton, Input, Modal, Toggle, ConfirmModal } from "@/shared/components";
+import { Suspense, useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Badge, Button, Card, CardSkeleton, Input, Modal, Toggle, ConfirmModal, SegmentedControl } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
+import ProxyFitnessTab from "./components/ProxyFitnessTab";
 
 function getStatusVariant(status) {
  if (status === "active") return "success";
@@ -16,6 +18,20 @@ function formatDateTime(value) {
  if (Number.isNaN(date.getTime())) return "Never";
  return date.toLocaleString();
 }
+const TAB_COPY = {
+  pools: {
+    title: "Proxy Pools",
+    body: "Manage proxy endpoints, relay deployments, and egress health across your infrastructure.",
+  },
+  groups: {
+    title: "Proxy Groups",
+    body: "Route connections across auto-gathered default groups or custom groups with sticky round-robin.",
+  },
+  fitness: {
+    title: "Proxy Fitness",
+    body: "Real-time visibility into blocked upstream endpoints, region gates, and egress IP health with smart failover.",
+  },
+};
 
 function normalizeFormData(data = {}) {
  return {
@@ -67,7 +83,59 @@ function getPaginationItems(currentPage, totalPages) {
 }
 
 export default function ProxyPoolsPage() {
- const [proxyPools, setProxyPools] = useState([]);
+  return (
+    <Suspense fallback={<CardSkeleton />}>
+      <ProxyPoolsContent />
+    </Suspense>
+  );
+}
+
+function ProxyPoolsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTabState] = useState(
+    tabParam === "groups" ? "groups" : tabParam === "fitness" ? "fitness" : "pools"
+  );
+
+  useEffect(() => {
+    if (tabParam && ["pools", "groups", "fitness"].includes(tabParam)) {
+      setActiveTabState(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (value) => {
+    if (value === activeTab) return;
+    setActiveTabState(value);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", value);
+    router.push(`/dashboard/proxy-pools?${params.toString()}`, { scroll: false });
+  };
+
+  const setActiveTab = (tabOrFn) => {
+    setActiveTabState((prev) => {
+      const nextTab = typeof tabOrFn === "function" ? tabOrFn(prev) : tabOrFn;
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", nextTab);
+      router.push(`/dashboard/proxy-pools?${params.toString()}`, { scroll: false });
+      return nextTab;
+    });
+  };
+
+  const tabsRef = useRef(null);
+
+  useEffect(() => {
+    const strip = tabsRef.current;
+    if (!strip) return;
+    const active = strip.querySelector('[data-active="true"]');
+    if (!active) return;
+    const left = active.offsetLeft;
+    const right = left + active.offsetWidth;
+    if (left < strip.scrollLeft || right > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollLeft = Math.max(0, left - 8);
+    }
+  }, [activeTab]);
+  const [proxyPools, setProxyPools] = useState([]);
  const [loading, setLoading] = useState(true);
  const [showFormModal, setShowFormModal] = useState(false);
  const [showBatchImportModal, setShowBatchImportModal] = useState(false);
@@ -112,7 +180,6 @@ export default function ProxyPoolsPage() {
  const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
  const [bulkBusy, setBulkBusy] = useState(false);
  const [confirmState, setConfirmState] = useState(null);
- const [activeTab, setActiveTab] = useState("pools"); // "pools" | "groups"
  const [proxyGroups, setProxyGroups] = useState({ defaultGroups: [], customGroups: [] });
  const [loadingGroups, setLoadingGroups] = useState(false);
  const [showGroupModal, setShowGroupModal] = useState(false);
@@ -1115,277 +1182,242 @@ export default function ProxyPoolsPage() {
  );
  }
 
- return (
- <div className="flex w-full flex-col gap-3">
- <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
- <div className="min-w-0">
- <h2 className="text-sm font-semibold">
- {activeTab === "pools" ? "Proxy Pools" : "Proxy Groups"}
- </h2>
- <p className="mt-0.5 text-xs text-text-muted">
- {activeTab === "pools"
- ? "Manage proxy endpoints, relay deployments, and egress fitness"
- : "Route connections across auto-gathered default groups or custom groups with sticky round-robin"}
- </p>
- </div>
+  const copy = TAB_COPY[activeTab] || TAB_COPY.pools;
+  const totalGroups = (proxyGroups.defaultGroups?.length || 4) + (proxyGroups.customGroups?.length || 0);
+  const TABS = [
+    { value: "pools", label: `Proxy Pools${proxyPools.length ? ` (${proxyPools.length})` : ""}`, icon: "lan" },
+    { value: "groups", label: `Proxy Groups${totalGroups ? ` (${totalGroups})` : ""}`, icon: "folder_special" },
+    { value: "fitness", label: "Proxy Fitness", icon: "network_check" },
+  ];
 
- {activeTab === "pools" ? (
- <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
- <div className="relative" ref={relayMenuRef}>
- <Button
- size="sm"
- variant="secondary"
- icon="rocket_launch"
- onClick={() => setShowRelayMenu(!showRelayMenu)}
- >
- Deploy Relay
- <span className="material-symbols-outlined ml-1 text-[18px]">
- {showRelayMenu ? "expand_less" : "expand_more"}
- </span>
- </Button>
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {/* Top Header Card */}
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="min-w-0 max-w-2xl">
+          <h1 className="text-base font-semibold tracking-tight text-text-main">{copy.title}</h1>
+          <p className="mt-1.5 text-xs leading-relaxed text-text-muted">{copy.body}</p>
+        </div>
 
- {showRelayMenu && (
- <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-sm border border-border bg-surface sm:left-auto sm:right-0">
- <button
- onClick={() => {
- openCloudflareModal();
- setShowRelayMenu(false);
- }}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-sm text-text-main hover:bg-surface-2"
- >
- <span className="material-symbols-outlined text-[18px] text-warning">cloud</span>
- Cloudflare Relay
- </button>
- <button
- onClick={() => {
- openCloudflareBulkModal();
- setShowRelayMenu(false);
- }}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-sm text-text-main hover:bg-surface-2"
- >
- <span className="material-symbols-outlined text-[18px] text-warning">playlist_add</span>
- CF Bulk
- </button>
- <button
- onClick={() => {
- openVercelModal();
- setShowRelayMenu(false);
- }}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-sm text-text-main hover:bg-surface-2"
- >
- <span className="material-symbols-outlined text-[18px] text-primary">cloud_upload</span>
- Vercel Relay
- </button>
- <button
- onClick={() => {
- openDenoModal();
- setShowRelayMenu(false);
- }}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-sm text-text-main hover:bg-surface-2"
- >
- <span className="material-symbols-outlined text-[18px] text-success">terminal</span>
- Deno Relay
- </button>
- </div>
- )}
- </div>
+        {activeTab === "pools" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative" ref={relayMenuRef}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon="rocket_launch"
+                onClick={() => setShowRelayMenu(!showRelayMenu)}
+              >
+                Deploy Relay
+                <span className="material-symbols-outlined ml-1 text-[18px]">
+                  {showRelayMenu ? "expand_less" : "expand_more"}
+                </span>
+              </Button>
 
- <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
- Batch Import
- </Button>
- <Button size="sm" icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
- </div>
- ) : (
- <div className="flex items-center gap-2">
- <Button size="sm" icon="add" onClick={openCreateGroupModal}>Add Custom Group</Button>
- </div>
- )}
- </div>
+              {showRelayMenu && (
+                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-sm border border-border bg-surface shadow-lg sm:left-auto sm:right-0">
+                  <button
+                    onClick={() => {
+                      openCloudflareModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-warning">cloud</span>
+                    Cloudflare Relay
+                  </button>
+                  <button
+                    onClick={() => {
+                      openCloudflareBulkModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-warning">playlist_add</span>
+                    CF Bulk
+                  </button>
+                  <button
+                    onClick={() => {
+                      openVercelModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-primary">cloud_upload</span>
+                    Vercel Relay
+                  </button>
+                  <button
+                    onClick={() => {
+                      openDenoModal();
+                      setShowRelayMenu(false);
+                    }}
+                    className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-success">terminal</span>
+                    Deno Relay
+                  </button>
+                </div>
+              )}
+            </div>
 
- {/* Tabs navigation */}
- <div
- role="tablist"
- aria-orientation="horizontal"
- aria-label="Proxy view tabs"
- className="inline-flex border border-border bg-bg"
- onKeyDown={(e) => {
- if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") {
- e.preventDefault();
- setActiveTab((prev) => (prev === "pools" ? "groups" : "pools"));
- }
- }}
- >
- <button
- type="button"
- role="tab"
- aria-selected={activeTab === "pools"}
- tabIndex={activeTab === "pools" ? 0 : -1}
- onClick={() => setActiveTab("pools")}
- className={`flex h-8 items-center gap-2 px-2.5 text-sm font-medium ${
- activeTab === "pools"
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main"
- }`}
- >
- <span className="material-symbols-outlined text-[18px]">lan</span>
- <span>Proxy Pools</span>
- <span className="rounded-sm bg-surface px-2 py-1 text-xs text-text-muted">
- {proxyPools.length}
- </span>
- </button>
- <button
- type="button"
- role="tab"
- aria-selected={activeTab === "groups"}
- tabIndex={activeTab === "groups" ? 0 : -1}
- onClick={() => setActiveTab("groups")}
- className={`flex h-8 items-center gap-2 px-2.5 text-sm font-medium ${
- activeTab === "groups"
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main"
- }`}
- >
- <span className="material-symbols-outlined text-[18px]">folder_special</span>
- <span>Proxy Groups</span>
- <span className="rounded-sm bg-surface px-2 py-1 text-xs text-text-muted">
- {(proxyGroups.defaultGroups?.length || 4) + (proxyGroups.customGroups?.length || 0)}
- </span>
- </button>
- </div>
+            <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
+              Batch Import
+            </Button>
+            <Button size="sm" icon="add" onClick={openCreateModal}>
+              Add Proxy Pool
+            </Button>
+          </div>
+        ) : activeTab === "groups" ? (
+          <div className="flex items-center gap-2">
+            <Button size="sm" icon="add" onClick={openCreateGroupModal}>
+              Add Custom Group
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
- {activeTab === "pools" ? (
+      {/* Sticky Tab Bar */}
+      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+        <div
+          ref={tabsRef}
+          className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar"
+        >
+          <SegmentedControl
+            options={TABS}
+            value={activeTab}
+            onChange={handleTabChange}
+            size="touch"
+            snap
+            className="w-full min-w-max sm:w-auto"
+          />
+        </div>
+      </div>
 
- <Card>
- <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
- <div className="flex flex-wrap items-center gap-2">
- {paginatedProxyPools.length > 0 && (
- <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer font-medium">
- <input
- type="checkbox"
- checked={allPageSelected}
- onChange={toggleSelectPage}
- className="size-4 rounded-sm border-border"
- />
- {allPageSelected ? "Unselect page" : "Select page"}
- </label>
- )}
- {selectedIds.length > 0 && !allFilteredSelected && filteredProxyPools.length > paginatedProxyPools.length && (
- <button
- type="button"
- onClick={selectAllFiltered}
- className="text-xs font-medium text-primary hover:underline"
- >
- Select all {filteredProxyPools.length}
- </button>
- )}
- <Badge variant="default">Total: {proxyPools.length}</Badge>
- {filteredProxyPools.length !== proxyPools.length && (
- <Badge variant="default">Filtered: {filteredProxyPools.length}</Badge>
- )}
- <Badge variant="success">Active: {activeCount}</Badge>
- {disabledCount > 0 && (
- <Badge variant="error">Disabled: {disabledCount}</Badge>
- )}
- {disabledCount > 0 && (
- <Button
- size="sm"
- variant="danger"
- icon="delete_sweep"
- onClick={handleDeleteAllDisabled}
- disabled={bulkBusy || healthChecking}
- title="Delete all disabled proxy pools not in use"
- >
- Delete Disabled ({disabledCount})
- </Button>
- )}
- </div>
+      {activeTab === "pools" ? (
+        <Card>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              {paginatedProxyPools.length > 0 && (
+                <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer font-medium min-h-11 sm:min-h-0">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={toggleSelectPage}
+                    className="size-4 rounded-sm border-border"
+                  />
+                  {allPageSelected ? "Unselect page" : "Select page"}
+                </label>
+              )}
+              {selectedIds.length > 0 && !allFilteredSelected && filteredProxyPools.length > paginatedProxyPools.length && (
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  className="min-h-11 sm:min-h-0 text-xs font-medium text-primary hover:underline flex items-center"
+                >
+                  Select all {filteredProxyPools.length}
+                </button>
+              )}
+              <Badge variant="default">Total: {proxyPools.length}</Badge>
+              {filteredProxyPools.length !== proxyPools.length && (
+                <Badge variant="default">Filtered: {filteredProxyPools.length}</Badge>
+              )}
+              <Badge variant="success">Active: {activeCount}</Badge>
+              {disabledCount > 0 && (
+                <Badge variant="error">Disabled: {disabledCount}</Badge>
+              )}
+              {disabledCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  icon="delete_sweep"
+                  onClick={handleDeleteAllDisabled}
+                  disabled={bulkBusy || healthChecking}
+                  title="Delete all disabled proxy pools not in use"
+                >
+                  Delete Disabled ({disabledCount})
+                </Button>
+              )}
+            </div>
 
- {/* Search & Type Filter */}
- <div className="flex flex-wrap items-center gap-2">
- <div className="relative min-w-[180px] flex-1 sm:w-56 sm:flex-none">
- <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
- search
- </span>
- <input
- type="text"
- value={searchQuery}
- onChange={(e) => setSearchQuery(e.target.value)}
- placeholder="Search proxies..."
- className="w-full rounded-sm border border-border bg-surface py-2 pl-8 pr-7 text-xs text-text-main focus:border-primary focus:outline-none"
- />
- {searchQuery && (
- <button
- onClick={() => setSearchQuery("")}
- className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
- >
- <span className="material-symbols-outlined text-[18px]">close</span>
- </button>
- )}
- </div>
+            {/* Search & Type Filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[180px] flex-1 sm:w-56 sm:flex-none">
+                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search proxies..."
+                  className="w-full min-h-11 sm:min-h-9 rounded-sm border border-border bg-surface py-1.5 pl-8 pr-8 text-xs text-text-main focus:border-primary focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 size-11 sm:size-8 flex items-center justify-center text-text-muted hover:text-text-main"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                )}
+              </div>
 
- {/* Proxy Group Filter */}
- <div className="flex items-center gap-1">
- <select
- value={groupFilter}
- onChange={(e) => setGroupFilter(e.target.value)}
- className="rounded-sm border border-border bg-surface py-2 px-2.5 text-xs text-text-main focus:border-primary focus:outline-none font-medium"
- title="Filter by Proxy Group"
- >
- <option value="all">All Groups</option>
- <option value="ungrouped">Ungrouped (No Group)</option>
- {(proxyGroups.customGroups || []).length > 0 && (
- <optgroup label="Custom Groups">
- {(proxyGroups.customGroups || []).map((g) => (
- <option key={g.id} value={`custom:${g.id}`}>
- {g.name} ({g.poolCount || g.poolIds?.length || 0})
- </option>
- ))}
- </optgroup>
- )}
- {(proxyGroups.defaultGroups || []).length > 0 && (
- <optgroup label="Default Groups">
- {(proxyGroups.defaultGroups || []).map((g) => (
- <option key={g.id} value={`default:${g.type}`}>
- {g.name} ({g.poolCount || 0})
- </option>
- ))}
- </optgroup>
- )}
- </select>
- {groupFilter !== "all" && (
- <button
- type="button"
- onClick={() => setGroupFilter("all")}
- className="size-8 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
- title="Clear group filter"
- >
- <span className="material-symbols-outlined text-[18px]">cancel</span>
- </button>
- )}
- </div>
+              {/* Proxy Group Filter */}
+              <div className="flex items-center gap-1">
+                <select
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="min-h-11 sm:min-h-9 rounded-sm border border-border bg-surface py-1.5 px-2.5 text-xs text-text-main focus:border-primary focus:outline-none font-medium"
+                  title="Filter by Proxy Group"
+                >
+                  <option value="all">All Groups</option>
+                  <option value="ungrouped">Ungrouped (No Group)</option>
+                  {(proxyGroups.customGroups || []).length > 0 && (
+                    <optgroup label="Custom Groups">
+                      {(proxyGroups.customGroups || []).map((g) => (
+                        <option key={g.id} value={`custom:${g.id}`}>
+                          {g.name} ({g.poolCount || g.poolIds?.length || 0})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {(proxyGroups.defaultGroups || []).length > 0 && (
+                    <optgroup label="Default Groups">
+                      {(proxyGroups.defaultGroups || []).map((g) => (
+                        <option key={g.id} value={`default:${g.type}`}>
+                          {g.name} ({g.poolCount || 0})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {groupFilter !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setGroupFilter("all")}
+                    className="size-11 sm:size-8 flex items-center justify-center rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
+                    title="Clear group filter"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">cancel</span>
+                  </button>
+                )}
+              </div>
 
- <div className="flex items-center rounded-sm border border-border bg-surface h-8">
- {[
- { id: "all", label: "All" },
- { id: "http", label: "HTTP" },
- { id: "relay", label: "Relay" },
- { id: "cloudflare", label: "Cloudflare" },
- ].map((tab) => (
- <button
- key={tab.id}
- onClick={() => setTypeFilter(tab.id)}
- className={`rounded-sm px-2.5 py-1 text-xs font-medium ${
- typeFilter === tab.id
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main"
- }`}
- >
- {tab.label}
- </button>
- ))}
- </div>
- </div>
- </div>
+              <SegmentedControl
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "http", label: "HTTP" },
+                  { value: "relay", label: "Relay" },
+                  { value: "cloudflare", label: "Cloudflare" },
+                ]}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                size="touch"
+                snap
+                aria-label="Filter by proxy type"
+              />
+            </div>
+          </div>
 
  {(selectedIds.length > 0 || healthChecking) && (
  <div className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-primary/30 bg-primary/10 px-3 py-2">
@@ -1521,33 +1553,33 @@ export default function ProxyPoolsPage() {
  onChange={() => handleToggleActive(pool)}
  title={pool.isActive ? "Disable" : "Enable"}
  />
- <button
- onClick={() => handleTest(pool.id)}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary"
- title="Test proxy"
- disabled={testingId === pool.id}
- >
- <span
- className="material-symbols-outlined text-[18px]"
- style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined}
- >
- {testingId === pool.id ? "progress_activity" : "science"}
- </span>
- </button>
- <button
- onClick={() => openEditModal(pool)}
- className="size-8 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
- title="Edit"
- >
- <span className="material-symbols-outlined text-[18px]">edit</span>
- </button>
- <button
- onClick={() => handleDelete(pool)}
- className="size-8 shrink-0 rounded-sm text-danger hover:bg-danger/10"
- title="Delete"
- >
- <span className="material-symbols-outlined text-[18px]">delete</span>
- </button>
+                  <button
+                    onClick={() => handleTest(pool.id)}
+                    className="size-11 sm:size-8 flex items-center justify-center shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary"
+                    title="Test proxy"
+                    disabled={testingId === pool.id}
+                  >
+                    <span
+                      className="material-symbols-outlined text-[18px]"
+                      style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined}
+                    >
+                      {testingId === pool.id ? "progress_activity" : "science"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => openEditModal(pool)}
+                    className="size-11 sm:size-8 flex items-center justify-center shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
+                    title="Edit"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(pool)}
+                    className="size-11 sm:size-8 flex items-center justify-center shrink-0 rounded-sm text-danger hover:bg-danger/10"
+                    title="Delete"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
  </div>
  </div>
  ))}
@@ -1578,8 +1610,8 @@ export default function ProxyPoolsPage() {
  const val = e.target.value === "all" ? "all" : Number(e.target.value);
  setPageSize(val);
  }}
- className="rounded-sm border border-border bg-surface px-1.5 py-1 text-xs text-text-main focus:border-primary focus:outline-none"
- >
+                      className="min-h-11 sm:min-h-8 rounded-sm border border-border bg-surface px-2 py-1 text-xs text-text-main focus:border-primary focus:outline-none"
+                    >
  <option value={25}>25</option>
  <option value={50}>50</option>
  <option value={100}>100</option>
@@ -1595,7 +1627,7 @@ export default function ProxyPoolsPage() {
  type="button"
  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
  disabled={currentPage <= 1}
- className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 h-8"
+                      className="inline-flex min-h-11 sm:min-h-8 sm:h-8 items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
  title="Previous Page"
  >
  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
@@ -1616,7 +1648,7 @@ export default function ProxyPoolsPage() {
  key={item}
  type="button"
  onClick={() => setCurrentPage(item)}
- className={`min-w-8 h-8 rounded-sm text-xs font-medium px-1.5 flex items-center justify-center ${
+                        className={`min-w-11 min-h-11 sm:min-w-8 sm:min-h-8 sm:h-8 rounded-sm text-xs font-medium px-1.5 flex items-center justify-center ${
  isCurrent
  ? "bg-primary text-white "
  : "border border-border bg-surface text-text-main hover:bg-surface-2"
@@ -1631,7 +1663,7 @@ export default function ProxyPoolsPage() {
  type="button"
  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
  disabled={currentPage >= totalPages}
- className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 h-8"
+                      className="inline-flex min-h-11 sm:min-h-8 sm:h-8 items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
  title="Next Page"
  >
  <span>Next</span>
@@ -1644,7 +1676,7 @@ export default function ProxyPoolsPage() {
  </>
  )}
  </Card>
- ) : (
+      ) : activeTab === "groups" ? (
  <div className="flex flex-col gap-3">
  {/* Default Automatic Groups */}
  <div className="flex flex-col gap-3">
@@ -1692,20 +1724,20 @@ export default function ProxyPoolsPage() {
  setGroupFilter(`default:${grp.type}`);
  setActiveTab("pools");
  }}
- className="text-xs text-text-muted hover:text-text-main flex items-center gap-1 font-medium"
- title="View all pools in this group"
- >
- <span className="material-symbols-outlined text-[18px]">visibility</span>
- <span>View ({grp.poolCount})</span>
- </button>
- <button
- type="button"
- onClick={() => openEditGroupModal(grp)}
- className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
- >
- <span className="material-symbols-outlined text-[18px]">tune</span>
- <span>Configure</span>
- </button>
+                    className="min-h-11 sm:min-h-8 px-2 rounded-sm text-xs text-text-muted hover:text-text-main flex items-center gap-1 font-medium hover:bg-surface-2"
+                    title="View all pools in this group"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">visibility</span>
+                    <span>View ({grp.poolCount})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditGroupModal(grp)}
+                    className="min-h-11 sm:min-h-8 px-2 rounded-sm text-xs text-primary hover:underline flex items-center gap-1 font-medium hover:bg-primary/10"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">tune</span>
+                    <span>Configure</span>
+                  </button>
  </div>
  </div>
  </Card>
@@ -1814,6 +1846,8 @@ export default function ProxyPoolsPage() {
  )}
  </Card>
  </div>
+      ) : (
+        <ProxyFitnessTab />
  )}
 
  <Modal

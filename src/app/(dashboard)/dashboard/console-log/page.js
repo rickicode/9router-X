@@ -1,8 +1,17 @@
-import ConsoleLogClient from "./ConsoleLogClient";
+"use client";
 
-// Force dynamic so Next.js standalone build includes the server-side JS file
-export const dynamic = "force-dynamic";
+import dynamic from "next/dynamic";
+import { CardSkeleton } from "@/shared/components";
+
+const ConsoleLogClient = dynamic(() => import("./ConsoleLogClient"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex w-full flex-col gap-3">
+      <CardSkeleton />
+    </div>
+  ),
+});
 
 export default function ConsoleLogPage() {
- return <ConsoleLogClient />;
+  return <ConsoleLogClient />;
 }

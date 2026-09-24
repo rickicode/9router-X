@@ -78,8 +78,8 @@ describe("cliToolTemplates", () => {
     });
 
     expect(toml).toContain('model = "gpt-5"');
-    expect(toml).toContain('model_provider = "9router"');
-    expect(toml).toContain('[model_providers.9router]');
+    expect(toml).toContain('model_provider = "axonrouter"');
+    expect(toml).toContain('[model_providers.axonrouter]');
     expect(toml).toContain('base_url = "http://127.0.0.1:10128"');
     expect(toml).toContain('Authorization = "Bearer sk_codex_key"');
     expect(toml).toContain('default_subagent_model = "gpt-5-mini"');
@@ -105,7 +105,7 @@ describe("bashGenerator", () => {
   it("generates valid Bash script with backup and directory creation for single file", () => {
     const script = generateBashScript("claude", {
       baseUrl: "http://localhost:10128",
-      apiKey: "sk_9router_live",
+      apiKey: "sk_axonrouter_live",
       models: { sonnet: "cc/claude-sonnet-5" },
     });
 

@@ -2,7 +2,7 @@ import postgres from "postgres";
 
 // Singleton pool to survive Next.js dev server hot-reload
 if (!global._pgSql) {
-  const connectionString = process.env.DATABASE_URL || "postgres://9router:password123@localhost:5432/9router";
+  const connectionString = process.env.DATABASE_URL || "postgres://axonrouter:password123@localhost:5432/axonrouter";
   // Postgres crashes (OOM-kill, host restart) leave idle pooled connections
   // half-dead; postgres.js only detects them on next use. A short idle
   // timeout + connection lifetime bound recovers the pool without a manual

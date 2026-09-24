@@ -43,7 +43,7 @@ export default function OpenClawToolCard({
 
  const getProvider = () =>
  openclawStatus?.settings?.models?.providers?.["axonrouter"] ||
- openclawStatus?.settings?.models?.providers?.["9router"];
+ openclawStatus?.settings?.models?.providers?.["axonrouter"];
 
  const currentBaseUrl = getProvider()?.baseUrl || "";
 
@@ -121,7 +121,7 @@ export default function OpenClawToolCard({
   const provider = getProvider();
   if (provider) {
   const primaryModel = openclawStatus.settings?.agents?.defaults?.model?.primary;
-  if (primaryModel) setSelectedModel(primaryModel.replace(/^(axonrouter|9router)\//, ""));
+  if (primaryModel) setSelectedModel(primaryModel.replace(/^(axonrouter|axonrouter)\//, ""));
   if (provider.apiKey && apiKeys?.some(k => k.key === provider.apiKey)) {
   setSelectedApiKey(provider.apiKey);
   }
@@ -375,7 +375,7 @@ export default function OpenClawToolCard({
  <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={!selectedModel} loading={applying}>
  <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
  </Button>
- <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!openclawStatus?.has9Router} loading={restoring}>
+ <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!openclawStatus?.hasAxonRouter} loading={restoring}>
  <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

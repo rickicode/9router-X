@@ -53,7 +53,7 @@ describe("embedding usage persistence", () => {
   it("skips usage writes for probe requests", async () => {
     const request = {
       url: "http://x/api/v1/embeddings",
-      headers: { get: (k) => (k === "x-9router-test-request" ? "1" : null) },
+      headers: { get: (k) => (k === "x-axonrouter-test-request" ? "1" : null) },
       json: async () => ({ model: "openai/text-embedding-3-small", input: "test" }),
     };
     await handleEmbeddings(request);

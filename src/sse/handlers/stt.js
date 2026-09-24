@@ -20,7 +20,7 @@ const CREDENTIALED_PROVIDERS = new Set(
 
 export async function handleStt(request) {
   // Model probes must not mutate production routing state.
-  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
+  const isTestRequest = request.headers.get("x-axonrouter-test-request") === "1";
   let formData;
   try {
     formData = await request.formData();

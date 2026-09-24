@@ -274,7 +274,7 @@ export function useAnalytics(period) {
  const handleExportCsv = () => {
  if (!data?.models?.length) return;
  const csvContent = buildAnalyticsCsv(data.models);
- const filename = `9router-analytics-${period || "7d"}-${new Date().toISOString().slice(0, 10)}.csv`;
+ const filename = `axonrouter-analytics-${period || "7d"}-${new Date().toISOString().slice(0, 10)}.csv`;
  downloadBlobCsv(csvContent, filename);
  };
 

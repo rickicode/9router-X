@@ -15,7 +15,7 @@ function readSrc(relPath) {
 const CARDS = "src/app/(dashboard)/dashboard/usage/components/OverviewCards.js";
 const TOPO = "src/app/(dashboard)/dashboard/usage/components/ProviderTopology.js";
 
-describe("[9router-X usage] P1 clarify cost help + legend", () => {
+describe("[axonrouter-X usage] P1 clarify cost help + legend", () => {
   describe("1. Est Cost tooltip + breakdown + billing link + exact-rate note", () => {
     it("imports and renders Tooltip next to Est. Cost label", () => {
       const content = readSrc(CARDS);

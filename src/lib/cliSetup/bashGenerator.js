@@ -44,12 +44,12 @@ fi`
 
   return `#!/usr/bin/env bash
 # ==============================================================================
-# 9Router Host Setup Script: ${toolName}
-# Generated automatically by 9Router Gateway
+# AxonRouter Host Setup Script: ${toolName}
+# Generated automatically by AxonRouter Gateway
 # ==============================================================================
 set -euo pipefail
 
-printf "\\033[0;36m[AxonRouter] Configuring %s for 9Router host gateway...\\033[0m\\n" "${toolName}"
+printf "\\033[0;36m[AxonRouter] Configuring %s for AxonRouter host gateway...\\033[0m\\n" "${toolName}"
 
 ${fileOperations}
 

@@ -396,7 +396,7 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
       // durable cross-restart signal for this cycle is lost.
     }
 
-    publishEvent("9router:events", {
+    publishEvent("axonrouter:events", {
       type: "quota_updated",
       connectionId,
       provider: "antigravity",

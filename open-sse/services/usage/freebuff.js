@@ -32,7 +32,7 @@ const MODEL_LABELS = Object.fromEntries(
 // pre-filter in src/sse/services/auth.js so an exhausted account is skipped
 // before any upstream call. Lives on globalThis so Next dev (Turbopack) keeps
 // ONE copy across bundles.
-const FB_QUOTA_STATE_KEY = "__9routerFreebuffQuota__";
+const FB_QUOTA_STATE_KEY = "__axonrouterFreebuffQuota__";
 const quotaCache = (globalThis[FB_QUOTA_STATE_KEY] ??= new Map()); // connectionId -> { [model]: quotaRow, __fetchedAt }
 
 /** Read-only handle for the auth pre-filter. */

@@ -127,7 +127,7 @@ export default function ApiKeysCard({
  <Card
  id="require-api-key"
  title="API Keys"
- subtitle="Manage authentication tokens for clients calling 9Router"
+ subtitle="Manage authentication tokens for clients calling AxonRouter"
  icon="vpn_key"
  action={actionHeader}
  >

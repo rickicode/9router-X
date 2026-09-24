@@ -70,7 +70,7 @@ describe("Polish Visual & IA Verification (Tone B infra, logs tab, mobile 360px)
     });
 
     it("Profile security section explains dashboard UI protection clearly", () => {
-      const profileContent = readSrc("src/app/(dashboard)/dashboard/profile/page.js");
+      const profileContent = readSrc("src/app/(dashboard)/dashboard/settings/page.js");
       assert.ok(profileContent.includes("Protects dashboard web UI"));
       assert.ok(profileContent.includes("Does not affect model API key verification"));
     });

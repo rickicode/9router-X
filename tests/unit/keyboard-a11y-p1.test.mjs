@@ -12,7 +12,7 @@ function readSrc(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8");
 }
 
-describe("[9router-X audit] P1 harden keyboard a11y — tablist roving + sortable th button + Tooltip/Combobox/chart ARIA", () => {
+describe("[axonrouter-X audit] P1 harden keyboard a11y — tablist roving + sortable th button + Tooltip/Combobox/chart ARIA", () => {
   describe("1. SegmentedControl & Tablist Roving Tabindex", () => {
     it("SegmentedControl implements WAI-ARIA tablist roving tabindex with arrow keys and Home/End", () => {
       const content = readSrc("src/shared/components/SegmentedControl.js");

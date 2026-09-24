@@ -960,7 +960,7 @@ export function encodeMcpToolDefinition(tool) {
   const name = tool.function?.name || tool.name || "";
   const desc = tool.function?.description || tool.description || "";
   const schema = tool.function?.parameters || tool.inputSchema || tool.input_schema || { type: "object" };
-  const provider = tool.provider || "9router";
+  const provider = tool.provider || "axonrouter";
   const toolName = tool.tool_name || name;
 
   return concatArrays(

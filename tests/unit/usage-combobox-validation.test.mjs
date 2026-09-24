@@ -21,7 +21,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 
-describe("[9router-X usage] P0 harden exact-ID → searchable provider/model combobox + validation", () => {
+describe("[axonrouter-X usage] P0 harden exact-ID → searchable provider/model combobox + validation", () => {
   describe("1. Dimension & Filter Validation Logic", () => {
     it("accepts valid dimensions and empty/undefined optional inputs", () => {
       assert.deepEqual(validateFilterDimension("openai", 64, "provider"), { valid: true });

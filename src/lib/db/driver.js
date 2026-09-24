@@ -18,7 +18,7 @@ async function initAdapter() {
   // prevent concurrent DDL and partition creation during deploy/restart.
   try {
     await adapter.transaction(async (tx) => {
-      await tx.run("SELECT pg_advisory_xact_lock(hashtext('9router:schema-bootstrap'))");
+      await tx.run("SELECT pg_advisory_xact_lock(hashtext('axonrouter:schema-bootstrap'))");
       await tx.exec(PG_SCHEMA_SQL);
       await tx.exec(ANALYTICS_SCHEMA_SQL);
       await ensureMonthlyPartitions(tx);

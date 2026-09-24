@@ -174,7 +174,7 @@ export async function handleChat(request, clientRawRequest = null) {
       headers: Object.fromEntries(request.headers.entries())
     };
   }
-  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
+  const isTestRequest = request.headers.get("x-axonrouter-test-request") === "1";
   // Claude Code marks a 1M-context request as `<model>[1m]`; the marker matches
   // no combo, alias or provider/model pair, so it must not reach resolution.
   // The capability travels in the anthropic-beta header, forwarded as-is.

@@ -32,7 +32,7 @@ export async function handleImageGeneration(request) {
 
   const url = new URL(request.url);
   // Model probes must not mutate production routing state.
-  const isTestRequest = request.headers.get("x-9router-test-request") === "1";
+  const isTestRequest = request.headers.get("x-axonrouter-test-request") === "1";
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
   const wantsStream = (request.headers.get("accept") || "").includes("text/event-stream");
   const binaryOutput = url.searchParams.get("response_format") === "binary";

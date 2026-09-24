@@ -154,7 +154,7 @@ const GATE_MESSAGES = {
 // by a 428 from chat — no early re-claim, so we never POST /session while our
 // own row is still active (which could come back as a spurious model_locked).
 // All state lives on globalThis so Next dev (Turbopack) bundles share ONE copy.
-const FB_STATE_KEY = "__9routerFreebuffState__";
+const FB_STATE_KEY = "__axonrouterFreebuffState__";
 const fbState = (globalThis[FB_STATE_KEY] ??= {
   sessionCache: new Map(),      // `${token}::${model}` -> { instanceId, expiresAt }
   inflight: new Map(),          // dedupe concurrent claims for the same key

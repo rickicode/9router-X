@@ -54,14 +54,14 @@ export const TOOL_TEMPLATES = {
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl.slice(0, -3) : baseUrl;
       const subModel = subagentModel || model;
       return `model = "${model}"
-model_provider = "9router"
+model_provider = "axonrouter"
 
-[model_providers.9router]
-name = "9Router"
+[model_providers.axonrouter]
+name = "AxonRouter"
 base_url = "${cleanBase}"
 wire_api = "responses"
 
-[model_providers.9router.http_headers]
+[model_providers.axonrouter.http_headers]
 Authorization = "Bearer ${apiKey || "sk_axonrouter"}"
 
 [agents]
@@ -85,13 +85,13 @@ default_subagent_model = "${subModel}"
         agents: {
           defaults: {
             model: {
-              primary: `9router/${model}`,
+              primary: `axonrouter/${model}`,
             },
           },
         },
         models: {
           providers: {
-            "9router": {
+            "axonrouter": {
               baseUrl: cleanBase,
               apiKey: apiKey || "sk_axonrouter",
               api: "openai-completions",
@@ -122,7 +122,7 @@ default_subagent_model = "${subModel}"
       return {
         customModels: modelsList.map((m, i) => ({
           model: m,
-          id: `custom:9Router-${i}`,
+          id: `custom:AxonRouter-${i}`,
           index: i,
           baseUrl: cleanBase,
           apiKey: apiKey || "sk_axonrouter",
@@ -172,7 +172,7 @@ default_subagent_model = "${subModel}"
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
       return {
         provider: {
-          "9router": {
+          "axonrouter": {
             npm: "@ai-sdk/openai-compatible",
             options: {
               baseURL: cleanBase,
@@ -186,11 +186,11 @@ default_subagent_model = "${subModel}"
             },
           },
         },
-        model: `9router/${model}`,
+        model: `axonrouter/${model}`,
         agent: {
           explorer: {
             mode: "subagent",
-            model: `9router/${subagentModel || model}`,
+            model: `axonrouter/${subagentModel || model}`,
           },
         },
       };
@@ -283,24 +283,24 @@ model = "${model}"
         pathWin: "$env:USERPROFILE\\.jcode\\config.toml",
         content: ({ baseUrl, model = "claude-sonnet-5" }) => {
           const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
-          return `[providers.9router]
+          return `[providers.axonrouter]
 type = "openai-compatible"
 base_url = "${cleanBase}"
 auth = "bearer"
-api_key_env = "JCODE_9ROUTER_API_KEY"
-env_file = "provider-9router.env"
+api_key_env = "JCODE_AXONROUTER_API_KEY"
+env_file = "provider-axonrouter.env"
 default_model = "${model}"
 requires_api_key = true
 
-[[providers.9router.models]]
+[[providers.axonrouter.models]]
 id = "${model}"
 `;
         },
       },
       {
-        pathPosix: "~/.config/jcode/provider-9router.env",
-        pathWin: "$env:USERPROFILE\\.config\\jcode\\provider-9router.env",
-        content: ({ apiKey }) => `JCODE_9ROUTER_API_KEY="${apiKey || "sk_axonrouter"}"\n`,
+        pathPosix: "~/.config/jcode/provider-axonrouter.env",
+        pathWin: "$env:USERPROFILE\\.config\\jcode\\provider-axonrouter.env",
+        content: ({ apiKey }) => `JCODE_AXONROUTER_API_KEY="${apiKey || "sk_axonrouter"}"\n`,
       },
     ],
   },
@@ -316,13 +316,13 @@ id = "${model}"
     generateConfig: ({ baseUrl, apiKey, model = "grok-beta" }) => {
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
       return `[models]
-default = "9router"
+default = "axonrouter"
 
-[model.9router]
+\[model.axonrouter\]
 model = "${model}"
 base_url = "${cleanBase}"
-name = "9Router"
-description = "Routed via 9Router gateway"
+name = "AxonRouter"
+description = "Routed via AxonRouter gateway"
 api_backend = "chat_completions"
 api_key = "${apiKey || "sk_axonrouter"}"
 context_window = 200000
@@ -343,7 +343,7 @@ context_window = 200000
       const cleanBase = baseUrl.replace(/\/v1$/, "");
       return [
         {
-          name: "9Router",
+          name: "AxonRouter",
           vendor: "azure",
           apiKey: apiKey || "sk_axonrouter",
           models: modelsList.map((id) => ({
@@ -365,9 +365,9 @@ context_window = 200000
     name: "Claude Desktop Cowork",
     format: "json_replace",
     paths: {
-      darwin: ["~/Library/Application Support/Claude-3p/configLibrary/9router.json"],
-      windows: ["$env:APPDATA\\Claude-3p\\configLibrary\\9router.json"],
-      posix: ["~/.config/Claude-3p/configLibrary/9router.json"],
+      darwin: ["~/Library/Application Support/Claude-3p/configLibrary/axonrouter.json"],
+      windows: ["$env:APPDATA\\Claude-3p\\configLibrary\\axonrouter.json"],
+      posix: ["~/.config/Claude-3p/configLibrary/axonrouter.json"],
     },
     generateConfig: ({ baseUrl, apiKey, modelsList = ["claude-sonnet-5", "claude-opus-5"] }) => {
       const cleanBase = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * GET /api/cli-tools/setup/[toolId]
  *
  * Serves dynamic shell scripts (Bash or PowerShell) to configure host CLI tools
- * pointing to this 9Router instance.
+ * pointing to this AxonRouter instance.
  *
  * Example usage:
  *   curl -fsSL "http://localhost:10128/api/cli-tools/setup/claude?baseUrl=http://localhost:10128&apiKey=sk_xxx&sonnet=cc/claude-sonnet-5" | bash

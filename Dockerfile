@@ -28,7 +28,7 @@ RUN apt-get -o Acquire::Retries=3 update && \
 
 FROM runtime-deps AS runner
 
-LABEL org.opencontainers.image.title="9router"
+LABEL org.opencontainers.image.title="axonrouter"
 
 ENV NODE_ENV=production
 ENV PORT=10128
@@ -47,7 +47,7 @@ COPY --from=builder /app/node_modules/next ./node_modules/next
 COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machine-id
 
 RUN mkdir -p /app/data /app/data-home && chown -R node:node /app/data /app/data-home && \
-  ln -sf /app/data-home /root/.9router 2>/dev/null || true
+  ln -sf /app/data-home /root/.axonrouter 2>/dev/null || true
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

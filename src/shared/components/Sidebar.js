@@ -17,7 +17,6 @@ const coreRoutingItems = [
   { href: "/dashboard/app", label: "Overview", icon: "dashboard" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
   { href: "/dashboard/combos", label: "Combo Adapter", icon: "layers" },
-  { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
 ];
 
 // Monitoring
@@ -55,9 +54,7 @@ export default function Sidebar({ onClose }) {
     <aside className="flex w-64 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-2 border border-border">
-            <Image src="/favicon.svg" alt="AxonRouter logo" width={24} height={24} className="size-6 shrink-0" priority />
-          </div>
+          <Image src="/favicon.svg" alt="AxonRouter logo" width={36} height={36} className="size-9 shrink-0" priority />
           <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
         </Link>
         {onClose && (
@@ -282,12 +279,12 @@ export default function Sidebar({ onClose }) {
 
           {/* Settings */}
           <Link
-            href="/dashboard/profile"
+            href="/dashboard/settings"
             prefetch={false}
             onClick={onClose}
             className={cn(
               "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
-              isActive("/dashboard/profile")
+              isActive("/dashboard/settings")
                 ? "bg-primary/10 text-primary"
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"
             )}
@@ -295,7 +292,7 @@ export default function Sidebar({ onClose }) {
             <span
               className={cn(
                 "material-symbols-outlined text-[18px]",
-                isActive("/dashboard/profile") ? "fill-1" : ""
+                isActive("/dashboard/settings") ? "fill-1" : ""
               )}
             >
               settings
@@ -305,15 +302,23 @@ export default function Sidebar({ onClose }) {
         </div>
       </nav>
 
-      <div className="flex min-h-11 items-center border-t border-border px-1">
-        <a
-          href="https://github.com/rickicode/AxonRouter"
-          target="_blank"
-          rel="noreferrer"
-          className="flex min-h-11 items-center rounded-sm px-2 text-xs text-text-muted hover:text-text-main"
-        >
-          AxonRouter · GitHub
-        </a>
+      <div className="flex flex-col border-t border-border px-1 py-1.5">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <a
+            href="https://github.com/rickicode/AxonRouter"
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-9 items-center rounded-sm px-2 text-xs text-text-muted hover:text-text-main"
+          >
+            AxonRouter · GitHub
+          </a>
+          <span
+            className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-text-muted"
+            title={`${APP_CONFIG.name} version`}
+          >
+            v{APP_CONFIG.version}
+          </span>
+        </div>
       </div>
     </aside>
   );

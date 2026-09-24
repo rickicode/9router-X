@@ -15,7 +15,7 @@
 // several per-bundle copies — the executor/chatCore marks and the
 // /api/proxy-pools/fitness reader must share the SAME registry.
 
-const FITNESS_STATE_KEY = "__9routerPoolFitness__";
+const FITNESS_STATE_KEY = "__axonrouterPoolFitness__";
 const fitness = (globalThis[FITNESS_STATE_KEY] ??= new Map()); // poolId -> Map<scope, { until, reason }>
 let persistTimer = null;
 let hydratePromise = null;

@@ -163,8 +163,8 @@ const MODELS_CACHE_TTL_MS = 30 * 1000;
 let modelsListCache = new Map();
 
 // Header sent by fetchCompatibleModelIds to detect cross-instance /models fetches
-// and break recursive loops between 9router instances connected to each other.
-const INTERNAL_MODELS_FETCH_HEADER = "x-9r-internal-models-fetch";
+// and break recursive loops between axonrouter instances connected to each other.
+const INTERNAL_MODELS_FETCH_HEADER = "x-axonrouter-internal-models-fetch";
 
 // Live OpenCode free catalog. The opencode provider is noAuth so it has no DB
 // connection rows and the loop below never emits it. Fetch upstream directly
@@ -304,7 +304,7 @@ function comboMatchesKinds(combo, kindFilter) {
  */
 export async function buildModelsList(kindFilter, options = {}) {
   // When this header is present, the /v1/models request came from another
-  // 9router instance's fetchCompatibleModelIds — skip dynamic fetch to break
+  // axonrouter instance's fetchCompatibleModelIds — skip dynamic fetch to break
   // cross-instance recursive loops.
   const skipDynamicFetch = options.skipDynamicFetch === true;
   let connections = [];
@@ -677,7 +677,7 @@ export async function OPTIONS() {
  */
 export async function GET(request) {
   try {
-    // Detect cross-instance recursive /models fetch (another 9router fetching our /models)
+    // Detect cross-instance recursive /models fetch (another axonrouter fetching our /models)
     const skipDynamicFetch = request?.headers?.get(INTERNAL_MODELS_FETCH_HEADER) === "1";
     const cacheKey = skipDynamicFetch ? "skip" : "full";
     const cached = modelsListCache.get(cacheKey);

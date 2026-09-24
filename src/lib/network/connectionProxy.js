@@ -31,7 +31,7 @@ export function matchDefaultGroupType(input) {
 }
 
 // ─── Proxy pool rotation state (in-memory, globalThis-backed for Turbopack/Next dev) ───
-const rotateState = (globalThis.__9routerProxyRotateState__ ??= new Map()); // stateKey → { index, count, currentPoolId }
+const rotateState = (globalThis.__axonrouterProxyRotateState__ ??= new Map()); // stateKey → { index, count, currentPoolId }
 
 /**
  * Pick one proxy pool ID from a list based on strategy.

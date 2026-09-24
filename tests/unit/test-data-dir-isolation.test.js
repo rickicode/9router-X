@@ -2,7 +2,7 @@
 //
 // Root cause this locks down: route-level tests (zed-live-models,
 // zed-native-auth) call createProviderConnection, which persists to
-// $DATA_DIR/db/data.sqlite. With no DATA_DIR set, that resolved to ~/.9router —
+// $DATA_DIR/db/data.sqlite. With no DATA_DIR set, that resolved to ~/.axonrouter —
 // polluting the live DB with "zed-live-*@example.com", "guard-*@example.com"
 // and "Account N" rows on every `npx vitest run`.
 //
@@ -17,10 +17,10 @@ import path from "node:path";
 const ISOLATED = !process.env.RUN_REAL && !process.env.EXPECT_REAL_DATA_DIR;
 
 describe.skipIf(!ISOLATED)("test DATA_DIR isolation", () => {
-  it("points DATA_DIR at a temp dir, not ~/.9router", () => {
+  it("points DATA_DIR at a temp dir, not ~/.axonrouter", () => {
     const dir = process.env.DATA_DIR;
     expect(dir).toBeTruthy();
-    const home = path.join(os.homedir(), ".9router");
+    const home = path.join(os.homedir(), ".axonrouter");
     expect(path.resolve(dir)).not.toBe(path.resolve(home));
     expect(dir.startsWith(os.tmpdir())).toBe(true);
   });

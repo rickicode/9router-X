@@ -3,8 +3,8 @@ import { exportDb, getSettings, importDb } from "@/lib/localDb";
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { verifyDashboardPassword } from "@/lib/auth/dashboardSession";
 
-const CLI_TOKEN_HEADER = "x-9r-cli-token";
-const PASSWORD_HEADER = "x-9r-password";
+const CLI_TOKEN_HEADER = "x-axonrouter-cli-token";
+const PASSWORD_HEADER = "x-axonrouter-password";
 
 // CLI token requests are already trusted (local machine); skip password re-auth.
 function isCliRequest(request) {

@@ -3,7 +3,7 @@ import pkg from "../../package.json" with { type: "json" };
 // Cline CLI identity (mirrors apps/cli + sdk/packages/llms request-headers.ts
 // in cline/cline). Upstream gates the cline-free/* model aliases to Cline
 // product surfaces + recent client versions — requests sent as
-// X-CLIENT-TYPE 9router are 403'd with "only available via Cline product
+// X-CLIENT-TYPE axonrouter are 403'd with "only available via Cline product
 // surfaces". Verified live 2026-09-11: cline-cli/3.0.61 passes the gate.
 const CLINE_CLIENT_TYPE = "cline-cli";
 const CLINE_CLIENT_VERSION = "3.0.61";

@@ -55,7 +55,7 @@ const findProviderConfig = (config) => {
   return null;
 };
 
-const has9RouterConfig = (config) => Boolean(findProviderConfig(config));
+const hasAxonRouterConfig = (config) => Boolean(findProviderConfig(config));
 
 // GET - Check opencode CLI and read current settings
 export async function GET() {
@@ -77,7 +77,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      has9Router: has9RouterConfig(config),
+      hasAxonRouter: hasAxonRouterConfig(config),
       configPath: getConfigPath(),
         opencode: {
           models: Object.keys(modelMap),
@@ -91,7 +91,7 @@ export async function GET() {
   }
 }
 
-// POST - Apply 9Router as openai-compatible provider (multi-model support)
+// POST - Apply AxonRouter as openai-compatible provider (multi-model support)
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, model, models, activeModel, subagentModel } = await request.json();
@@ -124,9 +124,9 @@ export async function POST(request) {
 
     // Migrate a legacy pre-rebrand entry into the current one, then drop it
     let existingProvider = config.provider[PROVIDER_ID];
-    if (!existingProvider && config.provider["9router"]) {
-      existingProvider = config.provider["9router"];
-      delete config.provider["9router"];
+    if (!existingProvider && config.provider["axonrouter"]) {
+      existingProvider = config.provider["axonrouter"];
+      delete config.provider["axonrouter"];
     }
     existingProvider = existingProvider || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
 
@@ -217,7 +217,7 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE - Remove 9Router provider or specific models from config
+// DELETE - Remove AxonRouter provider or specific models from config
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -267,7 +267,7 @@ export async function DELETE(request) {
 
     return NextResponse.json({
       success: true,
-      message: modelToRemove ? `Model "${modelToRemove}" removed` : "9Router settings removed from OpenCode",
+      message: modelToRemove ? `Model "${modelToRemove}" removed` : "AxonRouter settings removed from OpenCode",
     });
   } catch (error) {
     console.log("Error resetting opencode settings:", error);

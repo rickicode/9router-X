@@ -39,13 +39,13 @@ export default function JcodeToolCard({
 
  const getProvider = () =>
  jcodeStatus?.config?.providers?.["axonrouter"] ||
- jcodeStatus?.config?.providers?.["9router"];
+ jcodeStatus?.config?.providers?.["axonrouter"];
 
  const currentBaseUrl = getProvider()?.base_url || "";
 
  const getConfigStatus = () => {
  if (!jcodeStatus?.installed) return null;
- if (!jcodeStatus?.has9Router) return "not_configured";
+ if (!jcodeStatus?.hasAxonRouter) return "not_configured";
  const currentProvider = getProvider();
  if (!currentProvider) return "not_configured";
  return matchKnownEndpoint(currentProvider.base_url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
@@ -361,7 +361,7 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
  <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={!selectedModel} loading={applying}>
  <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
  </Button>
- <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!jcodeStatus?.has9Router} loading={restoring}>
+ <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!jcodeStatus?.hasAxonRouter} loading={restoring}>
  <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
