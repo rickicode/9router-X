@@ -6,7 +6,7 @@ import { CardSkeleton } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import EndpointUrlsCard from "./components/EndpointUrlsCard";
 import ApiKeysCard from "./components/ApiKeysCard";
-
+import QuickStartCard from "./components/QuickStartCard";
 const emptySubscribe = () => () => {};
 
 export default function EndpointPageClient({ machineId }) {
@@ -112,7 +112,14 @@ export default function EndpointPageClient({ machineId }) {
         onCopy={copy}
       />
 
-      {/* 2. API Keys Management */}
+      {/* 2. Quick Start Integration & Live Test */}
+      <QuickStartCard
+        baseUrl={baseUrl}
+        gatewayUrl={gatewayUrl}
+        activeKey={keys.find(k => k.isActive !== false)?.key || keys[0]?.key || ""}
+      />
+
+      {/* 3. API Keys Management */}
       <ApiKeysCard
         keys={keys}
         requireApiKey={requireApiKey}

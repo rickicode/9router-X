@@ -95,32 +95,32 @@ export default function ApiKeysCard({
  }
  };
 
- const actionHeader = (
- <div className="flex items-center gap-2">
- <span className="font-mono text-xs px-2.5 py-1 rounded-sm font-medium bg-surface text-text-muted border border-border">
- {keys.length} {keys.length === 1 ? "KEY" : "KEYS"}
- </span>
- <Button
- size="sm"
- icon="add"
- onClick={() => setShowAddModal(true)}
- aria-label="Create new API Key"
- >
- Create Key
- </Button>
- <button
- type="button"
- onClick={() => setIsExpanded(!isExpanded)}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-text-main focus-visible:outline-none"
- aria-label={isExpanded ? "Collapse API Keys details" : "Expand API Keys details"}
- aria-expanded={isExpanded}
- >
- <span className="material-symbols-outlined text-[18px] transition-transform" aria-hidden="true">
- {isExpanded ? "expand_less" : "expand_more"}
- </span>
- </button>
- </div>
- );
+  const actionHeader = (
+    <div className="flex items-center gap-2">
+      <span className="font-mono text-xs px-2.5 py-1 rounded-sm font-medium bg-surface text-text-muted border border-border">
+        {keys.length} {keys.length === 1 ? "KEY" : "KEYS"}
+      </span>
+      <Button
+        size="sm"
+        icon="add"
+        onClick={() => setShowAddModal(true)}
+        aria-label="Create new API Key"
+      >
+        Create Key
+      </Button>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="size-11 sm:size-9 hover:bg-surface-2 rounded-sm text-text-muted hover:text-text-main focus-visible:outline-none flex items-center justify-center"
+        aria-label={isExpanded ? "Collapse API Keys details" : "Expand API Keys details"}
+        aria-expanded={isExpanded}
+      >
+        <span className="material-symbols-outlined text-[18px] transition-transform" aria-hidden="true">
+          {isExpanded ? "expand_less" : "expand_more"}
+        </span>
+      </button>
+    </div>
+  );
 
  return (
  <>
@@ -134,18 +134,20 @@ export default function ApiKeysCard({
  {isExpanded && (
  <div className="mt-3 pt-3 border-t border-border flex flex-col gap-3">
  {/* Require API key toggle */}
- <div className="flex items-center justify-between pb-3 border-b border-border h-8">
- <div>
- <p className="font-medium text-sm">Require API key</p>
- <p className="text-xs text-text-muted font-mono mt-0.5">
- Protects model endpoints (/v1/*). Clients must supply an Authorization: Bearer &lt;key&gt; header. Does not gate dashboard UI login.
- </p>
- </div>
- <Toggle
- checked={requireApiKey}
- onChange={() => onToggleRequireApiKey(!requireApiKey)}
- />
- </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">Require API key</p>
+                  <p className="text-xs text-text-muted font-mono mt-0.5 leading-relaxed">
+                    Protects model endpoints (/v1/*). Clients must supply an Authorization: Bearer &lt;key&gt; header. Does not gate dashboard UI login.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <Toggle
+                    checked={requireApiKey}
+                    onChange={() => onToggleRequireApiKey(!requireApiKey)}
+                  />
+                </div>
+              </div>
 
  {isRemoteHost && !requireApiKey && (
  <SecurityWarning message="Model endpoint is exposed remotely without an API key requirement. Anyone with the URL can send requests." />
@@ -175,10 +177,10 @@ export default function ApiKeysCard({
  {keys.map((key) => (
  <div
  key={key.id}
- className={`flex items-center justify-between py-3 transition-opacity ${
- key.isActive === false ? "opacity-60" : ""
- }`}
- >
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 transition-opacity ${
+                  key.isActive === false ? "opacity-60" : ""
+                }`}
+              >
  <div className="flex-1 min-w-0 pr-3">
  <div className="flex items-center gap-2">
  <p className="text-sm font-medium">{key.name}</p>
@@ -195,7 +197,7 @@ export default function ApiKeysCard({
  <button
  type="button"
  onClick={() => toggleKeyVisibility(key.id)}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none"
+                  className="size-11 sm:size-9 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none flex items-center justify-center"
  aria-label={visibleKeys.has(key.id) ? `Hide key for ${key.name}` : `Show key for ${key.name}`}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
@@ -205,7 +207,7 @@ export default function ApiKeysCard({
  <button
  type="button"
  onClick={() => onCopy(key.key, key.id)}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none"
+                  className="size-11 sm:size-9 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none flex items-center justify-center"
  aria-label={copied === key.id ? "Copied" : `Copy API key ${key.name}`}
  >
  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
