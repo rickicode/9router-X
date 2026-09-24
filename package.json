@@ -1,7 +1,7 @@
 {
-  "name": "9router-app",
-  "version": "0.5.81",
-  "description": "9Router web dashboard",
+  "name": "axonrouter",
+  "version": "0.1.2",
+  "description": "AxonRouter AI infrastructure management and routing gateway",
   "private": true,
   "scripts": {
     "dev": "next dev --port 20127",

@@ -148,7 +148,7 @@ const RouterNode = memo(function RouterNode({ data }) {
 
  <Image
  src="/favicon.svg"
- alt="9router-x"
+      alt="AxonRouter"
  width={24}
  height={24}
  className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
@@ -156,7 +156,7 @@ const RouterNode = memo(function RouterNode({ data }) {
  decoding="async"
  />
  <span className={`text-sm font-semibold ${powering ? "topology-router-label text-warning" : "text-primary"}`}>
- 9router-x
+      AxonRouter
  </span>
  {data.activeCount > 0 && (
  <span
