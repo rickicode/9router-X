@@ -25,7 +25,7 @@ services:
       TZ: Asia/Jakarta
       NODE_ENV: production
       MALLOC_ARENA_MAX: "2"
-      DATABASE_URL: ${DATABASE_URL:-postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
+      DATABASE_URL: ${AXON_DATABASE_URL:-postgres://axonrouter:${AXON_POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     logging:
       driver: "json-file"
@@ -67,7 +67,7 @@ services:
       MALLOC_ARENA_MAX: "2"
       MALLOC_TRIM_THRESHOLD_: "131072"
       PROXY_DISPATCHERS_MAX_SIZE: "128"
-      DATABASE_URL: ${DATABASE_URL:-postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
+      DATABASE_URL: ${AXON_DATABASE_URL:-postgres://axonrouter:${AXON_POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       REQUEST_DETAILS_SHOW_RAW: ${REQUEST_DETAILS_SHOW_RAW:-false}
     logging:
