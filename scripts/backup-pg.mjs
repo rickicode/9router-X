@@ -2,7 +2,7 @@
 /**
  * Standalone Database Backup Engine: PostgreSQL -> Compressed .sql.gz
  * Usage:
- *   DATABASE_URL="postgres://9router:password123@localhost:5432/9router" node scripts/backup-pg.mjs
+ *   DATABASE_URL="postgres://axonrouter:password123@localhost:5432/axonrouter" node scripts/backup-pg.mjs
  */
 
 import fs from "node:fs";
@@ -12,8 +12,8 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
-const pgUrl = process.env.DATABASE_URL || "postgres://9router:password123@localhost:5432/9router";
-const dataDir = process.env.DATA_DIR || path.join(process.env.HOME || "", ".9router");
+const pgUrl = process.env.DATABASE_URL || "postgres://axonrouter:password123@localhost:5432/axonrouter";
+const dataDir = process.env.DATA_DIR || path.join(process.env.HOME || "", ".axonrouter");
 const backupDir = path.join(dataDir, "backups");
 
 if (!fs.existsSync(backupDir)) {
@@ -23,7 +23,7 @@ if (!fs.existsSync(backupDir)) {
 async function backup() {
   const now = new Date();
   const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  const targetFile = path.join(backupDir, `9router-pg-${timestamp}.sql.gz`);
+  const targetFile = path.join(backupDir, `axonrouter-pg-${timestamp}.sql.gz`);
 
   console.log(`[BACKUP] Initiating PostgreSQL backup...`);
   console.log(`[BACKUP] Target: ${targetFile}`);
@@ -50,7 +50,7 @@ function pruneOldBackups(dir, daysToKeep = 7) {
     const cutoffMs = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
 
     for (const f of files) {
-      if (!f.startsWith("9router-pg-") || !f.endsWith(".sql.gz")) continue;
+      if (!f.startsWith("axonrouter-pg-") || !f.endsWith(".sql.gz")) continue;
       const fullPath = path.join(dir, f);
       const stat = fs.statSync(fullPath);
       if (stat.mtimeMs < cutoffMs) {

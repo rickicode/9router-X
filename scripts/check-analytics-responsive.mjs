@@ -1,6 +1,6 @@
 // Browser regression against real AnalyticsTab + production Tailwind CSS.
 // Synthetic API fixture; no production authentication or database access.
-// npm install --prefix /tmp/9router-responsive-tools esbuild playwright-core
+// npm install --prefix /tmp/axonrouter-responsive-tools esbuild playwright-core
 // node scripts/check-analytics-responsive.mjs
 import { createRequire } from "node:module";
 import { mkdtemp, writeFile, readFile } from "node:fs/promises";
@@ -9,7 +9,7 @@ import path from "node:path";
 import http from "node:http";
 import assert from "node:assert/strict";
 const require = createRequire(import.meta.url);
-const tools = createRequire("/tmp/9router-responsive-tools/package.json");
+const tools = createRequire("/tmp/axonrouter-responsive-tools/package.json");
 const { build } = tools("esbuild");
 const { chromium } = tools("playwright-core");
 const postcss = require("postcss");

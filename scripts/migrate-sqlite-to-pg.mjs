@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Standalone Data Migration Script: SQLite -> PostgreSQL (9Router-X)
+ * Standalone Data Migration Script: SQLite -> PostgreSQL (AxonRouter)
  * Usage:
- *   DATABASE_URL="postgres://9router:password123@localhost:5432/9router" node scripts/migrate-sqlite-to-pg.mjs [path/to/data.sqlite]
+ *   DATABASE_URL="postgres://axonrouter:password123@localhost:5432/axonrouter" node scripts/migrate-sqlite-to-pg.mjs [path/to/data.sqlite]
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 
-const sqlitePath = process.argv[2] || process.env.DATA_FILE || path.join(process.env.DATA_DIR || path.join(process.env.HOME || "", ".9router"), "data.sqlite");
-const pgUrl = process.env.DATABASE_URL || "postgres://9router:password123@localhost:5432/9router";
+const sqlitePath = process.argv[2] || process.env.DATA_FILE || path.join(process.env.DATA_DIR || path.join(process.env.HOME || "", "\.axonrouter"), "data.sqlite");
+const pgUrl = process.env.DATABASE_URL || "postgres://axonrouter:password123@localhost:5432/axonrouter";
 
 if (!fs.existsSync(sqlitePath)) {
   console.error(`[MIGRATE] SQLite file not found at: ${sqlitePath}`);

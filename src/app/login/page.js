@@ -156,8 +156,8 @@ export default function LoginPage() {
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex size-14 items-center justify-center rounded-md bg-surface-2 border border-border mb-3 shadow-xs">
-            <Image src="/favicon.svg" alt="AxonRouter logo" width={32} height={32} className="size-8" priority />
+          <div className="inline-flex size-14 items-center justify-center mb-3">
+            <Image src="/favicon.svg" alt="AxonRouter logo" width={48} height={48} className="size-12 shrink-0" priority />
           </div>
           <h1 className="text-3xl font-bold text-primary mb-2">AxonRouter</h1>
           <p className="text-text-muted">
