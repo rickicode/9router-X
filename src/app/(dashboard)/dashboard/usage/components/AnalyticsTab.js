@@ -11,7 +11,6 @@ import AnalyticsSummaryCards from "./AnalyticsSummaryCards";
 import AnalyticsErrorDistribution from "./AnalyticsErrorDistribution";
 import AnalyticsRankings from "./AnalyticsRankings";
 import AnalyticsModelTable from "./AnalyticsModelTable";
-import AnalyticsDrilldowns from "./AnalyticsDrilldowns";
 import FailureAnalyticsCard from "./FailureAnalyticsCard";
 import FailureResponseModal from "./FailureResponseModal";
 
@@ -181,7 +180,6 @@ export default function AnalyticsTab({ period }) {
  onInspectFailures={(m) => handleInspectFailures(m, "model")}
  />
 
- <AnalyticsDrilldowns data={analytics.data} />
  </>
  )}
  </>

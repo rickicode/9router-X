@@ -1,45 +1,62 @@
 "use client";
 
 import PropTypes from "prop-types";
-import { useState } from "react";
 import Card from "@/shared/components/Card";
-import SegmentedControl from "@/shared/components/SegmentedControl";
 import { formatMetric, fmtTokens, fmtNumber } from "./analyticsData";
 
-const VIEW_MODES = [
-  { value: "requests", label: "Requests", color: "bg-primary", accent: "text-primary" },
-  { value: "tokens", label: "Tokens", color: "bg-cyan-500", accent: "text-cyan-400" },
-  { value: "failures", label: "Failures", color: "bg-rose-500", accent: "text-rose-400" },
-  { value: "latency", label: "Latency", color: "bg-amber-500", accent: "text-amber-400" },
+const STREAMS = [
+  {
+    key: "requests",
+    label: "Requests",
+    icon: "swap_vert",
+    color: "bg-primary",
+    hoverColor: "hover:bg-primary-hover",
+    textColor: "text-primary",
+    getValue: (p) => Number(p.requests || 0),
+    format: fmtNumber,
+  },
+  {
+    key: "tokens",
+    label: "Tokens",
+    icon: "toll",
+    color: "bg-cyan-500",
+    hoverColor: "hover:bg-cyan-400",
+    textColor: "text-cyan-400",
+    getValue: (p) => Number(p.inputTokens || 0) + Number(p.outputTokens || 0),
+    format: fmtTokens,
+  },
+  {
+    key: "failures",
+    label: "Failures",
+    icon: "error",
+    color: "bg-danger",
+    hoverColor: "hover:bg-danger-hover",
+    textColor: "text-danger",
+    getValue: (p) => Number(p.failures || 0),
+    format: fmtNumber,
+  },
+  {
+    key: "latency",
+    label: "P50 Latency",
+    icon: "speed",
+    color: "bg-amber-500",
+    hoverColor: "hover:bg-amber-400",
+    textColor: "text-amber-400",
+    getValue: (p) => Number(p.p50LatencyMs || p.latencyMs || 0),
+    format: (v) => formatMetric(v, "latencyMs"),
+  },
 ];
 
-const MAX_ROWS = 12;
-
-function fmtValue(mode, value) {
-  if (mode === "tokens") return fmtTokens(value);
-  if (mode === "latency") return formatMetric(value, "latencyMs");
-  return fmtNumber(value);
-}
-
-function getPointValue(point, mode) {
-  if (!point) return 0;
-  if (mode === "requests") return Number(point.requests || 0);
-  if (mode === "tokens") return Number(point.inputTokens || 0) + Number(point.outputTokens || 0);
-  if (mode === "failures") return Number(point.failures || 0);
-  if (mode === "latency") return Number(point.p50LatencyMs || point.latencyMs || 0);
-  return 0;
-}
+const STREAM_ROWS = 4;
 
 export default function AnalyticsBrickTimeline({ data = [] }) {
-  const [viewMode, setViewMode] = useState("requests");
   const validPoints = data.filter((point) => point && point.timestamp);
-  const mode = VIEW_MODES.find((m) => m.value === viewMode);
 
   if (!validPoints.length) {
     return (
-      <Card title="Activity Grid" subtitle="Per-bucket volume as stacked blocks" icon="grid_view" padding="md">
+      <Card title="Activity Streams" subtitle="Timeline activity across all operational dimensions" icon="grid_view" padding="md">
         <div
-          className="flex h-48 items-center justify-center rounded-md border border-dashed border-border text-xs text-text-muted"
+          className="flex h-32 items-center justify-center rounded-sm border border-dashed border-border text-xs text-text-muted"
           role="status"
         >
           No telemetry events recorded for this timeframe
@@ -48,145 +65,99 @@ export default function AnalyticsBrickTimeline({ data = [] }) {
     );
   }
 
-  const values = validPoints.map((point) => getPointValue(point, viewMode));
-  const max = Math.max(...values, 1);
-  const step = max > MAX_ROWS ? Math.ceil(max / MAX_ROWS) : 1;
-
-  const totals = validPoints.reduce(
-    (acc, point) => {
-      acc.requests += Number(point.requests || 0);
-      acc.tokens += Number(point.inputTokens || 0) + Number(point.outputTokens || 0);
-      acc.failures += Number(point.failures || 0);
-      return acc;
-    },
-    { requests: 0, tokens: 0, failures: 0 }
-  );
-
-  const peak = validPoints[values.indexOf(max)];
+  const pointsToRender = validPoints.slice(0, 31);
 
   return (
     <Card
-      title="Activity Grid"
-      subtitle="Each block equals a fixed share of the peak bucket — hover a column for the exact count"
+      title="Activity Streams"
+      subtitle="Simultaneous timeline view across requests, tokens, failures, and latency — hover columns for exact values"
       icon="grid_view"
-      padding="md"
-      className="flex min-w-0 flex-col gap-4 p-4 sm:p-4"
-      action={
-        <SegmentedControl
-          options={VIEW_MODES.map((m) => ({ value: m.value, label: m.label }))}
-          value={viewMode}
-          onChange={setViewMode}
-          size="touch"
-          snap
-          aria-label="Activity grid metric"
-        />
-      }
+      padding="sm"
+      className="flex min-w-0 flex-col gap-3"
     >
-      <div className="flex min-w-0 gap-2.5">
-        {/* Y axis: block scale */}
-        <div className="flex shrink-0 flex-col-reverse justify-between py-0.5 text-right">
-          {Array.from({ length: MAX_ROWS + 1 }, (_, rowIndex) => {
-            const lineValue = rowIndex * step;
-            const show = rowIndex % 3 === 0 || rowIndex === MAX_ROWS;
-            return (
-              <span
-                key={rowIndex}
-                className="font-mono text-[10px] leading-none text-text-muted"
-                style={{ visibility: show ? "visible" : "hidden" }}
+      <div className="flex flex-col divide-y divide-border/60">
+        {STREAMS.map((stream) => {
+          const values = pointsToRender.map((p) => stream.getValue(p));
+          const max = Math.max(...values, 1);
+          const step = max > STREAM_ROWS ? Math.ceil(max / STREAM_ROWS) : 1;
+          const total = stream.key === "latency"
+            ? null
+            : values.reduce((sum, v) => sum + v, 0);
+
+          return (
+            <div key={stream.key} className="py-2 first:pt-0 last:pb-0 flex flex-col gap-1.5">
+              {/* Stream Title Bar */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className={`size-2 rounded-full ${stream.color}`} aria-hidden="true" />
+                  <span className={`font-semibold text-xs ${stream.textColor}`}>{stream.label}</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-text-muted font-mono">
+                  {total !== null && (
+                    <span>
+                      Total: <strong className="text-text-main font-semibold">{stream.format(total)}</strong>
+                    </span>
+                  )}
+                  <span>
+                    Peak: <strong className="text-text-main font-semibold">{stream.format(max)}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Block Grid for this Stream */}
+              <div
+                className="grid gap-[2px]"
+                style={{
+                  gridTemplateColumns: `repeat(${pointsToRender.length}, minmax(0, 1fr))`,
+                  gridTemplateRows: `repeat(${STREAM_ROWS}, minmax(0, 1fr))`,
+                  gridAutoFlow: "column",
+                }}
+                role="img"
+                aria-label={`${stream.label} timeline across ${pointsToRender.length} buckets`}
               >
-                {fmtValue(viewMode, lineValue)}
-              </span>
-            );
-          })}
-        </div>
+                {pointsToRender.map((point, columnIndex) => {
+                  const val = stream.getValue(point);
+                  const blocks = Math.min(STREAM_ROWS, step > 0 ? Math.ceil(val / step) : val > 0 ? 1 : 0);
+                  const timeLabel = point.timestampLabel || compactLabel(point.timestamp);
 
-        {/* Grid plot area */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div
-            className="grid gap-[3px]"
-            style={{
-              gridTemplateColumns: `repeat(${Math.min(validPoints.length, 31)}, minmax(0, 1fr))`,
-              gridTemplateRows: `repeat(${MAX_ROWS}, minmax(0, 1fr))`,
-              gridAutoFlow: "column",
-            }}
-            role="img"
-            aria-label={`${mode.label} grid across ${validPoints.length} buckets, peak ${fmtValue(viewMode, max)}`}
-          >
-            {validPoints.slice(0, 31).map((point, columnIndex) => {
-              const value = getPointValue(point, viewMode);
-              const blocks = Math.min(MAX_ROWS, step > 0 ? Math.ceil(value / step) : value > 0 ? 1 : 0);
-              const isFailure = viewMode === "failures";
-              return Array.from({ length: MAX_ROWS }, (_, rowIndex) => {
-                const filled = rowIndex < blocks;
-                const dimmed = !filled;
-                return (
-                  <span
-                    key={`${columnIndex}-${rowIndex}`}
-                    title={
-                      point.timestampLabel || point.timestamp
-                        ? `${point.timestampLabel || point.timestamp}: ${fmtValue(viewMode, value)}`
-                        : `${fmtValue(viewMode, value)}`
-                    }
-                    className={`aspect-square rounded-[2px] transition-colors ${
-                      filled
-                        ? isFailure
-                          ? "bg-rose-500/85 hover:bg-rose-400"
-                          : mode.color + " hover:opacity-80"
-                        : "bg-surface-2 hover:bg-surface-3"
-                    } ${dimmed ? "" : ""}`}
-                  />
-                );
-              });
-            })}
-          </div>
-
-          {/* X axis: bucket labels, thinned */}
-          <div className="mt-2 flex min-w-0 justify-between gap-1 overflow-hidden">
-            {validPoints.slice(0, 31).map((point, index) => {
-              const total = validPoints.length;
-              const showEvery = total > 20 ? Math.ceil(total / 8) : total > 10 ? 4 : 2;
-              const show = index % showEvery === 0 || index === total - 1;
-              if (!show) return <span key={index} className="h-3 shrink-0" style={{ flex: 1 }} />;
-              return (
-                <span
-                  key={index}
-                  className="h-3 shrink-0 truncate font-mono text-[10px] leading-tight text-text-muted"
-                  style={{ flex: 1 }}
-                >
-                  {point.timestampLabel || compactLabel(point.timestamp)}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+                  return Array.from({ length: STREAM_ROWS }, (_, rowIndex) => {
+                    const filled = rowIndex < blocks;
+                    return (
+                      <span
+                        key={`${columnIndex}-${rowIndex}`}
+                        title={`${timeLabel} · ${stream.label}: ${stream.format(val)}`}
+                        className={`h-2.5 w-full rounded-[2px] transition-colors ${
+                          filled
+                            ? stream.color
+                            : "bg-surface-2 hover:bg-surface-3"
+                        }`}
+                      />
+                    );
+                  });
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Legend / scale readout */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-[11px] text-text-muted">
-        <span className="inline-flex items-center gap-1.5">
-          <span className={`size-2 rounded-[2px] ${mode.color}`} />
-          1 block ≈ {fmtValue(viewMode, step)}
-        </span>
-        <span>
-          Peak <span className="font-medium tabular-nums text-text-main">{fmtValue(viewMode, max)}</span>
-          {peak?.timestampLabel || peak?.timestamp ? ` · ${peak.timestampLabel || compactLabel(peak.timestamp)}` : ""}
-        </span>
-        {viewMode === "requests" && (
-          <span>
-            Total <span className="font-medium tabular-nums text-text-main">{fmtNumber(totals.requests)}</span>
-          </span>
-        )}
-        {viewMode === "tokens" && (
-          <span>
-            Total <span className="font-medium tabular-nums text-text-main">{fmtTokens(totals.tokens)}</span>
-          </span>
-        )}
-        {viewMode === "failures" && (
-          <span>
-            Total <span className="font-medium tabular-nums text-text-main">{fmtNumber(totals.failures)}</span>
-          </span>
-        )}
-        <span className="ml-auto italic">Highest column touches the top row</span>
+      {/* Shared X-Axis Time Labels */}
+      <div className="flex min-w-0 justify-between gap-1 border-t border-border pt-1.5 overflow-hidden">
+        {pointsToRender.map((point, index) => {
+          const total = pointsToRender.length;
+          const showEvery = total > 20 ? Math.ceil(total / 6) : total > 10 ? 4 : 2;
+          const show = index % showEvery === 0 || index === total - 1;
+          if (!show) return <span key={index} className="h-3 shrink-0" style={{ flex: 1 }} />;
+          return (
+            <span
+              key={index}
+              className="h-3 shrink-0 truncate font-mono text-[10px] leading-tight text-text-muted"
+              style={{ flex: 1 }}
+            >
+              {point.timestampLabel || compactLabel(point.timestamp)}
+            </span>
+          );
+        })}
       </div>
     </Card>
   );

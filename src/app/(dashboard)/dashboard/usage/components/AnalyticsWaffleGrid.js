@@ -46,7 +46,7 @@ function Waffle({ segments, emptyLabel }) {
 
   return (
     <div
-      className="grid gap-[3px]"
+      className="grid gap-[2px]"
       style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))", gridAutoFlow: "row" }}
       role="img"
       aria-label={segments.map((s) => `${s.label} ${s.display}`).join(", ")}
@@ -65,7 +65,7 @@ function Waffle({ segments, emptyLabel }) {
 function Legend({ segments }) {
   const total = segments.reduce((sum, s) => sum + Math.max(0, Number(s.value) || 0), 0);
   return (
-    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
       {segments.map((segment) => {
         const pct = total > 0 ? Math.round((Math.max(0, Number(segment.value) || 0) / total) * 100) : 0;
         return (
@@ -83,10 +83,10 @@ function Legend({ segments }) {
 
 function Panel({ title, caption, children }) {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
+    <section className="min-w-0 rounded-sm border border-border bg-surface p-3">
       <h3 className="text-sm font-semibold text-text-main">{title}</h3>
       <p className="mt-0.5 text-[11px] text-text-muted">{caption}</p>
-      <div className="mt-3">{children}</div>
+      <div className="mt-2">{children}</div>
     </section>
   );
 }
