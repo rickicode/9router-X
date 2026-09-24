@@ -48,7 +48,7 @@ AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/9router (9R
 | **Client Error Isolation** | Client-side 4xx errors could freeze upstream accounts | **Strict Error Isolation** — client 400/404/413 errors never trigger provider account lockout |
 | **Token Optimization Pipeline** | Local RTK tool-result compression only | **Built-in RTK compression (enabled by default)** + optional external Headroom sidecar support — automated context compression for OpenAI, Claude, Kiro, and Codex |
 | **Migration & Backup Compatibility** | SQLite-only backup | **Bi-Directional Migration** — seamless import of official AxonRouter backup JSON into PostgreSQL |
-| **Target Deployment** | Local Node/Bun Desktop CLI tray | **Containerized All-in-One Docker Stack** (Gateway + PostgreSQL + Valkey + Headroom) |
+| **Target Deployment** | Local Node/Bun Desktop CLI tray | **Containerized All-in-One Docker Stack** (Gateway + PostgreSQL; Headroom runs externally if needed) |
 
 ---
 
