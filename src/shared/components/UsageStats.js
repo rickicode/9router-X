@@ -859,58 +859,54 @@ export default function UsageStats({
 
  {activeSubTab !== "breakdown" && (
  <div className="flex flex-col gap-3">
- <RequestStream buckets={stats?.last10Minutes || []} />
 
  {/* Below lg the topology, recent list and live stream were three stacked
      full-chrome panels telling one story. One switch replaces that scroll. */}
- <div className="lg:hidden">
- <SegmentedControl
- options={[
- { value: "topology", label: "Topology" },
- { value: "recent", label: "Recent" },
- { value: "stream", label: "Live Stream" },
- ]}
- value={livePanel}
- onChange={handleLivePanelChange}
- size="touch"
- className="w-full"
- />
- </div>
+        {/* Desktop: Provider Topology + Recent Requests side-by-side */}
+        <div className="hidden lg:grid lg:min-w-0 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-stretch lg:gap-2">
+          <ProviderTopology
+            providers={providers}
+            activeRequests={stats?.activeRequests || []}
+            lastProvider={stats?.recentRequests?.[0]?.provider || ""}
+            errorProvider={stats?.errorProvider || ""}
+          />
+          <RecentRequests requests={stats?.recentRequests || []} />
+        </div>
 
- <div className="hidden lg:grid lg:min-w-0 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-stretch lg:gap-2">
- <ProviderTopology
- providers={providers}
- activeRequests={stats?.activeRequests || []}
- lastProvider={stats?.recentRequests?.[0]?.provider || ""}
- errorProvider={stats?.errorProvider || ""}
- />
- <RecentRequests requests={stats?.recentRequests || []} />
- </div>
+        {/* Mobile: Switch between Topology and Recent Requests */}
+        <div className="lg:hidden">
+          <SegmentedControl
+            options={[
+              { value: "topology", label: "Topology" },
+              { value: "recent", label: "Recent" },
+            ]}
+            value={livePanel === "stream" ? "topology" : livePanel}
+            onChange={handleLivePanelChange}
+            size="touch"
+            className="w-full"
+          />
+        </div>
 
- <div className="lg:hidden">
- {livePanel === "topology" && (
- <ProviderTopology
- providers={providers}
- activeRequests={stats?.activeRequests || []}
- lastProvider={stats?.recentRequests?.[0]?.provider || ""}
- errorProvider={stats?.errorProvider || ""}
- />
- )}
- {livePanel === "recent" && <RecentRequests requests={stats?.recentRequests || []} />}
- {livePanel === "stream" && (
- <RealtimeRequestsCard
- activeRequests={stats?.activeRequests || []}
- recentRequests={stats?.recentRequests || []}
- />
- )}
- </div>
+        <div className="lg:hidden">
+          {(livePanel === "topology" || livePanel === "stream") && (
+            <ProviderTopology
+              providers={providers}
+              activeRequests={stats?.activeRequests || []}
+              lastProvider={stats?.recentRequests?.[0]?.provider || ""}
+              errorProvider={stats?.errorProvider || ""}
+            />
+          )}
+          {livePanel === "recent" && <RecentRequests requests={stats?.recentRequests || []} />}
+        </div>
 
- <div className="hidden lg:block">
- <RealtimeRequestsCard
- activeRequests={stats?.activeRequests || []}
- recentRequests={stats?.recentRequests || []}
- />
- </div>
+        {/* Request Stream: positioned above Realtime Requests and below Topology & Recent */}
+        <RequestStream buckets={stats?.last10Minutes || []} />
+
+        {/* Realtime Request Stream & Live Activity */}
+        <RealtimeRequestsCard
+          activeRequests={stats?.activeRequests || []}
+          recentRequests={stats?.recentRequests || []}
+        />
  </div>
  )}
  </>
