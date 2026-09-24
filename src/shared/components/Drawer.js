@@ -17,6 +17,8 @@ export default function Drawer({
  const titleId = useId();
  const panelRef = useRef(null);
  const restoreFocusRef = useRef(null);
+ const onCloseRef = useRef(onClose);
+ onCloseRef.current = onClose;
 
  const widths = {
  sm: "w-full sm:w-[400px] max-w-[100vw]",
@@ -46,7 +48,7 @@ export default function Drawer({
  const handleKeyDown = (e) => {
  if (e.key === "Escape") {
  e.stopPropagation();
- onClose();
+ onCloseRef.current?.();
  return;
  }
  if (e.key !== "Tab" || !panel) return;
@@ -76,7 +78,7 @@ export default function Drawer({
  const restore = restoreFocusRef.current;
  if (restore && typeof restore.focus === "function") restore.focus();
  };
- }, [isOpen, onClose]);
+ }, [isOpen]);
 
  if (!isOpen) return null;
 

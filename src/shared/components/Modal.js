@@ -21,6 +21,8 @@ export default function Modal({
   const titleId = useId();
   const dialogRef = useRef(null);
   const restoreFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (isOpen) {
@@ -31,6 +33,11 @@ export default function Modal({
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
+  // Focus is initialised exactly once, when the dialog opens. Depending on
+  // onClose here would re-run this effect on every parent render (inline
+  // onClose lambdas change identity each render), and the re-run steals focus
+  // back to the first focusable element — so typing in any input inside the
+  // dialog drops focus after every character.
   useEffect(() => {
     if (!isOpen) return;
     restoreFocusRef.current = document.activeElement;
@@ -42,7 +49,7 @@ export default function Modal({
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current?.();
         return;
       }
       if (e.key !== "Tab" || !dialog) return;
@@ -72,7 +79,7 @@ export default function Modal({
       const restore = restoreFocusRef.current;
       if (restore && typeof restore.focus === "function") restore.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
