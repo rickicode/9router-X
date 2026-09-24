@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 const ENDPOINT = "/api/cli-tools/hermes-settings";
@@ -235,13 +234,6 @@ export default function HermesToolCard({
  </div>
  )}
 
- {!checking && (
- <ToolDetectionBanner
- installed={hermesStatus?.installed}
- toolName={tool.name}
- hasConfig={hermesStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="hermes"

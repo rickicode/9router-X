@@ -113,7 +113,7 @@ export async function exportDb() {
     db.all(`SELECT * FROM proxy_groups`),
     db.all(`SELECT * FROM api_keys`),
     db.all(`SELECT * FROM combos`),
-    db.all(`SELECT scope, key, value FROM kv WHERE scope IN ('modelAliases', 'customModels', 'mitmAlias', 'pricing')`),
+    db.all(`SELECT scope, key, value FROM kv WHERE scope IN ('modelAliases', 'customModels', 'pricing')`),
   ]);
 
   const out = {
@@ -201,7 +201,6 @@ export async function exportDb() {
     })),
     modelAliases: {},
     customModels: [],
-    mitmAlias: {},
     pricing: {},
   };
 
@@ -209,7 +208,6 @@ export async function exportDb() {
     const val = parseJson(r.value, null);
     if (r.scope === "modelAliases") out.modelAliases[r.key] = val;
     else if (r.scope === "customModels") out.customModels.push(val);
-    else if (r.scope === "mitmAlias") out.mitmAlias[r.key] = val;
     else if (r.scope === "pricing") out.pricing[r.key] = val;
   }
 
@@ -464,9 +462,7 @@ export async function importDb(payload) {
       `;
     }
 
-    // 7. KV entries (modelAliases, customModels, mitmAlias, pricing)
-    // Store as raw JSONB objects/arrays, not scalar strings – downstream
-    // parseJson() handles both legacy string payloads and new objects.
+    // 7. KV entries (modelAliases, customModels, pricing)
     const kvEntries = [];
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
       const val = typeof m === "string" ? parseJson(m, m) : (m ?? null);
@@ -476,10 +472,6 @@ export async function importDb(payload) {
       const k = `${m.providerAlias}|${m.id}|${m.type || "llm"}`;
       const val = typeof m === "string" ? parseJson(m, {}) : (m ?? {});
       kvEntries.push({ scope: "customModels", key: k, value: tx.raw.json(val) });
-    }
-    for (const [tool, mappings] of Object.entries(payload.mitmAlias || {})) {
-      const rawMappings = typeof mappings === "string" ? parseJson(mappings, {}) : (mappings || {});
-      kvEntries.push({ scope: "mitmAlias", key: tool, value: tx.raw.json(rawMappings) });
     }
     for (const [provider, models] of Object.entries(payload.pricing || {})) {
       const rawModels = typeof models === "string" ? parseJson(models, {}) : (models || {});

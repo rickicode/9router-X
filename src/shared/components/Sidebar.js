@@ -1,38 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
-import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
+import { APP_CONFIG } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
-import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import Button from "./Button";
-import { ConfirmModal } from "./Modal";
-import NineRemotePromoModal from "./NineRemotePromoModal";
 
-// Module-level fetch cache: sidebar re-mounts on navigation; these promises
-// persist for the SPA session so /api/settings + /api/version fire once.
-let settingsPromise = null;
-let versionPromise = null;
-const fetchSettingsOnce = () =>
-  (settingsPromise ||= fetch("/api/settings").then((res) => res.json()).catch((e) => { settingsPromise = null; throw e; }));
-const fetchVersionOnce = () =>
-  (versionPromise ||= fetch("/api/version").then((res) => res.json()).catch((e) => { versionPromise = null; throw e; }));
-
-// const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
-// Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
 // Core & Routing
 const coreRoutingItems = [
   { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
-  { href: "/dashboard/combos", label: "Combo", icon: "layers" },
+  { href: "/dashboard/combos", label: "Combo Adapter", icon: "layers" },
   { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
 ];
+
 // Monitoring
 const monitoringItems = [
   { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
@@ -54,133 +40,36 @@ const debugItems = [
 ];
 
 export default function Sidebar({ onClose }) {
- const pathname = usePathname();
- const [mediaOpen, setMediaOpen] = useState(false);
- const [showRemoteModal, setShowRemoteModal] = useState(false);
- const [isDisconnected, setIsDisconnected] = useState(false);
- const [updateInfo, setUpdateInfo] = useState(null);
- const [showUpdateModal, setShowUpdateModal] = useState(false);
- const [isUpdating, setIsUpdating] = useState(false);
- const [shutdownCountdown, setShutdownCountdown] = useState(0);
- const [showShutdownConfirm, setShowShutdownConfirm] = useState(false);
- const [shutdownCancelled, setShutdownCancelled] = useState(false);
- const [enableTranslator, setEnableTranslator] = useState(false);
- const shutdownTimerRef = useRef(null);
- const { copied, copy } = useCopyToClipboard(2000);
+  const pathname = usePathname();
+  const [mediaOpen, setMediaOpen] = useState(false);
 
- const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
+  const isActive = (href) => {
+    if (href === "/dashboard/endpoint") {
+      return pathname === "/dashboard" || pathname.startsWith("/dashboard/endpoint");
+    }
+    return pathname.startsWith(href);
+  };
 
- // Cleanup shutdown timer on unmount
- useEffect(() => {
- return () => {
- if (shutdownTimerRef.current) {
- clearInterval(shutdownTimerRef.current);
- }
- };
- }, []);
-
- useEffect(() => {
- fetch("/api/settings")
- .then(res => res.json())
- .then(data => { if (data.enableTranslator) setEnableTranslator(true); })
- .catch(() => {});
- }, []);
-
- // Lazy check for new npm version on mount
- useEffect(() => {
- fetch("/api/version")
- .then(res => res.json())
- .then(data => { if (data.hasUpdate) setUpdateInfo(data); })
- .catch(() => {});
- }, []);
-
- const isActive = (href) => {
- if (href === "/dashboard/endpoint") {
- return pathname === "/dashboard" || pathname.startsWith("/dashboard/endpoint");
- }
- return pathname.startsWith(href);
- };
-
- // Open manual update panel (no countdown yet — user must click Copy to trigger shutdown)
- const handleUpdate = () => {
- setShowUpdateModal(false);
- setIsUpdating(true);
- setShutdownCancelled(false);
- };
-
- // User clicked "Copy & Shutdown" inside panel -> prompt confirm modal first
- const handleRequestShutdown = () => {
- setShowShutdownConfirm(true);
- };
-
- // User confirmed shutdown: copy command, initiate countdown + undo window, then shutdown
- const handleConfirmShutdown = async () => {
- setShowShutdownConfirm(false);
- setShutdownCancelled(false);
- try { await navigator.clipboard.writeText(INSTALL_CMD); } catch { /* clipboard blocked */ }
- copy(INSTALL_CMD);
- let remaining = UPDATER_CONFIG.shutdownCountdownSec || 10;
- setShutdownCountdown(remaining);
- if (shutdownTimerRef.current) clearInterval(shutdownTimerRef.current);
- shutdownTimerRef.current = setInterval(() => {
- remaining -= 1;
- setShutdownCountdown(remaining);
- if (remaining <= 0) {
- clearInterval(shutdownTimerRef.current);
- shutdownTimerRef.current = null;
- fetch("/api/version/shutdown", { method: "POST" }).catch(() => {});
- setIsDisconnected(true);
- }
- }, 1000);
- };
-
- // Undo window: user can abort the shutdown countdown at any time
- const handleUndoShutdown = () => {
- if (shutdownTimerRef.current) {
- clearInterval(shutdownTimerRef.current);
- shutdownTimerRef.current = null;
- }
- setShutdownCountdown(0);
- setShutdownCancelled(true);
- };
-
- const handleCancelUpdate = () => {
- if (shutdownTimerRef.current) {
- clearInterval(shutdownTimerRef.current);
- shutdownTimerRef.current = null;
- }
- setIsUpdating(false);
- setShutdownCountdown(0);
- setShutdownCancelled(false);
- };
-
- // Note: legacy updater poll removed. New flow: copy install cmd + shutdown server,
- // user runs the command manually in another terminal.
-
-
- return (
- <>
-<aside className="flex w-64 flex-col border-r border-border bg-sidebar min-h-full">
+  return (
+    <aside className="flex w-64 flex-col border-r border-border bg-sidebar min-h-full">
       <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-white">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">hub</span>
- </div>
- <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
- </Link>
- {onClose && (
- <button
- type="button"
- onClick={onClose}
+          </div>
+          <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
+        </Link>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
             className="size-11 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
- aria-label="Close navigation sidebar"
- >
+            aria-label="Close navigation sidebar"
+          >
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
- </button>
- )}
- </div>
-
-
+          </button>
+        )}
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -364,7 +253,6 @@ export default function Sidebar({ onClose }) {
             </Link>
           ))}
 
-
           {debugItems.map((item) => (
             <Link
               key={item.href}
@@ -391,7 +279,6 @@ export default function Sidebar({ onClose }) {
             </Link>
           ))}
 
-
           {/* Settings */}
           <Link
             href="/dashboard/profile"
@@ -417,177 +304,20 @@ export default function Sidebar({ onClose }) {
         </div>
       </nav>
 
- <div className="flex min-h-11 items-center border-t border-border px-1">
- <a
- href="https://github.com/rickicode/9router-X"
- target="_blank"
- rel="noreferrer"
- className="flex min-h-11 items-center rounded-sm px-2 text-xs text-text-muted hover:text-text-main"
- >
- X Version · GitHub
- </a>
- </div>
-
- </aside>
-
- {/* Remote Promo Modal */}
- <NineRemotePromoModal isOpen={showRemoteModal} onClose={() => setShowRemoteModal(false)} />
-
- {/* Update Confirmation Modal */}
- <ConfirmModal
- isOpen={showUpdateModal}
- onClose={() => setShowUpdateModal(false)}
- onConfirm={handleUpdate}
- title="Update 9Router"
- message={`Show install command for v${updateInfo?.latestVersion || ""}? You can copy it and shutdown to install manually.`}
- confirmText="Show Command"
- cancelText="Cancel"
- variant="primary"
- />
-
- {/* Shutdown Confirmation Modal */}
- <ConfirmModal
- isOpen={showShutdownConfirm}
- onClose={() => setShowShutdownConfirm(false)}
- onConfirm={handleConfirmShutdown}
- title="Confirm Server Shutdown"
- message={`9Router will copy the update command to your clipboard and begin a ${UPDATER_CONFIG.shutdownCountdownSec || 10}-second countdown before shutting down. You will have an undo window to cancel if needed.\n\nProceed?`}
- confirmText="Proceed with Shutdown"
- cancelText="Cancel"
- variant="danger"
- />
-
- {/* Disconnected / Updating Overlay */}
- {(isDisconnected || isUpdating) && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-3 p-3">
- {isUpdating ? (
- <ManualUpdatePanel
- latestVersion={updateInfo?.latestVersion}
- installCmd={INSTALL_CMD}
- copied={copied}
- onRequestShutdown={handleRequestShutdown}
- onUndoShutdown={handleUndoShutdown}
- onCancel={handleCancelUpdate}
- countdown={shutdownCountdown}
- shutdownCancelled={shutdownCancelled}
- isDisconnected={isDisconnected}
- />
- ) : (
- <div className="text-center p-3">
- <div className="mb-3 flex size-8 items-center justify-center rounded-sm bg-danger/10 text-danger">
- <span className="material-symbols-outlined text-[18px]">power_off</span>
- </div>
- <h2 className="mb-2 text-sm font-semibold text-text-main">Server Disconnected</h2>
- <p className="text-text-muted mb-3">The proxy server has been stopped.</p>
- <Button variant="secondary" onClick={() => globalThis.location.reload()}>
- Reload Page
- </Button>
- </div>
- )}
- </div>
- )}
- </>
- );
+      <div className="flex min-h-11 items-center border-t border-border px-1">
+        <a
+          href="https://github.com/rickicode/AxonRouter"
+          target="_blank"
+          rel="noreferrer"
+          className="flex min-h-11 items-center rounded-sm px-2 text-xs text-text-muted hover:text-text-main"
+        >
+          AxonRouter · GitHub
+        </a>
+      </div>
+    </aside>
+  );
 }
 
 Sidebar.propTypes = {
- onClose: PropTypes.func,
-};
-
-function ManualUpdatePanel({
- latestVersion,
- installCmd,
- copied,
- onRequestShutdown,
- onUndoShutdown,
- onCancel,
- countdown,
- shutdownCancelled,
- isDisconnected,
-}) {
- const isCountingDown = countdown > 0;
- return (
- <div className="w-full max-w-lg rounded-sm bg-surface/95 border border-border p-3 text-white">
- <div className="flex items-center gap-3 mb-3">
- <div className="flex items-center justify-center size-11 rounded-sm bg-warning/10 text-warning shrink-0">
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
- {isCountingDown ? "timer" : "content_copy"}
- </span>
- </div>
- <div>
- <h2 className="text-lg font-medium">Update 9Router{latestVersion ? ` to v${latestVersion}` : ""}</h2>
- <p className="text-xs text-text-muted">
- {isDisconnected
- ? "Server stopped. Paste the command into a terminal to install."
- : isCountingDown
- ? `Command copied! Server stopping in ${countdown}s. Click 'Undo' to abort.`
- : shutdownCancelled
- ? "Shutdown aborted. Server remains active. Command copied."
- : "Review the command below, then click 'Copy & Shutdown'."}
- </p>
- </div>
- </div>
-
- <p className="text-sm text-text-main mb-2 font-medium">Install command:</p>
- <div className="w-full px-3 h-8 rounded-sm bg-surface border border-border mb-3">
- <code className="text-xs font-mono text-warning break-all">{installCmd}</code>
- </div>
-
- <ol className="text-xs text-text-muted space-y-3 list-decimal list-inside mb-3">
- <li>Click <strong>Copy & Shutdown</strong> and confirm.</li>
- <li>Paste the command into your terminal and press Enter.</li>
- <li>Run <code className="px-1 py-1 rounded-sm bg-white/10 text-success font-mono">9router</code> again after install.</li>
- </ol>
-
- {isDisconnected ? (
- <Button variant="secondary" fullWidth onClick={() => globalThis.location.reload()}>
- Reload Page
- </Button>
- ) : isCountingDown ? (
- <div className="flex flex-col gap-2">
- <div className="flex items-center justify-between text-xs px-3 h-8 rounded-sm bg-warning/10 border border-warning/30 text-warning">
- <span className="flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px] animate-spin" aria-hidden="true">progress_activity</span>
- Shutting down in {countdown}s...
- </span>
- <span className="font-mono text-xs">Undo window active</span>
- </div>
- <Button
- variant="danger"
- fullWidth
- onClick={onUndoShutdown}
- aria-label="Cancel server shutdown"
- >
- Undo Shutdown ({countdown}s)
- </Button>
- </div>
- ) : (
- <div className="flex gap-2">
- <Button variant="secondary" onClick={onCancel}>
- Cancel
- </Button>
- <Button
- variant="primary"
- fullWidth
- onClick={onRequestShutdown}
- aria-label="Copy install command and initiate shutdown"
- >
- {copied ? "✓ Copied — Click to Shutdown" : "Copy & Shutdown"}
- </Button>
- </div>
- )}
- </div>
- );
-}
-
-ManualUpdatePanel.propTypes = {
- latestVersion: PropTypes.string,
- installCmd: PropTypes.string.isRequired,
- copied: PropTypes.bool,
- onRequestShutdown: PropTypes.func.isRequired,
- onUndoShutdown: PropTypes.func.isRequired,
- onCancel: PropTypes.func.isRequired,
- countdown: PropTypes.number,
- shutdownCancelled: PropTypes.bool,
- isDisconnected: PropTypes.bool,
+  onClose: PropTypes.func,
 };

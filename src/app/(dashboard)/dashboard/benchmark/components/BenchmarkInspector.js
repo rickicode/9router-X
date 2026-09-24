@@ -1,9 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Badge, Button } from "@/shared/components";
+import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function BenchmarkInspector({ attempt, onClose }) {
-  return attempt ? (
+  const { copied, copy } = useCopyToClipboard();
+
+  // ESC key listener
+  useEffect(() => {
+    if (!attempt) return;
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [attempt, onClose]);
+
+  if (!attempt) return null;
+
+  const getBadgeVariant = (status) => {
+    switch (status) {
+      case "passed":
+        return "success";
+      case "rate_limited":
+        return "warning";
+      case "cancelled":
+      case "skipped":
+        return "default";
+      default:
+        return "error";
+    }
+  };
+
+  return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
       onClick={onClose}
@@ -11,13 +41,16 @@ export default function BenchmarkInspector({ attempt, onClose }) {
       <div
         className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inspector-modal-title"
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
-          <div>
-            <div className="flex items-center gap-2.5 font-bold text-text-main text-base">
-              <span>{attempt.model}</span>
-              <Badge variant={attempt.status === "passed" ? "success" : "error"}>
+          <div className="min-w-0 pr-3">
+            <div className="flex items-center gap-2.5 font-bold text-text-main text-base flex-wrap">
+              <span id="inspector-modal-title" className="truncate">{attempt.model}</span>
+              <Badge variant={getBadgeVariant(attempt.status)}>
                 {attempt.status?.toUpperCase()}
               </Badge>
               {attempt.http_status ? (
@@ -34,44 +67,45 @@ export default function BenchmarkInspector({ attempt, onClose }) {
                 </span>
               ) : null}
             </div>
-            <div className="text-xs text-text-muted mt-1">
-              Suite: <span className="font-semibold uppercase">{attempt.suite}</span> (Rep {attempt.rep || 1}) · Akun:{" "}
-              <span className="font-mono">{attempt.account_name || attempt.connection_id || "-"}</span>
+            <div className="text-xs text-text-muted mt-1 font-mono truncate">
+              Suite: <span className="font-semibold uppercase text-text-main">{attempt.suite}</span> (Rep {attempt.rep || 1}) · Account:{" "}
+              <span>{attempt.account_name || attempt.connection_id || "-"}</span>
               {attempt.format ? ` · Format: ${attempt.format.toUpperCase()}` : ""}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-3 hover:text-text-main transition-colors"
+            className="size-11 sm:size-8 shrink-0 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+            aria-label="Close attempt inspector"
           >
             <span className="material-symbols-outlined text-xl leading-none">close</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs font-mono bg-surface">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs font-mono bg-surface custom-scrollbar">
           {/* Telemetry Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="rounded-lg border border-border bg-surface-3 p-2.5">
-              <div className="text-text-muted text-[10px]">Skor Kualitas</div>
-              <div className="text-sm font-bold text-text-main">{attempt.score ?? "-"} / 100</div>
+              <div className="text-text-muted text-[10px] uppercase">Quality Score</div>
+              <div className="text-sm font-bold text-text-main mt-0.5">{attempt.score ?? "-"} / 100</div>
             </div>
             <div className="rounded-lg border border-border bg-surface-3 p-2.5">
-              <div className="text-text-muted text-[10px]">TTFT (Byte Pertama)</div>
-              <div className="text-sm font-bold text-text-main">
+              <div className="text-text-muted text-[10px] uppercase">TTFT (First Byte)</div>
+              <div className="text-sm font-bold text-text-main mt-0.5">
                 {attempt.ttft_ms ? `${attempt.ttft_ms}ms` : "-"}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-3 p-2.5">
-              <div className="text-text-muted text-[10px]">Total Waktu</div>
-              <div className="text-sm font-bold text-text-main">
+              <div className="text-text-muted text-[10px] uppercase">Total Latency</div>
+              <div className="text-sm font-bold text-text-main mt-0.5">
                 {attempt.total_ms ? `${attempt.total_ms}ms` : "-"}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-3 p-2.5">
-              <div className="text-text-muted text-[10px]">Throughput (tok/s)</div>
-              <div className="text-sm font-bold text-text-main">
-                {attempt.tps ?? "-"} tok/s
+              <div className="text-text-muted text-[10px] uppercase">Speed</div>
+              <div className="text-sm font-bold text-text-main mt-0.5">
+                {attempt.tps ? `${attempt.tps} tok/s` : "-"}
               </div>
             </div>
           </div>
@@ -79,11 +113,11 @@ export default function BenchmarkInspector({ attempt, onClose }) {
           {/* Error Box if any */}
           {attempt.error ? (
             <div>
-              <div className="text-rose-400 font-bold mb-1 flex items-center gap-1.5">
+              <div className="text-rose-400 font-bold mb-1.5 flex items-center gap-1.5 font-sans">
                 <span className="material-symbols-outlined text-sm">warning</span>
-                <span>Pesan Error / Upstream Diagnostic:</span>
+                <span>Error Message / Upstream Diagnostics:</span>
               </div>
-              <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px]">
+              <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px] leading-relaxed select-all">
                 {attempt.error}
               </pre>
             </div>
@@ -91,47 +125,52 @@ export default function BenchmarkInspector({ attempt, onClose }) {
 
           {/* Request Payload */}
           <div>
-            <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
-              <span>Request Payload:</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(attempt.request_body || "")}
-                className="text-brand-500 hover:underline text-[10px]"
-              >
-                Salin Request
-              </button>
+            <div className="flex items-center justify-between mb-1.5 font-sans">
+              <span className="text-text-muted font-bold text-xs">Request Payload (Prompt):</span>
+              {attempt.request_body ? (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={copied === "req_body" ? "check" : "content_copy"}
+                  onClick={() => copy(attempt.request_body, "req_body")}
+                >
+                  {copied === "req_body" ? "Copied!" : "Copy Payload"}
+                </Button>
+              ) : null}
             </div>
-            <pre className="rounded-lg bg-surface-3 border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-48 overflow-y-auto">
-              {attempt.request_body || "Tidak ada body request tersimpan."}
+            <pre className="rounded-lg border border-border bg-surface-3 p-3 text-text-main text-[11px] whitespace-pre-wrap break-all max-h-52 overflow-y-auto leading-relaxed select-all custom-scrollbar">
+              {attempt.request_body || "No request body captured"}
             </pre>
           </div>
 
-          {/* Response Body */}
+          {/* Model Response */}
           <div>
-            <div className="text-text-muted font-bold mb-1 flex items-center justify-between">
-              <span>Upstream Response Body:</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(attempt.response_body || attempt.excerpt || "")}
-                className="text-brand-500 hover:underline text-[10px]"
-              >
-                Salin Respon
-              </button>
+            <div className="flex items-center justify-between mb-1.5 font-sans">
+              <span className="text-text-muted font-bold text-xs">Model Response Output:</span>
+              {attempt.response_body || attempt.excerpt ? (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={copied === "resp_body" ? "check" : "content_copy"}
+                  onClick={() => copy(attempt.response_body || attempt.excerpt, "resp_body")}
+                >
+                  {copied === "resp_body" ? "Copied!" : "Copy Output"}
+                </Button>
+              ) : null}
             </div>
-            <pre className="rounded-lg bg-surface-3 border border-border p-3 text-text-main whitespace-pre-wrap break-all text-[11px] max-h-60 overflow-y-auto">
-              {attempt.response_body || attempt.excerpt || "Tidak ada respon body tersimpan."}
+            <pre className="rounded-lg border border-border bg-surface-3 p-3 text-emerald-400 text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-y-auto leading-relaxed select-all custom-scrollbar">
+              {attempt.response_body || attempt.excerpt || "No response body captured"}
             </pre>
           </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface-3">
-          <span className="text-[11px] text-text-muted">
-            Waktu eksekusi: {new Date(attempt.created_at).toLocaleString()}
-          </span>
+        <div className="border-t border-border px-6 py-3.5 bg-surface-3 flex justify-end">
           <Button size="sm" variant="secondary" onClick={onClose}>
-            Tutup
+            Close
           </Button>
         </div>
       </div>
     </div>
-  ) : null;
+  );
 }

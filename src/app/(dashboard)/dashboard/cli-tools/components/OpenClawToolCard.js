@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
@@ -285,13 +284,6 @@ export default function OpenClawToolCard({
  </div>
  )}
 
- {!checkingOpenclaw && (
- <ToolDetectionBanner
- installed={openclawStatus?.installed}
- toolName={tool.name}
- hasConfig={openclawStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="openclaw"

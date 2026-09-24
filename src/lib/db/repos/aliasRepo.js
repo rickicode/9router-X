@@ -3,7 +3,6 @@ import { parseJson } from "../helpers/jsonCol.js";
 
 const MODEL_ALIASES_SCOPE = "modelAliases";
 const CUSTOM_MODELS_SCOPE = "customModels";
-const MITM_ALIAS_SCOPE = "mitmAlias";
 
 async function getAll(scope) {
   const db = await getAdapter();

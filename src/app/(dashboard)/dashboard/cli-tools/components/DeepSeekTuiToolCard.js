@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 const ENDPOINT = "/api/cli-tools/deepseek-tui-settings";
@@ -237,13 +236,6 @@ model = "${selectedModel || "provider/model-id"}"
  </div>
  )}
 
- {!checking && (
- <ToolDetectionBanner
- installed={deepseekStatus?.installed}
- toolName={tool.name}
- hasConfig={deepseekStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="deepseek-tui"

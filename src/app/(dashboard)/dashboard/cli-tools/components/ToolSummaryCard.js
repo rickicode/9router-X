@@ -4,37 +4,44 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card } from "@/shared/components";
 
-// Derive simple connected/configured/not-installed status from API payload
-function getStatus(status, tool) {
- if (tool?.configType === "guide") return { label: "Guide", cls: "bg-primary/10 text-primary" };
- if (!status) return { label: "Unknown", cls: "bg-text-muted/10 text-text-muted" };
- if (!status.installed) return { label: "Not installed", cls: "bg-text-muted/10 text-text-muted" };
- if (status.has9Router) return { label: "Connected", cls: "bg-success/10 text-success" };
- return { label: "Not configured", cls: "bg-warning/10 text-warning" };
-}
-
-export default function ToolSummaryCard({ toolId, tool, status }) {
- const s = getStatus(status, tool);
- return (
- <Link href={`/dashboard/cli-tools/${toolId}`} className="block">
- <Card padding="sm" className="h-full overflow-hidden hover:border-primary/30 cursor-pointer">
- <div className="flex h-full flex-col gap-2">
- <div className="flex items-center gap-3">
- <div className="size-8 flex items-center justify-center shrink-0">
- {tool.image ? (
- <Image src={tool.image} alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-sm" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} loading="lazy" decoding="async" />
- ) : tool.icon ? (
- <span className="material-symbols-outlined text-[18px]" style={{ color: tool.color }}>{tool.icon}</span>
- ) : null}
- </div>
- <div className="min-w-0 flex-1">
- <h3 className="font-medium text-sm truncate">{tool.name}</h3>
- <span className={`inline-block mt-1 px-1.5 py-1 text-[11px] font-medium rounded-sm ${s.cls}`}>{s.label}</span>
- </div>
- <span className="material-symbols-outlined text-text-muted text-[18px] shrink-0">chevron_right</span>
- </div>
- </div>
- </Card>
- </Link>
- );
+export default function ToolSummaryCard({ toolId, tool }) {
+  const isGuide = tool.configType === "guide";
+  return (
+    <Link href={`/dashboard/cli-tools/${toolId}`} className="block">
+      <Card padding="sm" className="h-full overflow-hidden hover:border-primary/30 cursor-pointer">
+        <div className="flex h-full flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="size-8 flex items-center justify-center shrink-0">
+              {tool.image ? (
+                <Image
+                  src={tool.image}
+                  alt={tool.name}
+                  width={32}
+                  height={32}
+                  className="size-8 object-contain rounded-sm"
+                  sizes="32px"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : tool.icon ? (
+                <span className="material-symbols-outlined text-[18px]" style={{ color: tool.color }}>
+                  {tool.icon}
+                </span>
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-sm truncate">{tool.name}</h3>
+              <span className="inline-block mt-1 px-1.5 py-1 text-[11px] font-medium rounded-sm bg-primary/10 text-primary">
+                {isGuide ? "Guide" : "One-Click Setup"}
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-text-muted text-[18px] shrink-0">chevron_right</span>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
 }

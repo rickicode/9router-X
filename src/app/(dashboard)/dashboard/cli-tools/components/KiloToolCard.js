@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl }) {
@@ -187,13 +186,6 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
  </div>
  )}
 
- {!checking && (
- <ToolDetectionBanner
- installed={status?.installed}
- toolName={tool.name}
- hasConfig={status?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="kilo"

@@ -6,7 +6,6 @@ import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 const ENDPOINT = "/api/cli-tools/cowork-settings";
@@ -310,13 +309,6 @@ export default function CoworkToolCard({
  </div>
  )}
 
- {!checking && (
- <ToolDetectionBanner
- installed={status?.installed}
- toolName={tool.name}
- hasConfig={status?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="cowork"

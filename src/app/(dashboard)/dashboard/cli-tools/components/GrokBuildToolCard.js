@@ -8,7 +8,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 const ENDPOINT = "/api/cli-tools/grok-build-settings";
@@ -287,13 +286,6 @@ export default function GrokBuildToolCard({
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
  {checking && <div className="flex items-center gap-2 text-text-muted"><span className="material-symbols-outlined animate-spin">progress_activity</span><span>Checking Grok Build...</span></div>}
 
- {!checking && (
- <ToolDetectionBanner
- installed={grokStatus?.installed}
- toolName={tool.name}
- hasConfig={grokStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="grok-build"

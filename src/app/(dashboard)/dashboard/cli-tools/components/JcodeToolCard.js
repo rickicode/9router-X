@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 export default function JcodeToolCard({
@@ -265,13 +264,6 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
  </div>
  )}
 
- {!checkingJcode && (
- <ToolDetectionBanner
- installed={jcodeStatus?.installed}
- toolName={tool.name}
- hasConfig={jcodeStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="jcode"

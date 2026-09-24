@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 import { rememberEndpoint } from "./cliEndpointPresets";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 
 export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl }) {
@@ -243,13 +242,6 @@ default_subagent_model = "${effectiveSubagentModel}"
  </div>
  )}
 
- {!checkingCodex && (
- <ToolDetectionBanner
- installed={codexStatus?.installed}
- toolName={tool.name}
- hasConfig={!!codexStatus?.config}
- />
- )}
 
  <HostSetupCommand
  toolId="codex"

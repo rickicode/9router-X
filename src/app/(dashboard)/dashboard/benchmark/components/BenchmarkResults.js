@@ -1,32 +1,30 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card } from "@/shared/components";
+import { Card, SegmentedControl } from "@/shared/components";
 
 const STATUS_CONFIG = {
-  passed: { label: "Lolos", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
-  failed: { label: "Gagal", color: "bg-rose-500/10 text-rose-400 border-rose-500/30" },
-  rate_limited: { label: "Rate Limit (429)", color: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
-  skipped: { label: "Dilewati", color: "bg-slate-500/10 text-slate-400 border-slate-500/30" },
-  cancelled: { label: "Dibatalkan", color: "bg-orange-500/10 text-orange-400 border-orange-500/30" },
+  passed: { label: "Passed", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+  failed: { label: "Failed", color: "bg-rose-500/10 text-rose-400 border-rose-500/30" },
+  rate_limited: { label: "Rate Limited (429)", color: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
+  skipped: { label: "Skipped", color: "bg-slate-500/10 text-slate-400 border-slate-500/30" },
+  cancelled: { label: "Cancelled", color: "bg-orange-500/10 text-orange-400 border-orange-500/30" },
 };
 
 const FILTERS = [
-  { id: "all", label: "Semua" },
-  { id: "passed", label: "Lolos" },
-  { id: "failed", label: "Gagal" },
-  { id: "rate_limited", label: "429 Rate Limit" },
-  { id: "skipped", label: "Dilewati" },
+  { value: "all", label: "All" },
+  { value: "passed", label: "Passed" },
+  { value: "failed", label: "Failed" },
+  { value: "rate_limited", label: "429 Rate Limit" },
+  { value: "skipped", label: "Skipped" },
 ];
 
 export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) {
-  // State: Table filters & sorting
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTableQuery, setSearchTableQuery] = useState("");
   const [sortField, setSortField] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // Filter and sort attempts for table
   const displayedAttempts = useMemo(() => {
     return attempts
       .filter((row) => {
@@ -80,54 +78,46 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
 
   return (
     <Card
-      title="3. Hasil Pengujian Terkini"
-      subtitle="Menampilkan HTTP statuscode & respon per percobaan. Klik baris mana saja untuk melihat detail lengkap."
+      title="Recent Benchmark Results"
+      subtitle="HTTP status codes and performance metrics per attempt. Click any row to inspect full request & response payloads."
       icon="table_chart"
       action={
         <div className="text-xs text-text-muted">
-          {displayedAttempts.length} dari {attempts.length} data ditampilkan
+          {displayedAttempts.length} of {attempts.length} attempts shown
         </div>
       }
     >
       <div className="space-y-3">
         {/* Filter & Search Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-subtle">
-          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-            <span className="text-text-muted mr-1 font-medium">Filter:</span>
-            {FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStatusFilter(f.id)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === f.id
-                    ? "bg-brand-500 text-white shadow-xs"
-                    : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-border">
+          <SegmentedControl
+            options={FILTERS}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            size="touch"
+            snap
+            aria-label="Filter benchmark attempts by status"
+          />
 
-          <div className="w-48">
+          <div className="w-full sm:w-64 min-w-0">
             <input
               type="text"
-              placeholder="Cari di tabel..."
+              placeholder="Filter results..."
               value={searchTableQuery}
               onChange={(e) => setSearchTableQuery(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-text-main focus:ring-brand-500"
+              className="w-full rounded-sm border border-border bg-surface px-3 min-h-11 sm:min-h-8 sm:h-8 text-xs text-text-main focus:border-primary focus:outline-none placeholder:text-text-muted"
             />
           </div>
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto max-h-[560px]">
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-surface z-10 text-xs text-text-muted border-b border-border-subtle select-none">
+        <div className="overflow-x-auto max-h-[560px] custom-scrollbar">
+          <table className="w-full text-left text-sm" aria-label="Benchmark execution attempts">
+            <thead className="sticky top-0 bg-surface z-10 text-xs text-text-muted border-b border-border select-none">
               <tr>
-                <th className="py-2.5 px-3">Akun</th>
+                <th scope="col" className="py-2.5 px-3">Account</th>
                 <th
+                  scope="col"
                   className="py-2.5 px-3 cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("model")}
                 >
@@ -140,8 +130,9 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                     ) : null}
                   </div>
                 </th>
-                <th className="py-2.5 px-2">Suite</th>
+                <th scope="col" className="py-2.5 px-2">Suite</th>
                 <th
+                  scope="col"
                   className="py-2.5 px-2 cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("status")}
                 >
@@ -154,13 +145,14 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                     ) : null}
                   </div>
                 </th>
-                <th className="py-2.5 px-3 max-w-[220px]">Pesan Respon / Error</th>
+                <th scope="col" className="py-2.5 px-3 max-w-[220px]">Response / Error Diagnostic</th>
                 <th
+                  scope="col"
                   className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("score")}
                 >
                   <div className="flex items-center justify-end gap-1">
-                    <span>Kualitas</span>
+                    <span>Quality</span>
                     {sortField === "score" ? (
                       <span className="material-symbols-outlined text-xs">
                         {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
@@ -169,6 +161,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   </div>
                 </th>
                 <th
+                  scope="col"
                   className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("ttft")}
                 >
@@ -182,11 +175,12 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   </div>
                 </th>
                 <th
+                  scope="col"
                   className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("total")}
                 >
                   <div className="flex items-center justify-end gap-1">
-                    <span>Total</span>
+                    <span>Latency</span>
                     {sortField === "total" ? (
                       <span className="material-symbols-outlined text-xs">
                         {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
@@ -195,11 +189,12 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   </div>
                 </th>
                 <th
+                  scope="col"
                   className="py-2.5 px-2 text-right cursor-pointer hover:text-text-main"
                   onClick={() => handleSort("tps")}
                 >
                   <div className="flex items-center justify-end gap-1">
-                    <span>tok/s</span>
+                    <span>Speed</span>
                     {sortField === "tps" ? (
                       <span className="material-symbols-outlined text-xs">
                         {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
@@ -207,71 +202,83 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                     ) : null}
                   </div>
                 </th>
-                <th className="py-2.5 px-2 text-center">Format</th>
+                <th scope="col" className="py-2.5 px-3 text-center">Inspect</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle text-xs">
+            <tbody className="divide-y divide-border text-xs font-mono">
               {displayedAttempts.map((row) => {
-                const cfg = STATUS_CONFIG[row.status] || {
-                  label: row.status,
-                  color: "bg-surface-3 text-text-muted",
+                const conf = STATUS_CONFIG[row.status] || {
+                  label: row.status || "Unknown",
+                  color: "bg-surface-3 text-text-muted border-border",
                 };
-                const isFailedOrLimited = row.status === "failed" || row.status === "rate_limited";
-                const displayMessage = row.error || row.excerpt || row.response_body || "-";
-
                 return (
                   <tr
-                    key={`${row.id || row.account_name}-${row.model}-${row.suite}-${row.status}-${row.rep}`}
+                    key={row.id}
                     onClick={() => onInspect(row)}
                     className="hover:bg-surface-2 transition-colors cursor-pointer group"
                   >
-                    <td className="py-2 px-3 font-mono text-[11px] max-w-[100px] truncate" title={row.account_name}>
-                      {row.account_name || "-"}
+                    {/* Account */}
+                    <td className="py-2.5 px-3 text-text-muted truncate max-w-[120px]">
+                      {row.account_name || row.connection_id || "-"}
                     </td>
-                    <td className="py-2 px-3 font-medium max-w-[140px] truncate" title={row.model}>
-                      {row.model}
+
+                    {/* Model */}
+                    <td className="py-2.5 px-3 font-medium text-text-main">
+                      <div className="truncate max-w-[180px]" title={row.model}>
+                        {row.model}
+                      </div>
+                      <div className="text-[10px] text-text-muted">{row.provider}</div>
                     </td>
-                    <td className="py-2 px-2 uppercase font-semibold text-[10px] tracking-wider text-text-muted">
-                      {row.suite}
+
+                    {/* Suite */}
+                    <td className="py-2.5 px-2">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-surface-3 text-text-muted">
+                        {row.suite}
+                      </span>
                     </td>
-                    <td className="py-2 px-2">
+
+                    {/* Status & HTTP Code */}
+                    <td className="py-2.5 px-2">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-flex px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cfg.color}`}>
-                          {cfg.label}
+                        <span
+                          className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${conf.color}`}
+                        >
+                          {conf.label}
                         </span>
                         {row.http_status ? (
-                          <span
-                            className={`font-mono text-[10px] font-bold ${
-                              row.http_status === 200
-                                ? "text-emerald-400"
-                                : row.http_status === 429
-                                ? "text-amber-400"
-                                : "text-rose-400"
-                            }`}
-                          >
-                            {row.http_status}
+                          <span className="text-[10px] text-text-muted">
+                            ({row.http_status})
                           </span>
                         ) : null}
                       </div>
                     </td>
-                    <td
-                      className={`py-2 px-3 max-w-[240px] truncate font-mono text-[11px] ${
-                        isFailedOrLimited ? "text-rose-400 font-medium" : "text-text-muted"
-                      }`}
-                      title={displayMessage}
-                    >
-                      {displayMessage}
+
+                    {/* Response/Error Diagnostic Excerpt */}
+                    <td className="py-2.5 px-3 max-w-[240px] truncate text-text-muted font-sans text-xs">
+                      {row.error ? (
+                        <span className="text-rose-400 font-mono text-[11px] truncate block" title={row.error}>
+                          {row.error}
+                        </span>
+                      ) : row.excerpt ? (
+                        <span className="text-text-muted truncate block" title={row.excerpt}>
+                          {row.excerpt}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted/40 italic">-</span>
+                      )}
                     </td>
-                    <td className="py-2 px-2 text-right font-semibold">
+
+                    {/* Quality Score */}
+                    <td className="py-2.5 px-2 text-right">
                       {row.score !== null && row.score !== undefined ? (
                         <span
-                          className={
+                          className={`font-semibold ${
                             row.score >= 80
                               ? "text-emerald-400"
                               : row.score >= 50
                               ? "text-amber-400"
                               : "text-rose-400"
-                          }
+                          }`}
                         >
                           {row.score}
                         </span>
@@ -279,17 +286,40 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                         <span className="text-text-muted">-</span>
                       )}
                     </td>
-                    <td className="py-2 px-2 text-right font-mono text-text-muted">
+
+                    {/* TTFT */}
+                    <td className="py-2.5 px-2 text-right text-text-muted">
                       {row.ttft_ms ? `${row.ttft_ms}ms` : "-"}
                     </td>
-                    <td className="py-2 px-2 text-right font-mono text-text-muted">
+
+                    {/* Total Latency */}
+                    <td className="py-2.5 px-2 text-right text-text-muted">
                       {row.total_ms ? `${row.total_ms}ms` : "-"}
                     </td>
-                    <td className="py-2 px-2 text-right font-mono font-medium">
-                      {row.tps ? `${row.tps}` : "-"}
+
+                    {/* TPS */}
+                    <td className="py-2.5 px-2 text-right">
+                      {row.tps ? (
+                        <span className="text-text-main font-medium">{row.tps}</span>
+                      ) : (
+                        <span className="text-text-muted">-</span>
+                      )}
                     </td>
-                    <td className="py-2 px-2 text-center font-mono text-[10px] text-text-muted uppercase">
-                      {row.format || "-"}
+
+                    {/* Inspect Button */}
+                    <td className="py-2.5 px-3 text-center">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onInspect(row);
+                        }}
+                        className="inline-flex size-11 sm:size-8 items-center justify-center rounded-sm text-text-muted hover:text-primary hover:bg-surface-3 transition-colors"
+                        title="Inspect attempt details"
+                        aria-label="Inspect attempt details"
+                      >
+                        <span className="material-symbols-outlined text-base">visibility</span>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -297,17 +327,15 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
 
               {displayedAttempts.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="py-12 text-center text-text-muted">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-3xl opacity-40">
-                        {isJobRunning ? "hourglass_top" : "science"}
-                      </span>
+                  <td colSpan="10" className="py-12 text-center text-text-muted font-sans">
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined text-3xl opacity-30">inbox</span>
                       <span>
-                        {isJobRunning
-                          ? "Menjalankan benchmark... data percobaan akan muncul secara langsung."
-                          : attempts.length > 0
-                          ? "Tidak ada baris yang sesuai dengan filter atau pencarian."
-                          : "Belum ada data hasil pengujian aktif. Pilih model dan klik Jalankan Benchmark."}
+                        {attempts.length === 0
+                          ? isJobRunning
+                            ? "Waiting for test results... benchmark is currently running."
+                            : "No benchmark execution attempts recorded yet."
+                          : "No attempts match the selected filter query."}
                       </span>
                     </div>
                   </td>

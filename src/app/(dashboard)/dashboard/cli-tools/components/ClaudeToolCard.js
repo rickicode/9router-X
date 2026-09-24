@@ -7,7 +7,6 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
-import ToolDetectionBanner from "./ToolDetectionBanner";
 import HostSetupCommand from "./HostSetupCommand";
 import { stripModelContextMarker } from "open-sse/utils/modelMarkers.js";
 
@@ -326,13 +325,6 @@ useEffect(() => {
  </div>
  )}
 
- {!checkingClaude && (
- <ToolDetectionBanner
- installed={claudeStatus?.installed}
- toolName={tool.name}
- hasConfig={claudeStatus?.has9Router}
- />
- )}
 
  <HostSetupCommand
  toolId="claude"
