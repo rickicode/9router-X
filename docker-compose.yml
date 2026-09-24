@@ -29,7 +29,7 @@ services:
       TZ: Asia/Jakarta
       NODE_ENV: production
       MALLOC_ARENA_MAX: "2"
-      DATABASE_URL: postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter
+      DATABASE_URL: ${DATABASE_URL:-postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     logging:
       driver: "json-file"
@@ -78,7 +78,7 @@ services:
       MALLOC_ARENA_MAX: "2"
       MALLOC_TRIM_THRESHOLD_: "131072"
       PROXY_DISPATCHERS_MAX_SIZE: "128"
-      DATABASE_URL: postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter
+      DATABASE_URL: ${DATABASE_URL:-postgres://axonrouter:${POSTGRES_PASSWORD:-password123}@postgres:5432/axonrouter}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       # Opt-in: return unredacted request-details payloads (default redacted).
       # Only enable while dashboard login is enforced (requireLogin !== false).
@@ -125,9 +125,9 @@ services:
       - "-c"
       - "restart_after_crash=on"
     environment:
-      POSTGRES_USER: axonrouter
+      POSTGRES_USER: ${POSTGRES_USER:-axonrouter}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
-      POSTGRES_DB: axonrouter
+      POSTGRES_DB: ${POSTGRES_DB:-axonrouter}
       TZ: Asia/Jakarta
     volumes:
       - axonrouter-pgdata:/var/lib/postgresql/data
@@ -137,7 +137,7 @@ services:
         max-size: "50m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U axonrouter -d axonrouter"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-axonrouter} -d $${POSTGRES_DB:-axonrouter}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -145,7 +145,7 @@ services:
 
 volumes:
   axonrouter-data:
-    name: axonrouter-data
-    external: true
+    name: ${DATA_VOLUME:-axonrouter-data}
+    external: ${DATA_VOLUME_EXTERNAL:-false}
   axonrouter-pgdata:
-    name: axonrouter-pgdata
+    name: ${PGDATA_VOLUME:-axonrouter-pgdata}
