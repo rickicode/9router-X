@@ -27,9 +27,9 @@ export default function Toggle({
   "aria-labelledby": ariaLabelledby,
 }) {
   const sizes = {
-    sm: { track: "w-9 h-5", thumb: "size-3.5", travel: "translate-x-4", icon: "text-[8px]", pad: "px-0.75" },
-    md: { track: "w-11 h-6", thumb: "size-4.5", travel: "translate-x-5", icon: "text-[10px]", pad: "px-0.75" },
-    lg: { track: "w-14 h-7", thumb: "size-5.5", travel: "translate-x-7", icon: "text-[11px]", pad: "px-1" },
+    sm: { track: "w-9 h-5", thumb: "size-3.5", travel: "translate-x-4", icon: "text-[9px]", pad: "px-0.75" },
+    md: { track: "w-11 h-6", thumb: "size-4.5", travel: "translate-x-5", icon: "text-[11px]", pad: "px-0.75" },
+    lg: { track: "w-14 h-7", thumb: "size-5.5", travel: "translate-x-7", icon: "text-[13px]", pad: "px-1" },
   };
   const s = sizes[size];
 
@@ -84,15 +84,15 @@ export default function Toggle({
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none relative inline-flex items-center justify-center rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.35),0_0_0_1px_rgba(0,0,0,0.15)]",
-              "transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+              "pointer-events-none relative inline-flex items-center justify-center rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.35)] ring-1 ring-black/15",
               s.thumb,
               checked ? s.travel : "translate-x-0"
             )}
           >
             <span
+              aria-hidden="true"
               className={cn(
-                "material-symbols-outlined transition-colors",
+                "material-symbols-outlined !text-[length:inherit] leading-none",
                 s.icon,
                 checked ? "text-primary" : "text-text-muted"
               )}
