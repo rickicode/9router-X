@@ -1,4 +1,15 @@
-import { machineIdSync } from 'node-machine-id';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+function getMachineIdSync() {
+  try {
+    const pkg = require('node-machine-id');
+    return pkg.machineIdSync || pkg;
+  } catch {
+    return () => crypto.randomUUID();
+  }
+}
+const machineIdSync = getMachineIdSync();
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
