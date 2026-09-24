@@ -1,29 +1,29 @@
 <div align="center">
-  <img src="./images/axonrouter.png?1" alt="AxonRouter-X Dashboard" width="800"/>
+  <img src="./images/axonrouter.png?1" alt="AxonRouter Dashboard" width="800"/>
   
-  # AxonRouter-X — Enterprise-Grade AI Routing Gateway & Token Optimizer
+  # AxonRouter — Enterprise-Grade AI Routing Gateway & Token Optimizer
   
   **Never stop coding. Save 20-40% tokens with RTK + Headroom context compression + auto-fallback to FREE & cheap AI models.**
   
   **Connect all AI coding tools (Claude Code, Cursor, Codex, OpenClaw, Antigravity, Copilot, Cline...) to 40+ providers with PostgreSQL 17 concurrency, Valkey/Redis L2 caching, and zero file-lock bottlenecks.**
 
-  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter-X.svg?style=flat)](https://github.com/rickicode/axonrouter-X)
+  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter.svg?style=flat)](https://github.com/rickicode/axonrouter)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
   [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_17-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![Valkey](https://img.shields.io/badge/Cache-Valkey_8_%2F_Redis_7+-CC0000?logo=redis&logoColor=white)](https://valkey.io/)
   [![Docker](https://img.shields.io/badge/Deployment-Docker_Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-[⚡ AxonRouter-X vs Original](#-axonrouter-x-vs-axonrouter-original) • [🚀 Quick Start (Docker)](#-quick-start-docker-compose---recommended) • [💡 Features](#-key-features) • [🛠️ Supported Tools](#%EF%B8%8F-supported-cli-tools) • [🌐 Providers](#-supported-providers) • [📖 Setup](#-setup-guide)
+[⚡ AxonRouter vs Original](#-axonrouter-web-vs-axonrouter-original) • [🚀 Quick Start (Docker)](#-quick-start-docker-compose---recommended) • [💡 Features](#-key-features) • [🛠️ Supported Tools](#%EF%B8%8F-supported-cli-tools) • [🌐 Providers](#-supported-providers) • [📖 Setup](#-setup-guide)
 
 </div>
 
 ---
 
-## ⚡ AxonRouter-X vs AxonRouter Original
+## ⚡ AxonRouter vs AxonRouter Original
 
-AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonrouter](https://github.com/decolua/axonrouter). While the original project targets single-user desktop tray setups with embedded SQLite, AxonRouter-X is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
+AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/axonrouter](https://github.com/decolua/axonrouter). While the original project targets single-user desktop tray setups with embedded SQLite, AxonRouter is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
 
-| Architectural Component | AxonRouter Original (Upstream) | AxonRouter-X (Enterprise Edition) |
+| Architectural Component | AxonRouter Original (Upstream) | AxonRouter (Enterprise Edition) |
 |---|---|---|
 | **Database Engine** | SQLite file-based (`data.sqlite`) / `better-sqlite3` / `sql.js` (subject to file locks under concurrency) | **Pure PostgreSQL 17** — connection pool, true ACID, row-level locking, zero file-lock contention |
 | **Caching & Cooldown (L2)** | In-memory JavaScript `Map` (wiped on server restarts or container redeploys) | **Valkey 8 / Redis Speed Layer** — persistent TTL cooldowns, distributed OAuth refresh locks, instant cross-worker failover |
@@ -37,7 +37,7 @@ AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonroute
 
 ---
 
-## 🤔 Why AxonRouter-X?
+## 🤔 Why AxonRouter?
 
 **Stop wasting budget, tokens, and hitting concurrency blocks:**
 
@@ -47,7 +47,7 @@ AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonroute
 - ❌ Massive tool outputs (`git diff`, `grep`, `test` logs) burn context windows quickly
 - ❌ Upstream quota locks require manual restarts or database edits
 
-**AxonRouter-X solves this:**
+**AxonRouter solves this:**
 
 - ✅ **Dual Token Savers (RTK + Headroom)** — Cut tool outputs (20-40%) and compress conversational context on the fly
 - ✅ **PostgreSQL 17 Backend** — Handle hundreds of concurrent agent requests without locked database errors
@@ -67,7 +67,7 @@ AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonroute
                                │ http://localhost:3777/v1
                                ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ AxonRouter-X Gateway Engine (Next.js 16 Standalone)            │
+│ AxonRouter Gateway Engine (Next.js 16 Standalone)            │
 │  • RTK Token Compression (in-flight tool_result filter)     │
 │  • Headroom Sidecar Proxy (context window compaction)       │
 │  • Format Translation (OpenAI ↔ Claude ↔ Gemini ↔ Codex)    │
@@ -95,7 +95,7 @@ Result: Continuous coding, rock-solid stability under load, minimal token costs.
 ## 🚀 Quick Start (Docker Compose - Recommended)
 
 The all-in-one Docker Compose stack orchestrates:
-- **axonrouter-x** (Gateway & Dashboard): `http://localhost:3777`
+- **axonrouter-web** (Gateway & Dashboard): `http://localhost:3777`
 - **postgres** (PostgreSQL 17 with healthcheck): port `5432`
 - **redis** (Valkey 8 / Redis compatible): port `6381` mapped to internal `6379`
 - **headroom** (LLM Context Compression Proxy): `http://localhost:8787`
@@ -103,8 +103,8 @@ The all-in-one Docker Compose stack orchestrates:
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/rickicode/axonrouter-X.git
-cd axonrouter-X
+git clone https://github.com/rickicode/axonrouter.git
+cd axonrouter
 
 cp .env.example .env
 ```
@@ -123,7 +123,7 @@ docker compose up -d --build
 ```
 
 ### 3. Open Dashboards
-- **AxonRouter-X Dashboard**: `http://localhost:3777/dashboard`
+- **AxonRouter Dashboard**: `http://localhost:3777/dashboard`
 - **Headroom Dashboard**: `http://localhost:8787/dashboard` (API docs: `http://localhost:8787/docs`)
 
 ### 4. Connect a Provider & Code
@@ -135,7 +135,7 @@ docker compose up -d --build
 
 ## 🛠️ Supported CLI Tools
 
-AxonRouter-X integrates with all major AI development tools:
+AxonRouter integrates with all major AI development tools:
 
 <div align="center">
   <table>
@@ -244,8 +244,8 @@ AxonRouter-X integrates with all major AI development tools:
 
 ### Method 1: Web Dashboard (Easiest)
 1. In your existing official AxonRouter, open **Profile / Settings** $\rightarrow$ click **Download Backup**.
-2. Open AxonRouter-X Dashboard (`http://localhost:3777/dashboard/profile`).
-3. Select the backup JSON file and click **Restore / Import Backup**. AxonRouter-X automatically migrates the payload into PostgreSQL.
+2. Open AxonRouter Dashboard (`http://localhost:3777/dashboard/profile`).
+3. Select the backup JSON file and click **Restore / Import Backup**. AxonRouter automatically migrates the payload into PostgreSQL.
 
 ### Method 2: CLI Migration Script
 If you have direct access to your old `data.sqlite` file:
@@ -336,7 +336,7 @@ Priority Order:
   5. kr/claude-sonnet-4.5    (Free emergency fallback via Kiro)
 ```
 
-Point your client to model `production-stack`. AxonRouter-X automatically traverses the priority chain if any provider returns rate limits, authentication timeouts, or service degradation.
+Point your client to model `production-stack`. AxonRouter automatically traverses the priority chain if any provider returns rate limits, authentication timeouts, or service degradation.
 
 </details>
 
@@ -346,8 +346,8 @@ Point your client to model `production-stack`. AxonRouter-X automatically traver
 Running without Docker requires external PostgreSQL 17 and Valkey/Redis instances accessible locally.
 
 ```bash
-git clone https://github.com/rickicode/axonrouter-X.git
-cd axonrouter-X
+git clone https://github.com/rickicode/axonrouter.git
+cd axonrouter
 
 cp .env.example .env
 # Configure DATABASE_URL and REDIS_URL in .env
@@ -411,7 +411,7 @@ curl http://localhost:3777/v1/models \
 
 ## 🙏 Acknowledgments & Credits
 
-AxonRouter-X is built upon outstanding open-source projects:
+AxonRouter is built upon outstanding open-source projects:
 
 - **[decolua/axonrouter](https://github.com/decolua/axonrouter)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
 - **[RTK](https://github.com/rtk-ai/rtk)** — High-efficiency lossless token-saver algorithm.

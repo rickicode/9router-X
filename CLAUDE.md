@@ -79,7 +79,7 @@ Two authoritative docs already exist — read them before working in these areas
 - One file per provider. `providers/registry/index.js` is an **auto-generated** static import list — regenerate it with `scripts/migrate-registry.mjs` / `injectDisplayToRegistry.mjs`, don't hand-edit.
 - Add a provider: copy `providers/REGISTRY_TEMPLATE.js`, add models to `config/providerModels.js`. Only add an executor for non-OpenAI-compatible upstreams.
 
-### Persistence — IMPORTANT (AxonRouter-X Pure PostgreSQL Architecture)
+### Persistence — IMPORTANT (AxonRouter Pure PostgreSQL Architecture)
 State is **pure PostgreSQL 17** via `postgres` package in `src/lib/db/driver.js` and `src/lib/db/adapters/postgresAdapter.js`. SQLite has been completely removed from application runtime.
 - `src/lib/localDb.js` and `src/models/index.js` are **backward-compat shims** re-exporting async methods from `@/lib/db/index.js`.
 - Per-entity repositories live in `src/lib/db/repos/*`.

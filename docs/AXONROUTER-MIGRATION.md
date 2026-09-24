@@ -1,6 +1,6 @@
 # AxonRouter — Rebrand & Migration Specification (v0.1.2)
 
-> Dokumen spesifikasi rebrand sistem dari **axonrouter-X** ke **AxonRouter**, peningkatan versi ke **v1.0.0**, identitas visual berbasis Cyan, dan integrasi pemantau upstream `decolua/axonrouter`.
+> Dokumen spesifikasi rebrand sistem dari **axonrouter** ke **AxonRouter**, peningkatan versi ke **v1.0.0**, identitas visual berbasis Cyan, dan integrasi pemantau upstream `decolua/axonrouter`.
 
 ---
 
@@ -94,7 +94,7 @@ Response JSON:
 | **CLI Detection** | `hasAxonRouterConfig` di 11 tool | `hasRouterConfig` | **Wajib Dual-Check**: deteksi `axonrouter` dan `axonrouter` |
 | **Default CLI Key** | `sk_axonrouter` | `sk_axonrouter` | **Wajib Dual-Support**: terima `sk_axonrouter` dan `sk_axonrouter` di auth gate |
 | **OpenCode / Codex Provider** | `[model_providers.axonrouter]` | `[model_providers.axonrouter]` | Tool generator tulis nama baru, parser baca keduanya |
-| **Docker Compose Services** | `axonrouter-x`, `axonrouter-api` | `axonrouter-web`, `axonrouter-api` | Container rename saat deploy terencana |
+| **Docker Compose Services** | `axonrouter-web`, `axonrouter-api` | `axonrouter-web`, `axonrouter-api` | Container rename saat deploy terencana |
 | **Docker Volumes** | `axonrouter-data`, `axonrouter-pgdata` | Pertahankan nama fisik volume | **JANGAN GANTI NAMA FISIK VOLUME** di prod tanpa migrasi data live |
 | **PostgreSQL Database** | `postgres://axonrouter:.../axonrouter` | Pertahankan connection string prod | Ubah label koneksi saja di docs, pertahankan kredensial live |
 | **Header Internal** | `x-axonrouter-test-request`, `x-axonrouter-connection-id` | `x-axon-test-request`, `x-axon-connection-id` | Middleware baca header baru dengan fallback header lama |

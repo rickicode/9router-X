@@ -1,4 +1,4 @@
-# BLUEPRINT RESMI: Refactor Arsitektur Database AxonRouter-X (PostgreSQL-Only + Redis L2 Speed Layer + Docker First)
+# BLUEPRINT RESMI: Refactor Arsitektur Database AxonRouter (PostgreSQL-Only + Redis L2 Speed Layer + Docker First)
 
 Dokumen ini merupakan hasil konsensus dari sesi grilling design tree (12 keputusan final terkonfirmasi).
 
@@ -324,7 +324,7 @@ Di Node.js:
 ### Tahap 5: Docker Verification & End-to-End Test
 - Update `docker-compose.yml` dengan tuning RAM Redis (`--maxmemory 512mb --maxmemory-policy allkeys-lru`) dan Postgres params.
 - Jalankan stack Docker Compose (`docker compose up -d`).
-- Verifikasi healthcheck (`postgres`, `redis`, `headroom`, `axonrouter-x`).
+- Verifikasi healthcheck (`postgres`, `redis`, `headroom`, `axonrouter-web`).
 - Uji routing request inferensi ke endpoint `/v1/chat/completions`.
 - Uji failover Redis crash (sistem tetap jalan via Postgres).
 - Uji UX Quota Tracker di browser: instant load, batch sync, live progress bar.

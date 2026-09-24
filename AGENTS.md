@@ -1,4 +1,4 @@
-# AGENTS.md — axonrouter-X
+# AGENTS.md — axonrouter
 
 ## What this is
 Enterprise fork of decolua/axonrouter: AI routing gateway + dashboard.
@@ -41,5 +41,5 @@ Keep graft in sync after structural changes: `graft build` (fast, no key).
 - `is_active` column must be synced when `disabledAt` is set (historical bug: jsonb `data` updated but column stale → "No active credentials" 503 despite UI showing active).
 - Error messages: use classified codes (`ACCOUNT_EXHAUSTED`, `MIXED_BLOCKED`, …) with `status_breakdown` + `retry_after` — never the generic "No active credentials" for exhausted/disabled accounts.
 - opencode-zen: billing/entitlement errors are model-scoped (`opencodeZenModelOnlyError`), only explicit invalid-key disables an account.
-- Deploy: push to `origin/master` (github.com/rickicode/axonrouter-X); prod box (192.168.90.101) pulls from GitHub. No SSH access from this workspace. Multiple agents push concurrently — always `git pull --rebase` before push.
+- Deploy: push to `origin/master` (github.com/rickicode/axonrouter); prod box (192.168.90.101) pulls from GitHub. No SSH access from this workspace. Multiple agents push concurrently — always `git pull --rebase` before push.
 - Never commit `.env` (holds DB/gateway secrets). `.env` for this workspace lives outside the repo.
