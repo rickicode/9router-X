@@ -86,3 +86,10 @@ debug.log
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# benchmark scratch
+benchmark_*.log
+benchmark_*.py
+benchmark_*.json
+benchmark_store.db
+*.dump
