@@ -275,7 +275,7 @@ export default function ProxyFitnessPage() {
  <button
  type="button"
  onClick={toggleProviderMenu}
- className="flex h-8 w-full items-center justify-between gap-1 rounded-sm border border-border bg-surface px-2 text-xs text-text-main hover:bg-surface-2"
+className="flex h-11 w-full items-center justify-between gap-1 rounded-sm border border-border bg-surface px-2 text-xs text-text-main hover:bg-surface-2 sm:h-8"
  aria-haspopup="menu"
  aria-expanded={providerMenuOpen}
  title="Filter by provider"

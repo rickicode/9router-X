@@ -802,14 +802,14 @@ export default function ProfilePage() {
  <p className="text-sm text-text-muted">Running on your machine</p>
  </div>
  </div>
- <div className="inline-flex size-8 rounded-sm bg-surface w-full sm:w-auto">
+<div className="inline-flex min-h-11 w-full rounded-sm bg-surface sm:w-auto sm:size-8 sm:min-h-0">
  {["light", "dark", "system"].map((option) => (
  <button
  key={option}
  type="button"
  onClick={() => setTheme(option)}
  className={cn(
- "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-sm font-medium flex-1 sm:flex-initial",
+"flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 min-h-11 rounded-sm font-medium flex-1 sm:flex-initial sm:min-h-0 sm:py-2",
  theme === option
  ? "bg-surface text-text-main "
  : "text-text-muted hover:text-text-main"
@@ -891,7 +891,7 @@ export default function ProfilePage() {
  </div>
  <button
  onClick={() => setLangOpen(true)}
- className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border border-border hover:border-primary/30 h-8"
+className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border border-border hover:border-primary/30 min-h-11 sm:h-8 sm:min-h-0"
  data-i18n-skip="true"
  >
  <span className="text-sm text-text-muted">Display language</span>
@@ -1690,7 +1690,7 @@ export default function ProfilePage() {
  href="https://github.com/rickicode/9router-X"
  target="_blank"
  rel="noreferrer"
- className="inline-block mt-1 text-[11px] hover:text-primary"
+className="inline-flex min-h-11 items-center mt-1 text-[11px] hover:text-primary sm:inline-block sm:min-h-0"
  >
  X Version
  </a>

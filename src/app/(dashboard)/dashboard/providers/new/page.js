@@ -78,7 +78,7 @@ export default function NewProviderPage() {
  <div className="flex flex-col gap-2">
  <Link
  href="/dashboard/providers"
- className="inline-flex h-8 items-center gap-1 text-sm text-text-muted hover:text-primary w-fit"
+className="inline-flex h-11 items-center gap-1 text-sm text-text-muted hover:text-primary w-fit sm:h-8"
  >
  <span className="material-symbols-outlined text-[18px]">arrow_back</span>
  Back to Providers
