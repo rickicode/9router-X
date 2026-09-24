@@ -39,7 +39,7 @@ export default function EndpointPageClient({ machineId }) {
 
   const gatewayUrl =
     isClient && typeof window !== "undefined"
-      ? `${window.location.protocol}//${window.location.hostname}:10129/v1`
+      ? `${window.location.protocol}//${window.location.hostname}:3778/v1`
       : "";
 
   // Data loaders

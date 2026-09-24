@@ -1,14 +1,13 @@
 "use client";
 
 import PropTypes from "prop-types";
+import Icon from "@/shared/components/Icon";
 
 /** Security warning banner with optional action link */
 export default function SecurityWarning({ message, action }) {
   return (
     <div className="flex items-start sm:items-center gap-2.5 px-3 py-2.5 rounded-sm bg-warning/10 border border-warning/30 text-warning min-h-11 sm:min-h-9 sm:py-1.5">
-      <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5 sm:mt-0" aria-hidden="true">
-        warning
-      </span>
+      <Icon name="warning" size={18} className="shrink-0 mt-0.5 sm:mt-0" />
       <p className="text-xs flex-1 leading-relaxed">{message}</p>
       {action && (
         <a

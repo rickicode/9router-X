@@ -2,6 +2,7 @@
 
 import PropTypes from "prop-types";
 import { Modal, Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 const STRATEGIES = [
   {
@@ -84,7 +85,7 @@ export default function StrategyGuideModal({ isOpen, onClose }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <div className={`flex size-9 shrink-0 items-center justify-center rounded-md border ${strat.color}`}>
-                      <span className="material-symbols-outlined text-[20px]">{strat.icon}</span>
+                      <Icon name={strat.icon} size={20} />
                     </div>
                     <div>
                       <h4 className="text-xs font-semibold text-text-main">{strat.name}</h4>

@@ -5,6 +5,7 @@ import Modal from "@/shared/components/Modal";
 import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function FailureResponseModal({
  isOpen,
@@ -41,9 +42,7 @@ export default function FailureResponseModal({
  onClose={onClose}
  title={
  <div className="flex items-center gap-2 min-w-0 pr-3">
- <span className="material-symbols-outlined text-danger text-[18px] shrink-0">
- error
- </span>
+ <Icon name="error" size={18} className="text-danger shrink-0" />
  <div className="min-w-0">
  <div className="flex items-center gap-2">
  <span className="text-sm font-semibold text-text-main truncate">
@@ -66,16 +65,12 @@ export default function FailureResponseModal({
  >
  {loading ? (
  <div className="flex flex-col items-center justify-center p-3 text-text-muted gap-3">
- <span className="material-symbols-outlined animate-spin text-[18px] text-primary">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="animate-spin text-primary" />
  <span className="text-xs">Fetching failure traces & responses…</span>
  </div>
  ) : !failures.length ? (
  <div className="flex flex-col items-center justify-center p-3 text-text-muted gap-2 border border-dashed border-border rounded-sm">
- <span className="material-symbols-outlined text-[18px] text-success">
- check_circle
- </span>
+ <Icon name="check_circle" size={18} className="text-success" />
  <p className="text-sm font-semibold text-text-main">
  No Failure Payloads Found
  </p>

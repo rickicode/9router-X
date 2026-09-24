@@ -28,7 +28,7 @@ import { serve } from "@hono/node-server";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const PORT = Number(process.env.GATEWAY_PORT || process.env.PORT || 10129);
+const PORT = Number(process.env.GATEWAY_PORT || process.env.PORT || 3778);
 const WORKERS = Math.max(1, Math.min(Number(process.env.GATEWAY_WORKERS) || os.cpus().length, os.cpus().length));
 
 // ── Auth gate (ported from src/dashboardGuard.js public-API section) ─────────

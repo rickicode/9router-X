@@ -1,14 +1,13 @@
 "use client";
 
 import PropTypes from "prop-types";
+import Icon from "@/shared/components/Icon";
 
 function ProviderTestResultsView({ results }) {
  if (results.error && !results.results) {
  return (
  <div className="text-center py-3">
- <span className="material-symbols-outlined text-danger text-[18px] mb-2 block">
- error
- </span>
+ <Icon name="error" size={18} className="text-danger mb-2 block" />
  <p className="text-sm text-danger">{results.error}</p>
  </div>
  );

@@ -8,6 +8,7 @@ import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 import { getComboBadge } from "@/shared/utils/comboBadge";
+import Icon from "@/shared/components/Icon";
 
 function ProviderCard({ provider, kind, providerStats }) {
  const providerInfo = AI_PROVIDERS[provider.id];
@@ -83,7 +84,7 @@ function ComboList({ combos }) {
  <Card padding="xs" className="hover:bg-surface-2 cursor-pointer">
  <div className="flex min-w-0 items-center gap-3">
  <div className={`size-7 rounded-sm flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`} title={badge.title}>
- <span className="material-symbols-outlined text-[18px]">{badge.icon}</span>
+<Icon name={badge.icon} size={18} />
  </div>
  <code className="text-sm font-mono font-medium flex-1 truncate">{combo.name}</code>
  {/* Provider icons preview */}
@@ -125,7 +126,7 @@ function Section({ title, icon, kind, providers, providerStats, combos, onCreate
  {/* Header — title left, Create Combo right */}
  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
  <div className="flex flex-wrap items-center gap-2">
- <span className="material-symbols-outlined text-primary">{icon}</span>
+<Icon name={icon} size={18} className="text-primary" />
  <h2 className="text-sm font-semibold">{title}</h2>
  <span className="text-xs text-text-muted">({providers.length} providers · {combos.length} combos)</span>
  </div>

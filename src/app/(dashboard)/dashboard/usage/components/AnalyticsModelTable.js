@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 import { fmtNumber, formatMetric, fmtTokens } from "./analyticsData";
 
 export default function AnalyticsModelTable({
@@ -75,9 +76,11 @@ export default function AnalyticsModelTable({
  <div className="flex items-center gap-1">
  <span>{label}</span>
  {isCurrent && (
- <span className="material-symbols-outlined text-[18px] text-primary">
- {sortAsc ? "arrow_upward" : "arrow_downward"}
- </span>
+                    <Icon
+                      name={sortAsc ? "arrow_upward" : "arrow_downward"}
+                      size={18}
+                      className="text-primary"
+                    />
  )}
  </div>
  </th>

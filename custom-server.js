@@ -4,6 +4,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const zlib = require("zlib");
 const { pathToFileURL } = require("url");
+process.env.PORT = process.env.PORT || "3777";
 
 const origCreate = http.createServer.bind(http);
 

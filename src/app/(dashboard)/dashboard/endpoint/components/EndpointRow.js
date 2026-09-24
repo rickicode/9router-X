@@ -2,6 +2,7 @@
 
 import PropTypes from "prop-types";
 import { Input } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 /** Reusable endpoint row component */
 export default function EndpointRow({
@@ -39,9 +40,7 @@ export default function EndpointRow({
  aria-label={isCopied ? "Copied" : `Copy ${label} URL`}
   className="size-11 shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
- {isCopied ? "check" : "content_copy"}
- </span>
+<Icon name={isCopied ? "check" : "content_copy"} size={18} />
  </button>
  {actions}
  </div>

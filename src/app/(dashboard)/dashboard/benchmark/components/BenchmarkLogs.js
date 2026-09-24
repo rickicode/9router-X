@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Modal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import Icon from "@/shared/components/Icon";
 
 export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, active, onRefresh, onInspect }) {
   const [logSearch, setLogSearch] = useState("");
@@ -209,9 +210,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                       onClick={() => setLogExpandedId(isExpanded ? null : row.id)}
                       className="text-text-muted hover:text-text-main flex items-center gap-0.5"
                     >
-                      <span className="material-symbols-outlined text-sm">
-                        {isExpanded ? "expand_less" : "expand_more"}
-                      </span>
+                      <Icon name={isExpanded ? "expand_less" : "expand_more"} size={14} />
                       <span>{isExpanded ? "Hide Full Payload" : "View Full Payload"}</span>
                     </button>
                     <button

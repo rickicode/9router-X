@@ -7,6 +7,7 @@ import { getModelKind } from "@/shared/constants/models";
 import { getModelsByProviderId } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Row } from "./exampleShared";
+import Icon from "@/shared/components/Icon";
 
 const nowMs = () => performance.now();
 
@@ -242,7 +243,7 @@ export function SttExampleCard({ providerId }) {
  onClick={() => copyCurl(curlSnippet)}
  className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">{copiedCurl ? "check" : "content_copy"}</span>
+<Icon name={copiedCurl ? "check" : "content_copy"} size={18} />
  {copiedCurl ? "Copied" : "Copy"}
  </button>
  <button
@@ -250,9 +251,7 @@ export function SttExampleCard({ providerId }) {
  disabled={running || !audioFile || !modelFull}
  className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- <span className="material-symbols-outlined text-[18px]" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
- play_arrow
- </span>
+ <Icon name="play_arrow" size={18} />
  {running ? "Transcribing..." : "Run"}
  </button>
  </div>
@@ -273,7 +272,7 @@ export function SttExampleCard({ providerId }) {
  onClick={() => copyRes(resultStr)}
  className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">{copiedRes ? "check" : "content_copy"}</span>
+<Icon name={copiedRes ? "check" : "content_copy"} size={18} />
  {copiedRes ? "Copied" : "Copy"}
  </button>
  )}

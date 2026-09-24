@@ -8,6 +8,7 @@ import BenchmarkLogs from "./components/BenchmarkLogs";
 import BenchmarkInspector from "./components/BenchmarkInspector";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
+import Icon from "@/shared/components/Icon";
 
 const SUITES = [
   { id: "pong", label: "PONG Gate", subtitle: "Liveness test (mandatory prerequisite to unlock test suites)", icon: "bolt" },
@@ -688,7 +689,7 @@ function BenchmarkContent() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 font-medium text-sm text-text-main">
-                        <span className="material-symbols-outlined text-base text-primary">{s.icon}</span>
+                        <Icon name={s.icon} size={16} className="text-primary" />
                         <span>{s.label}</span>
                       </div>
                       <p className="mt-0.5 text-xs text-text-muted leading-relaxed line-clamp-2">{s.subtitle}</p>
@@ -821,7 +822,7 @@ function BenchmarkContent() {
                 onClick={() => applyModelPreset(p.id)}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-border bg-surface text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors min-h-10 sm:min-h-0 sm:py-1 text-xs"
               >
-                <span className="material-symbols-outlined text-[15px]">{p.icon}</span>
+                <Icon name={p.icon} size={15} />
                 <span>{p.label}</span>
               </button>
             ))}
@@ -842,12 +843,7 @@ function BenchmarkContent() {
                       onClick={() => toggleSelectedProviderExpand(provider.id)}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className="material-symbols-outlined text-lg text-text-muted transition-transform duration-200"
-                          style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-                        >
-                          expand_more
-                        </span>
+                        <Icon name="expand_more" size={20} className="text-lg text-text-muted transition-transform duration-200" />
                         <span className="font-semibold text-sm text-text-main truncate">{provider.name}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-3 text-primary uppercase tracking-wider">
                           {provider.alias}
@@ -1180,9 +1176,7 @@ function BenchmarkContent() {
           {/* Retention Setting Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-sm border border-border bg-surface-2 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="material-symbols-outlined text-base text-text-muted" aria-hidden="true">
-                auto_delete
-              </span>
+              <Icon name="auto_delete" size={18} className="text-base text-text-muted" />
               <span>History Retention: Automatically prune job logs older than</span>
               <input
                 type="number"
@@ -1415,9 +1409,7 @@ function BenchmarkContent() {
                         title={isExpanded ? "Collapse model list" : "Expand model list"}
                         aria-label={isExpanded ? "Collapse model list" : "Expand model list"}
                       >
-                        <span className="material-symbols-outlined text-xl leading-none">
-                          {isExpanded ? "expand_less" : "expand_more"}
-                        </span>
+                        <Icon name={isExpanded ? "expand_less" : "expand_more"} size={20} className="leading-none" />
                       </button>
                     </div>
                   </div>
@@ -1640,9 +1632,7 @@ function BenchmarkContent() {
           </div>
 
           <div className="flex items-start gap-2.5 p-3 rounded-sm bg-warning/10 border border-warning/30 text-warning text-xs">
-            <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5" aria-hidden="true">
-              info
-            </span>
+            <Icon name="info" size={18} className="shrink-0 mt-0.5" />
             <p className="leading-relaxed">
               This benchmark sends real requests across your configured provider endpoints. Upstream rate limits, token quotas, and provider usage will apply.
             </p>

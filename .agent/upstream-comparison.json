@@ -54,7 +54,7 @@
     {
       "feature": "MITM Proxy & Autostart",
       "status": "excluded",
-      "reason": "Security and architecture decision: pure standalone Hono gateway (9router-api:10129) replaces local MITM."
+      "reason": "Security and architecture decision: pure standalone Hono gateway (axonrouter-api:3778) replaces local MITM."
     },
     {
       "feature": "Hono Gateway Engine Split",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, Button, SegmentedControl } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import Icon from "@/shared/components/Icon";
 
 const TABS = [
   { value: "curl", label: "cURL" },
@@ -154,19 +155,13 @@ claude`;
               }`}
             >
               {testStatus === "testing" && (
-                <span className="material-symbols-outlined text-[14px] animate-spin">
-                  progress_activity
-                </span>
+                <Icon name="progress_activity" size={14} className="animate-spin" />
               )}
               {testStatus === "success" && (
-                <span className="material-symbols-outlined text-[14px]">
-                  check_circle
-                </span>
+                <Icon name="check_circle" size={14} />
               )}
               {testStatus === "error" && (
-                <span className="material-symbols-outlined text-[14px]">
-                  error
-                </span>
+                <Icon name="error" size={14} />
               )}
               <span>
                 {testStatus === "testing" && "Pinging /v1/models…"}

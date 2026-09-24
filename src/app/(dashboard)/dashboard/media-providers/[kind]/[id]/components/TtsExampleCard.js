@@ -10,6 +10,7 @@ import { translate } from "@/i18n/runtime";
 import { getTtsVoicesForModel } from "open-sse/config/ttsModels.js";
 import { GOOGLE_TTS_LANGUAGES } from "open-sse/config/googleTtsLanguages.js";
 import { Row } from "./exampleShared";
+import Icon from "@/shared/components/Icon";
 
 const DEFAULT_TTS_RESPONSE_EXAMPLE = `// Audio will appear here after running.
 // Example JSON response (response_format=json):
@@ -484,7 +485,7 @@ export function TtsExampleCard({ providerId }) {
  onClick={() => copyCurl(curlSnippet)}
  className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">{copiedCurl ? "check" : "content_copy"}</span>
+<Icon name={copiedCurl ? "check" : "content_copy"} size={18} />
  {copiedCurl ? "Copied" : "Copy"}
  </button>
  <button
@@ -492,9 +493,7 @@ export function TtsExampleCard({ providerId }) {
  disabled={running || !input.trim() || !modelFull}
  className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- <span className="material-symbols-outlined text-[18px]" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
- play_arrow
- </span>
+ <Icon name="play_arrow" size={18} />
  {running ? "Generating..." : "Run"}
  </button>
  </div>

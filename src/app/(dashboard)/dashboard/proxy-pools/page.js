@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Badge, Button, Card, CardSkeleton, Input, Modal, Toggle, ConfirmModal, SegmentedControl } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
 import ProxyFitnessTab from "./components/ProxyFitnessTab";
+import Icon from "@/shared/components/Icon";
 
 function getStatusVariant(status) {
  if (status === "active") return "success";
@@ -1197,9 +1198,7 @@ function ProxyPoolsContent() {
                 onClick={() => setShowRelayMenu(!showRelayMenu)}
               >
                 Deploy Relay
-                <span className="material-symbols-outlined ml-1 text-[18px]">
-                  {showRelayMenu ? "expand_less" : "expand_more"}
-                </span>
+                <Icon name={showRelayMenu ? "expand_less" : "expand_more"} size={18} className="ml-1" />
               </Button>
 
               {showRelayMenu && (
@@ -1330,9 +1329,7 @@ function ProxyPoolsContent() {
             {/* Search & Type Filter */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-[180px] flex-1 sm:w-56 sm:flex-none">
-                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
-                  search
-                </span>
+                <Icon name="search" size={18} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -1547,12 +1544,11 @@ function ProxyPoolsContent() {
                     title="Test proxy"
                     disabled={testingId === pool.id}
                   >
-                    <span
-                      className="material-symbols-outlined text-[18px]"
+                    <Icon
+                      name={testingId === pool.id ? "progress_activity" : "science"}
+                      size={18}
                       style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined}
-                    >
-                      {testingId === pool.id ? "progress_activity" : "science"}
-                    </span>
+                    />
                   </button>
                   <button
                     onClick={() => openEditModal(pool)}
@@ -1687,7 +1683,7 @@ function ProxyPoolsContent() {
  <div>
  <div className="flex items-center justify-between gap-2 mb-2">
  <div className={`flex size-8 items-center justify-center rounded-sm ${color}`}>
- <span className="material-symbols-outlined text-[18px]">{icon}</span>
+          <Icon name={icon} size={18} />
  </div>
  {grp.isSticky ? (
  <Badge variant="success">Sticky ({grp.stickyLimit}x)</Badge>

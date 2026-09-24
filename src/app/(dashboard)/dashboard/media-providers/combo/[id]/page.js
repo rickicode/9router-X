@@ -9,6 +9,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { getComboBadge } from "@/shared/utils/comboBadge";
+import Icon from "@/shared/components/Icon";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
@@ -261,7 +262,7 @@ export default function ComboDetailPage() {
  const badge = getComboBadge(combo);
  return (
  <div className={`size-8 rounded-sm flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`} title={badge.title}>
- <span className="material-symbols-outlined text-[18px]">{badge.icon}</span>
+<Icon name={badge.icon} size={18} />
  </div>
  );
  })()}

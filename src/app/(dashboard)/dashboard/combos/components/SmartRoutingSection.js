@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { Modal, ModelSelectModal, CapacityBadges, Button, Input } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
+import Icon from "@/shared/components/Icon";
 
 const TIER_CONFIG = [
   {
@@ -376,7 +377,7 @@ export default function SmartRoutingSection({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${tier.headerBg}`}>
-                      <span className="material-symbols-outlined text-[18px]">{tier.icon}</span>
+                      <Icon name={tier.icon} size={18} />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">

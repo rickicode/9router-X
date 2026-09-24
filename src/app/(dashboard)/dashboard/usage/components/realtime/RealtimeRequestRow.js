@@ -5,6 +5,7 @@ import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
 import { cn } from "@/shared/utils/cn";
 import { fmt, TimeAgo } from "./realtimeHelpers";
+import Icon from "@/shared/components/Icon";
 
 export default function RealtimeRequestRow({ req, onOpenError }) {
  const r = req;
@@ -22,9 +23,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  title={`Failed (${r.status || "error"}) - Click to view error`}
  aria-label={`Failed (${r.status || "error"}) - Click to view error`}
  >
- <span className="material-symbols-outlined !text-[18px]">
- close
- </span>
+ <Icon name="close" size={18} />
  </button>
  ) : (
  <span
@@ -122,9 +121,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  onClick={() => onOpenError(r)}
  className="!h-8 !px-2 !text-xs font-medium inline-flex items-center gap-1"
  >
- <span className="material-symbols-outlined !text-[18px]">
- error
- </span>
+ <Icon name="error" size={18} />
  Show Error
  </Button>
  ) : (
@@ -161,9 +158,7 @@ export function RealtimeRequestCardMobile({ req, onOpenError }) {
             {r.model}
           </span>
           {hasError && (
-            <span className="material-symbols-outlined shrink-0 text-[15px] text-danger" aria-hidden="true">
-              error
-            </span>
+            <Icon name="error" size={15} className="shrink-0 text-danger" />
           )}
           <span className="material-symbols-outlined ml-auto shrink-0 text-[15px] text-text-muted" aria-hidden="true">
             {expanded ? "expand_less" : "expand_more"}

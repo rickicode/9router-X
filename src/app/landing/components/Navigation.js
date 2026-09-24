@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "@/shared/components/Icon";
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,7 +45,7 @@ export default function Navigation() {
             className="md:hidden text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            <span className="material-symbols-outlined">{mobileMenuOpen ? "close" : "menu"}</span>
+<Icon name={mobileMenuOpen ? "close" : "menu"} size={18} />
           </button>
         </div>
       </div>

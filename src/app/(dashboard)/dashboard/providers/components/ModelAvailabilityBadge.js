@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
+import Icon from "@/shared/components/Icon";
 
 const STATUS_CONFIG = {
  available: { icon: "check_circle", color: "#22c55e", label: "Available" },
@@ -134,9 +135,7 @@ export default function ModelAvailabilityBadge() {
  className="size-8 rounded-sm hover:bg-surface-2 text-text-muted hover:text-text-main"
  title="Refresh"
  >
- <span className="material-symbols-outlined text-[18px]">
- refresh
- </span>
+ <Icon name="refresh" size={18} />
  </button>
  </div>
 

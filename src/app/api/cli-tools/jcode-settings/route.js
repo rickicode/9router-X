@@ -52,7 +52,7 @@ const hasAxonRouterConfig = (config) => {
   if (providers["axonrouter"] || providers["axonrouter"]) return true;
 
   for (const [name, provider] of Object.entries(providers)) {
-    if (provider.base_url && (provider.base_url.includes("3777") || provider.base_url.includes("10129"))) {
+    if (provider.base_url && (provider.base_url.includes("3777") || provider.base_url.includes("3778"))) {
       return true;
     }
   }

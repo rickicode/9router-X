@@ -13,6 +13,7 @@ import AnalyticsRankings from "./AnalyticsRankings";
 import AnalyticsModelTable from "./AnalyticsModelTable";
 import FailureAnalyticsCard from "./FailureAnalyticsCard";
 import FailureResponseModal from "./FailureResponseModal";
+import Icon from "@/shared/components/Icon";
 
 export default function AnalyticsTab({ period }) {
  const analytics = useAnalytics(period);
@@ -80,9 +81,7 @@ export default function AnalyticsTab({ period }) {
  <div className="flex flex-col gap-1">
  <div className="flex flex-wrap items-center justify-between gap-2">
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-primary text-[18px] shrink-0 inline-flex items-center justify-center">
- monitoring
- </span>
+ <Icon name="monitoring" size={18} className="text-primary shrink-0 inline-flex items-center justify-center" />
  <h2 className="text-sm font-semibold text-text-main">
  Model Analytics
  </h2>
@@ -109,9 +108,7 @@ export default function AnalyticsTab({ period }) {
  padding="lg"
  className="flex items-center justify-center p-3 text-text-muted text-sm"
  >
- <span className="material-symbols-outlined animate-spin mr-2">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="animate-spin mr-2" />
  Loading analytics…
  </Card>
  )}

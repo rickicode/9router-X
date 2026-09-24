@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getComboBadge } from "@/shared/utils/comboBadge";
 import { Card, CardSkeleton, SegmentedControl } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 const PERIODS = [
  { value: "today", label: "Today" },
@@ -314,12 +315,7 @@ export default function ComboAnalyticsTab() {
  {(() => {
  const badge = getComboBadge(c.comboName);
  return (
- <span
- className={`material-symbols-outlined text-[18px] shrink-0 ${badge.text}`}
- title={badge.title}
- >
- {badge.icon}
- </span>
+          <Icon name={badge.icon} size={18} className={`shrink-0 ${badge.text}`} title={badge.title} />
  );
  })()}
  <p className="font-medium text-text-main truncate">{c.comboName}</p>

@@ -3,6 +3,7 @@ import Badge from "@/shared/components/Badge";
 import { cn } from "@/shared/utils/cn";
 import { fmtNumber } from "./analyticsData";
 import { ERROR_METADATA } from "./analyticsConstants";
+import Icon from "@/shared/components/Icon";
 
 export default function AnalyticsErrorDistribution({
  data,
@@ -18,9 +19,7 @@ export default function AnalyticsErrorDistribution({
  >
  {!data.errors.length ? (
  <div className="flex items-center gap-3 p-3 rounded-sm border border-success/30 bg-success/10 text-success">
- <span className="material-symbols-outlined text-[18px]">
- check_circle
- </span>
+ <Icon name="check_circle" size={18} />
  <div>
  <h4 className="font-semibold text-sm">
  Zero Failures Recorded

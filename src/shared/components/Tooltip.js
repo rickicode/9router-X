@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useId, useRef } from "react";
+import Icon from "@/shared/components/Icon";
 
 export default function Tooltip({
  text,
@@ -96,12 +97,7 @@ export default function Tooltip({
  onPointerLeave={() => setDismissed(false)}
  >
  {children || (
- <span
- className="material-symbols-outlined text-[18px] text-text-muted"
- aria-hidden="true"
- >
- help
- </span>
+ <Icon name="help" size={18} className="text-text-muted" />
  )}
  <span
  id={id}

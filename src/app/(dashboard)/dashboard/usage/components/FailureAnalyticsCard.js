@@ -7,6 +7,7 @@ import Button from "@/shared/components/Button";
 import SegmentedControl from "@/shared/components/SegmentedControl";
 import { cn } from "@/shared/utils/cn";
 import FailureResponseModal from "./FailureResponseModal";
+import Icon from "@/shared/components/Icon";
 
 export default function FailureAnalyticsCard({
  data,
@@ -202,9 +203,7 @@ export default function FailureAnalyticsCard({
  <div className="p-3 sm:p-3 border-b border-border bg-surface-2/40 flex flex-wrap items-center justify-between gap-3">
  <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
  <div className="relative w-full">
- <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
- search
- </span>
+ <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none" />
  <input
  type="text"
  value={search}
@@ -242,9 +241,7 @@ export default function FailureAnalyticsCard({
 {/* Content Body */}
  {totalFailures === 0 && viewMode !== "recent" ? (
  <div className="p-3 text-center flex flex-col items-center justify-center gap-2">
- <span className="material-symbols-outlined text-success text-[18px]">
- verified
- </span>
+ <Icon name="verified" size={18} className="text-success" />
  <p className="font-semibold text-sm text-text-main">
  Zero Request Failures Recorded
  </p>
@@ -301,9 +298,7 @@ export default function FailureAnalyticsCard({
  className="w-full min-h-[44px] flex items-center justify-center gap-1.5"
  onClick={() => inspectFailures(m, "model")}
  >
- <span className="material-symbols-outlined text-[18px] text-danger">
- bug_report
- </span>
+ <Icon name="bug_report" size={18} className="text-danger" />
  Inspect Error Responses
  </Button>
  </div>
@@ -377,9 +372,7 @@ export default function FailureAnalyticsCard({
  onClick={() => inspectFailures(m, "model")}
  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-sm border border-danger/30 bg-danger/10 hover:bg-danger/10 text-danger cursor-pointer"
  >
- <span className="material-symbols-outlined text-[18px]">
- bug_report
- </span>
+ <Icon name="bug_report" size={18} />
  View Responses
  </button>
  </td>
@@ -453,9 +446,7 @@ export default function FailureAnalyticsCard({
  className="w-full min-h-[44px] flex items-center justify-center gap-1.5"
  onClick={() => inspectFailures(p, "provider")}
  >
- <span className="material-symbols-outlined text-[18px] text-danger">
- bug_report
- </span>
+ <Icon name="bug_report" size={18} className="text-danger" />
  Inspect Error Responses
  </Button>
  </div>
@@ -540,9 +531,7 @@ export default function FailureAnalyticsCard({
  onClick={() => inspectFailures(p, "provider")}
  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-sm border border-danger/30 bg-danger/10 hover:bg-danger/10 text-danger cursor-pointer"
  >
- <span className="material-symbols-outlined text-[18px]">
- bug_report
- </span>
+ <Icon name="bug_report" size={18} />
  View Responses
  </button>
  </td>
@@ -583,9 +572,7 @@ export default function FailureAnalyticsCard({
 
  {recentLoading ? (
  <div className="p-3 text-center flex flex-col items-center justify-center gap-2 text-text-muted text-xs">
- <span className="material-symbols-outlined animate-spin text-[18px] text-primary">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="animate-spin text-primary" />
  Loading recent failure traces…
  </div>
  ) : !recentFailures.length ? (

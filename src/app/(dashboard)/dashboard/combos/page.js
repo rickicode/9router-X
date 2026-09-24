@@ -45,6 +45,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getComboBadge, isBuiltinCombo } from "@/shared/utils/comboBadge";
+import Icon from "@/shared/components/Icon";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _, ., /
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-/]+$/;
@@ -405,9 +406,7 @@ function CombosContent({ activeTab }) {
         </div>
 
         <div className="relative w-full sm:w-72">
-          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">
-            search
-          </span>
+          <Icon name="search" size={18} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
             placeholder="Search combos or member models..."
@@ -458,9 +457,11 @@ function CombosContent({ activeTab }) {
           {filteredCustom.length === 0 ? (
             <Card>
               <div className="text-center py-8">
-                <span className="material-symbols-outlined text-text-muted text-[28px] mb-2 block">
-                  {searchQuery ? "search_off" : "person"}
-                </span>
+                <Icon
+                  name={searchQuery ? "search_off" : "person"}
+                  size={28}
+                  className="text-text-muted mb-2 block"
+                />
                 <p className="text-text-main font-medium text-xs mb-1">
                   {searchQuery ? "No matching custom combos" : "No custom combos yet"}
                 </p>
@@ -733,7 +734,7 @@ function ComboCard({
             className={`size-9 rounded-md flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`}
             title={badge.title}
           >
-            <span className="material-symbols-outlined text-[20px]">{badge.icon}</span>
+            <Icon name={badge.icon} size={20} />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -808,9 +809,7 @@ function ComboCard({
               selectClassName="h-8 py-0 px-2.5 text-xs font-medium w-full leading-none rounded-sm"
             />
             {isUpdatingStrategy && (
-              <span className="absolute right-8 top-1/2 -translate-y-1/2 text-primary animate-spin material-symbols-outlined text-[14px]">
-                progress_activity
-              </span>
+              <Icon name="progress_activity" size={14} className="absolute right-8 top-1/2 -translate-y-1/2 text-primary animate-spin" />
             )}
           </div>
 
@@ -825,9 +824,7 @@ function ComboCard({
               title="Copy endpoint name"
               aria-label="Copy endpoint name"
             >
-              <span className="material-symbols-outlined text-[17px]">
-                {copied === `combo-${combo.id}` ? "check" : "content_copy"}
-              </span>
+              <Icon name={copied === `combo-${combo.id}` ? "check" : "content_copy"} size={17} />
             </button>
 
             <button
@@ -856,9 +853,7 @@ function ComboCard({
                 className="flex size-8 items-center justify-center rounded-sm border border-border/70 bg-surface text-text-muted hover:border-primary/50 hover:bg-surface-2 hover:text-text-main transition-all ml-0.5 shadow-xs"
                 title={expandedSmartRouting ? "Collapse Smart Routing panel" : "Expand Smart Routing panel"}
               >
-                <span className="material-symbols-outlined text-[17px]">
-                  {expandedSmartRouting ? "expand_less" : "expand_more"}
-                </span>
+                <Icon name={expandedSmartRouting ? "expand_less" : "expand_more"} size={17} />
               </button>
             )}
           </div>
@@ -937,9 +932,7 @@ function ComboCard({
                     <CapacityBadges caps={getCaps?.(model)} />
                   </div>
                   {index < combo.models.length - 1 && (
-                    <span className="text-text-muted/40 material-symbols-outlined text-[16px]">
-                      {isRR ? "sync" : "arrow_forward"}
-                    </span>
+                    <Icon name={isRR ? "sync" : "arrow_forward"} size={16} className="text-text-muted/40" />
                   )}
                 </div>
               ))
@@ -1264,9 +1257,7 @@ function ComboFormModal({
 
             {models.length === 0 ? (
               <div className="text-center py-6 border border-dashed border-border rounded-md bg-surface-2/40">
-                <span className="material-symbols-outlined text-text-muted text-[24px] mb-1 block">
-                  alt_route
-                </span>
+                <Icon name="alt_route" size={24} className="text-text-muted mb-1 block" />
                 <p className="text-xs text-text-muted">No models added yet</p>
               </div>
             ) : (

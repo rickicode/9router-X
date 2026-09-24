@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import Icon from "@/shared/components/Icon";
 
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
@@ -178,12 +179,7 @@ export default function Sidebar({ onClose }) {
           >
             <Icon name="perm_media" size={18} />
             <span className="flex-1 text-left">Media Providers</span>
-            <span 
-              className="material-symbols-outlined text-[18px] transition-transform" 
-              style={{ transform: mediaOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-            >
-              expand_more
-            </span>
+            <Icon name="expand_more" size={18} className="transition-transform" />
           </button>
           
           {mediaOpen && (

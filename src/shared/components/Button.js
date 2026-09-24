@@ -47,7 +47,7 @@ export default function Button({
       {...props}
     >
       {loading ? (
-        <Icon className={cn("material-symbols-outlined animate-spin", size === "xs" ? "text-[15px]" : "text-[18px]")} name="progress_activity" size={18} />
+        <span className={cn("material-symbols-outlined animate-spin", size === "xs" ? "text-[15px]" : "text-[18px]")} aria-hidden="true">progress_activity</span>
       ) : icon ? (
         <span className={cn("material-symbols-outlined", size === "xs" ? "text-[15px]" : "text-[18px]")} aria-hidden="true">{icon}</span>
       ) : null}

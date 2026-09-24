@@ -12,6 +12,7 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { translate } from "@/i18n/runtime";
+import Icon from "@/shared/components/Icon";
 
 const getPageInfo = (pathname) => {
  if (!pathname) return { title: "", description: "", breadcrumbs: [] };
@@ -262,9 +263,7 @@ function HeaderSearch() {
 
  return (
  <div className="relative w-[140px] sm:w-[200px]">
- <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
- search
- </span>
+ <Icon name="search" size={18} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
  <input
  type="text"
  value={query}

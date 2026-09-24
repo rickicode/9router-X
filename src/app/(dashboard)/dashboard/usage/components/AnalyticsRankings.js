@@ -1,6 +1,7 @@
 import Card from "@/shared/components/Card";
 import { cn } from "@/shared/utils/cn";
 import { rankModels, formatMetric } from "./analyticsData";
+import Icon from "@/shared/components/Icon";
 
 export default function AnalyticsRankings({ data, handleSelectModel }) {
  const modes = [
@@ -45,9 +46,7 @@ export default function AnalyticsRankings({ data, handleSelectModel }) {
  >
  {!ranked.length ? (
  <div className="flex items-center gap-2 p-3 rounded-sm border border-dashed border-border text-xs text-text-muted my-2 h-8">
- <span className="material-symbols-outlined text-sm">
- info
- </span>
+ <Icon name="info" size={14} className="text-sm" />
  <span>
  {mode === "failed" ? "Zero failed models" : `Insufficient samples (min. ${data.minSamples})`}
  </span>

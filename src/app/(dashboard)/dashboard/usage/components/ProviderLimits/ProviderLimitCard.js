@@ -6,6 +6,7 @@ import ProviderIcon from "@/shared/components/ProviderIcon";
 import Badge from "@/shared/components/Badge";
 import QuotaProgressBar from "./QuotaProgressBar";
 import { calculatePercentage } from "./utils";
+import Icon from "@/shared/components/Icon";
 
 const planVariants = {
  free: "default",
@@ -95,13 +96,7 @@ export default function ProviderLimitCard({
  className="size-8 rounded-sm hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed"
  title="Refresh quota"
  >
- <span
- className={`material-symbols-outlined text-[18px] text-text-muted ${
- refreshing || loading ? "animate-spin" : ""
- }`}
- >
- refresh
- </span>
+ <Icon name="refresh" size={18} className={`text-text-muted ${ refreshing || loading ? "animate-spin" : "" }`} />
  </button>
  </div>
 
@@ -123,9 +118,7 @@ export default function ProviderLimitCard({
  {!loading && error && (
  <div className="p-3 rounded-sm bg-danger/10 border border-danger/30">
  <div className="flex items-start gap-2">
- <span className="material-symbols-outlined text-danger text-[18px]">
- error
- </span>
+ <Icon name="error" size={18} className="text-danger" />
  <p className="text-sm text-danger">{error}</p>
  </div>
  </div>
@@ -135,9 +128,7 @@ export default function ProviderLimitCard({
  {!loading && !error && message && (
  <div className="p-3 rounded-sm bg-primary/10 border border-primary/30">
  <div className="flex items-start gap-2">
- <span className="material-symbols-outlined text-primary text-[18px]">
- info
- </span>
+ <Icon name="info" size={18} className="text-primary" />
  <p className="text-sm text-primary">
  {message}
  </p>
@@ -175,9 +166,7 @@ export default function ProviderLimitCard({
  {/* Empty State */}
  {!loading && !error && !message && quotas?.length === 0 && (
  <div className="text-center py-3 text-text-muted">
- <span className="material-symbols-outlined text-[48px] text-text-muted">
- data_usage
- </span>
+ <Icon name="data_usage" size={48} className="text-text-muted" />
  <p className="text-sm mt-2">No quota data available</p>
  </div>
  )}

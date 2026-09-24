@@ -7,6 +7,7 @@ import { translate } from "@/i18n/runtime";
 const NoAuthProxyCard = dynamic(() => import("@/shared/components/NoAuthProxyCard"), { ssr: false, loading: () => <div className="flex flex-col gap-3"><div className="h-40 animate-pulse rounded-sm bg-surface-2" /></div> });
 const Modal = dynamic(() => import("@/shared/components/Modal"), { ssr: false, loading: () => null });
 import { getPaginationItems } from "./utils";
+import Icon from "@/shared/components/Icon";
 
 function ConnectionsCardHeader({
  connections, proxyPools, providerStrategy, oneByOneRunning, oneByOneStopping,
@@ -69,9 +70,7 @@ function SearchFilterBar({ connectionSearch, setConnectionSearch, connectionPage
  return (
  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3 ">
  <div className="relative flex-1 max-w-sm">
- <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
- search
- </span>
+ <Icon name="search" size={18} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
         <input
           type="text" value={connectionSearch}
           onChange={(e) => {

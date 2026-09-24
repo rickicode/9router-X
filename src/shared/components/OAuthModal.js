@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import Icon from "@/shared/components/Icon";
 
 // Providers using the dynamic-port local callback proxy.
 // Browser OAuth: popup → auto callback → auto exchange → poll-status.
@@ -837,9 +838,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
  <>
  {/* Option A: Auto via popup */}
  <div className="flex items-center gap-2 px-3 h-8 border border-border rounded-sm bg-sidebar/50">
- <span className="material-symbols-outlined text-sm text-primary animate-spin">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={14} className="text-sm text-primary animate-spin" />
  <span className="text-sm">
  {isXaiProvider ? "Waiting for Grok Build OAuth…" : "Waiting for popup authorization…"}
  </span>

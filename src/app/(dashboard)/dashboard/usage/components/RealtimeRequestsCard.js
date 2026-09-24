@@ -8,6 +8,7 @@ import { cn } from "@/shared/utils/cn";
 import RealtimeRequestRow, { RealtimeRequestCardMobile } from "./realtime/RealtimeRequestRow";
 import ActiveRequestsModal from "./realtime/ActiveRequestsModal";
 import RequestErrorModal from "./realtime/RequestErrorModal";
+import Icon from "@/shared/components/Icon";
 
 // Live traffic appends without bound; a phone cannot scroll an unbounded list.
 const MOBILE_ROW_CAP = 10;
@@ -169,9 +170,7 @@ export default function RealtimeRequestsCard({
  onClick={() => setShowActiveModal(true)}
  className="font-medium inline-flex items-center gap-1"
  >
- <span className="material-symbols-outlined !text-[18px]">
- visibility
- </span>
+ <Icon name="visibility" size={18} />
  View Details
  </Button>
  </div>

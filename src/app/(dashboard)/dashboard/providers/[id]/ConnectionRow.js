@@ -6,6 +6,7 @@ import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import CooldownTimer from "./CooldownTimer";
+import Icon from "@/shared/components/Icon";
 
 export default function ConnectionRow({ connection, proxyPools, proxyGroups = null, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, onResetStatus = null, onUnlockModel = null, oneByOneStatus = null, autoPing = null }) {
  const [showProxyDropdown, setShowProxyDropdown] = useState(false);
@@ -752,9 +753,7 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  disabled={resettingStatus}
  className="flex flex-col items-center rounded-sm px-2 py-1 text-warning hover:bg-warning/10"
  >
- <span className={`material-symbols-outlined text-[18px] ${resettingStatus ? "animate-spin" : ""}`}>
- restart_alt
- </span>
+ <Icon name="restart_alt" size={18} className={`${resettingStatus ? "animate-spin" : ""}`} />
  <span className="text-[11px]">Reset</span>
  </button>
  </Tooltip>

@@ -11,6 +11,7 @@ import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
 import { canonicalModelId } from "@/shared/constants/canonicalModels";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
 import { getComboBadge } from "@/shared/utils/comboBadge";
+import Icon from "@/shared/components/Icon";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
 const PROVIDER_ORDER = [
@@ -563,9 +564,7 @@ export default function ModelSelectModal({
  {/* Search + provider filter */}
  <div className="mb-3 flex flex-col gap-2">
  <div className="relative">
- <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">
- search
- </span>
+ <Icon name="search" size={18} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
  <input
  type="text"
  placeholder="Search models or providers (e.g. gpt, ocz, openrouter)..."
@@ -795,9 +794,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
 
  {Object.keys(filteredGroups).length === 0 && filteredCombos.length === 0 && (
  <div className="text-center py-3 text-text-muted">
- <span className="material-symbols-outlined text-[18px] mb-1 block">
- search_off
- </span>
+ <Icon name="search_off" size={18} className="mb-1 block" />
  <p className="text-xs">No models found</p>
  </div>
  )}

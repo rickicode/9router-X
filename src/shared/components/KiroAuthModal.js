@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 /**
  * Kiro Auth Method Selection Modal
@@ -474,9 +475,7 @@ export default function KiroAuthModal({ isOpen, onMethodSelect, onClose }) {
  {autoDetecting && (
  <div className="text-center py-3">
  <div className="size-16 mx-auto mb-3 rounded-sm bg-primary/10 flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px] text-primary animate-spin">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="text-primary animate-spin" />
  </div>
  <h3 className="text-sm font-semibold mb-2">Auto-detecting token...</h3>
  <p className="text-sm text-text-muted">

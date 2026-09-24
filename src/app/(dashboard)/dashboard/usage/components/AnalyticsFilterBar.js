@@ -9,6 +9,7 @@ import {
   defaultTimeBucket,
 } from "./analyticsData";
 import { ERROR_METADATA } from "./analyticsConstants";
+import Icon from "@/shared/components/Icon";
 
 export default function AnalyticsFilterBar({ analytics, period }) {
   const {
@@ -66,9 +67,7 @@ export default function AnalyticsFilterBar({ analytics, period }) {
 
         {/* Granularity Dropdown */}
         <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-sm border border-border bg-surface text-xs hover:border-border-subtle focus-within:border-primary transition-colors shrink-0">
-          <span className="material-symbols-outlined text-[16px] text-text-muted shrink-0" aria-hidden="true">
-            schedule
-          </span>
+          <Icon name="schedule" size={16} className="text-text-muted shrink-0" />
           <select
             value={timeBucket}
             onChange={(e) => setTimeBucket(e.target.value)}
@@ -86,9 +85,7 @@ export default function AnalyticsFilterBar({ analytics, period }) {
 
         {/* Auto Refresh Dropdown */}
         <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-sm border border-border bg-surface text-xs hover:border-border-subtle focus-within:border-primary transition-colors shrink-0">
-          <span className="material-symbols-outlined text-[16px] text-text-muted shrink-0" aria-hidden="true">
-            timer
-          </span>
+          <Icon name="timer" size={16} className="text-text-muted shrink-0" />
           <select
             value={autoRefreshInterval}
             onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, SegmentedControl } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 const STATUS_CONFIG = {
   passed: { label: "Passed", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
@@ -124,9 +125,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center gap-1">
                     <span>Model</span>
                     {sortField === "model" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>
@@ -139,9 +138,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center gap-1">
                     <span>Status / Code</span>
                     {sortField === "status" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>
@@ -154,9 +151,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center justify-end gap-1">
                     <span>Quality</span>
                     {sortField === "score" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>
@@ -168,9 +163,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center justify-end gap-1">
                     <span>TTFT</span>
                     {sortField === "ttft" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>
@@ -182,9 +175,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center justify-end gap-1">
                     <span>Latency</span>
                     {sortField === "total" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>
@@ -196,9 +187,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <div className="flex items-center justify-end gap-1">
                     <span>Speed</span>
                     {sortField === "tps" ? (
-                      <span className="material-symbols-outlined text-xs">
-                        {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                      </span>
+                      <Icon name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />
                     ) : null}
                   </div>
                 </th>

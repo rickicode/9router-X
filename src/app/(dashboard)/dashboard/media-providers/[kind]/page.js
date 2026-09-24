@@ -8,6 +8,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 import { getComboBadge } from "@/shared/utils/comboBadge";
+import Icon from "@/shared/components/Icon";
 
 // Kinds that support combos (currently disabled for image/tts — temporarily hidden).
 // webSearch/webFetch handled by /web page.
@@ -121,7 +122,7 @@ function ComboList({ combos }) {
  <Card padding="xs" className="hover:bg-surface-2 cursor-pointer">
  <div className="flex min-w-0 items-center gap-3">
  <div className={`size-8 rounded-sm flex items-center justify-center shrink-0 border ${badge.border} ${badge.bg} ${badge.text}`} title={badge.title}>
- <span className="material-symbols-outlined text-[18px]">{badge.icon}</span>
+<Icon name={badge.icon} size={18} />
  </div>
  <code className="text-sm font-mono font-medium flex-1 truncate">{combo.name}</code>
  <div className="flex flex-wrap items-center gap-1 sm:shrink-0">

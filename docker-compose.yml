@@ -16,14 +16,14 @@ services:
     mem_limit: 2g
     memswap_limit: 2g
     ports:
-      - "10129:10129"
+      - "3778:3778"
     volumes:
       - 9router-data:/app/data
     env_file:
       - .env
     environment:
       DATA_DIR: /app/data
-      GATEWAY_PORT: "10129"
+      GATEWAY_PORT: "3778"
       GATEWAY_WORKERS: "4"
       HOSTNAME: "0.0.0.0"
       TZ: Asia/Jakarta
@@ -37,7 +37,7 @@ services:
         max-size: "50m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:10129/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3778/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       start_period: 30s

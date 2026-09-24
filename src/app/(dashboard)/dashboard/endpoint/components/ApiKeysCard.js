@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Card, Button, Input, Modal, Toggle, ConfirmModal } from "@/shared/components";
 import SecurityWarning from "./SecurityWarning";
+import Icon from "@/shared/components/Icon";
 
 export default function ApiKeysCard({
  keys,
@@ -115,9 +116,7 @@ export default function ApiKeysCard({
         aria-label={isExpanded ? "Collapse API Keys details" : "Expand API Keys details"}
         aria-expanded={isExpanded}
       >
-        <span className="material-symbols-outlined text-[18px] transition-transform" aria-hidden="true">
-          {isExpanded ? "expand_less" : "expand_more"}
-        </span>
+<Icon name={isExpanded ? "expand_less" : "expand_more"} size={18} className="transition-transform" />
       </button>
     </div>
   );
@@ -200,9 +199,7 @@ export default function ApiKeysCard({
                   className="size-11 sm:size-9 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none flex items-center justify-center"
  aria-label={visibleKeys.has(key.id) ? `Hide key for ${key.name}` : `Show key for ${key.name}`}
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
- {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
- </span>
+<Icon name={visibleKeys.has(key.id) ? "visibility_off" : "visibility"} size={18} />
  </button>
  <button
  type="button"
@@ -210,9 +207,7 @@ export default function ApiKeysCard({
                   className="size-11 sm:size-9 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary focus-visible:outline-none flex items-center justify-center"
  aria-label={copied === key.id ? "Copied" : `Copy API key ${key.name}`}
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
- {copied === key.id ? "check" : "content_copy"}
- </span>
+<Icon name={copied === key.id ? "check" : "content_copy"} size={18} />
  </button>
  </div>
  <p className="text-[11px] text-text-muted font-mono mt-1">

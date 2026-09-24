@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
+import Icon from "@/shared/components/Icon";
 
 const fmt = (n) => new Intl.NumberFormat("en-US").format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
@@ -187,9 +188,7 @@ export default function UsageTable({
  className="w-full flex items-center justify-between text-left gap-2 py-1 cursor-pointer"
  >
  <div className="flex items-center gap-2 min-w-0">
- <span className={`material-symbols-outlined text-[18px] text-text-muted transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`}>
- chevron_right
- </span>
+ <Icon name="chevron_right" size={18} className={`text-text-muted transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`} />
  <span className={`font-semibold text-xs truncate ${group.summary.pending > 0 ? "text-primary" : "text-text-main"}`}>
  {group.groupKey}
  </span>
@@ -322,9 +321,7 @@ export default function UsageTable({
  >
  <th scope="row" className="px-3 sm:px-3 h-8 sm:py-3 font-normal text-left text-xs font-medium text-text-muted">
  <div className="flex items-center gap-2">
- <span className={`material-symbols-outlined text-[18px] text-text-muted transition-transform ${expanded.has(group.groupKey) ? "rotate-90" : ""}`}>
- chevron_right
- </span>
+ <Icon name="chevron_right" size={18} className={`text-text-muted transition-transform ${expanded.has(group.groupKey) ? "rotate-90" : ""}`} />
  <span className={`font-medium ${group.summary.pending > 0 ? "text-primary" : ""}`}>
  {group.groupKey}
  </span>

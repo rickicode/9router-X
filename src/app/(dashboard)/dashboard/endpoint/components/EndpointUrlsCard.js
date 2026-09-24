@@ -2,6 +2,7 @@
 
 import PropTypes from "prop-types";
 import { Card, Button, Badge } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 export default function EndpointUrlsCard({
   baseUrl,
@@ -35,9 +36,7 @@ export default function EndpointUrlsCard({
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-                    bolt
-                  </span>
+                  <Icon name="bolt" size={20} />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -46,7 +45,7 @@ export default function EndpointUrlsCard({
                     </h4>
                   </div>
                   <p className="text-[11px] font-mono text-text-muted">
-                    Port 10129 · High Performance
+                    Port 3778 · High Performance
                   </p>
                 </div>
               </div>
@@ -90,9 +89,7 @@ export default function EndpointUrlsCard({
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-3 text-text-muted border border-border">
-                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-                  dns
-                </span>
+                <Icon name="dns" size={20} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">

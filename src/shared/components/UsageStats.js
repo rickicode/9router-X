@@ -20,6 +20,7 @@ import OverviewCards from "@/app/(dashboard)/dashboard/usage/components/Overview
 import UsageTable, { fmt, fmtTime } from "@/app/(dashboard)/dashboard/usage/components/UsageTable";
 import dynamic from "next/dynamic";
 import RealtimeRequestsCard from "@/app/(dashboard)/dashboard/usage/components/RealtimeRequestsCard";
+import Icon from "@/shared/components/Icon";
 
 // Lazy-load: keeps @xyflow/react and recharts out of the initial bundle to optimize LCP
 const ProviderTopology = dynamic(
@@ -28,9 +29,7 @@ const ProviderTopology = dynamic(
  ssr: false,
  loading: () => (
  <div className="flex h-[320px] w-full min-w-0 items-center justify-center rounded-sm border border-border bg-surface-2 sm:h-[480px]">
- <span className="material-symbols-outlined text-[32px] animate-spin text-text-muted">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={32} className="animate-spin text-text-muted" />
  </div>
  ),
  }
@@ -42,9 +41,7 @@ const UsageChart = dynamic(
  ssr: false,
  loading: () => (
  <Card className="flex h-72 min-w-0 items-center justify-center p-3">
- <span className="material-symbols-outlined text-[32px] animate-spin text-text-muted">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={32} className="animate-spin text-text-muted" />
  </Card>
  ),
  }
@@ -721,12 +718,7 @@ export default function UsageStats({
  className="flex items-center justify-center py-3 text-text-muted"
  >
  <span className="sr-only">Loading usage statistics</span>
- <span
- aria-hidden="true"
- className="material-symbols-outlined text-[32px] animate-spin"
- >
- progress_activity
- </span>
+ <Icon name="progress_activity" size={32} className="animate-spin" />
  </div>
  );
 
@@ -763,12 +755,7 @@ export default function UsageStats({
   </div>
  {fetching && (
  <span role="status" aria-label="Refreshing usage data">
- <span
- aria-hidden="true"
- className="material-symbols-outlined text-[18px] text-text-muted animate-spin"
- >
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="text-text-muted animate-spin" />
  </span>
  )}
  </div>

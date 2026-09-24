@@ -4,6 +4,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, Button, Toggle, ModelSelectModal, CapacityBadges } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
+import Icon from "@/shared/components/Icon";
 
 const CAPACITY_ADAPTER_CAPS = [
   {
@@ -113,7 +114,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg border ${cap.color}`}>
-            <span className="material-symbols-outlined text-[22px]">{cap.icon}</span>
+            <Icon name={cap.icon} size={22} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">

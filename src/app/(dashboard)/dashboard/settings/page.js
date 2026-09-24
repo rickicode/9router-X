@@ -9,6 +9,7 @@ import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
 import { LOCALE_FLAGS } from "@/shared/constants/locales";
+import Icon from "@/shared/components/Icon";
 
 function memoryLine(m) {
  if (!m) return "";
@@ -815,9 +816,10 @@ export default function ProfilePage() {
  : "text-text-muted hover:text-text-main"
  )}
  >
- <span className="material-symbols-outlined text-[18px]">
- {option === "light" ? "light_mode" : option === "dark" ? "dark_mode" : "contrast"}
- </span>
+<Icon
+  name={option === "light" ? "light_mode" : option === "dark" ? "dark_mode" : "contrast"}
+  size={18}
+/>
  <span className="capitalize text-xs sm:text-sm">{option}</span>
  </button>
  ))}
@@ -1001,9 +1003,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  : "Optional SSO via Okta, Entra ID, Keycloak, or OIDC"}
  </p>
  </div>
- <span className="material-symbols-outlined text-text-muted shrink-0">
- {oidcExpanded ? "expand_less" : "expand_more"}
- </span>
+<Icon name={oidcExpanded ? "expand_less" : "expand_more"} className="text-text-muted shrink-0" />
  </button>
  {oidcExpanded && (
  <div className="flex flex-col gap-3 mt-4">
@@ -1112,12 +1112,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  </p>
  </div>
  </div>
- <span
- className="material-symbols-outlined text-text-muted transition-transform text-[18px]"
- style={{ transform: showSamlGuide ? "rotate(180deg)" : "none" }}
- >
- expand_more
- </span>
+ <Icon name="expand_more" size={18} className="text-text-muted transition-transform" />
  </button>
 
  {showSamlGuide && (

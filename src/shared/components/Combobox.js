@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useId, useCallback } from "react";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function Combobox({
  id,
@@ -288,9 +289,7 @@ export default function Combobox({
  {/* Right action icons (Loading / Clear / Chevron) */}
  <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-0.5">
  {loading && (
- <span className="material-symbols-outlined text-[18px] text-text-muted animate-spin mr-1">
- progress_activity
- </span>
+ <Icon name="progress_activity" size={18} className="text-text-muted animate-spin mr-1" />
  )}
 
  {clearable && Boolean(value) && !disabled && (
@@ -301,9 +300,7 @@ export default function Combobox({
  tabIndex={-1}
  className="size-8 text-text-muted hover:text-text-main rounded-sm hover:bg-surface-2 cursor-pointer"
  >
- <span className="material-symbols-outlined text-[18px] block">
- close
- </span>
+ <Icon name="close" size={18} className="block" />
  </button>
  )}
 
@@ -377,9 +374,7 @@ export default function Combobox({
  {opt.icon}
  </span>
  ) : opt.isCustom ? (
- <span className="material-symbols-outlined text-[18px] text-primary shrink-0">
- edit_note
- </span>
+ <Icon name="edit_note" size={18} className="text-primary shrink-0" />
  ) : null}
 
  <div className="flex flex-col min-w-0">
@@ -399,9 +394,7 @@ export default function Combobox({
  </span>
  )}
  {isSelected && (
- <span className="material-symbols-outlined text-primary text-[18px]">
- check
- </span>
+ <Icon name="check" size={18} className="text-primary" />
  )}
  </div>
  </li>
