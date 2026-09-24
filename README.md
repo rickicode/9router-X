@@ -7,7 +7,7 @@
   
   **Connect all AI coding tools (Claude Code, Cursor, Codex, OpenClaw, Antigravity, Copilot, Cline...) to 40+ providers with PostgreSQL 17 concurrency, Valkey/Redis L2 caching, and zero file-lock bottlenecks.**
 
-  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter.svg?style=flat)](https://github.com/rickicode/axonrouter)
+  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter.svg?style=flat)](https://github.com/rickicode/9router-X)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
   [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_17-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![Valkey](https://img.shields.io/badge/Cache-Valkey_8_%2F_Redis_7+-CC0000?logo=redis&logoColor=white)](https://valkey.io/)
@@ -21,7 +21,9 @@
 
 ## ⚡ AxonRouter vs AxonRouter Original
 
-AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/axonrouter](https://github.com/decolua/axonrouter). While the original project targets single-user desktop tray setups with embedded SQLite, AxonRouter is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
+AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/9router (9Router)](https://github.com/decolua/9router) — originally maintained here as [rickicode/9router-X](https://github.com/rickicode/9router-X) before the full rebrand. While the upstream 9Router targets single-user desktop tray setups with embedded SQLite, AxonRouter is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
+
+> **Fork lineage:** `decolua/9router` (upstream) → `rickicode/9router-X` (this fork's legacy name; the legacy 9router-x Docker stack in `docker-compose.9router-x.yml` keeps that identity for backward compatibility) → **AxonRouter** (current brand, ports 3777/3778, PostgreSQL 17 SSOT).
 
 | Architectural Component | AxonRouter Original (Upstream) | AxonRouter (Enterprise Edition) |
 |---|---|---|
@@ -103,7 +105,7 @@ The all-in-one Docker Compose stack orchestrates:
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/rickicode/axonrouter.git
+git clone https://github.com/rickicode/9router-X.git
 cd axonrouter
 
 cp .env.example .env
@@ -346,7 +348,7 @@ Point your client to model `production-stack`. AxonRouter automatically traverse
 Running without Docker requires external PostgreSQL 17 and Valkey/Redis instances accessible locally.
 
 ```bash
-git clone https://github.com/rickicode/axonrouter.git
+git clone https://github.com/rickicode/9router-X.git
 cd axonrouter
 
 cp .env.example .env
@@ -413,7 +415,7 @@ curl http://localhost:3777/v1/models \
 
 AxonRouter is built upon outstanding open-source projects:
 
-- **[decolua/axonrouter](https://github.com/decolua/axonrouter)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
+- **[decolua/9router](https://github.com/decolua/9router)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
 - **[RTK](https://github.com/rtk-ai/rtk)** — High-efficiency lossless token-saver algorithm.
 - **[Headroom](https://github.com/chopratejas/headroom)** — Context compression proxy for large conversation histories.
 - **[Caveman](https://github.com/JuliusBrussee/caveman)** by [@JuliusBrussee](https://github.com/JuliusBrussee) — Concise prompt efficiency methodology.
