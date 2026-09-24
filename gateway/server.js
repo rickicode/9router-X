@@ -46,10 +46,17 @@ async function getCliToken() {
   return cliToken;
 }
 
-function extractApiKey(req) {
-  const auth = req.header("Authorization");
-  if (auth?.startsWith("Bearer ")) return auth.slice(7);
-  return req.header("x-api-key") || req.header("x-goog-api-key") || req.query("key") || null;
+function extractApiKey(c) {
+  const auth = c.req.header("Authorization") || c.req.raw.headers.get("authorization");
+  if (auth?.startsWith("Bearer ")) return auth.slice(7).trim();
+  const apiKey = c.req.header("x-api-key") || c.req.header("x-goog-api-key");
+  if (apiKey) return apiKey.trim();
+  try {
+    const url = new URL(c.req.url);
+    return url.searchParams.get("key") || null;
+  } catch {
+    return null;
+  }
 }
 
 async function canAccessPublicLlmApi(c) {
