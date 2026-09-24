@@ -7,7 +7,7 @@
   
   **Connect all AI coding tools (Claude Code, Cursor, Codex, OpenClaw, Antigravity, Copilot, Cline...) to 40+ providers with PostgreSQL 17 concurrency, Valkey/Redis L2 caching, and zero file-lock bottlenecks.**
 
-  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter.svg?style=flat)](https://github.com/rickicode/9router-X)
+  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/9router-X.svg?style=flat)](https://github.com/rickicode/9router-X)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
   [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_17-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![Valkey](https://img.shields.io/badge/Cache-Valkey_8_%2F_Redis_7+-CC0000?logo=redis&logoColor=white)](https://valkey.io/)
