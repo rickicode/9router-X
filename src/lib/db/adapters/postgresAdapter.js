@@ -12,9 +12,11 @@ if (!global._pgSql) {
     // Tunable to match MAX_CONCURRENT_UPSTREAM: a 128-wide upstream semaphore
     // behind a 25-connection pool queues inside the DB layer at peak.
     max: Number(process.env.PG_POOL_MAX) || 25,
-    idle_timeout: 10,
-    connect_timeout: 5,
-    max_lifetime: 60 * 10,
+    // Remote DB (e.g. Neon): keep TLS sessions warm — PG_IDLE_TIMEOUT covers
+    // neon auto-suspend; PG_MAX_LIFETIME bounds connection churn.
+    idle_timeout: Number(process.env.PG_IDLE_TIMEOUT) || 10,
+    connect_timeout: Number(process.env.PG_CONNECT_TIMEOUT) || 5,
+    max_lifetime: Number(process.env.PG_MAX_LIFETIME) || 60 * 10,
     types: {
       numeric: {
         to: 0,
