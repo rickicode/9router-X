@@ -3,7 +3,7 @@
   
   # AxonRouter — Enterprise-Grade AI Routing Gateway & Token Optimizer
   
-  **Never stop coding. Save 20-40% tokens with RTK + Headroom context compression + auto-fallback to FREE & cheap AI models.**
+  **Never stop coding. Save 20-40% tokens with built-in RTK context compression (+ optional external Headroom sidecar) + auto-fallback to FREE & cheap AI models.**
   
   **Connect all AI coding tools (Claude Code, Cursor, Codex, OpenClaw, Antigravity, Copilot, Cline...) to 40+ providers with PostgreSQL 17 concurrency, Valkey/Redis L2 caching, and zero file-lock bottlenecks.**
 
@@ -46,7 +46,7 @@ AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/9router (9R
 | **Load Balancing & Account Rotation** | Strict sequential fallback | **Optimistic Fair-Share Balancing + Jitter** — prevents burst rate-limit bans across multiple provider accounts |
 | **Quota Cooldown Behavior** | 3-day permanent freeze upon quota exhaustion | **Smart 24-Hour Cooldown Cap** — auto-recovers on rolling quotas without manual unfreeze interventions |
 | **Client Error Isolation** | Client-side 4xx errors could freeze upstream accounts | **Strict Error Isolation** — client 400/404/413 errors never trigger provider account lockout |
-| **Token Optimization Pipeline** | Local RTK tool-result compression only | **RTK + Headroom Sidecar Support** — automated context compression for OpenAI, Claude, Kiro, and Codex |
+| **Token Optimization Pipeline** | Local RTK tool-result compression only | **Built-in RTK compression (enabled by default)** + optional external Headroom sidecar support — automated context compression for OpenAI, Claude, Kiro, and Codex |
 | **Migration & Backup Compatibility** | SQLite-only backup | **Bi-Directional Migration** — seamless import of official AxonRouter backup JSON into PostgreSQL |
 | **Target Deployment** | Local Node/Bun Desktop CLI tray | **Containerized All-in-One Docker Stack** (Gateway + PostgreSQL + Valkey + Headroom) |
 
@@ -88,7 +88,8 @@ The public LLM API (`/v1/*`) runs in a **dedicated Hono gateway process** (`axon
 
 **AxonRouter solves this:**
 
-- ✅ **Dual Token Savers (RTK + Headroom)** — Cut tool outputs (20-40%) and compress conversational context on the fly
+- ✅ **RTK Token Compression (built-in, default-on)** — Cuts tool outputs 12-40% in-flight (`dedup-log`, `grep`, `find`, `ls` filters) with zero external dependency
+- ✅ **External Headroom Sidecar (optional)** — Conversational-context compaction for heavy long-session workloads; runs as a separate service outside the stack, wired via settings — off unless you deploy it
 - ✅ **PostgreSQL 17 Backend** — Handle hundreds of concurrent agent requests without locked database errors
 - ✅ **Valkey/Redis Speed Layer** — Cache cooldown states and coordinate token refreshes across instances
 - ✅ **Automated 3-Tier Fallback** — Subscription $\rightarrow$ Cheap $\rightarrow$ Free with zero coding interruptions
@@ -108,7 +109,7 @@ The public LLM API (`/v1/*`) runs in a **dedicated Hono gateway process** (`axon
 ┌─────────────────────────────────────────────────────────────┐
 │ AxonRouter Gateway Engine (Next.js 16 Standalone)            │
 │  • RTK Token Compression (in-flight tool_result filter)     │
-│  • Headroom Sidecar Proxy (context window compaction)       │
+│  • External Headroom sidecar support (optional, off by default) │
 │  • Format Translation (OpenAI ↔ Claude ↔ Gemini ↔ Codex)    │
 │  • Fair-Share Account Balancing & Cooldown Management       │
 └──────────────┬──────────────────────────────┬───────────────┘
@@ -137,7 +138,7 @@ The all-in-one Docker Compose stack orchestrates:
 - **axonrouter-web** (Gateway & Dashboard): `http://localhost:3777`
 - **postgres** (PostgreSQL 17 with healthcheck): port `5432`
 - **redis** (Valkey 8 / Redis compatible): port `6381` mapped to internal `6379`
-- **headroom** (LLM Context Compression Proxy): `http://localhost:8787`
+- **(optional) external Headroom sidecar** — NOT part of the stack; deploy separately if you need conversational-context compaction
 
 ### 1. Clone & Configure
 
@@ -163,7 +164,6 @@ docker compose up -d --build
 
 ### 3. Open Dashboards
 - **AxonRouter Dashboard**: `http://localhost:3777/dashboard`
-- **Headroom Dashboard**: `http://localhost:8787/dashboard` (API docs: `http://localhost:8787/docs`)
 
 ### 4. Connect a Provider & Code
 1. Open `http://localhost:3777/dashboard` $\rightarrow$ **Providers**.
@@ -268,7 +268,7 @@ AxonRouter integrates with all major AI development tools:
 | 🐘 **PostgreSQL 17 ACID Backend** | Multi-connection pooling with monthly log partitioning | Eliminates SQLite lock contention during parallel agent calls |
 | ⚡ **Valkey 8 / Redis L2 Layer** | Distributed TTL cache for provider cooldowns and OAuth locks | Instant recovery, persistent state across server restarts |
 | 🚀 **RTK Token Saver** | Compresses tool outputs (`git diff`, `grep`, `ls`, logs) before LLM | **Saves 20-40% prompt tokens** per request |
-| 🧠 **Headroom Token Saver** | Automates conversation context compression via sidecar proxy | Preserves long conversation memory with smaller context footprints |
+| 🧠 **External Headroom Sidecar** (optional) | Conversational-context compression via separately-deployed proxy | Off by default — enable if you run Headroom externally |
 | 🪨 **Caveman Mode** | Injects concise-prompt instructions while keeping technical fidelity | **Saves up to 65% output tokens** |
 | 🐴 **Ponytail** | Injects pragmatic senior-dev rules (stdlib first, YAGNI) | Shorter code diffs and fewer output tokens |
 | 🎯 **Smart 3-Tier Fallback** | Auto-fallback: Subscription $\rightarrow$ Cheap $\rightarrow$ Free | Prevents interruptions when quotas run out |
@@ -442,7 +442,8 @@ curl http://localhost:3777/v1/models \
 - **App Framework**: Next.js 16 (App Router + Standalone Output)
 - **Primary Database**: PostgreSQL 17 (Connection Pool, Partitioned History)
 - **Speed Layer & Cache**: Valkey 8 / Redis 7+
-- **Context Optimizer**: Headroom AI Sidecar Proxy (Python FastAPI)
+- **API Gateway**: Hono on `@hono/node-server`, Node cluster (1 worker per CPU), fully separated from the dashboard process
+- **Context Optimizer**: Built-in RTK compression; optional external Headroom sidecar (Python FastAPI, deployed separately)
 - **Frontend UI**: React 19 + Tailwind CSS 4
 - **Streaming Engine**: Server-Sent Events (SSE) protocol translator
 
@@ -454,7 +455,7 @@ AxonRouter is built upon outstanding open-source projects:
 
 - **[decolua/9router](https://github.com/decolua/9router)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
 - **[RTK](https://github.com/rtk-ai/rtk)** — High-efficiency lossless token-saver algorithm.
-- **[Headroom](https://github.com/chopratejas/headroom)** — Context compression proxy for large conversation histories.
+- **[Headroom](https://github.com/chopratejas/headroom)** — Context compression proxy for large conversation histories (optional external sidecar integration).
 - **[Caveman](https://github.com/JuliusBrussee/caveman)** by [@JuliusBrussee](https://github.com/JuliusBrussee) — Concise prompt efficiency methodology.
 - **[Ponytail](https://github.com/DietrichGebert/ponytail)** by [@DietrichGebert](https://github.com/DietrichGebert) — Minimalist senior developer prompting heuristics.
 - **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** — Early architecture inspiration for CLI AI proxies.
