@@ -110,7 +110,7 @@ export default function Modal({
               type="button"
               onClick={onClose}
               aria-label="Close dialog"
-              className="size-11 -mr-2 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="size-10 -mr-2 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
             </button>

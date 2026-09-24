@@ -186,8 +186,8 @@ export default function DashboardLayout({ children }) {
  >
  {/* Faint grid background */}
  <Header key={pathname} onMenuClick={handleOpenMenu} />
- <div className={`flex-1 overflow-y-auto custom-scrollbar ${pathname === "/dashboard/basic-chat" ? "" : "p-3 lg:p-3"} ${pathname === "/dashboard/basic-chat" ? "flex flex-col overflow-hidden" : ""}`}>
- <div className={`${pathname === "/dashboard/basic-chat" ? "flex-1 w-full h-full flex flex-col" : "w-full"}`}>{children}</div>
+ <div className="flex-1 overflow-y-auto custom-scrollbar p-3 lg:p-3">
+ <div className="w-full">{children}</div>
  </div>
  </main>
  </div>

@@ -12,10 +12,10 @@ const variants = {
 };
 
 const sizes = {
-  xs: "h-11 min-w-11 px-2 text-xs gap-1.5 rounded-sm sm:h-7 sm:min-w-7",
-  sm: "h-11 min-w-11 px-3 text-xs sm:h-10 sm:min-w-10 sm:px-2.5",
-  md: "h-11 min-w-11 px-3 text-sm",
-  lg: "h-12 px-4 text-sm",
+  xs: "h-10 min-w-10 px-2 text-xs gap-1.5 sm:h-7 sm:min-w-7",
+  sm: "h-10 min-w-10 px-3 text-xs sm:px-2.5",
+  md: "h-10 min-w-10 px-3 text-sm",
+  lg: "h-11 px-4 text-sm",
 };
 
 export default function Button({
@@ -35,7 +35,7 @@ export default function Button({
     <button
       type={type}
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium",
+        "inline-flex items-center justify-center gap-2 font-medium rounded-sm",
         "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         "disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],

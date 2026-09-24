@@ -64,13 +64,11 @@ const PROTECTED_API_PATHS = [
   "/api/pricing",
   "/api/tags",
   "/api/cli-tools",
-  "/api/mcp",
 ];
 
 // Routes that spawn child processes or read host secrets — restrict to localhost.
 const LOCAL_ONLY_PATHS = [
   "/api/cli-tools/cowork-settings",
-  "/api/mcp/",
   "/api/oauth/cursor/auto-import",
   "/api/oauth/kiro/auto-import",
   "/api/auth/reset-password",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Input } from "@/shared/components";
+import { Button, Input, Modal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, active, onRefresh, onInspect }) {
@@ -44,15 +44,6 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
     }
   }, [logEntries.length, open, logAutoScroll]);
 
-  // ESC key listener
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
 
   const scrollToBottom = () => {
     if (logScrollRef.current) {
@@ -60,46 +51,39 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
     }
   };
 
-  return open ? (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-      onClick={onClose}
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title="Live Benchmark Execution Logs"
+      size="full"
+      footer={
+        <div className="flex w-full items-center justify-between gap-3">
+          <span className="text-xs text-text-muted">
+            Total recorded: {attempts.length} attempts
+          </span>
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      }
     >
-      <div
-        className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="log-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
-          <div>
-            <h3 id="log-modal-title" className="font-bold text-text-main text-base flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">terminal</span>
-              <span>Live Benchmark Execution Logs</span>
-              {isJobRunning ? (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold animate-pulse">
-                  <span className="inline-block size-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  LIVE
-                </span>
-              ) : null}
-            </h3>
-            <p className="text-xs text-text-muted mt-0.5">
-              {logEntries.length} of {attempts.length} logs · {active?.progress?.phase || active?.status || "Idle"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="size-11 sm:size-8 shrink-0 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-            aria-label="Close logs modal"
-          >
-            <span className="material-symbols-outlined text-xl leading-none">close</span>
-          </button>
+      <div className="space-y-3">
+        {/* Live meta */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+          {isJobRunning ? (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold animate-pulse">
+              <span className="inline-block size-1.5 rounded-full bg-emerald-400 animate-ping" />
+              LIVE
+            </span>
+          ) : null}
+          <span>
+            {logEntries.length} of {attempts.length} logs · {active?.progress?.phase || active?.status || "Idle"}
+          </span>
         </div>
 
         {/* Filter bar: search + suite + auto-scroll */}
-        <div className="px-6 py-3 border-b border-border bg-surface flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-border pb-3">
           <div className="flex-1 min-w-[200px]">
             <Input
               placeholder="Search in log payloads, models, errors..."
@@ -116,7 +100,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                 key={st}
                 type="button"
                 onClick={() => setLogSuiteFilter(st)}
-                className={`px-2.5 py-1 text-xs rounded font-medium uppercase transition-colors min-h-11 sm:min-h-0 sm:py-1 ${
+                className={`px-2.5 py-1 text-xs rounded font-medium uppercase transition-colors min-h-10 sm:min-h-0 sm:py-1 ${
                   logSuiteFilter === st
                     ? "bg-primary text-white font-semibold"
                     : "bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text-main"
@@ -153,7 +137,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
         {/* Log Viewer Container */}
         <div
           ref={logScrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs bg-bg/95 custom-scrollbar"
+          className="max-h-[60vh] overflow-y-auto p-3 space-y-2 font-mono text-xs bg-bg/95 custom-scrollbar rounded-sm border border-border"
         >
           {logEntries.map((row) => {
             const isPassed = row.status === "passed";
@@ -295,16 +279,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
           ) : null}
         </div>
 
-        {/* Modal Footer */}
-        <div className="border-t border-border px-6 py-3 bg-surface-3 flex items-center justify-between">
-          <span className="text-xs text-text-muted">
-            Total recorded: {attempts.length} attempts
-          </span>
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
       </div>
-    </div>
-  ) : null;
+    </Modal>
+  );
 }

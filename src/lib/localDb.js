@@ -1,7 +1,7 @@
 // Shim → re-export from PostgreSQL DB layer (src/lib/db/)
 // Kept for backward compatibility with existing imports.
 export {
-  getSettings, updateSettings, isCloudEnabled, getCloudUrl,
+  getSettings, updateSettings,
   getProviderConnections, countProviderConnections, getProviderConnectionById, getProviderSummaryStats,
   setProviderConnectionsActive, setConnectionsActiveByIds,
   getProxyPoolBoundCounts, countProxyPoolBoundConnections,
@@ -30,7 +30,6 @@ export {
   createCombo, updateCombo, deleteCombo,
   getModelAliases, setModelAlias, deleteModelAlias,
   getCustomModels, addCustomModel, deleteCustomModel,
-  getMitmAlias, setMitmAliasAll,
   getPricing, getPricingForModel, updatePricing, resetPricing, resetAllPricing,
   exportDb, importDb,
 } from "@/lib/db/index.js";

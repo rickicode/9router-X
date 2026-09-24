@@ -208,7 +208,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
  <button
  type="button"
  onClick={onMenuClick}
- className="flex size-11 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main lg:hidden"
+className="flex size-10 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main lg:hidden"
  aria-label="Open navigation"
  >
  <span className="material-symbols-outlined text-[18px]">menu</span>

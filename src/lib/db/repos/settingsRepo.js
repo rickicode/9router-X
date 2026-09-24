@@ -3,12 +3,6 @@ import { parseJson } from "../helpers/jsonCol.js";
 
 
 const DEFAULT_SETTINGS = {
-  cloudEnabled: false,
-  tunnelEnabled: false,
-  tunnelUrl: "",
-  tunnelProvider: "cloudflare",
-  tailscaleEnabled: false,
-  tailscaleUrl: "",
   stickyRoundRobinLimit: 3,
   providerStrategies: {},
   quotaVisibility: {},
@@ -112,16 +106,6 @@ export async function updateSettings(updates) {
   cachedSettings = next;
   cachedSettingsExpiresAt = Date.now() + SETTINGS_CACHE_TTL_MS;
   return mergeWithDefaults(next);
-}
-
-export async function isCloudEnabled() {
-  const settings = await getSettings();
-  return settings.cloudEnabled === true;
-}
-
-export async function getCloudUrl() {
-  const settings = await getSettings();
-  return settings.cloudUrl || process.env.CLOUD_URL || process.env.NEXT_PUBLIC_CLOUD_URL || "";
 }
 
 export async function exportSettings() {

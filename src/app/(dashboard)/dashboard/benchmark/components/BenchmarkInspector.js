@@ -1,21 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge, Button } from "@/shared/components";
+import { Badge, Button, Modal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function BenchmarkInspector({ attempt, onClose }) {
   const { copied, copy } = useCopyToClipboard();
-
-  // ESC key listener
-  useEffect(() => {
-    if (!attempt) return;
-    const handler = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [attempt, onClose]);
 
   if (!attempt) return null;
 
@@ -34,56 +23,45 @@ export default function BenchmarkInspector({ attempt, onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-      onClick={onClose}
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={attempt.model}
+      size="full"
+      footer={
+        <Button size="sm" variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+      }
     >
-      <div
-        className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="inspector-modal-title"
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
-          <div className="min-w-0 pr-3">
-            <div className="flex items-center gap-2.5 font-bold text-text-main text-base flex-wrap">
-              <span id="inspector-modal-title" className="truncate">{attempt.model}</span>
-              <Badge variant={getBadgeVariant(attempt.status)}>
-                {attempt.status?.toUpperCase()}
-              </Badge>
-              {attempt.http_status ? (
-                <span
-                  className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                    attempt.http_status === 200
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                      : attempt.http_status === 429
-                      ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
-                      : "border-rose-500/30 bg-rose-500/10 text-rose-400"
-                  }`}
-                >
-                  HTTP {attempt.http_status}
-                </span>
-              ) : null}
-            </div>
-            <div className="text-xs text-text-muted mt-1 font-mono truncate">
-              Suite: <span className="font-semibold uppercase text-text-main">{attempt.suite}</span> (Rep {attempt.rep || 1}) · Account:{" "}
-              <span>{attempt.account_name || attempt.connection_id || "-"}</span>
-              {attempt.format ? ` · Format: ${attempt.format.toUpperCase()}` : ""}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="size-11 sm:size-8 shrink-0 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-            aria-label="Close attempt inspector"
-          >
-            <span className="material-symbols-outlined text-xl leading-none">close</span>
-          </button>
+      <div className="space-y-4 text-xs font-mono">
+        {/* Status & Meta */}
+        <div className="flex flex-wrap items-center gap-2 font-bold text-text-main text-sm">
+          <Badge variant={getBadgeVariant(attempt.status)}>
+            {attempt.status?.toUpperCase()}
+          </Badge>
+          {attempt.http_status ? (
+            <span
+              className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                attempt.http_status === 200
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                  : attempt.http_status === 429
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                  : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+              }`}
+            >
+              HTTP {attempt.http_status}
+            </span>
+          ) : null}
+        </div>
+        <div className="text-xs text-text-muted font-mono truncate -mt-2">
+          Suite: <span className="font-semibold uppercase text-text-main">{attempt.suite}</span> (Rep {attempt.rep || 1}) · Account:{" "}
+          <span>{attempt.account_name || attempt.connection_id || "-"}</span>
+          {attempt.format ? ` · Format: ${attempt.format.toUpperCase()}` : ""}
         </div>
 
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs font-mono bg-surface custom-scrollbar">
+        {/* Body */}
+        <div className="space-y-4">
           {/* Telemetry Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="rounded-lg border border-border bg-surface-3 p-2.5">
@@ -163,14 +141,7 @@ export default function BenchmarkInspector({ attempt, onClose }) {
             </pre>
           </div>
         </div>
-
-        {/* Modal Footer */}
-        <div className="border-t border-border px-6 py-3.5 bg-surface-3 flex justify-end">
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

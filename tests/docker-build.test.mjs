@@ -8,27 +8,19 @@ const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8
 const runtime = dockerfile.split('AS runtime-deps\n')[1]?.split('FROM runtime-deps AS runner')[0];
 const runner = dockerfile.split('FROM runtime-deps AS runner')[1];
 
-test('runtime installers stay independent of app source and build output', () => {
+test('runtime deps stay independent of app source and build output', () => {
   assert.ok(runtime, 'runtime-deps stage exists');
   assert.doesNotMatch(runtime, /^COPY|--from=builder/m);
-  assert.equal((runtime.match(/^RUN /gm) || []).length, 2, 'separate utility and Devin cache layers');
+  assert.equal((runtime.match(/^RUN /gm) || []).length, 1, 'single utility layer');
   assert.match(runtime, /gosu curl tar ca-certificates iptables/);
-  assert.match(runtime, /\/usr\/local\/bin\/devin/);
-  assert.doesNotMatch(runner, /apt-get|https:\/\/static\.devin\.ai/);
+  assert.doesNotMatch(runtime, /devin|tailscale|cloudflared/i);
 });
 
-test('Devin manifest parsing fails closed instead of hiding pipeline errors', () => {
-  assert.match(runtime, /JSON\.parse/);
-  assert.match(runtime, /m\.platforms\?\.\["x86_64-unknown-linux"\]\?\.url/);
-  assert.match(runtime, /if \(!url\) throw new Error/);
-  assert.match(runtime, /--retry 3 --connect-timeout 30 --max-time 300/);
-  assert.doesNotMatch(runtime, /\|\s*(grep|xargs|tar)/);
-});
-
-test('runtime entrypoint, health check, traced dependencies and npm cache remain', () => {
-  for (const path of ['public', '.next/static', '.next/standalone', 'custom-server.js', 'open-sse', 'src/mitm', 'node_modules/node-forge', 'node_modules/next', 'node_modules/node-machine-id']) {
+test('runner entrypoint, health check, traced dependencies and npm cache remain', () => {
+  for (const path of ['public', '.next/static', '.next/standalone', 'custom-server.js', 'open-sse', 'node_modules/next', 'node_modules/node-machine-id']) {
     assert.ok(runner.includes(`COPY --from=builder /app/${path} `), path);
   }
+  assert.doesNotMatch(runner, /src\/mitm|node-forge/);
   assert.match(runner, /ENTRYPOINT \["\/entrypoint\.sh"\]/);
   assert.match(runner, /EXPOSE 10128/);
   assert.match(runner, /127\.0\.0\.1:10128\/api\/health/);

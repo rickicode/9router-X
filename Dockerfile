@@ -13,14 +13,7 @@ COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
   npm ci
 
-COPY . ./
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-
-# Network-heavy runtime tools are independent of application sources/build output.
-# Keep each installer separate so a failed download can reuse completed layers.
-# Refresh moving Tailscale/Devin releases explicitly with:
-# docker buildx build --no-cache-filter runtime-deps --load -t 9router .
+# Runtime tools are independent of application sources/build output.
 FROM ${NODE_IMAGE} AS runtime-deps
 WORKDIR /app
 

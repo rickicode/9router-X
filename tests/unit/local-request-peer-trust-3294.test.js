@@ -156,7 +156,7 @@ describe("peer header trust", () => {
   it("blocks spoofed local-only routes that would otherwise spawn processes", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(request("/api/mcp/filesystem/sse", {
+    const response = await proxy(request("/api/oauth/kiro/auto-import", {
       host: "172.18.192.1:20140",
       "x-9r-real-ip": "127.0.0.1",
     }));

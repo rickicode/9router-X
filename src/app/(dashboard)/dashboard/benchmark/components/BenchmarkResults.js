@@ -105,15 +105,15 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
               placeholder="Filter results..."
               value={searchTableQuery}
               onChange={(e) => setSearchTableQuery(e.target.value)}
-              className="w-full rounded-sm border border-border bg-surface px-3 min-h-11 sm:min-h-8 sm:h-8 text-xs text-text-main focus:border-primary focus:outline-none placeholder:text-text-muted"
+              className="w-full rounded-sm border border-border bg-surface px-3 min-h-10 sm:min-h-8 sm:h-8 text-xs text-text-main focus:border-primary focus:outline-none placeholder:text-text-muted"
             />
           </div>
         </div>
 
         {/* Data Table */}
         <div className="overflow-x-auto max-h-[560px] custom-scrollbar">
-          <table className="w-full text-left text-sm" aria-label="Benchmark execution attempts">
-            <thead className="sticky top-0 bg-surface z-10 text-xs text-text-muted border-b border-border select-none">
+          <table className="data-table w-full text-left text-sm" aria-label="Benchmark execution attempts">
+            <thead className="sticky top-0 z-10 text-xs text-text-muted select-none">
               <tr>
                 <th scope="col" className="py-2.5 px-3">Account</th>
                 <th
@@ -205,7 +205,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                 <th scope="col" className="py-2.5 px-3 text-center">Inspect</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-xs font-mono">
+            <tbody className="text-xs font-mono">
               {displayedAttempts.map((row) => {
                 const conf = STATUS_CONFIG[row.status] || {
                   label: row.status || "Unknown",
@@ -215,7 +215,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                   <tr
                     key={row.id}
                     onClick={() => onInspect(row)}
-                    className="hover:bg-surface-2 transition-colors cursor-pointer group"
+                    className="cursor-pointer group"
                   >
                     {/* Account */}
                     <td className="py-2.5 px-3 text-text-muted truncate max-w-[120px]">
@@ -314,7 +314,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                           e.stopPropagation();
                           onInspect(row);
                         }}
-                        className="inline-flex size-11 sm:size-8 items-center justify-center rounded-sm text-text-muted hover:text-primary hover:bg-surface-3 transition-colors"
+                        className="inline-flex size-10 sm:size-8 items-center justify-center rounded-sm text-text-muted hover:text-primary hover:bg-surface-3 transition-colors"
                         title="Inspect attempt details"
                         aria-label="Inspect attempt details"
                       >

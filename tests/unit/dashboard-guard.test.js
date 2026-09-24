@@ -228,7 +228,7 @@ describe("dashboard guard local-only access", () => {
   });
 
   it("rejects local-only route from non-loopback host without CLI token", async () => {
-    const response = await proxy(request("/api/mcp/filesystem/sse", {
+    const response = await proxy(request("/api/oauth/kiro/auto-import", {
       host: "router.example.com",
     }));
 
@@ -237,7 +237,7 @@ describe("dashboard guard local-only access", () => {
   });
 
   it("rejects local-only route on loopback when requireLogin=true and no JWT", async () => {
-    const response = await proxy(localRequest("/api/mcp/filesystem/sse", {
+    const response = await proxy(localRequest("/api/oauth/kiro/auto-import", {
       host: "localhost:10128",
       origin: "http://localhost:10128",
     }));
@@ -249,7 +249,7 @@ describe("dashboard guard local-only access", () => {
   it("allows local-only route on loopback when requireLogin=false", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(localRequest("/api/cli-tools/antigravity-mitm", {
+    const response = await proxy(localRequest("/api/cli-tools/cowork-settings", {
       host: "localhost:10128",
       origin: "http://localhost:10128",
     }));
@@ -260,7 +260,7 @@ describe("dashboard guard local-only access", () => {
   it("rejects local-only route from tunnel host even when requireLogin=false", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(request("/api/cli-tools/antigravity-mitm", {
+    const response = await proxy(request("/api/oauth/kiro/auto-import", {
       host: "router.example.com",
     }));
 
@@ -270,7 +270,7 @@ describe("dashboard guard local-only access", () => {
   it("rejects local-only route when Origin is non-loopback (CSRF block)", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(localRequest("/api/cli-tools/antigravity-mitm", {
+    const response = await proxy(localRequest("/api/oauth/kiro/auto-import", {
       host: "localhost:10128",
       origin: "http://evil.example.com",
     }));
@@ -279,7 +279,7 @@ describe("dashboard guard local-only access", () => {
   });
 
   it("allows local-only route with valid CLI token", async () => {
-    const response = await proxy(request("/api/mcp/filesystem/sse", {
+    const response = await proxy(request("/api/oauth/kiro/auto-import", {
       host: "router.example.com",
       "x-9r-cli-token": "cli-token",
     }));
@@ -291,7 +291,7 @@ describe("dashboard guard local-only access", () => {
     mocks.verifyDashboardAuthToken.mockResolvedValue(true);
 
     const response = await proxy({
-      ...request("/api/tunnel/tailscale-check", {
+      ...request("/api/oauth/kiro/auto-import", {
         "x-9r-peer-token": PEER_TOKEN,
         "x-9r-real-ip": "192.168.90.101",
         host: "192.168.90.101:10128",
@@ -307,7 +307,7 @@ describe("dashboard guard local-only access", () => {
     mocks.verifyDashboardAuthToken.mockResolvedValue(true);
 
     const response = await proxy({
-      ...request("/api/tunnel/enable", {
+      ...request("/api/oauth/kiro/auto-import", {
         "x-9r-peer-token": PEER_TOKEN,
         "x-9r-real-ip": "172.20.0.1",
         host: "192.168.90.101:10128",
@@ -323,7 +323,7 @@ describe("dashboard guard local-only access", () => {
     mocks.verifyDashboardAuthToken.mockResolvedValue(false);
 
     const response = await proxy({
-      ...request("/api/tunnel/enable", {
+      ...request("/api/oauth/kiro/auto-import", {
         "x-9r-peer-token": PEER_TOKEN,
         "x-9r-real-ip": "192.168.90.101",
         host: "192.168.90.101:10128",
@@ -339,7 +339,7 @@ describe("dashboard guard local-only access", () => {
     mocks.verifyDashboardAuthToken.mockResolvedValue(true);
 
     const response = await proxy({
-      ...request("/api/tunnel/enable", {
+      ...request("/api/oauth/kiro/auto-import", {
         "x-9r-peer-token": PEER_TOKEN,
         "x-9r-real-ip": "127.0.0.1",
         "x-9r-via-proxy": "1",

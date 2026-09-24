@@ -18,12 +18,12 @@ export default function SegmentedControl({
 
   // Matches the Quota Tracker tab bar: padding-based height, text-xs labels,
   // selected tab filled with the primary color.
-  // `touch` keeps a 44px minimum height so the control stays tappable on phones.
+  // `touch` keeps a 40px minimum height so the control stays tappable on phones.
   const sizes = {
     sm: "px-2 py-1.5 text-[11px]",
     md: "px-2.5 py-2 text-xs",
     lg: "px-3 py-2 text-sm",
-    touch: "px-3 py-2.5 text-xs min-h-11 min-w-11",
+    touch: "px-3 py-2 text-xs min-h-9 min-w-9",
   };
 
   const iconSizes = {

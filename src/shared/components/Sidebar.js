@@ -63,7 +63,7 @@ export default function Sidebar({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="size-11 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
+            className="size-10 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
             aria-label="Close navigation sidebar"
           >
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>

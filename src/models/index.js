@@ -2,8 +2,6 @@
 export {
   getSettings,
   updateSettings,
-  isCloudEnabled,
-  getCloudUrl,
   getProviderConnections,
   countProviderConnections,
   getProviderConnectionById,
@@ -68,8 +66,6 @@ export {
   getCustomModels,
   addCustomModel,
   deleteCustomModel,
-  getMitmAlias,
-  setMitmAliasAll,
   getPricing,
   getPricingForModel,
   updatePricing,

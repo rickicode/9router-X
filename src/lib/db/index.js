@@ -4,7 +4,7 @@ import { parseJson } from "./helpers/jsonCol.js";
 
 // Settings
 export {
-  getSettings, updateSettings, isCloudEnabled, getCloudUrl, exportSettings,
+  getSettings, updateSettings, exportSettings,
 } from "./repos/settingsRepo.js";
 
 // Provider connections
@@ -60,7 +60,6 @@ export {
 export {
   getModelAliases, setModelAlias, deleteModelAlias,
   getCustomModels, addCustomModel, deleteCustomModel,
-  getMitmAlias, setMitmAliasAll,
 } from "./repos/aliasRepo.js";
 
 // Pricing

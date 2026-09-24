@@ -102,12 +102,3 @@ export async function addCustomModel({ providerAlias, id, type = "llm", name, ca
 export async function deleteCustomModel({ providerAlias, id, type = "llm" }) {
   await removeValue(CUSTOM_MODELS_SCOPE, customKey(providerAlias, id, type));
 }
-
-export async function getMitmAlias(toolName) {
-  if (toolName) return (await getValue(MITM_ALIAS_SCOPE, toolName, {})) || {};
-  return await getAll(MITM_ALIAS_SCOPE);
-}
-
-export async function setMitmAliasAll(toolName, mappings) {
-  await setValue(MITM_ALIAS_SCOPE, toolName, mappings || {});
-}

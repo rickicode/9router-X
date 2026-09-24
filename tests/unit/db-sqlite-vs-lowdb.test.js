@@ -40,13 +40,6 @@ describe.skip("DB SQLite layer — public API parity (legacy sqlite)", () => {
     expect(re.customField).toBe("x");
   });
 
-  it("isCloudEnabled reflects settings", async () => {
-    await sqliteDb.updateSettings({ cloudEnabled: true });
-    expect(await sqliteDb.isCloudEnabled()).toBe(true);
-    await sqliteDb.updateSettings({ cloudEnabled: false });
-    expect(await sqliteDb.isCloudEnabled()).toBe(false);
-  });
-
   it("apiKeys: create/get/validate/delete", async () => {
     const k = await sqliteDb.createApiKey("test-key", "machine-abc");
     expect(k.id).toBeDefined();
@@ -270,14 +263,6 @@ describe.skip("DB SQLite layer — public API parity (legacy sqlite)", () => {
     await sqliteDb.deleteCustomModel({ providerAlias: "p1", id: "m1" });
     const after = await sqliteDb.getCustomModels();
     expect(after.find((m) => m.id === "m1")).toBeUndefined();
-  });
-
-  it("mitmAlias: get/set per tool", async () => {
-    await sqliteDb.setMitmAliasAll("cursor", { "gpt-5": "claude-3" });
-    const a = await sqliteDb.getMitmAlias("cursor");
-    expect(a["gpt-5"]).toBe("claude-3");
-    const all = await sqliteDb.getMitmAlias();
-    expect(all.cursor).toEqual({ "gpt-5": "claude-3" });
   });
 
   it("disabledModels: add/remove per provider", async () => {

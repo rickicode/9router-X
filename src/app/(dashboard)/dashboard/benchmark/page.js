@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Card, Combobox, ConfirmModal, Input, Modal } from "@/shared/components";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Badge, Button, Card, Combobox, ConfirmModal, Input, Modal, SegmentedControl } from "@/shared/components";
 import BenchmarkResults from "./components/BenchmarkResults";
 import BenchmarkLogs from "./components/BenchmarkLogs";
 import BenchmarkInspector from "./components/BenchmarkInspector";
@@ -30,7 +31,64 @@ const MODEL_PRESETS = [
   { id: "clear", label: "Clear Selection", icon: "clear_all" },
 ];
 
+const TABS = [
+  { value: "configure", label: "Configure" },
+  { value: "results", label: "Results" },
+  { value: "history", label: "History" },
+];
+
+const TAB_COPY = {
+  configure: {
+    title: "Benchmark Configuration",
+    body: "Pick the test suites, target models, and reviewer judge, then run the benchmark against your gateway.",
+  },
+  results: {
+    title: "Benchmark Results",
+    body: "Live run progress, per-attempt results, and today's median performance across every tested model.",
+  },
+  history: {
+    title: "Execution History",
+    body: "Past benchmark runs with retention controls and on-demand AI advisor evaluation.",
+  },
+};
+
 export default function BenchmarkPage() {
+  return (
+    <Suspense fallback={null}>
+      <BenchmarkContent />
+    </Suspense>
+  );
+}
+
+function BenchmarkContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabFromUrl = searchParams.get("tab");
+  const activeTab =
+    tabFromUrl && ["configure", "results", "history"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "configure";
+  const handleTabChange = (value) => {
+    if (value === activeTab) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", value);
+    router.push(`/dashboard/benchmark?${params.toString()}`, { scroll: false });
+  };
+  const copy = TAB_COPY[activeTab];
+  const tabsRef = useRef(null);
+
+  // Keep the active tab visible in the scrollable strip (same as usage page).
+  useEffect(() => {
+    const strip = tabsRef.current;
+    if (!strip) return;
+    const active = strip.querySelector('[data-active="true"]');
+    if (!active) return;
+    const left = active.offsetLeft;
+    const right = left + active.offsetWidth;
+    if (left < strip.scrollLeft || right > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollLeft = Math.max(0, left - 8);
+    }
+  }, [activeTab]);
   // 1. Build catalog of providers with LLM models
   const catalog = useMemo(() => {
     return Object.values(AI_PROVIDERS)
@@ -244,24 +302,6 @@ export default function BenchmarkPage() {
       .catch(() => {});
   }, []);
 
-  // Modal ESC key listeners
-  useEffect(() => {
-    if (!isPickerModalOpen) return;
-    const handler = (e) => {
-      if (e.key === "Escape") setIsPickerModalOpen(false);
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isPickerModalOpen]);
-
-  useEffect(() => {
-    if (!isReviewerModalOpen) return;
-    const handler = (e) => {
-      if (e.key === "Escape") setIsReviewerModalOpen(false);
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isReviewerModalOpen]);
 
   function toggleSuite(suiteId) {
     setSuites((prev) => (prev.includes(suiteId) ? prev.filter((s) => s !== suiteId) : [...prev, suiteId]));
@@ -396,6 +436,7 @@ export default function BenchmarkPage() {
 
   // Execute benchmark
   async function executeBenchmark() {
+    handleTabChange("results");
     setShowRunConfirmModal(false);
     setError("");
     setStarting(true);
@@ -548,21 +589,12 @@ export default function BenchmarkPage() {
   }, [selectedModelIds.size, suites]);
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-24">
+    <div className="flex min-w-0 flex-col gap-4">
       {/* ─── Page Header ─── */}
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="min-w-0 max-w-2xl">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-2xl text-primary" aria-hidden="true">
-              speed
-            </span>
-            <h1 className="text-base font-semibold tracking-tight text-text-main sm:text-lg">
-              AI Model Benchmark
-            </h1>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-text-muted">
-            Measure latency, liveness, throughput, and functional capability across all configured model endpoints directly on the 9Router gateway.
-          </p>
+          <h1 className="text-base font-semibold tracking-tight text-text-main">{copy.title}</h1>
+          <p className="mt-1.5 text-xs leading-relaxed text-text-muted">{copy.body}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -579,18 +611,43 @@ export default function BenchmarkPage() {
         </div>
       </div>
 
+      {/* Sticky control bar: mirrors the usage page so the active view stays
+          reachable instead of scrolling off in a long page. */}
+      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+        <div
+          ref={tabsRef}
+          className="tab-scroll-fade w-full min-w-0 overflow-x-auto no-scrollbar"
+        >
+          <SegmentedControl
+            options={TABS}
+            value={activeTab}
+            onChange={handleTabChange}
+            size="touch"
+            snap
+            className="w-full min-w-max sm:w-auto"
+          />
+        </div>
+      </div>
+
       {error ? (
         <div className="rounded-sm border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base">error</span>
             <span>{error}</span>
           </div>
-          <button onClick={() => setError("")} className="size-11 sm:size-8 shrink-0 flex items-center justify-center text-rose-400 hover:text-rose-300">
-            <span className="material-symbols-outlined text-base">close</span>
-          </button>
+          <Button
+            size="xs"
+            variant="ghost"
+            icon="close"
+            onClick={() => setError("")}
+            aria-label="Dismiss error"
+            className="shrink-0"
+          />
         </div>
       ) : null}
 
+      {activeTab === "configure" && (
+        <>
       {/* ─── Suite & Reviewer Configuration Card ─── */}
       <Card
         title="Suite & Reviewer Configuration"
@@ -690,7 +747,7 @@ export default function BenchmarkPage() {
                       key={p.id}
                       type="button"
                       onClick={() => setReviewer(p.id)}
-                      className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors min-h-11 sm:min-h-0 sm:py-0.5 ${
+                      className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors min-h-10 sm:min-h-0 sm:py-0.5 ${
                         reviewer === p.id
                           ? "border-primary bg-primary/10 text-primary font-medium"
                           : "border-border bg-surface-2 hover:bg-surface-3 text-text-muted"
@@ -762,7 +819,7 @@ export default function BenchmarkPage() {
                 key={p.id}
                 type="button"
                 onClick={() => applyModelPreset(p.id)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-border bg-surface text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors min-h-11 sm:min-h-0 sm:py-1 text-xs"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-border bg-surface text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors min-h-10 sm:min-h-0 sm:py-1 text-xs"
               >
                 <span className="material-symbols-outlined text-[15px]">{p.icon}</span>
                 <span>{p.label}</span>
@@ -804,19 +861,19 @@ export default function BenchmarkPage() {
                         <span className="text-xs text-primary font-medium hidden sm:inline">
                           {isExpanded ? "Hide models" : "View models"}
                         </span>
-                        <button
-                          type="button"
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          icon="delete"
                           onClick={(e) => {
                             e.stopPropagation();
                             removeWholeProvider(provider.id);
                           }}
-                          className="text-xs text-text-muted hover:text-rose-400 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-rose-500/10 min-h-11 sm:min-h-0"
                           title={`Remove all models from ${provider.name}`}
                           aria-label={`Remove all models from ${provider.name}`}
                         >
-                          <span className="material-symbols-outlined text-sm leading-none">delete</span>
                           <span className="hidden sm:inline">Remove</span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -873,6 +930,11 @@ export default function BenchmarkPage() {
           )}
         </div>
       </Card>
+        </>
+      )}
+
+      {activeTab === "results" && (
+        <>
 
       {/* ─── Active Job Live Progress Card ─── */}
       {active ? (
@@ -1022,26 +1084,28 @@ export default function BenchmarkPage() {
         title="Daily Performance Trends (Median Quality & Latency)"
         subtitle="Aggregated median performance metrics from test attempts executed today (00:00 - now)"
         icon="leaderboard"
+        padding="none"
+        className="overflow-hidden"
       >
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left text-sm" aria-label="Daily benchmark metrics">
-            <thead className="text-xs text-text-muted border-b border-border">
+        <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="data-table data-table-sticky-first w-full min-w-[760px] text-left text-xs" aria-label="Daily benchmark metrics">
+            <thead className="text-xs text-text-muted">
               <tr>
-                <th scope="col" className="py-2.5 px-3">Model</th>
-                <th scope="col" className="py-2.5 px-3">PONG Gate (Passed/Total)</th>
-                <th scope="col" className="py-2.5 px-3 text-right">Median Quality</th>
-                <th scope="col" className="py-2.5 px-3 text-right">Median TTFT</th>
-                <th scope="col" className="py-2.5 px-3 text-right">Median Latency</th>
+                <th scope="col" className="h-8 px-3 text-left">Model</th>
+                <th scope="col" className="h-8 px-3 text-left">PONG Gate (Passed/Total)</th>
+                <th scope="col" className="h-8 px-3 text-right">Median Quality</th>
+                <th scope="col" className="h-8 px-3 text-right">Median TTFT</th>
+                <th scope="col" className="h-8 px-3 text-right">Median Latency</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-xs">
+            <tbody className="text-xs">
               {daily.map((row) => (
-                <tr key={`${row.provider}-${row.model}`} className="hover:bg-surface-2 transition-colors">
+                <tr key={`${row.provider}-${row.model}`}>
                   <td className="py-2 px-3 font-medium text-text-main">{row.model}</td>
                   <td className="py-2 px-3">
                     {row.pong_total ? (
                       <span className="inline-flex items-center gap-1 font-mono">
-                        <span className={row.pong_passed === row.pong_total ? "text-emerald-400 font-semibold" : "text-amber-400"}>
+                        <span className={row.pong_passed === row.pong_total ? "text-success font-semibold" : "text-warning"}>
                           {row.pong_passed}/{row.pong_total}
                         </span>
                         <span className="text-[10px] text-text-muted">
@@ -1057,10 +1121,10 @@ export default function BenchmarkPage() {
                       <span
                         className={
                           row.median_score >= 80
-                            ? "text-emerald-400"
+                            ? "text-success"
                             : row.median_score >= 50
-                            ? "text-amber-400"
-                            : "text-rose-400"
+                            ? "text-warning"
+                            : "text-danger"
                         }
                       >
                         {row.median_score}
@@ -1088,6 +1152,11 @@ export default function BenchmarkPage() {
           </table>
         </div>
       </Card>
+        </>
+      )}
+
+      {activeTab === "history" && (
+        <>
 
       {/* ─── Execution History & AI Advisor ─── */}
       <Card
@@ -1109,7 +1178,7 @@ export default function BenchmarkPage() {
       >
         <div className="space-y-3">
           {/* Retention Setting Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-border bg-surface-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-sm border border-border bg-surface-2 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="material-symbols-outlined text-base text-text-muted" aria-hidden="true">
                 auto_delete
@@ -1127,7 +1196,7 @@ export default function BenchmarkPage() {
             </div>
             <div className="flex items-center gap-2">
               {savedRetentionToast ? (
-                <span className="text-emerald-400 font-medium">Saved!</span>
+                <span className="text-success font-medium">Saved!</span>
               ) : null}
               <Button size="xs" variant="secondary" onClick={handleSaveRetention}>
                 Save Retention
@@ -1136,7 +1205,7 @@ export default function BenchmarkPage() {
           </div>
 
           {/* History List */}
-          <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+          <div className="divide-y divide-border border border-border rounded-sm overflow-hidden">
             {jobs.map((job) => {
               const isSelected = selectedHistoryJobs.includes(job.id);
               const isCurrent = active?.id === job.id;
@@ -1165,6 +1234,7 @@ export default function BenchmarkPage() {
                       onClick={() => {
                         activeIdRef.current = job.id;
                         refresh(job.id);
+                        handleTabChange("results");
                       }}
                       className="flex flex-1 items-center justify-between gap-3 text-left min-w-0"
                     >
@@ -1184,35 +1254,36 @@ export default function BenchmarkPage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`px-2 py-0.5 rounded border text-[10px] font-semibold uppercase ${
+                        <Badge
+                          variant={
                             job.status === "completed"
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                              : job.status === "running"
-                              ? "border-amber-500/20 bg-amber-500/10 text-amber-400 animate-pulse"
+                              ? "success"
+                              : job.status === "running" || job.status === "queued"
+                              ? "warning"
                               : job.status === "cancelled"
-                              ? "border-orange-500/20 bg-orange-500/10 text-orange-400"
-                              : "border-border bg-surface-3 text-text-muted"
-                          }`}
+                              ? "default"
+                              : "error"
+                          }
+                          className={`uppercase ${job.status === "running" || job.status === "queued" ? "animate-pulse" : ""}`}
                         >
                           {job.status}
-                        </span>
+                        </Badge>
                       </div>
                     </button>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon="delete"
                     onClick={(e) => {
                       e.stopPropagation();
                       setConfirmDeleteJobId(job.id);
                     }}
-                    className="size-11 sm:size-8 flex items-center justify-center text-text-muted hover:text-rose-400 hover:bg-surface-3 rounded transition-colors shrink-0"
                     title="Delete benchmark record"
                     aria-label="Delete benchmark record"
-                  >
-                    <span className="material-symbols-outlined text-base">delete</span>
-                  </button>
+                    className="shrink-0"
+                  />
                 </div>
               );
             })}
@@ -1225,349 +1296,307 @@ export default function BenchmarkPage() {
           </div>
         </div>
       </Card>
+        </>
+      )}
 
       {/* ─── Modal 1: Model Catalog Picker ─── */}
-      {isPickerModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={() => setIsPickerModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="picker-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
-              <div>
-                <h3 id="picker-modal-title" className="font-bold text-text-main text-base flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">dns</span>
-                  <span>Select Benchmark Target Models</span>
-                </h3>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Select the models you want to evaluate, then click Apply Selection.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsPickerModalOpen(false)}
-                className="size-11 sm:size-8 shrink-0 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                aria-label="Close model picker"
+      <Modal
+        isOpen={isPickerModalOpen}
+        onClose={() => setIsPickerModalOpen(false)}
+        title="Select Benchmark Target Models"
+        size="full"
+        footer={
+          <div className="flex w-full items-center justify-between gap-3">
+            <span className="text-xs text-text-muted">
+              Selected: <strong className="text-text-main">{modalSelectedModelIds.size}</strong> models
+            </span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setIsPickerModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="shadow-sm font-semibold">
+                Apply Selection ({modalSelectedModelIds.size} Models)
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-text-muted">
+            Select the models you want to evaluate, then click Apply Selection.
+          </p>
+
+          {/* Search Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="flex-1 min-w-[200px] max-w-sm">
+              <Input
+                placeholder="Search provider or model name..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => {
+                  setModalSelectedModelIds((prev) => {
+                    const next = new Set(prev);
+                    pickerCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
+                    return next;
+                  });
+                }}
               >
-                <span className="material-symbols-outlined text-xl leading-none">close</span>
-              </button>
+                Select All
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
+                Clear All
+              </Button>
             </div>
+          </div>
 
-            {/* Modal Search Bar */}
-            <div className="px-6 py-3 border-b border-border flex items-center justify-between gap-3 bg-surface">
-              <div className="flex-1 max-w-sm">
-                <Input
-                  placeholder="Search provider or model name..."
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => {
-                    setModalSelectedModelIds((prev) => {
-                      const next = new Set(prev);
-                      pickerCatalog.forEach((p) => p.models.forEach((m) => next.add(m.fullId)));
-                      return next;
-                    });
-                  }}
+          {/* Provider List */}
+          <div className="space-y-3">
+            {pickerCatalog.map((provider) => {
+              const totalInProv = provider.models.length;
+              const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
+              const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
+              const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
+              const isExpanded = pickerExpandedProviders.has(provider.id);
+
+              return (
+                <div
+                  key={provider.id}
+                  className={`rounded-sm border transition-colors overflow-hidden bg-surface-2 ${
+                    selectedInProv > 0
+                      ? "border-primary/50 shadow-xs"
+                      : "border-border shadow-2xs hover:border-border"
+                  }`}
                 >
-                  Select All
-                </Button>
-                <Button size="xs" variant="ghost" onClick={() => setModalSelectedModelIds(new Set())}>
-                  Clear All
-                </Button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-surface custom-scrollbar">
-              {pickerCatalog.map((provider) => {
-                const totalInProv = provider.models.length;
-                const selectedInProv = provider.models.filter((m) => modalSelectedModelIds.has(m.fullId)).length;
-                const isAllSelected = totalInProv > 0 && selectedInProv === totalInProv;
-                const isPartiallySelected = selectedInProv > 0 && selectedInProv < totalInProv;
-                const isExpanded = pickerExpandedProviders.has(provider.id);
-
-                return (
-                  <div
-                    key={provider.id}
-                    className={`rounded-sm border transition-colors overflow-hidden bg-surface-2 ${
-                      selectedInProv > 0
-                        ? "border-primary/50 shadow-xs"
-                        : "border-border shadow-2xs hover:border-border"
-                    }`}
-                  >
-                    {/* Provider Row */}
-                    <div className="flex items-center justify-between p-3.5 gap-3 bg-surface-2">
-                      <div
-                        className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
-                        onClick={() => toggleModalProviderModels(provider)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = isPartiallySelected;
-                          }}
-                          onChange={() => toggleModalProviderModels(provider)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Select all models from ${provider.name}`}
-                          className="size-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                        />
-                        <div className="min-w-0 flex-1 truncate">
-                          <span className="font-bold text-sm text-text-main truncate block">
-                            {provider.name}
-                          </span>
-                          <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            selectedInProv > 0
-                              ? "bg-primary/20 text-primary"
-                              : "bg-surface-3 text-text-muted"
-                          }`}
-                        >
-                          {selectedInProv} / {totalInProv}
+                  {/* Provider Row */}
+                  <div className="flex items-center justify-between p-3 gap-3 bg-surface-2">
+                    <div
+                      className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer"
+                      onClick={() => toggleModalProviderModels(provider)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isPartiallySelected;
+                        }}
+                        onChange={() => toggleModalProviderModels(provider)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select all models from ${provider.name}`}
+                        className="size-4 rounded border-border text-primary focus:ring-primary shrink-0"
+                      />
+                      <div className="min-w-0 flex-1 truncate">
+                        <span className="font-bold text-sm text-text-main truncate block">
+                          {provider.name}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePickerExpand(provider.id)}
-                          className="size-11 sm:size-8 flex items-center justify-center rounded-lg text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
-                          title={isExpanded ? "Collapse model list" : "Expand model list"}
-                          aria-label={isExpanded ? "Collapse model list" : "Expand model list"}
-                        >
-                          <span className="material-symbols-outlined text-xl leading-none">
-                            {isExpanded ? "expand_less" : "expand_more"}
-                          </span>
-                        </button>
+                        <span className="text-xs text-text-muted font-mono">{provider.alias}</span>
                       </div>
                     </div>
 
-                    {/* Model Sub-list (Expanded) */}
-                    {isExpanded ? (
-                      <div className="border-t border-border bg-surface-2 p-3 space-y-2">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border text-[11px] text-text-muted">
-                          <span>Models ({provider.name}):</span>
-                          <div className="flex gap-2 font-medium">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setModalSelectedModelIds((prev) => {
-                                  const next = new Set(prev);
-                                  provider.models.forEach((m) => next.add(m.fullId));
-                                  return next;
-                                });
-                              }}
-                              className="text-primary hover:underline"
-                            >
-                              Select All
-                            </button>
-                            <span>·</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setModalSelectedModelIds((prev) => {
-                                  const next = new Set(prev);
-                                  provider.models.forEach((m) => next.delete(m.fullId));
-                                  return next;
-                                });
-                              }}
-                              className="text-rose-500 hover:underline"
-                            >
-                              Deselect All
-                            </button>
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          selectedInProv > 0
+                            ? "bg-primary/10 text-primary"
+                            : "bg-surface-3 text-text-muted"
+                        }`}
+                      >
+                        {selectedInProv} / {totalInProv}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => togglePickerExpand(provider.id)}
+                        className="size-10 sm:size-8 flex items-center justify-center rounded-sm text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
+                        title={isExpanded ? "Collapse model list" : "Expand model list"}
+                        aria-label={isExpanded ? "Collapse model list" : "Expand model list"}
+                      >
+                        <span className="material-symbols-outlined text-xl leading-none">
+                          {isExpanded ? "expand_less" : "expand_more"}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                          {provider.models.map((model) => {
-                            const isModelChecked = modalSelectedModelIds.has(model.fullId);
-                            return (
-                              <div
-                                key={model.fullId}
-                                onClick={() => toggleModalModel(model.fullId)}
-                                className={`flex items-center justify-between gap-2.5 p-2.5 rounded-lg text-xs cursor-pointer transition-colors border ${
-                                  isModelChecked
-                                    ? "border-primary/60 bg-primary/10 text-text-main font-semibold shadow-2xs"
-                                    : "border-border bg-surface-3 text-text-muted hover:bg-surface-2 hover:text-text-main"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                  <input
-                                    type="checkbox"
-                                    checked={isModelChecked}
-                                    onChange={() => toggleModalModel(model.fullId)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    aria-label={`Select model ${model.name}`}
-                                    className="size-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                                  />
-                                  <div className="min-w-0 flex-1 truncate">
-                                    <div className="font-medium truncate text-text-main">{model.name}</div>
-                                    <div className="text-[10px] text-text-muted font-mono truncate">{model.id}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                  {/* Model Sub-list (Expanded) */}
+                  {isExpanded ? (
+                    <div className="border-t border-border bg-surface-2 p-3 space-y-2">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-border text-[11px] text-text-muted">
+                        <span>Models ({provider.name}):</span>
+                        <div className="flex gap-2 font-medium">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalSelectedModelIds((prev) => {
+                                const next = new Set(prev);
+                                provider.models.forEach((m) => next.add(m.fullId));
+                                return next;
+                              });
+                            }}
+                            className="text-primary hover:underline"
+                          >
+                            Select All
+                          </button>
+                          <span>·</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalSelectedModelIds((prev) => {
+                                const next = new Set(prev);
+                                provider.models.forEach((m) => next.delete(m.fullId));
+                                return next;
+                              });
+                            }}
+                            className="text-danger hover:underline"
+                          >
+                            Deselect All
+                          </button>
                         </div>
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
 
-            {/* Modal Footer */}
-            <div className="border-t border-border px-6 py-4 bg-surface-3 flex items-center justify-between">
-              <span className="text-xs text-text-muted">
-                Selected: <strong className="text-text-main">{modalSelectedModelIds.size}</strong> models
-              </span>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setIsPickerModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button size="sm" variant="primary" icon="check" onClick={applyPickerModal} className="shadow-sm font-semibold">
-                  Apply Selection ({modalSelectedModelIds.size} Models)
-                </Button>
-              </div>
-            </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {provider.models.map((model) => {
+                          const isModelChecked = modalSelectedModelIds.has(model.fullId);
+                          return (
+                            <div
+                              key={model.fullId}
+                              onClick={() => toggleModalModel(model.fullId)}
+                              className={`flex items-center justify-between gap-2.5 p-2.5 rounded-sm text-xs cursor-pointer transition-colors border ${
+                                isModelChecked
+                                  ? "border-primary/50 bg-primary/10 text-text-main font-semibold shadow-xs"
+                                  : "border-border bg-surface-3 text-text-muted hover:bg-surface-2 hover:text-text-main"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isModelChecked}
+                                  onChange={() => toggleModalModel(model.fullId)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Select model ${model.name}`}
+                                  className="size-4 rounded border-border text-primary focus:ring-primary shrink-0"
+                                />
+                                <div className="min-w-0 flex-1 truncate">
+                                  <div className="font-medium truncate text-text-main">{model.name}</div>
+                                  <div className="text-[10px] text-text-muted font-mono truncate">{model.id}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </div>
-      ) : null}
+      </Modal>
 
       {/* ─── Modal 2: Attempt Inspector ─── */}
       <BenchmarkInspector attempt={inspectAttempt} onClose={() => setInspectAttempt(null)} />
 
       {/* ─── Modal 3: Reviewer Model Selector Modal ─── */}
-      {isReviewerModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={() => setIsReviewerModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-sm border border-border bg-surface shadow-2xl overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reviewer-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface-3">
-              <div>
-                <h3 id="reviewer-modal-title" className="font-bold text-text-main text-base flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">psychology</span>
-                  <span>Select Reviewer Judge Model</span>
-                </h3>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Choose an AI model to evaluate and summarize benchmark results upon completion.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsReviewerModalOpen(false)}
-                className="size-11 sm:size-8 shrink-0 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
-                aria-label="Close reviewer selector"
-              >
-                <span className="material-symbols-outlined text-xl leading-none">close</span>
-              </button>
-            </div>
-
-            <div className="px-6 py-3 border-b border-border bg-surface">
-              <Input
-                placeholder="Search reviewer models..."
-                value={reviewerPickerSearch}
-                onChange={(e) => setReviewerPickerSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 bg-surface custom-scrollbar">
-              <div
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    setReviewer("judge-router");
-                    setIsReviewerModalOpen(false);
-                  }
-                }}
-                onClick={() => {
-                  setReviewer("judge-router");
-                  setIsReviewerModalOpen(false);
-                }}
-                className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
-                  reviewer === "judge-router"
-                    ? "border-primary bg-primary/10 text-primary font-bold"
-                    : "border-border hover:border-border text-text-main"
-                }`}
-              >
-                <div>
-                  <div className="font-semibold text-sm">judge-router</div>
-                  <div className="text-xs text-text-muted">Internal automated router judge</div>
-                </div>
-                <Badge variant="default">Default</Badge>
-              </div>
-
-              {reviewerModelOptions
-                .filter((opt) => opt.value !== "judge-router")
-                .filter((opt) => {
-                  if (!reviewerPickerSearch) return true;
-                  const q = reviewerPickerSearch.toLowerCase();
-                  return opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || opt.subtitle?.toLowerCase().includes(q);
-                })
-                .map((opt) => {
-                  const isSelected = reviewer === opt.value;
-                  return (
-                    <div
-                      key={opt.value}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          setReviewer(opt.value);
-                          setIsReviewerModalOpen(false);
-                        }
-                      }}
-                      onClick={() => {
-                        setReviewer(opt.value);
-                        setIsReviewerModalOpen(false);
-                      }}
-                      className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary font-semibold"
-                          : "border-border hover:border-border text-text-main"
-                      }`}
-                    >
-                      <div className="truncate pr-2">
-                        <div className="font-medium text-xs truncate text-text-main">{opt.label}</div>
-                        <div className="text-[10px] text-text-muted font-mono">{opt.value}</div>
-                      </div>
-                      <Badge variant="secondary">{opt.badge}</Badge>
-                    </div>
-                  );
-                })}
-            </div>
-
-            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface-3">
-              <span className="text-xs text-text-muted truncate max-w-sm">
-                Selected: <span className="font-bold text-text-main">{reviewer || "No Reviewer"}</span>
-              </span>
-              <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
-                Close
-              </Button>
-            </div>
+      <Modal
+        isOpen={isReviewerModalOpen}
+        onClose={() => setIsReviewerModalOpen(false)}
+        title="Select Reviewer Judge Model"
+        size="xl"
+        footer={
+          <div className="flex w-full items-center justify-between gap-3">
+            <span className="text-xs text-text-muted truncate max-w-sm">
+              Selected: <span className="font-bold text-text-main">{reviewer || "No Reviewer"}</span>
+            </span>
+            <Button size="sm" variant="secondary" onClick={() => setIsReviewerModalOpen(false)}>
+              Close
+            </Button>
           </div>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-xs text-text-muted">
+            Choose an AI model to evaluate and summarize benchmark results upon completion.
+          </p>
+
+          <div className="border-b border-border pb-2">
+            <Input
+              placeholder="Search reviewer models..."
+              value={reviewerPickerSearch}
+              onChange={(e) => setReviewerPickerSearch(e.target.value)}
+            />
+          </div>
+
+          <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setReviewer("judge-router");
+                setIsReviewerModalOpen(false);
+              }
+            }}
+            onClick={() => {
+              setReviewer("judge-router");
+              setIsReviewerModalOpen(false);
+            }}
+            className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
+              reviewer === "judge-router"
+                ? "border-primary/50 bg-primary/10 text-primary font-bold"
+                : "border-border hover:border-border text-text-main"
+            }`}
+          >
+            <div>
+              <div className="font-semibold text-sm">judge-router</div>
+              <div className="text-xs text-text-muted">Internal automated router judge</div>
+            </div>
+            <Badge variant="default">Default</Badge>
+          </div>
+
+          {reviewerModelOptions
+            .filter((opt) => opt.value !== "judge-router")
+            .filter((opt) => {
+              if (!reviewerPickerSearch) return true;
+              const q = reviewerPickerSearch.toLowerCase();
+              return opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || opt.subtitle?.toLowerCase().includes(q);
+            })
+            .map((opt) => {
+              const isSelected = reviewer === opt.value;
+              return (
+                <div
+                  key={opt.value}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setReviewer(opt.value);
+                      setIsReviewerModalOpen(false);
+                    }
+                  }}
+                  onClick={() => {
+                    setReviewer(opt.value);
+                    setIsReviewerModalOpen(false);
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-sm border cursor-pointer transition-colors bg-surface-2 ${
+                    isSelected
+                      ? "border-primary/50 bg-primary/10 text-primary font-semibold"
+                      : "border-border hover:border-border text-text-main"
+                  }`}
+                >
+                  <div className="truncate pr-2">
+                    <div className="font-medium text-xs truncate text-text-main">{opt.label}</div>
+                    <div className="text-[10px] text-text-muted font-mono">{opt.value}</div>
+                  </div>
+                  <Badge variant="primary">{opt.badge}</Badge>
+                </div>
+              );
+            })}
         </div>
-      ) : null}
+      </Modal>
 
       {/* ─── Modal 4: Live Logs ─── */}
       <BenchmarkLogs
@@ -1587,7 +1616,7 @@ export default function BenchmarkPage() {
         title="Confirm Benchmark Execution"
       >
         <div className="flex flex-col gap-4">
-          <div className="rounded-lg border border-border bg-surface-2 p-3.5 space-y-2.5 text-xs">
+          <div className="rounded-sm border border-border bg-surface-2 p-3 space-y-2.5 text-xs">
             <div className="flex justify-between items-center">
               <span className="text-text-muted">Target Models:</span>
               <span className="font-semibold text-text-main font-mono">{selectedModelIds.size} models</span>
