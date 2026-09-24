@@ -40,31 +40,32 @@ const CARDS = [
   },
 ];
 
-function Metric({ label, icon, tone, value, valueClass, note, extra, exact, compact = false }) {
+function Metric({ label, icon, tone, value, valueClass, note, exact, spanTwo = false }) {
   return (
     <div
-      className={`flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3 sm:gap-3 sm:p-4 ${
-        extra ? "col-span-2 sm:col-span-1" : ""
+      className={`flex min-w-0 flex-col justify-between rounded-lg border border-border bg-surface px-3 py-2 sm:px-3 sm:py-2.5 ${
+        spanTwo ? "col-span-2 sm:col-span-1" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted sm:text-[11px]">
+      <div className="flex items-center justify-between gap-1.5">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted truncate">
           {label}
         </span>
-        <span className={`flex size-6 items-center justify-center rounded-md border sm:size-7 ${tone}`}>
-          <span className="material-symbols-outlined text-[15px] sm:text-[16px]" aria-hidden="true">{icon}</span>
+        <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${tone}`}>
+          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{icon}</span>
         </span>
       </div>
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="mt-1 flex min-w-0 flex-col">
         <span
           title={exact ? `${exact} · exact count` : undefined}
-          className={`text-lg font-semibold tabular-nums whitespace-nowrap sm:text-2xl ${valueClass || "text-text-main"}`}
+          className={`text-lg font-semibold tabular-nums whitespace-nowrap sm:text-xl leading-tight ${valueClass || "text-text-main"}`}
         >
           {value}
         </span>
-        {note}
+        <div className="h-4 flex items-center text-[10px] text-text-muted truncate mt-0.5">
+          {note}
+        </div>
       </div>
-      {extra}
     </div>
   );
 }
@@ -82,12 +83,12 @@ export default function OverviewCards({ stats }) {
   const failed = Number(stats.totalFailedRequests || 0);
 
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+    <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-5">
       <Metric
         {...CARDS[0]}
         value={fmt(stats.totalRequests)}
         note={
-          <span className={`text-xs font-medium ${failed > 0 ? "text-danger" : "text-emerald-400"}`}>
+          <span className={failed > 0 ? "text-danger font-medium" : "text-emerald-400 font-medium"}>
             {fmt(failed)} failed
           </span>
         }
@@ -97,33 +98,43 @@ export default function OverviewCards({ stats }) {
         value={formatTokens(stats.totalPromptTokens)}
         exact={formatTokensExact(stats.totalPromptTokens)}
         valueClass="text-primary"
+        note={
+          <span>{nonCachedInput > 0 ? `${formatTokens(nonCachedInput)} direct` : "All cached"}</span>
+        }
       />
       <Metric
         {...CARDS[2]}
         value={formatTokens(stats.totalCachedTokens)}
         exact={formatTokensExact(stats.totalCachedTokens)}
         valueClass="text-cyan-400"
+        note={
+          <span>{totalPrompt > 0 ? `${Math.round((totalCached / totalPrompt) * 100)}% cache hit` : "0% hit"}</span>
+        }
       />
       <Metric
         {...CARDS[3]}
         value={formatTokens(stats.totalCompletionTokens)}
         exact={formatTokensExact(stats.totalCompletionTokens)}
         valueClass="text-emerald-400"
+        note={
+          <span>{totalTokens > 0 ? `${Math.round((totalCompletion / totalTokens) * 100)}% output` : "0%"}</span>
+        }
       />
       <Metric
         {...CARDS[4]}
         value={`~${fmtCost(stats.totalCost)}`}
         valueClass="text-amber-400"
-        extra={
-          <div className="flex flex-col gap-1 text-[11px] text-text-muted">
-            <span className="truncate">
-              Estimated, not billed · In {fmtCost(inputCost)} · Cache {fmtCost(cachedCost)} · Out {fmtCost(outputCost)}
+        spanTwo
+        note={
+          <div className="flex items-center justify-between w-full">
+            <span className="truncate" title={`In ${fmtCost(inputCost)} · Cache ${fmtCost(cachedCost)} · Out ${fmtCost(outputCost)}`}>
+              In {fmtCost(inputCost)} · Out {fmtCost(outputCost)}
             </span>
             <Link
               href="/dashboard/settings/pricing"
-              className="inline-flex min-h-11 w-fit items-center underline decoration-dotted underline-offset-2 hover:text-primary sm:min-h-0"
+              className="ml-1 text-text-muted hover:text-primary underline decoration-dotted shrink-0"
             >
-              Edit rates
+              Rates
             </Link>
           </div>
         }
