@@ -16,6 +16,7 @@ services:
     mem_limit: 2g
     memswap_limit: 2g
     ports:
+      - "10129:3778"
       - "3778:3778"
     volumes:
       - axonrouter-data:/app/data
@@ -61,6 +62,7 @@ services:
     mem_limit: 2500m
     memswap_limit: 2500m
     ports:
+      - "10128:3777"
       - "3777:3777"
     volumes:
       - axonrouter-data:/app/data
@@ -148,4 +150,4 @@ volumes:
     name: ${DATA_VOLUME:-axonrouter-data}
     external: ${DATA_VOLUME_EXTERNAL:-false}
   axonrouter-pgdata:
-    name: ${PGDATA_VOLUME:-axonrouter-pgdata}
+    name: ${PGDATA_VOLUME:-9router-pgdata}
