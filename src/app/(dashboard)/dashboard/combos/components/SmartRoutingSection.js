@@ -94,7 +94,7 @@ function SortableTierModelRow({ id, model, index, onRemove, getCaps }) {
           title="Drag to reorder priority"
           aria-label="Drag to reorder priority"
         >
-          <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+          <Icon name="drag_indicator" size={18} />
         </button>
 
         {/* Priority Rank */}
@@ -122,7 +122,7 @@ function SortableTierModelRow({ id, model, index, onRemove, getCaps }) {
           title="Remove model from tier"
           aria-label="Remove model from tier"
         >
-          <span className="material-symbols-outlined text-[18px]">delete</span>
+          <Icon name="delete" size={18} />
         </button>
       </div>
     </div>
@@ -279,7 +279,7 @@ export default function SmartRoutingSection({
         {/* Judge Model Control */}
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-            <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+            <Icon name="smart_toy" size={18} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -295,7 +295,7 @@ export default function SmartRoutingSection({
                 className="inline-flex max-w-full items-center gap-1.5 rounded-sm border border-primary/30 bg-primary/10 px-2.5 h-7 font-mono text-xs font-medium text-primary hover:border-primary hover:bg-primary/15 transition-all"
                 title="Select judge model"
               >
-                <span className="material-symbols-outlined text-[16px]">gavel</span>
+                <Icon name="gavel" size={18} />
                 <span className="truncate">{judge || "Auto — First Model in Combo"}</span>
                 {judge ? <CapacityBadges caps={getCaps?.(judge)} /> : null}
               </button>
@@ -306,7 +306,7 @@ export default function SmartRoutingSection({
                   className="inline-flex items-center gap-1 rounded-sm px-2 h-7 text-xs hover:text-danger hover:bg-danger/10 transition-colors"
                   title="Reset to Auto"
                 >
-                  <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                  <Icon name="restart_alt" size={18} />
                   <span>Auto</span>
                 </button>
               ) : (
@@ -341,7 +341,7 @@ export default function SmartRoutingSection({
       {allTiersEmpty && combo?.models && combo.models.length > 0 && (
         <div className="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2.5">
-            <span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">auto_fix_high</span>
+            <Icon className="text-primary shrink-0 mt-0.5" name="auto_fix_high" size={18} />
             <div>
               <p className="font-semibold text-text-main">Distribute existing models into tiers</p>
               <p className="text-[11px] text-text-muted">
@@ -512,7 +512,7 @@ export default function SmartRoutingSection({
               {modalTierModels.length === 0 ? (
                 <div className="py-8 text-center border border-dashed border-border rounded-md bg-surface-2/50">
                   <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
-                    <span className="material-symbols-outlined text-[24px] text-text-muted">drag_indicator</span>
+                    <Icon className="text-text-muted" name="drag_indicator" size={18} />
                     <span className="font-semibold text-text-main text-xs">No models in this tier</span>
                     <p className="text-[11px] text-text-muted">
                       Click &ldquo;Browse Catalog&rdquo; or type a model ID above to add models to {activeTierConfig.shortLabel} tier.

@@ -30,7 +30,7 @@ export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = 
  </span>
  </div>
  <span className="text-[11px] text-text-muted flex items-center gap-1">
- <span className="material-symbols-outlined !text-[18px]">schedule</span>
+ <Icon name="schedule" size={18} />
  Live — auto-refresh
  </span>
  </div>
@@ -38,7 +38,7 @@ export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = 
  {/* Empty state */}
  {activeRequests.length === 0 ? (
  <div className="flex flex-col items-center justify-center p-3 rounded-sm border border-dashed border-border gap-2">
- <span className="material-symbols-outlined text-[18px] text-text-muted/50">cloud_done</span>
+ <Icon className="text-text-muted/50" name="cloud_done" size={18} />
  <span className="text-sm text-text-muted">No active in-flight requests</span>
  </div>
  ) : (
@@ -77,13 +77,13 @@ export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = 
  </td>
  <td className="px-3 h-8 text-text-main truncate max-w-[180px] text-sm" title={req.account || "Direct request"}>
  <span className="inline-flex items-center gap-1">
- <span className="material-symbols-outlined !text-[18px] text-text-muted">account_circle</span>
+ <Icon className="text-text-muted" name="account_circle" size={18} />
  {req.account || "Direct request"}
  </span>
  </td>
  <td className="px-3 h-8 truncate max-w-[150px] text-sm" title={req.clientApiKey || req.apiKey || "Default Key"}>
  <span className="inline-flex items-center gap-1 font-mono text-text-muted">
- <span className="material-symbols-outlined !text-[18px]">key</span>
+ <Icon name="key" size={18} />
  {req.clientApiKey || req.apiKey || "Default"}
  </span>
  </td>
@@ -99,7 +99,7 @@ export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = 
 
  {/* Footer hint */}
  <div className="flex items-center gap-2 text-[11px] text-text-muted pt-1 border-t border-border h-8">
- <span className="material-symbols-outlined !text-[18px]">info</span>
+ <Icon name="info" size={18} />
  <span>Live updates active. Close modal to pause polling.</span>
  </div>
  </div>

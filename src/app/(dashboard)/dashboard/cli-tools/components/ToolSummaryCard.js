@@ -38,7 +38,7 @@ export default function ToolSummaryCard({ toolId, tool }) {
                 {isGuide ? "Guide" : "One-Click Setup"}
               </span>
             </div>
-            <span className="material-symbols-outlined text-text-muted text-[18px] shrink-0">chevron_right</span>
+            <Icon className="text-text-muted shrink-0" name="chevron_right" size={18} />
           </div>
         </div>
       </Card>

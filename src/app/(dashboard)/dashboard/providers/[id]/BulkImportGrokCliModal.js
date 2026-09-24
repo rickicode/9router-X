@@ -227,7 +227,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
 
  {isDragging && (
  <div className="absolute inset-0 flex flex-col items-center justify-center bg-sidebar/90 rounded-sm pointer-events-none">
- <span className="material-symbols-outlined text-[18px] text-primary mb-1">upload_file</span>
+ <Icon className="text-primary mb-1" name="upload_file" size={18} />
  <span className="text-sm font-medium text-primary">
  {translate("Drop .json files here")}
  </span>
@@ -237,7 +237,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
 
  {fileCountInfo && (
  <div className="flex items-center gap-1.5 text-xs text-success font-medium bg-success/10 border border-success/30 px-2.5 py-2 rounded-sm">
- <span className="material-symbols-outlined text-sm">check_circle</span>
+ <Icon className="text-sm" name="check_circle" size={18} />
  <span>
  {translate("Loaded")} {fileCountInfo.accountsCount} {translate("account(s) from")}{" "}
  {fileCountInfo.filesCount} {translate("file(s)")}
@@ -251,7 +251,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
 
       {result && result.success > 0 && (
         <div className="flex items-center gap-1.5 text-xs text-success font-medium bg-success/10 border border-success/30 px-2.5 py-2 rounded-sm">
-          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <Icon className="text-sm" name="check_circle" size={18} />
           <span>
             ✓ {result.success} {translate("account(s) added successfully")}
             {result.failed > 0 ? `, ✗ ${result.failed} ${translate("failed")}` : ""}

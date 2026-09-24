@@ -200,7 +200,7 @@ export default function NoAuthProxyCard({ providerId }) {
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="inline-flex items-center justify-center w-10 h-8 rounded-sm bg-success/10 text-success">
- <span className="material-symbols-outlined text-[18px]">lock_open</span>
+ <Icon name="lock_open" size={18} />
  </div>
  <div className="flex-1">
  <p className="text-sm font-medium">No authentication required</p>
@@ -284,7 +284,7 @@ export default function NoAuthProxyCard({ providerId }) {
  <div className="rounded-sm border border-border bg-surface p-3">
  {routingMode === "direct" && (
  <div className="flex items-center gap-3 text-sm text-text-muted">
- <span className="material-symbols-outlined text-success text-[18px]">check_circle</span>
+ <Icon className="text-success" name="check_circle" size={18} />
  <span>Requests will connect directly to the provider endpoint without using any proxy.</span>
  </div>
  )}

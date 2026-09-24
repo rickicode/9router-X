@@ -297,14 +297,14 @@ export default function CoworkToolCard({
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
  {checking && (
  <div className="flex items-center gap-2 text-text-muted">
- <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Checking Claude Cowork...</span>
  </div>
  )}
@@ -322,7 +322,7 @@ export default function CoworkToolCard({
  <div className="flex flex-col gap-2">
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <BaseUrlSelect
  value={getEffectiveBaseUrl()}
  onChange={(url) => setCustomBaseUrl(stripV1(url))}
@@ -339,7 +339,7 @@ export default function CoworkToolCard({
  {status?.cowork?.baseUrl && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
  {status.cowork.baseUrl}
  </span>
@@ -348,13 +348,13 @@ export default function CoworkToolCard({
 
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
  </div>
 
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">Models</span>
- <span className="material-symbols-outlined text-text-muted text-[18px]">arrow_forward</span>
+ <Icon className="text-text-muted" name="arrow_forward" size={18} />
  <div className="flex-1 flex items-center gap-2">
  <div className="flex-1 flex flex-wrap gap-1.5 min-h-[28px] px-2 py-2 bg-surface rounded-sm border border-border">
  {selectedModels.length === 0 ? (
@@ -364,7 +364,7 @@ export default function CoworkToolCard({
  <span key={m} className="inline-flex items-center gap-1 px-2 rounded-sm text-xs bg-surface text-text-muted border border-transparent hover:border-border h-8">
  {m}
  <button onClick={() => handleRemoveModel(m)} className="ml-0.5 hover:text-danger">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </span>
  ))
@@ -376,7 +376,7 @@ export default function CoworkToolCard({
 
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-2">MCP</span>
- <span className="material-symbols-outlined text-text-muted text-[18px] mt-2">arrow_forward</span>
+ <Icon className="text-text-muted mt-2" name="arrow_forward" size={18} />
  <div className="flex-1 flex flex-col gap-1">
  {/* Preset plugins */}
  {plugins.filter((p) => p.name !== "exa").map((p) => (
@@ -392,7 +392,7 @@ export default function CoworkToolCard({
  )}
  </div>
  <button onClick={() => removePlugin(p.name)} className="shrink-0 hover:text-danger ml-auto">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
  ))}
@@ -403,7 +403,7 @@ export default function CoworkToolCard({
  <span className="text-[8px] px-1 py-1 rounded-sm bg-primary/10 text-primary shrink-0">custom</span>
  <span className="flex-1 text-[11px] text-text-muted truncate">{p.url}</span>
  <button onClick={() => setCustomPlugins(customPlugins.filter((x) => x.name !== p.name))} className="shrink-0 hover:text-danger ml-auto">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
  ))}
@@ -425,7 +425,7 @@ export default function CoworkToolCard({
 
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">Tools</span>
- <span className="material-symbols-outlined text-text-muted text-[18px] mt-1.5">arrow_forward</span>
+ <Icon className="text-text-muted mt-1.5" name="arrow_forward" size={18} />
  <div className="flex-1 flex flex-col gap-1.5">
  {(() => {
  const exaEnabled = plugins.some((p) => p.name === "exa");
@@ -476,7 +476,7 @@ export default function CoworkToolCard({
  {Array.isArray(status?.localStdioPlugins) && status.localStdioPlugins.filter((p) => p.name !== "browsermcp").length > 0 && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">Local Plugins</span>
- <span className="material-symbols-outlined text-text-muted text-[18px] mt-1.5">arrow_forward</span>
+ <Icon className="text-text-muted mt-1.5" name="arrow_forward" size={18} />
  <div className="flex-1 flex flex-col gap-2">
  <div className="flex flex-col gap-1.5 px-2 py-2 bg-surface rounded-sm border border-border">
  {status.localStdioPlugins.filter((p) => p.name !== "browsermcp").map((p) => {
@@ -520,13 +520,13 @@ export default function CoworkToolCard({
 
  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
  <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying} className="w-full sm:w-auto">
- <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
+ <Icon className="mr-1" name="save" size={18} />Apply
  </Button>
  <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.hasAxonRouter} loading={restoring} className="w-full sm:w-auto">
- <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
+ <Icon className="mr-1" name="restore" size={18} />Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)} className="w-full sm:w-auto">
- <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config
+ <Icon className="mr-1" name="content_copy" size={18} />Manual Config
  </Button>
  </div>
  </>
@@ -581,7 +581,7 @@ export default function CoworkToolCard({
  <div className="flex items-center justify-between">
  <h3 className="font-semibold text-sm">Add Custom MCP</h3>
  <button onClick={() => setAddMcpOpen(false)} className="text-text-muted hover:text-text-main">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 

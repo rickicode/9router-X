@@ -93,7 +93,7 @@ export default function ApiKeySelect({ value, onChange, apiKeys = [], cloudEnabl
  </select>
  {isSaved && (
  <button type="button" onClick={handleDeleteSaved} className="size-8 text-text-muted hover:text-danger rounded-sm shrink-0" title="Delete saved key">
- <span className="material-symbols-outlined text-[18px]">delete</span>
+ <Icon name="delete" size={18} />
  </button>
  )}
  </div>

@@ -1125,7 +1125,7 @@ export default function ProviderLimits() {
  title="Clear search"
  aria-label="Clear search"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -1296,7 +1296,7 @@ export default function ProviderLimits() {
               className="flex items-center gap-1 rounded-sm px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-text-muted hover:text-text-main transition-colors"
  title="Reset all filters"
  >
- <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+ <Icon name="restart_alt" size={18} />
  <span>Reset</span>
  </button>
  )}
@@ -1312,7 +1312,7 @@ export default function ProviderLimits() {
               className="flex shrink-0 items-center gap-1.5 rounded-sm border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
  title="Disable connections with depleted quota on the current page"
  >
- <span className="material-symbols-outlined text-[18px]">block</span>
+ <Icon name="block" size={18} />
  <span>Turn off Empty</span>
  </button>
 
@@ -1324,7 +1324,7 @@ export default function ProviderLimits() {
               className="flex shrink-0 items-center gap-1.5 rounded-sm border border-success/30 bg-success/10 px-3 py-2.5 text-xs min-h-11 sm:min-h-9 sm:px-2.5 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
  title="Enable connections that still have quota on the current page"
  >
- <span className="material-symbols-outlined text-[18px]">check_circle</span>
+ <Icon name="check_circle" size={18} />
  <span>Turn on Available</span>
  </button>
 
@@ -1408,7 +1408,7 @@ export default function ProviderLimits() {
  }}
               className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
  >
- <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+ <Icon name="restart_alt" size={18} />
  <span>Reset all filters</span>
  </button>
  </div>
@@ -1529,7 +1529,7 @@ export default function ProviderLimits() {
  aria-label="More actions"
                   className="flex size-11 items-center justify-center rounded-sm text-text-muted sm:size-9 hover:bg-surface-2 hover:text-text-main transition-colors"
  >
- <span className="material-symbols-outlined text-[18px]">more_vert</span>
+ <Icon name="more_vert" size={18} />
  </button>
 
  {openMenuConnectionId === conn.id && (
@@ -1551,7 +1551,7 @@ export default function ProviderLimits() {
  disabled={rowBusy}
                   className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  >
- <span className="material-symbols-outlined text-[18px] text-text-muted">edit</span>
+ <Icon className="text-text-muted" name="edit" size={18} />
  <span>Edit connection</span>
  </button>
 
@@ -1580,7 +1580,7 @@ export default function ProviderLimits() {
  disabled={isLoading || rowBusy}
                   className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs font-medium text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors"
  >
- <span className="material-symbols-outlined text-[18px] text-text-muted">schedule</span>
+ <Icon className="text-text-muted" name="schedule" size={18} />
  <span>Credit expiry</span>
  </button>
  )}
@@ -1930,14 +1930,14 @@ export default function ProviderLimits() {
               className="flex size-11 items-center justify-center rounded-sm text-text-muted sm:size-9 hover:bg-surface-2 hover:text-text-main transition-colors"
  aria-label="Close reset credit expiry modal"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 
  <div className="max-h-[70vh] overflow-auto bg-surface p-3">
  {resetCreditsState.loading ? (
  <div className="flex items-center justify-center gap-2 py-3 text-sm text-text-muted">
- <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  Loading reset credits...
  </div>
  ) : resetCreditsState.error ? (

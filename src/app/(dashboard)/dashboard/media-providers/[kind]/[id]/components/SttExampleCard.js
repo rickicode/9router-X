@@ -145,7 +145,7 @@ export function SttExampleCard({ providerId }) {
  useTunnel ? "border-primary/30 bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
  }`}
  >
- <span className="material-symbols-outlined text-[18px]">wifi_tethering</span>
+ <Icon name="wifi_tethering" size={18} />
  Tunnel
  </button>
  )}

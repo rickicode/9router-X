@@ -115,13 +115,13 @@ className="flex-1 px-3 h-11 text-sm border border-border rounded-sm bg-surface f
  {/* Test result */}
  {testStatus === "ok" && (
  <div className="flex items-center gap-2 text-sm text-success">
- <span className="material-symbols-outlined text-sm">check_circle</span>
+ <Icon className="text-sm" name="check_circle" size={18} />
  Model is reachable
  </div>
  )}
  {testStatus === "error" && (
  <div className="flex items-start gap-2 text-sm text-danger">
- <span className="material-symbols-outlined text-sm shrink-0">cancel</span>
+ <Icon className="text-sm shrink-0" name="cancel" size={18} />
  <span>{testError || "Model not reachable"}</span>
  </div>
  )}

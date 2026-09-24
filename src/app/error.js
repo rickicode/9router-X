@@ -21,7 +21,7 @@ export default function GlobalError({ error, reset }) {
       <div className="w-full max-w-xl rounded-lg border border-border bg-surface p-6 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-3 border-b border-border pb-3">
           <div className="flex size-10 items-center justify-center rounded-md bg-danger/10 text-danger border border-danger/20">
-            <span className="material-symbols-outlined text-[22px]">error</span>
+            <Icon name="error" size={18} />
           </div>
           <div>
             <h1 className="text-base font-semibold text-text-main">Application Error</h1>
@@ -31,7 +31,7 @@ export default function GlobalError({ error, reset }) {
 
         <div className="rounded-md border border-danger/20 bg-danger/5 p-3.5 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-danger font-semibold text-xs">
-            <span className="material-symbols-outlined text-[16px]">warning</span>
+            <Icon name="warning" size={18} />
             <span>{error?.name || "Runtime Exception"}</span>
             {error?.digest && (
               <span className="font-mono text-[10px] text-text-muted bg-surface px-1.5 py-0.5 rounded border border-border">
@@ -47,7 +47,7 @@ export default function GlobalError({ error, reset }) {
         {error?.stack && (
           <details className="text-xs text-text-muted">
             <summary className="cursor-pointer font-medium hover:text-text-main transition-colors select-none py-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">terminal</span>
+              <Icon name="terminal" size={18} />
               <span>View Error Stack Trace</span>
             </summary>
             <pre className="mt-2 max-h-60 overflow-y-auto custom-scrollbar rounded-sm border border-border bg-bg p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all select-all">

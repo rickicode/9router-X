@@ -92,7 +92,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  className="size-8 shrink-0 rounded-sm text-text-muted hover:text-danger"
  title="Clear"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </>
  )}
@@ -269,7 +269,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (

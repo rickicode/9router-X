@@ -181,10 +181,10 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
  <div className="flex w-full min-w-0 flex-1 items-start gap-3 sm:items-center">
  <div className="flex flex-col">
  <button onClick={onMoveUp} disabled={isFirst} className={`size-8 rounded-sm ${isFirst ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}>
- <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>
+ <Icon className="text-sm" name="keyboard_arrow_up" size={18} />
  </button>
  <button onClick={onMoveDown} disabled={isLast} className={`size-8 rounded-sm ${isLast ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}>
- <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+ <Icon className="text-sm" name="keyboard_arrow_down" size={18} />
  </button>
  </div>
  <span className="material-symbols-outlined text-sm text-text-muted">{isOAuth ? "lock" : "key"}</span>
@@ -248,11 +248,11 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
  </div>
  )}
  <button onClick={onEdit} className="flex flex-col items-center px-2 py-1 rounded-sm hover:bg-surface-2 text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">edit</span>
+ <Icon name="edit" size={18} />
  <span className="text-[11px]">Edit</span>
  </button>
  <button onClick={onDelete} className="flex flex-col items-center px-2 py-1 rounded-sm hover:bg-danger/10 text-danger">
- <span className="material-symbols-outlined text-[18px]">delete</span>
+ <Icon name="delete" size={18} />
  <span className="text-[11px]">Delete</span>
  </button>
  </div>
@@ -584,7 +584,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
  className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 h-8"
  title="Previous Page"
  >
- <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+ <Icon name="chevron_left" size={18} />
  <span>Prev</span>
  </button>
 
@@ -621,7 +621,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
  title="Next Page"
  >
  <span>Next</span>
- <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+ <Icon name="chevron_right" size={18} />
  </button>
  </div>
  </div>

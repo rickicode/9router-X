@@ -224,7 +224,7 @@ export default function TopProvidersCard({ byProvider = [], onProviderClick, onI
  className="text-danger font-medium hover:underline cursor-pointer inline-flex items-center gap-0.5"
  title="Inspect failure responses for this provider"
  >
- <span className="material-symbols-outlined text-[18px]">bug_report</span>
+ <Icon name="bug_report" size={18} />
  {fmt(row.failureCount)}
  </button>
  ) : (

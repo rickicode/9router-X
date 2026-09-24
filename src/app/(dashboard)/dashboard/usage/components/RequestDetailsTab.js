@@ -316,7 +316,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  <div className="p-3 text-center">
  <div role="alert" className="flex flex-col items-center justify-center gap-2 text-danger text-sm">
  <div className="flex items-center gap-1.5 font-medium">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  {fetchError}
  </div>
  <Button
@@ -332,7 +332,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  ) : loading ? (
  <div className="p-3 text-center text-text-muted text-xs">
  <div className="flex items-center justify-center gap-2">
- <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  Loading...
  </div>
  </div>
@@ -415,7 +415,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  aria-label={`View detail for ${detail.model} request at ${new Date(detail.timestamp).toLocaleTimeString("en-US")}`}
  className="w-full min-h-[44px] text-xs font-medium flex items-center justify-center gap-1.5"
  >
- <span className="material-symbols-outlined !text-[18px]">visibility</span>
+ <Icon name="visibility" size={18} />
  Detail
  </Button>
  </div>
@@ -446,7 +446,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  <td colSpan="8" className="p-3 text-center h-8 px-3 text-sm">
  <div role="alert" className="flex flex-col items-center justify-center gap-2 text-danger text-sm">
  <div className="flex items-center gap-1.5 font-medium">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  {fetchError}
  </div>
  <Button
@@ -464,7 +464,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  <tr>
  <td colSpan="8" className="p-3 text-center text-text-muted h-8 px-3 text-sm">
  <div className="flex items-center justify-center gap-2">
- <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  Loading...
  </div>
  </td>
@@ -640,7 +640,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  <div className="rounded-sm border border-danger/30 bg-danger/10 p-3 space-y-3">
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-danger text-[18px]">error</span>
+ <Icon className="text-danger" name="error" size={18} />
  <span className="font-semibold text-danger text-sm">
  Request Error {selectedDetail.response?.status ? `(${selectedDetail.response.status})` : ""}
  </span>
@@ -660,7 +660,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  {selectedDetail.pxpipe && (
  <div className="rounded-sm border border-border p-3">
  <div className="flex items-center gap-2 mb-2">
- <span className="material-symbols-outlined text-[18px] text-text-muted">image</span>
+ <Icon className="text-text-muted" name="image" size={18} />
  <span className="font-semibold text-sm text-text-main">PXPIPE</span>
  <span className={cn(
  "text-xs px-2 py-1 rounded-sm",
@@ -729,7 +729,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  {selectedDetail.response?.error ? (
  <div>
  <h4 className="font-medium text-danger mb-2 text-xs flex items-center gap-1.5">
- <span className="material-symbols-outlined !text-[18px]">error</span>
+ <Icon name="error" size={18} />
  Error Response
  </h4>
  <pre className="max-h-[300px] max-w-full overflow-auto rounded-sm border border-danger/30 bg-danger/10 p-3 font-mono text-xs text-danger whitespace-pre-wrap break-words sm:p-3 border-border bg-surface text-text-main">
@@ -743,7 +743,7 @@ export default function RequestDetailsTab({ initialFilters }) {
  {selectedDetail.response?.thinking && (
  <div className="mb-3">
  <h4 className="font-medium text-text-main mb-2 flex items-center gap-2 text-xs opacity-70">
- <span className="material-symbols-outlined text-[18px]">psychology</span>
+ <Icon name="psychology" size={18} />
  Thinking Process
  </h4>
  <pre className="max-h-[200px] max-w-full overflow-auto rounded-sm border border-warning/30 bg-warning/10 p-3 font-mono text-xs text-warning  sm:p-3 border-border bg-surface text-text-main">

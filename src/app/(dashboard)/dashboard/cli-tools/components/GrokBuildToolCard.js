@@ -25,7 +25,7 @@ function ModelField({ label, value, placeholder, onChange, onSelect, disabled, h
  <span className="text-xs font-medium text-text-main sm:text-sm">{label}</span>
  {help && <p className="mt-0.5 text-[11px] text-text-muted">{help}</p>}
  </div>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <div className="relative w-full min-w-0">
  <input
  type="text"
@@ -41,7 +41,7 @@ function ModelField({ label, value, placeholder, onChange, onSelect, disabled, h
  className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm"
  title="Clear (inherit main model for subagents)"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -279,12 +279,12 @@ export default function GrokBuildToolCard({
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
- {checking && <div className="flex items-center gap-2 text-text-muted"><span className="material-symbols-outlined animate-spin">progress_activity</span><span>Checking Grok Build...</span></div>}
+ {checking && <div className="flex items-center gap-2 text-text-muted"><Icon className="animate-spin" name="progress_activity" size={18} /><span>Checking Grok Build...</span></div>}
 
 
  <HostSetupCommand
@@ -309,21 +309,21 @@ export default function GrokBuildToolCard({
  )}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <BaseUrlSelect value={customBaseUrl || getEffectiveBaseUrl()} onChange={setCustomBaseUrl} requiresExternalUrl={tool.requiresExternalUrl} tunnelEnabled={tunnelEnabled} tunnelPublicUrl={tunnelPublicUrl} tailscaleEnabled={tailscaleEnabled} tailscaleUrl={tailscaleUrl} currentUrl={currentBaseUrl} />
  </div>
 
  {configuredModel?.base_url && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">{configuredModel.base_url} · {configuredModel.model}{configuredModel.context_window ? ` · ${(configuredModel.context_window / 1000).toLocaleString()}K ctx` : ""}</span>
  </div>
  )}
 
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
  </div>
 
@@ -331,7 +331,7 @@ export default function GrokBuildToolCard({
 
  <div className="my-1 border-t border-border pt-3">
  <div className="mb-2 flex items-start gap-2">
- <span className="material-symbols-outlined text-primary text-[18px]">account_tree</span>
+ <Icon className="text-primary" name="account_tree" size={18} />
  <div>
  <p className="text-xs font-medium text-text-main">Subagent model overrides</p>
  <p className="text-[11px] text-text-muted">Leave blank to inherit Main Model. Each override keeps its own context window.</p>
@@ -356,9 +356,9 @@ export default function GrokBuildToolCard({
  {message && <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}><span className="material-symbols-outlined text-[18px]">{message.type === "success" ? "check_circle" : "error"}</span><span>{message.text}</span></div>}
 
  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
- <Button variant="primary" size="sm" onClick={handleApply} disabled={!selectedModel} loading={applying} className="w-full sm:w-auto"><span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply</Button>
- <Button variant="outline" size="sm" onClick={handleReset} disabled={!grokStatus?.hasAxonRouter} loading={restoring} className="w-full sm:w-auto"><span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset</Button>
- <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)} className="w-full sm:w-auto"><span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config</Button>
+ <Button variant="primary" size="sm" onClick={handleApply} disabled={!selectedModel} loading={applying} className="w-full sm:w-auto"><Icon className="mr-1" name="save" size={18} />Apply</Button>
+ <Button variant="outline" size="sm" onClick={handleReset} disabled={!grokStatus?.hasAxonRouter} loading={restoring} className="w-full sm:w-auto"><Icon className="mr-1" name="restore" size={18} />Reset</Button>
+ <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)} className="w-full sm:w-auto"><Icon className="mr-1" name="content_copy" size={18} />Manual Config</Button>
  </div>
  </>
  )}

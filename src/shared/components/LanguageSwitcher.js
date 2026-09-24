@@ -126,7 +126,7 @@ export default function LanguageSwitcher({ className = "", isOpen: controlledOpe
  title="Language"
  data-i18n-skip="true"
  >
- <span className="material-symbols-outlined text-[18px]">language</span>
+ <Icon name="language" size={18} />
  <span className="text-sm font-medium">{getLocaleInfo(locale).name}</span>
  <span className="text-lg">{getLocaleInfo(locale).flag}</span>
  </button>
@@ -154,7 +154,7 @@ export default function LanguageSwitcher({ className = "", isOpen: controlledOpe
  className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2"
  aria-label="Close"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 
@@ -180,7 +180,7 @@ export default function LanguageSwitcher({ className = "", isOpen: controlledOpe
  {/* Fixed 2-line height so all cards are uniform */}
  <span className="text-center line-clamp-2 h-8 flex items-center">{info.name}</span>
  {active && (
- <span className="material-symbols-outlined text-sm">check</span>
+ <Icon className="text-sm" name="check" size={18} />
  )}
  </button>
  );

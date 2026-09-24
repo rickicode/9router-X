@@ -113,7 +113,7 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
  {step === "loading" && (
  <div className="text-center py-3">
  <div className="flex items-center gap-2 text-primary">
- <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  </div>
  <h3 className="text-sm font-semibold mb-2">Initializing...</h3>
  <p className="text-sm text-text-muted">
@@ -169,7 +169,7 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
  {step === "success" && (
  <div className="flex flex-col gap-3">
  <div className="flex items-center gap-2 text-success">
- <span className="material-symbols-outlined text-[18px]">check_circle</span>
+ <Icon name="check_circle" size={18} />
  <h3 className="text-sm font-semibold">Connected Successfully!</h3>
  </div>
  <p className="text-sm text-text-muted mb-3">
@@ -185,7 +185,7 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
  {step === "error" && (
  <div className="flex flex-col gap-3">
  <div className="flex items-center gap-2 text-danger">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  <h3 className="text-sm font-semibold">Connection Failed</h3>
  </div>
  <p className="text-sm text-danger mb-3">{error}</p>

@@ -219,7 +219,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
                       onClick={() => onInspect(row)}
                       className="text-text-muted hover:text-primary flex items-center gap-0.5 ml-2"
                     >
-                      <span className="material-symbols-outlined text-sm">open_in_new</span>
+                      <Icon className="text-sm" name="open_in_new" size={18} />
                       <span>Inspector</span>
                     </button>
                   </div>
@@ -271,7 +271,7 @@ export default function BenchmarkLogs({ open, onClose, attempts, isJobRunning, a
 
           {logEntries.length === 0 ? (
             <div className="py-16 text-center text-text-muted">
-              <span className="material-symbols-outlined text-3xl opacity-30 mb-1 block">terminal</span>
+              <Icon className="text-3xl opacity-30 mb-1 block" name="terminal" size={18} />
               {attempts.length === 0
                 ? "Waiting for benchmark requests... logs will appear in real time."
                 : "No logs match the current query."}

@@ -62,7 +62,7 @@ export default function RequestErrorModal({ selectedError, fetchedError, loading
  <div className="space-y-3">
  <div className="flex items-center justify-between">
  <span className="text-xs font-medium text-danger flex items-center gap-1.5">
- <span className="material-symbols-outlined !text-[18px]">error</span>
+ <Icon name="error" size={18} />
  Error Response Payload
  </span>
  {(selectedError.error || fetchedError) && (
@@ -77,7 +77,7 @@ export default function RequestErrorModal({ selectedError, fetchedError, loading
  }}
  className="inline-flex items-center gap-1 text-[11px] text-text-muted hover:text-text-main cursor-pointer"
  >
- <span className="material-symbols-outlined !text-[18px]">content_copy</span>
+ <Icon name="content_copy" size={18} />
  Copy
  </button>
  )}
@@ -85,7 +85,7 @@ export default function RequestErrorModal({ selectedError, fetchedError, loading
 
  {loading ? (
  <div className="flex items-center justify-center p-3 border border-border rounded-sm bg-surface-2/40 text-text-muted text-xs gap-2 h-8">
- <span className="material-symbols-outlined animate-spin !text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  Loading error trace...
  </div>
  ) : (
@@ -104,7 +104,7 @@ export default function RequestErrorModal({ selectedError, fetchedError, loading
           href="/dashboard/usage?tab=logs&details=1"
  className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
  >
- <span className="material-symbols-outlined !text-[18px]">open_in_new</span>
+ <Icon name="open_in_new" size={18} />
           Open Request Details
  </a>
  <Button

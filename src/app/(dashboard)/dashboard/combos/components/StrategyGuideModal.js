@@ -98,11 +98,11 @@ export default function StrategyGuideModal({ isOpen, onClose }) {
 
                 <div className="mt-3 pt-2.5 border-t border-border/50 flex flex-col gap-1.5 text-[11px]">
                   <div className="flex items-start gap-1.5 text-emerald-400">
-                    <span className="material-symbols-outlined text-[15px] shrink-0 mt-0.5">check_circle</span>
+                    <Icon className="shrink-0 mt-0.5" name="check_circle" size={18} />
                     <span className="text-text-muted">{strat.pros.join(" • ")}</span>
                   </div>
                   <div className="flex items-start gap-1.5 text-amber-400">
-                    <span className="material-symbols-outlined text-[15px] shrink-0 mt-0.5">info</span>
+                    <Icon className="shrink-0 mt-0.5" name="info" size={18} />
                     <span className="text-text-muted">{strat.cons.join(" • ")}</span>
                   </div>
                 </div>

@@ -50,7 +50,7 @@ export default function DonateModal({ isOpen, onClose }) {
  >
  <div className="flex items-center justify-between p-3 border-b border-border h-8">
  <h2 className="text-sm font-semibold text-text-main flex items-center gap-2">
- <span className="material-symbols-outlined text-primary">volunteer_activism</span>
+ <Icon className="text-primary" name="volunteer_activism" size={18} />
  {data?.title || "Support AxonRouter"}
  </h2>
  <button
@@ -58,14 +58,14 @@ export default function DonateModal({ isOpen, onClose }) {
  className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2"
  aria-label="Close"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 
  <div className="p-3 overflow-y-auto flex-1">
  {loading && (
  <div className="flex items-center justify-center py-3 text-text-muted">
- <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+ <Icon className="animate-spin mr-2" name="progress_activity" size={18} />
  Loading...
  </div>
  )}
@@ -129,7 +129,7 @@ function DonateChannelCard({ channel }) {
  style={{ backgroundColor: color }}
  >
  Open
- <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+ <Icon name="open_in_new" size={18} />
  </a>
  )}
  </div>

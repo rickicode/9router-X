@@ -36,15 +36,15 @@ function ModelItem({ index, model, isFirst, isLast, onEdit, onMoveUp, onMoveDown
  <div className="flex shrink-0 items-center gap-0.5">
  <button onClick={onMoveUp} disabled={isFirst}
  className={`size-8 rounded-sm ${isFirst ? "text-text-muted/20 cursor-not-allowed" : "text-text-muted hover:text-primary hover:bg-surface-2"}`} title="Move up">
- <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+ <Icon name="arrow_upward" size={18} />
  </button>
  <button onClick={onMoveDown} disabled={isLast}
  className={`size-8 rounded-sm ${isLast ? "text-text-muted/20 cursor-not-allowed" : "text-text-muted hover:text-primary hover:bg-surface-2"}`} title="Move down">
- <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
+ <Icon name="arrow_downward" size={18} />
  </button>
  </div>
  <button onClick={onRemove} className="size-8 hover:bg-danger/10 rounded-sm text-text-muted hover:text-danger" title="Remove">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
  );
@@ -155,7 +155,7 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
  )}
  <button onClick={() => setShowModelSelect(true)}
  className="w-full mt-2 h-8 border border-dashed border-border rounded-sm text-xs text-primary font-medium hover:text-primary hover:border-primary/30 flex items-center justify-center gap-1">
- <span className="material-symbols-outlined text-[18px]">add</span>
+ <Icon name="add" size={18} />
  Add Model
  </button>
  </div>

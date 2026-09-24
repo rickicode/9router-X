@@ -232,7 +232,7 @@ export default function ProxyFitnessTab() {
           {/* Action Toolbar */}
           <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-primary">block</span>
+              <Icon className="text-primary" name="block" size={18} />
               <span className="text-sm font-semibold text-text-main">Egress Blocks</span>
               <Badge variant={records.length > 0 ? "error" : "default"} size="sm">
                 {records.length} active block{records.length === 1 ? "" : "s"}
@@ -277,13 +277,13 @@ export default function ProxyFitnessTab() {
               >
                 <span className="flex min-w-0 items-center gap-1.5">
                   {providerFilter === "all" ? (
-                    <span className="material-symbols-outlined text-[18px] text-text-muted">apps</span>
+                    <Icon className="text-text-muted" name="apps" size={18} />
                   ) : (
                     <ProviderIcon providerId={providerFilter} size={18} className="size-[18px] rounded-sm object-contain" fallbackText={providerFilter.slice(0, 2).toUpperCase()} />
                   )}
                   <span className="truncate capitalize">{selectedProviderLabel}</span>
                 </span>
-                <span className="material-symbols-outlined text-[18px] text-text-muted">expand_more</span>
+                <Icon className="text-text-muted" name="expand_more" size={18} />
               </button>
 
               {providerMenuOpen && (
@@ -293,9 +293,9 @@ export default function ProxyFitnessTab() {
                     onClick={() => { setProviderFilter("all"); setProviderMenuOpen(false); }}
                     className={`flex w-full min-h-11 sm:min-h-9 items-center gap-3 rounded-sm px-3 text-left text-sm ${providerFilter === "all" ? "bg-primary/10 text-primary font-medium" : "text-text-main hover:bg-surface-2"}`}
                   >
-                    <span className="material-symbols-outlined text-[18px]">apps</span>
+                    <Icon name="apps" size={18} />
                     <span className="font-medium">All providers</span>
-                    {providerFilter === "all" && <span className="material-symbols-outlined ml-auto text-[18px]">check</span>}
+                    {providerFilter === "all" && <Icon className="ml-auto" name="check" size={18} />}
                   </button>
                   <div className="my-1 h-px bg-border" />
                   {providerOptions.map((provider) => (
@@ -307,7 +307,7 @@ export default function ProxyFitnessTab() {
                     >
                       <ProviderIcon providerId={provider} size={24} className="size-6 rounded-sm object-contain" fallbackText={provider.slice(0, 2).toUpperCase()} />
                       <span className="font-medium capitalize">{provider}</span>
-                      {providerFilter === provider && <span className="material-symbols-outlined ml-auto text-[18px]">check</span>}
+                      {providerFilter === provider && <Icon className="ml-auto" name="check" size={18} />}
                     </button>
                   ))}
                 </div>
@@ -355,7 +355,7 @@ export default function ProxyFitnessTab() {
                       <tr key={`${rec.poolId}::${rec.scope}`} className="border-b border-border last:border-0 align-top hover:bg-surface-2/40">
                         <td className="h-8 px-3 text-sm">
                           <span className="inline-flex items-center gap-2 rounded-sm bg-danger/10 px-2 py-1 text-xs font-medium text-danger">
-                            <span className="material-symbols-outlined text-[18px]">block</span>
+                            <Icon name="block" size={18} />
                             <span className="capitalize">{rec.provider}</span>
                           </span>
                         </td>

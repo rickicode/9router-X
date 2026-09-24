@@ -208,7 +208,7 @@ export default function ProvidersPage() {
  <ProvidersHeader globalSummary={globalSummary} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
  {!hasAnyResult && (
  <div className="text-center py-3 border border-dashed border-border rounded-sm">
- <span className="material-symbols-outlined text-[18px] text-text-muted mb-2">search_off</span>
+ <Icon className="text-text-muted mb-2" name="search_off" size={18} />
  <p className="text-text-muted text-sm">No providers match your search or filters</p>
  </div>
  )}

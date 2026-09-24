@@ -49,7 +49,7 @@ export default function ModalityAdaptersTab({
         <div className="min-w-0 max-w-3xl">
           <div className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-              <span className="material-symbols-outlined text-[18px]">perm_media</span>
+              <Icon name="perm_media" size={18} />
             </div>
             <h2 className="text-base font-semibold text-text-main">Input Modality Fallback Adapters</h2>
           </div>
@@ -223,7 +223,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                     title="Move up priority"
                     aria-label="Move up priority"
                   >
-                    <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+                    <Icon name="arrow_upward" size={18} />
                   </button>
 
                   {/* Move Down */}
@@ -238,7 +238,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                     title="Move down priority"
                     aria-label="Move down priority"
                   >
-                    <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+                    <Icon name="arrow_downward" size={18} />
                   </button>
 
                   {/* Delete */}
@@ -249,7 +249,7 @@ function ModalityCard({ cap, entry, onChange, activeProviders, getCaps }) {
                     title="Remove model from pool"
                     aria-label="Remove model from pool"
                   >
-                    <span className="material-symbols-outlined text-[16px]">close</span>
+                    <Icon name="close" size={18} />
                   </button>
                 </div>
               </div>

@@ -131,7 +131,7 @@ className="px-2 py-2 bg-surface rounded-sm text-xs border border-border focus:ou
 
  {loading && (
  <div className="flex items-center gap-2 text-text-muted text-xs py-3 justify-center">
- <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Loading registry...</span>
  </div>
  )}
@@ -192,7 +192,7 @@ className="px-2 py-2 bg-surface rounded-sm text-xs border border-border focus:ou
  <div className="px-3 py-2 bg-surface/40 border-t border-border flex flex-col gap-2">
  {isLoadingTools && (
  <div className="flex items-center gap-2 text-text-muted text-[11px] py-1">
- <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Probing server for tools...</span>
  </div>
  )}

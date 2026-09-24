@@ -117,7 +117,7 @@ export default function ModelsSection(d) {
  onClick={() => setShowAddCustomModel(true)}
       className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
 >
- <span className="material-symbols-outlined text-sm">add</span>
+ <Icon className="text-sm" name="add" size={18} />
  Add Model
 </button>
 
@@ -182,7 +182,7 @@ export default function ModelsSection(d) {
  className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-11 sm:min-h-0 rounded-sm border border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
  >
- <span className="material-symbols-outlined text-[18px]">add</span>
+ <Icon name="add" size={18} />
  {m.id.split("/").pop()}
  </button>
  ))}
@@ -202,7 +202,7 @@ export default function ModelsSection(d) {
  className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-11 sm:min-h-0 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title="Restore model"
  >
- <span className="material-symbols-outlined text-[18px]">add</span>
+ <Icon name="add" size={18} />
  {m.id}
  </button>
  ))}

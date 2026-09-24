@@ -139,7 +139,7 @@ export default function DashboardLayout({ children }) {
  className="text-current/70 hover:text-current focus-visible:outline-none rounded-sm"
  aria-label="Dismiss notification"
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+ <Icon name="close" size={18} />
  </button>
  ) : null}
  </div>

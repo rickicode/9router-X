@@ -1211,7 +1211,7 @@ function ProxyPoolsContent() {
                     }}
                     className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-warning">cloud</span>
+                    <Icon className="text-warning" name="cloud" size={18} />
                     Cloudflare Relay
                   </button>
                   <button
@@ -1221,7 +1221,7 @@ function ProxyPoolsContent() {
                     }}
                     className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-warning">playlist_add</span>
+                    <Icon className="text-warning" name="playlist_add" size={18} />
                     CF Bulk
                   </button>
                   <button
@@ -1231,7 +1231,7 @@ function ProxyPoolsContent() {
                     }}
                     className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-primary">cloud_upload</span>
+                    <Icon className="text-primary" name="cloud_upload" size={18} />
                     Vercel Relay
                   </button>
                   <button
@@ -1241,7 +1241,7 @@ function ProxyPoolsContent() {
                     }}
                     className="flex w-full min-h-11 sm:min-h-9 items-center gap-2 rounded-sm px-3 text-sm text-text-main hover:bg-surface-2"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-success">terminal</span>
+                    <Icon className="text-success" name="terminal" size={18} />
                     Deno Relay
                   </button>
                 </div>
@@ -1345,7 +1345,7 @@ function ProxyPoolsContent() {
                     onClick={() => setSearchQuery("")}
                     className="absolute right-0 top-1/2 -translate-y-1/2 size-11 sm:size-8 flex items-center justify-center text-text-muted hover:text-text-main"
                   >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
+                    <Icon name="close" size={18} />
                   </button>
                 )}
               </div>
@@ -1386,7 +1386,7 @@ function ProxyPoolsContent() {
                     className="size-11 sm:size-8 flex items-center justify-center rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
                     title="Clear group filter"
                   >
-                    <span className="material-symbols-outlined text-[18px]">cancel</span>
+                    <Icon name="cancel" size={18} />
                   </button>
                 )}
               </div>
@@ -1409,7 +1409,7 @@ function ProxyPoolsContent() {
 
  {(selectedIds.length > 0 || healthChecking) && (
  <div className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-primary/30 bg-primary/10 px-3 py-2">
- <span className="material-symbols-outlined text-[18px] text-primary">checklist</span>
+ <Icon className="text-primary" name="checklist" size={18} />
  <span className="text-xs font-medium text-primary">
  {selectedIds.length > 0 ? `${selectedIds.length} selected` : "All pools"}
  </span>
@@ -1559,14 +1559,14 @@ function ProxyPoolsContent() {
                     className="size-11 sm:size-8 flex items-center justify-center shrink-0 rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main"
                     title="Edit"
                   >
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                    <Icon name="edit" size={18} />
                   </button>
                   <button
                     onClick={() => handleDelete(pool)}
                     className="size-11 sm:size-8 flex items-center justify-center shrink-0 rounded-sm text-danger hover:bg-danger/10"
                     title="Delete"
                   >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <Icon name="delete" size={18} />
                   </button>
  </div>
  </div>
@@ -1618,7 +1618,7 @@ function ProxyPoolsContent() {
                       className="inline-flex min-h-11 sm:min-h-8 sm:h-8 items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
  title="Previous Page"
  >
- <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+ <Icon name="chevron_left" size={18} />
  <span>Prev</span>
  </button>
 
@@ -1655,7 +1655,7 @@ function ProxyPoolsContent() {
  title="Next Page"
  >
  <span>Next</span>
- <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+ <Icon name="chevron_right" size={18} />
  </button>
  </div>
  )}
@@ -1670,7 +1670,7 @@ function ProxyPoolsContent() {
  <div className="flex flex-col gap-3">
  <div>
  <h2 className="text-sm font-semibold text-text-main flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px] text-primary">auto_awesome</span>
+ <Icon className="text-primary" name="auto_awesome" size={18} />
  <span>Default Groups (Automatic by Type)</span>
  </h2>
  <p className="text-xs text-text-muted">
@@ -1715,7 +1715,7 @@ function ProxyPoolsContent() {
                     className="min-h-11 sm:min-h-8 px-2 rounded-sm text-xs text-text-muted hover:text-text-main flex items-center gap-1 font-medium hover:bg-surface-2"
                     title="View all pools in this group"
                   >
-                    <span className="material-symbols-outlined text-[18px]">visibility</span>
+                    <Icon name="visibility" size={18} />
                     <span>View ({grp.poolCount})</span>
                   </button>
                   <button
@@ -1723,7 +1723,7 @@ function ProxyPoolsContent() {
                     onClick={() => openEditGroupModal(grp)}
                     className="min-h-11 sm:min-h-8 px-2 rounded-sm text-xs text-primary hover:underline flex items-center gap-1 font-medium hover:bg-primary/10"
                   >
-                    <span className="material-symbols-outlined text-[18px]">tune</span>
+                    <Icon name="tune" size={18} />
                     <span>Configure</span>
                   </button>
  </div>
@@ -1739,7 +1739,7 @@ function ProxyPoolsContent() {
  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
  <div>
  <h2 className="text-sm font-semibold text-text-main flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px] text-primary">folder_special</span>
+ <Icon className="text-primary" name="folder_special" size={18} />
  <span>Custom Groups</span>
  </h2>
  <p className="text-xs text-text-muted">
@@ -1753,7 +1753,7 @@ function ProxyPoolsContent() {
  <div className="py-3 text-center text-sm text-text-muted">Loading proxy groups...</div>
  ) : (proxyGroups.customGroups || []).length === 0 ? (
  <div className="py-3 text-center">
- <span className="material-symbols-outlined text-[18px] text-text-muted/50 mb-2">folder_off</span>
+ <Icon className="text-text-muted/50 mb-2" name="folder_off" size={18} />
  <p className="font-medium text-sm text-text-main">No custom proxy groups yet</p>
  <p className="text-xs text-text-muted mt-1 mb-3 max-w-sm mx-auto">
  Create a custom group to bundle selected proxies and choose between strict round-robin or sticky sessions.

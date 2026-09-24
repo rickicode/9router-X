@@ -144,7 +144,7 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
  useTunnel ? "border-primary/30 bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
  }`}
  >
- <span className="material-symbols-outlined text-[18px]">wifi_tethering</span>
+ <Icon name="wifi_tethering" size={18} />
  Tunnel
  </button>
  )}
@@ -176,7 +176,7 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
  onClick={() => setInput("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>

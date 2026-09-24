@@ -79,7 +79,7 @@ export default function UsageChart({ period = "7d", viewMode: controlledViewMode
       {error ? (
         <div className="flex h-48 flex-col items-center justify-center gap-2 text-sm text-danger" role="alert">
           <div className="flex items-center gap-1.5 font-medium">
-            <span className="material-symbols-outlined text-[18px]">error</span>
+            <Icon name="error" size={18} />
             <span>{error}</span>
           </div>
           <button

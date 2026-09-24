@@ -80,7 +80,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  {/* Upstream account */}
  <td className="h-8 px-3 truncate max-w-[180px] text-sm" title={r.account || "Direct request"}>
  <span className="inline-flex items-center gap-1 text-text-muted">
- <span className="material-symbols-outlined !text-[18px]">account_circle</span>
+ <Icon name="account_circle" size={18} />
  <span className="text-[11px] text-text-main truncate">{r.account || "Direct request"}</span>
  </span>
  </td>
@@ -187,12 +187,12 @@ export function RealtimeRequestCardMobile({ req, onOpenError }) {
       {expanded && (
         <div className="flex flex-col gap-1.5 px-3 pb-2.5 text-[11px] text-text-muted">
           <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined shrink-0 text-[15px]" aria-hidden="true">account_circle</span>
+            <Icon className="shrink-0" name="account_circle" size={18} />
             <span className="truncate text-text-main">{r.account || "Direct request"}</span>
           </div>
           {(r.clientApiKey || r.apiKey) && (
             <div className="flex items-center gap-1.5 font-mono">
-              <span className="material-symbols-outlined shrink-0 text-[15px]" aria-hidden="true">key</span>
+              <Icon className="shrink-0" name="key" size={18} />
               <span className="truncate">{r.clientApiKey || r.apiKey}</span>
             </div>
           )}
@@ -204,7 +204,7 @@ export function RealtimeRequestCardMobile({ req, onOpenError }) {
               onClick={() => onOpenError(r)}
               className="mt-0.5 w-fit"
             >
-              <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">error</span>
+              <Icon name="error" size={18} />
               Show Error
             </Button>
           )}

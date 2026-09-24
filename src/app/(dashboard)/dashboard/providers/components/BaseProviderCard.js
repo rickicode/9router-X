@@ -82,7 +82,7 @@ function BaseProviderCard({ providerId, provider, stats, iconSrc, isNoAuth, stat
  {allDisabled ? (
  <Badge variant="default" size="sm">
  <span className="flex items-center gap-1">
- <span className="material-symbols-outlined text-[18px]">pause_circle</span>
+ <Icon name="pause_circle" size={18} />
  Disabled
  </span>
  </Badge>

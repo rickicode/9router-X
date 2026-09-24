@@ -229,14 +229,14 @@ default_subagent_model = "${effectiveSubagentModel}"
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
  {checkingCodex && (
  <div className="flex items-center gap-2 text-text-muted">
- <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Checking Codex CLI...</span>
  </div>
  )}
@@ -256,7 +256,7 @@ default_subagent_model = "${effectiveSubagentModel}"
  {/* Endpoint (selector) */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <BaseUrlSelect
  value={customBaseUrl || getDisplayUrl()}
  onChange={setCustomBaseUrl}
@@ -274,7 +274,7 @@ default_subagent_model = "${effectiveSubagentModel}"
  return currentBaseUrl ? (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
  {currentBaseUrl}
  </span>
@@ -285,17 +285,17 @@ default_subagent_model = "${effectiveSubagentModel}"
  {/* API Key */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
  </div>
 
  {/* Model */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Model</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <div className="relative w-full min-w-0">
  <input type="text" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} placeholder="provider/model-id" className="w-full min-w-0 pl-2 pr-7 h-8 bg-surface rounded-sm border border-border text-xs focus:outline-none sm:py-2" />
- {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm" title="Clear"><span className="material-symbols-outlined text-[18px]">close</span></button>}
+ {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm" title="Clear"><Icon name="close" size={18} /></button>}
  </div>
  <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`w-full sm:w-auto rounded-sm border px-2 h-8 text-xs sm:py-2 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
  </div>
@@ -303,7 +303,7 @@ default_subagent_model = "${effectiveSubagentModel}"
  {/* Subagent Model */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Subagent Model</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <div className="relative w-full min-w-0">
  <input
  type="text"
@@ -318,7 +318,7 @@ default_subagent_model = "${effectiveSubagentModel}"
  className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm"
  title="Clear (will use main model)"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -341,13 +341,13 @@ default_subagent_model = "${effectiveSubagentModel}"
 
  <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
  <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={(!selectedApiKey && (cloudEnabled && apiKeys.length > 0)) || !selectedModel} loading={applying}>
- <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
+ <Icon className="mr-1" name="save" size={18} />Apply
  </Button>
  <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={restoring} loading={restoring}>
- <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
+ <Icon className="mr-1" name="restore" size={18} />Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
- <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config
+ <Icon className="mr-1" name="content_copy" size={18} />Manual Config
  </Button>
  </div>
  </>

@@ -71,7 +71,7 @@ onClick={onDeleteAlias}
 className="size-11 sm:size-8 hover:bg-danger/10 rounded-sm text-danger"
 title="Remove model"
 >
-<span className="material-symbols-outlined text-sm">delete</span>
+<Icon className="text-sm" name="delete" size={18} />
 </button>
  </div>
  );

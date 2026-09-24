@@ -134,7 +134,7 @@ export default function AnalyticsFilterBar({ analytics, period }) {
                 className="hover:text-danger ml-0.5 inline-flex items-center"
                 aria-label="Remove provider filter"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             </span>
           )}
@@ -147,7 +147,7 @@ export default function AnalyticsFilterBar({ analytics, period }) {
                 className="hover:text-danger ml-0.5 inline-flex items-center"
                 aria-label="Remove model filter"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             </span>
           )}
@@ -160,7 +160,7 @@ export default function AnalyticsFilterBar({ analytics, period }) {
                 className="hover:text-danger ml-0.5 inline-flex items-center"
                 aria-label="Remove error category filter"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             </span>
           )}

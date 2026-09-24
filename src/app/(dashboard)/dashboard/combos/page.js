@@ -421,7 +421,7 @@ function CombosContent({ activeTab }) {
               className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
               title="Clear search"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <Icon name="close" size={18} />
             </button>
           )}
         </div>
@@ -431,7 +431,7 @@ function CombosContent({ activeTab }) {
       {combos.length === 0 ? (
         <Card>
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-            <span className="material-symbols-outlined text-text-muted text-[36px]">alt_route</span>
+            <Icon className="text-text-muted" name="alt_route" size={18} />
             <div>
               <p className="text-sm font-semibold text-text-main">No combos configured</p>
               <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
@@ -511,7 +511,7 @@ function CombosContent({ activeTab }) {
           {filteredBuiltin.length === 0 ? (
             <Card>
               <div className="text-center py-8">
-                <span className="material-symbols-outlined text-text-muted text-[28px] mb-2 block">search_off</span>
+                <Icon className="text-text-muted mb-2 block" name="search_off" size={18} />
                 <p className="text-text-main font-medium text-xs mb-1">No matching built-in presets</p>
                 <p className="text-xs text-text-muted">Try a different search term</p>
               </div>
@@ -543,7 +543,7 @@ function CombosContent({ activeTab }) {
             <div className="flex items-center justify-between border-b border-border pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
-                  <span className="material-symbols-outlined text-[16px]">person</span>
+                  <Icon name="person" size={18} />
                 </div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-semibold text-text-main">Custom Combos</h3>
@@ -593,7 +593,7 @@ function CombosContent({ activeTab }) {
             <div className="flex items-center justify-between border-b border-border pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
-                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                  <Icon name="verified" size={18} />
                 </div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-semibold text-text-main">Built-in Presets & Smart Routing</h3>
@@ -755,14 +755,14 @@ function ComboCard({
 
               {isDifficulty && (
                 <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-400 border border-emerald-500/30">
-                  <span className="material-symbols-outlined text-[13px]">auto_awesome</span>
+                  <Icon name="auto_awesome" size={18} />
                   Smart Routing
                 </span>
               )}
 
               {isFusion && (
                 <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-400 border border-amber-500/30">
-                  <span className="material-symbols-outlined text-[13px]">groups</span>
+                  <Icon name="groups" size={18} />
                   Fusion
                 </span>
               )}
@@ -836,7 +836,7 @@ function ComboCard({
               title="Edit combo"
               aria-label="Edit combo"
             >
-              <span className="material-symbols-outlined text-[17px]">edit</span>
+              <Icon name="edit" size={18} />
             </button>
 
             {!isBuiltin && (
@@ -846,7 +846,7 @@ function ComboCard({
                 title="Delete combo"
                 aria-label="Delete combo"
               >
-                <span className="material-symbols-outlined text-[17px]">delete</span>
+                <Icon name="delete" size={18} />
               </button>
             )}
 
@@ -898,7 +898,7 @@ function ComboCard({
         {isFusion && (
           <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2 p-2.5 rounded-md bg-amber-500/[0.04] border border-amber-500/20">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-              <span className="material-symbols-outlined text-[18px]">gavel</span>
+              <Icon name="gavel" size={18} />
               <span>Consensus Judge:</span>
             </div>
             <button
@@ -915,7 +915,7 @@ function ComboCard({
                 className="size-6 rounded flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                 title="Reset to Auto"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             )}
           </div>
@@ -1021,7 +1021,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
           title="Drag to reorder"
           aria-label="Drag to reorder"
         >
-          <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+          <Icon name="drag_indicator" size={18} />
         </button>
 
         <span className="flex size-5.5 shrink-0 items-center justify-center rounded font-mono text-[11px] font-semibold bg-surface-2 text-text-muted border border-border/50">
@@ -1059,7 +1059,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
           title="Move up"
           aria-label="Move up"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+          <Icon name="arrow_upward" size={18} />
         </button>
         <button
           onClick={onMoveDown}
@@ -1070,7 +1070,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
           title="Move down"
           aria-label="Move down"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+          <Icon name="arrow_downward" size={18} />
         </button>
         <button
           onClick={onRemove}
@@ -1078,7 +1078,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
           title="Remove"
           aria-label="Remove"
         >
-          <span className="material-symbols-outlined text-[16px]">close</span>
+          <Icon name="close" size={18} />
         </button>
       </div>
     </div>
@@ -1237,7 +1237,7 @@ function ComboFormModal({
           {strategy?.fallbackStrategy === "difficulty" && (
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-text-muted">
               <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                <Icon name="auto_awesome" size={18} />
                 <span>Smart Routing Active</span>
               </div>
               <p className="mt-1 text-[11px] text-text-muted leading-relaxed">

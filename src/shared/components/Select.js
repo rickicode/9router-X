@@ -58,12 +58,12 @@ export default function Select({
           ))}
         </select>
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-muted">
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">expand_more</span>
+          <Icon name="expand_more" size={18} />
         </div>
       </div>
       {error && (
         <p id={errorId} className="text-xs text-danger flex items-center gap-1">
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+          <Icon name="error" size={18} />
           {error}
         </p>
       )}

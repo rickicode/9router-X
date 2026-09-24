@@ -12,7 +12,7 @@ export default function QuotaPage() {
       <div className="rounded-sm border border-border bg-surface p-4">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-[22px]" aria-hidden="true">data_usage</span>
+            <Icon name="data_usage" size={18} />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold text-text-main mb-1">Quota Tracker</h1>

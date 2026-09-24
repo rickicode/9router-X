@@ -318,7 +318,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                         title="Inspect attempt details"
                         aria-label="Inspect attempt details"
                       >
-                        <span className="material-symbols-outlined text-base">visibility</span>
+                        <Icon className="text-base" name="visibility" size={18} />
                       </button>
                     </td>
                   </tr>
@@ -329,7 +329,7 @@ export default function BenchmarkResults({ attempts, isJobRunning, onInspect }) 
                 <tr>
                   <td colSpan="10" className="py-12 text-center text-text-muted font-sans">
                     <div className="flex flex-col items-center justify-center gap-1.5">
-                      <span className="material-symbols-outlined text-3xl opacity-30">inbox</span>
+                      <Icon className="text-3xl opacity-30" name="inbox" size={18} />
                       <span>
                         {attempts.length === 0
                           ? isJobRunning

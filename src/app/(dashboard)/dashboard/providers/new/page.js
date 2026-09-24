@@ -80,7 +80,7 @@ export default function NewProviderPage() {
  href="/dashboard/providers"
 className="inline-flex h-11 items-center gap-1 text-sm text-text-muted hover:text-primary w-fit sm:h-8"
  >
- <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+ <Icon name="arrow_back" size={18} />
  Back to Providers
  </Link>
  <p className="text-sm text-text-muted">

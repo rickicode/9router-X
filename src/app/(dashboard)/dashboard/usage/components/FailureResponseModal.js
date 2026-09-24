@@ -89,7 +89,7 @@ export default function FailureResponseModal({
           }`}
  className="mt-2 text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
  >
-  Open Request Details <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+  Open Request Details <Icon name="open_in_new" size={18} />
  </a>
  </div>
  ) : (
@@ -220,7 +220,7 @@ className={cn(
  {/* Error highlights */}
  <div className="p-3 bg-danger/10 border-b border-danger/30 flex flex-col gap-1">
  <span className="text-[11px] font-medium text-danger flex items-center gap-1">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  Error Summary
  </span>
  <p className="text-xs font-medium text-danger break-words">
@@ -268,7 +268,7 @@ className={cn(
           )}&model=${encodeURIComponent(selected.model || "")}`}
  className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
  >
- <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+ <Icon name="open_in_new" size={18} />
   View trace in Request Details
  </a>
  <Button variant="ghost" size="sm" onClick={onClose}>

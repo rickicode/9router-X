@@ -632,7 +632,7 @@ function BenchmarkContent() {
       {error ? (
         <div className="rounded-sm border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base">error</span>
+            <Icon className="text-base" name="error" size={18} />
             <span>{error}</span>
           </div>
           <Button
@@ -897,7 +897,7 @@ function BenchmarkContent() {
                                 title={`Remove model ${m.name}`}
                                 aria-label={`Remove model ${m.name}`}
                               >
-                                <span className="material-symbols-outlined text-sm leading-none">close</span>
+                                <Icon className="text-sm leading-none" name="close" size={18} />
                               </button>
                             </span>
                           ))}
@@ -911,7 +911,7 @@ function BenchmarkContent() {
           ) : (
             <div className="py-12 text-center text-sm text-text-muted">
               <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
-                <span className="material-symbols-outlined text-4xl opacity-30 text-primary">add_chart</span>
+                <Icon className="text-4xl opacity-30 text-primary" name="add_chart" size={18} />
                 <span className="font-semibold text-text-main text-base">No Models Selected</span>
                 <p className="text-xs text-text-muted leading-relaxed">
                   Choose a quick preset above or click below to browse the model catalog and select target models for benchmark evaluation.
@@ -1025,7 +1025,7 @@ function BenchmarkContent() {
               </div>
               {active.progress?.currentAccount ? (
                 <div className="mt-1.5 text-xs text-text-muted flex items-center gap-2 font-mono">
-                  <span className="material-symbols-outlined text-sm">badge</span>
+                  <Icon className="text-sm" name="badge" size={18} />
                   <span>Account: {active.progress.currentAccount}</span>
                   {active.progress.retrying ? (
                     <span className="text-amber-400 font-medium">
@@ -1060,7 +1060,7 @@ function BenchmarkContent() {
             {report ? (
               <div className="mt-4 rounded-lg border border-border bg-surface-2 p-4">
                 <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                  <span className="material-symbols-outlined text-base">psychology</span>
+                  <Icon className="text-base" name="psychology" size={18} />
                   <span>Reviewer Assessment ({report.reviewer})</span>
                 </div>
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-text-main font-sans">

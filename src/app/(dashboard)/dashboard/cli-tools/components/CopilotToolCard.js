@@ -221,14 +221,14 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
  {checking && (
  <div className="flex items-center gap-2 text-text-muted">
- <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Checking Copilot config...</span>
  </div>
  )}
@@ -244,7 +244,7 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  {!checking && (
  <>
  <div className="flex items-start gap-3 p-3 bg-primary/10 border border-primary/30 rounded-sm">
- <span className="material-symbols-outlined text-primary text-[18px]">info</span>
+ <Icon className="text-primary" name="info" size={18} />
  <div className="text-xs text-primary">
  <p className="font-medium">Writes to <code className="px-1 bg-surface-2 rounded-sm">chatLanguageModels.json</code></p>
  <p className="mt-0.5 opacity-80">Reload VS Code after applying for changes to take effect.</p>
@@ -255,7 +255,7 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  {/* Endpoint */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <BaseUrlSelect
  value={customBaseUrl || getDisplayUrl()}
  onChange={setCustomBaseUrl}
@@ -271,14 +271,14 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  {/* API Key */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
  </div>
 
  {/* Models */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">Models</span>
- <span className="material-symbols-outlined text-text-muted text-[18px] mt-1.5">arrow_forward</span>
+ <Icon className="text-text-muted mt-1.5" name="arrow_forward" size={18} />
  <div className="flex-1 flex flex-col gap-2">
  <div className="flex flex-wrap gap-1.5 min-h-[28px] px-2 py-2 bg-surface rounded-sm border border-border">
  {selectedModels.length === 0 ? (
@@ -288,7 +288,7 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
  <span key={model} className="inline-flex items-center gap-1 px-2 rounded-sm text-xs bg-surface text-text-muted border border-transparent hover:border-border h-8">
  {model}
  <button onClick={(e) => { e.stopPropagation(); removeModel(model); }} className="ml-0.5 hover:text-danger">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </span>
  ))
@@ -310,13 +310,13 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
 
  <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
  <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying}>
- <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
+ <Icon className="mr-1" name="save" size={18} />Apply
  </Button>
  <Button variant="outline" size="sm" onClick={handleReset} disabled={!status?.hasAxonRouter} loading={restoring}>
- <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
+ <Icon className="mr-1" name="restore" size={18} />Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)} disabled={selectedModels.length === 0}>
- <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config
+ <Icon className="mr-1" name="content_copy" size={18} />Manual Config
  </Button>
  </div>
  </>

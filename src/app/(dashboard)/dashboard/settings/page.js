@@ -795,7 +795,7 @@ export default function ProfilePage() {
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
  <div className="flex items-center gap-3 sm:gap-3">
  <div className="size-8 rounded-sm bg-success/10 text-success flex items-center justify-center shrink-0">
- <span className="material-symbols-outlined text-[18px]">computer</span>
+ <Icon name="computer" size={18} />
  </div>
  <div>
  <h2 className="text-sm font-semibold">Local Mode</h2>
@@ -885,7 +885,7 @@ export default function ProfilePage() {
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="size-8 rounded-sm bg-primary/10 text-primary flex items-center justify-center shrink-0">
- <span className="material-symbols-outlined text-[18px]">language</span>
+ <Icon name="language" size={18} />
  </div>
  <h3 className="text-sm font-semibold">Language</h3>
  </div>
@@ -903,7 +903,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="size-8 shrink-0 rounded-sm bg-primary/10 text-primary flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px]">shield</span>
+ <Icon name="shield" size={18} />
  </div>
  <h3 className="text-sm font-semibold">Security</h3>
  </div>
@@ -989,7 +989,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  className="w-full flex items-center gap-3 text-left"
  >
  <div className="size-8 shrink-0 rounded-sm bg-primary/10 text-primary flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px]">lock_open</span>
+ <Icon name="lock_open" size={18} />
  </div>
  <div className="flex-1 min-w-0">
  <h3 className="text-sm font-semibold">Single Sign-On (SSO)</h3>
@@ -1102,7 +1102,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  className="w-full p-3 flex items-center justify-between gap-2 text-left hover:bg-surface-2 h-8"
  >
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-primary text-[18px]">menu_book</span>
+ <Icon className="text-primary" name="menu_book" size={18} />
  <div>
  <p className="font-medium text-xs sm:text-sm text-text-main">
  IdP Setup Guidelines & Provider Configuration Instructions
@@ -1336,7 +1336,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  download="axonrouter-sp-metadata.xml"
  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
  >
- <span className="material-symbols-outlined text-[18px]">download</span>
+ <Icon name="download" size={18} />
  Download XML
  </a>
  </div>
@@ -1479,7 +1479,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="size-8 shrink-0 rounded-sm bg-primary/10 text-primary flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px]">route</span>
+ <Icon name="route" size={18} />
  </div>
  <h3 className="text-sm font-semibold">Routing Strategy</h3>
  </div>
@@ -1570,7 +1570,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="size-8 shrink-0 rounded-sm bg-primary/10 text-primary flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px]">wifi</span>
+ <Icon name="wifi" size={18} />
  </div>
  <h3 className="text-sm font-semibold">Network</h3>
  </div>
@@ -1642,7 +1642,7 @@ className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border 
  <Card>
  <div className="flex items-center gap-3 mb-3">
  <div className="size-8 shrink-0 rounded-sm bg-warning/10 text-warning flex items-center justify-center">
- <span className="material-symbols-outlined text-[18px]">monitoring</span>
+ <Icon name="monitoring" size={18} />
  </div>
  <h3 className="text-sm font-semibold">Observability</h3>
  </div>

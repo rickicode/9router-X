@@ -60,7 +60,7 @@ export default function HostSetupCommand({
  <div className="flex flex-col gap-2 p-3 bg-primary/10 border border-primary/30 rounded-sm">
  <div className="flex items-center justify-between gap-2 flex-wrap">
  <div className="flex items-center gap-1.5">
- <span className="material-symbols-outlined text-primary text-[18px]">terminal</span>
+ <Icon className="text-primary" name="terminal" size={18} />
  <span className="text-xs font-medium text-text-main">
  Host One-Click Auto Setup
  </span>

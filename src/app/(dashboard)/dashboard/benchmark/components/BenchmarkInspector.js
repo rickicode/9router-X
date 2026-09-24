@@ -92,7 +92,7 @@ export default function BenchmarkInspector({ attempt, onClose }) {
           {attempt.error ? (
             <div>
               <div className="text-rose-400 font-bold mb-1.5 flex items-center gap-1.5 font-sans">
-                <span className="material-symbols-outlined text-sm">warning</span>
+                <Icon className="text-sm" name="warning" size={18} />
                 <span>Error Message / Upstream Diagnostics:</span>
               </div>
               <pre className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 whitespace-pre-wrap break-all text-[11px] leading-relaxed select-all">

@@ -144,7 +144,7 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
  {phase === "detecting" && (
  <div className="text-center py-3">
  <div className="flex items-center gap-2 text-primary">
- <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  </div>
  <h3 className="text-sm font-semibold mb-2">Reading local credentials...</h3>
  <p className="text-sm text-text-muted">
@@ -158,7 +158,7 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
  <>
  <div className="bg-success/10 p-3 rounded-sm border border-success/30">
  <div className="flex gap-2">
- <span className="material-symbols-outlined text-success">check_circle</span>
+ <Icon className="text-success" name="check_circle" size={18} />
  <div className="text-sm text-success">
  <p className="font-medium">Xiaomi MiMo Desktop credentials found!</p>
  <p className="mt-1 opacity-80">
@@ -189,7 +189,7 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
  {phase === "importing" && (
  <div className="text-center py-3">
  <div className="flex items-center gap-2 text-primary">
- <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  </div>
  <h3 className="text-sm font-semibold mb-2">Connecting...</h3>
  </div>
@@ -200,7 +200,7 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
  <>
  <div className="bg-warning/10 p-3 rounded-sm border border-warning/30">
  <div className="flex gap-2 items-start">
- <span className="material-symbols-outlined text-warning">info</span>
+ <Icon className="text-warning" name="info" size={18} />
  <div className="text-sm text-warning">
  <p className="font-medium">Local credentials not found</p>
  <p className="mt-1 opacity-80">{error}</p>

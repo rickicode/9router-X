@@ -264,7 +264,7 @@ export function TtsExampleCard({ providerId }) {
  useTunnel ? "border-primary/30 bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
  }`}
  >
- <span className="material-symbols-outlined text-[18px]">wifi_tethering</span>
+ <Icon name="wifi_tethering" size={18} />
  Tunnel
  </button>
  )}
@@ -332,7 +332,7 @@ export function TtsExampleCard({ providerId }) {
  onClick={openModal}
  className="flex w-full items-center justify-center gap-1 text-xs px-2.5 py-1 rounded-sm border border-border text-text-muted hover:text-primary hover:border-primary/30 sm:w-auto sm:shrink-0 h-8"
  >
- <span className="material-symbols-outlined text-[18px]">language</span>
+ <Icon name="language" size={18} />
  Select language
  </button>
  </div>
@@ -392,7 +392,7 @@ export function TtsExampleCard({ providerId }) {
  onClick={() => { setVoiceId(""); setSelectedVoice(""); }}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -433,7 +433,7 @@ export function TtsExampleCard({ providerId }) {
  onClick={() => setInput("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -456,7 +456,7 @@ export function TtsExampleCard({ providerId }) {
  onClick={() => setStyle("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -512,7 +512,7 @@ export function TtsExampleCard({ providerId }) {
  Response {latency && <span className="font-normal normal-case">&#9889; {latency}ms</span>}
  </span>
  <a href={audioUrl} download="speech.mp3" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">download</span>
+ <Icon name="download" size={18} />
  Download
  </a>
  </div>
@@ -558,7 +558,7 @@ export function TtsExampleCard({ providerId }) {
  <div className="flex items-center justify-between h-8 px-3 border-b border-border shrink-0 rounded-t-sm">
  <h3 className="text-sm font-semibold">Select Language</h3>
  <button onClick={() => setModalOpen(false)} className="text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 
@@ -592,7 +592,7 @@ export function TtsExampleCard({ providerId }) {
  <div className="flex items-center gap-2 shrink-0">
  <span className="text-xs text-text-muted">{c.voices.length} voices</span>
  {selectedLang === c.code && (
- <span className="material-symbols-outlined text-[18px] text-primary">check</span>
+ <Icon className="text-primary" name="check" size={18} />
  )}
  </div>
  </button>

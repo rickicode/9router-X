@@ -74,7 +74,7 @@ export default function HeaderMenu({ onLogout }) {
 className="flex size-10 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main"
  title="Menu"
  >
- <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+ <Icon name="more_horiz" size={18} />
  </button>
 
  {isOpen && (

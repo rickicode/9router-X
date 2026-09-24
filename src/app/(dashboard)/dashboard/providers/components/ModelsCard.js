@@ -49,7 +49,7 @@ export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCusto
  </div>
  {isCustom && (
  <button onClick={onDeleteAlias} className="size-8 hover:bg-danger/10 rounded-sm text-text-muted hover:text-danger opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" title="Remove custom model" aria-label="Remove custom model">
- <span className="material-symbols-outlined text-sm">close</span>
+ <Icon className="text-sm" name="close" size={18} />
  </button>
  )}
  </div>
@@ -276,7 +276,7 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
  onClick={() => setShowAddCustomModel(true)}
  className="flex items-center gap-1.5 px-3 h-8 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30"
  >
- <span className="material-symbols-outlined text-sm">add</span>
+ <Icon className="text-sm" name="add" size={18} />
  Add Model
  </button>
  </div>

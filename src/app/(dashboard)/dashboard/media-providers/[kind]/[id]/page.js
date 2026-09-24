@@ -82,7 +82,7 @@ export default function MediaProviderDetailPage() {
  href={`/dashboard/media-providers/${kind}`}
  className="inline-flex h-8 items-center gap-1 text-sm text-text-muted hover:text-primary mb-3"
  >
- <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+ <Icon name="arrow_back" size={18} />
  {kindConfig.label}
  </Link>
 
@@ -108,7 +108,7 @@ export default function MediaProviderDetailPage() {
  rel="noopener noreferrer"
  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
  >
- <span className="material-symbols-outlined text-sm">open_in_new</span>
+ <Icon className="text-sm" name="open_in_new" size={18} />
  Get API Key
  </a>
  )}
@@ -138,7 +138,7 @@ export default function MediaProviderDetailPage() {
  {/* Kind-specific notice (e.g. codex/image requires Plus) */}
  {!isCustom && provider.kindNotice?.[kind] && (
  <div className="flex items-start gap-3 h-8 px-3 rounded-sm bg-warning/10 border border-warning/30 text-warning">
- <span className="material-symbols-outlined text-[18px] mt-0.5">warning</span>
+ <Icon className="mt-0.5" name="warning" size={18} />
  <p className="text-sm">{provider.kindNotice[kind]}</p>
  </div>
  )}
@@ -146,7 +146,7 @@ export default function MediaProviderDetailPage() {
  {/* Provider notice text (only when there's actual text content) */}
  {!isCustom && provider.notice?.text && !provider.deprecated && (
  <div className="flex flex-col gap-2 rounded-sm border border-primary/30 bg-primary/10 px-3 py-2 sm:flex-row sm:items-center">
- <span className="material-symbols-outlined text-[18px] text-primary shrink-0">info</span>
+ <Icon className="text-primary shrink-0" name="info" size={18} />
  <p className="min-w-0 flex-1 text-xs text-primary">{provider.notice.text}</p>
  {provider.notice.apiKeyUrl && (
  <a

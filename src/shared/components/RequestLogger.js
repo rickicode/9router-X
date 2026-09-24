@@ -301,7 +301,7 @@ placeholder="Search model, provider, account…"
  className="flex items-center justify-between gap-3 rounded-sm border border-danger/30 bg-danger/10 h-8 px-3 text-sm text-danger"
  >
  <div className="flex items-center gap-2 min-w-0">
- <span className="material-symbols-outlined text-[18px] shrink-0" aria-hidden="true">error</span>
+ <Icon className="shrink-0" name="error" size={18} />
  <span className="truncate">{fetchError}</span>
  </div>
  <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} className="shrink-0">
@@ -313,7 +313,7 @@ placeholder="Search model, provider, account…"
  <Card padding="none" className="overflow-hidden bg-surface-2">
  {loading && logs.length === 0 ? (
  <div className="p-3 text-center text-text-muted text-xs flex flex-col items-center gap-2">
- <span className="material-symbols-outlined text-[18px] text-text-muted animate-spin">progress_activity</span>
+ <Icon className="text-text-muted animate-spin" name="progress_activity" size={18} />
 Loading logs…
  </div>
  ) : filtered.length === 0 ? (

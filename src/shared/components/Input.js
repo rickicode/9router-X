@@ -61,7 +61,7 @@ export default function Input({
       </div>
       {error && (
         <p id={errorId} className="text-xs text-danger flex items-center gap-1">
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+          <Icon name="error" size={18} />
           {error}
         </p>
       )}

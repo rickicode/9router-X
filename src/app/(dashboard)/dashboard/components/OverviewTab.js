@@ -185,7 +185,7 @@ export default function OverviewTab({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">api</span>
+                  <Icon name="api" size={18} />
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-text-main">Base Endpoint URL</h4>
@@ -215,7 +215,7 @@ export default function OverviewTab({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">key</span>
+                  <Icon name="key" size={18} />
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-text-main">Default API Key</h4>
@@ -229,7 +229,7 @@ export default function OverviewTab({
                   className="text-[11px] font-medium text-primary hover:underline flex items-center gap-0.5 focus-visible:outline-none cursor-pointer"
                 >
                   Manage
-                  <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  <Icon name="arrow_forward" size={18} />
                 </button>
               ) : (
                 <Link
@@ -237,7 +237,7 @@ export default function OverviewTab({
                   className="text-[11px] font-medium text-primary hover:underline flex items-center gap-0.5"
                 >
                   Manage
-                  <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  <Icon name="arrow_forward" size={18} />
                 </Link>
               )}
             </div>
@@ -271,7 +271,7 @@ export default function OverviewTab({
               Requests ({periodLabel})
             </span>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border bg-surface-3 text-text-main">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">swap_horiz</span>
+              <Icon name="swap_horiz" size={18} />
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-col">
@@ -294,7 +294,7 @@ export default function OverviewTab({
               Input Tokens
             </span>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">input</span>
+              <Icon name="input" size={18} />
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-col">
@@ -312,7 +312,7 @@ export default function OverviewTab({
               Output Tokens
             </span>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">output</span>
+              <Icon name="output" size={18} />
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-col">
@@ -330,7 +330,7 @@ export default function OverviewTab({
               Cached Tokens
             </span>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">database</span>
+              <Icon name="database" size={18} />
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-col">
@@ -348,7 +348,7 @@ export default function OverviewTab({
               Estimated Cost
             </span>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-400">
-              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">payments</span>
+              <Icon name="payments" size={18} />
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-col">
@@ -373,7 +373,7 @@ export default function OverviewTab({
               className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
             >
               All Providers
-              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+              <Icon name="arrow_forward" size={18} />
             </Link>
           }
         >
@@ -443,7 +443,7 @@ export default function OverviewTab({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-border rounded-lg bg-surface-2/40">
-              <span className="material-symbols-outlined text-3xl text-text-muted mb-2">dns</span>
+              <Icon className="text-3xl text-text-muted mb-2" name="dns" size={18} />
               <p className="text-xs font-medium text-text-main">No active providers</p>
               <p className="text-[11px] text-text-muted mt-1 mb-3 max-w-xs">
                 Connect OpenAI, Claude, Kiro, Codex, or local models to start routing.
@@ -466,7 +466,7 @@ export default function OverviewTab({
               className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
             >
               Model Analytics
-              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+              <Icon name="arrow_forward" size={18} />
             </Link>
           }
         >
@@ -516,7 +516,7 @@ export default function OverviewTab({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-border rounded-lg bg-surface-2/40">
-              <span className="material-symbols-outlined text-3xl text-text-muted mb-2">model_training</span>
+              <Icon className="text-3xl text-text-muted mb-2" name="model_training" size={18} />
               <p className="text-xs font-medium text-text-main">No model traffic recorded yet</p>
               <p className="text-[11px] text-text-muted mt-1 max-w-xs">
                 Route requests to /v1 using your tools or combos to populate model performance.
@@ -537,13 +537,13 @@ export default function OverviewTab({
             className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
           >
             Usage Logs
-            <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+            <Icon name="arrow_forward" size={18} />
           </Link>
         }
       >
         {recentRequests.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-border rounded-lg bg-surface-2/30">
-            <span className="material-symbols-outlined text-3xl text-text-muted mb-2">swap_calls</span>
+            <Icon className="text-3xl text-text-muted mb-2" name="swap_calls" size={18} />
             <p className="text-xs font-medium text-text-main">No recent requests recorded</p>
             <p className="text-[11px] text-text-muted mt-1 mb-3 max-w-sm">
               Send a request to {baseUrl} using your favorite coding tool or test with cURL below.

@@ -64,7 +64,7 @@ export default function Sidebar({ onClose }) {
             className="size-10 rounded-sm text-text-muted hover:text-text-main hover:bg-surface-2"
             aria-label="Close navigation sidebar"
           >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+            <Icon name="close" size={18} />
           </button>
         )}
       </div>
@@ -176,7 +176,7 @@ export default function Sidebar({ onClose }) {
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"
             )}
           >
-            <span className="material-symbols-outlined text-[18px]">perm_media</span>
+            <Icon name="perm_media" size={18} />
             <span className="flex-1 text-left">Media Providers</span>
             <span 
               className="material-symbols-outlined text-[18px] transition-transform" 

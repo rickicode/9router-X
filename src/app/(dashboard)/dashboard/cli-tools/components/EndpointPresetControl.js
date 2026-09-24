@@ -87,7 +87,7 @@ export default function EndpointPresetControl({
  return (
  <div className="flex items-center gap-2">
  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">Preset</span>
- <span className="material-symbols-outlined text-text-muted text-[18px]">arrow_forward</span>
+ <Icon className="text-text-muted" name="arrow_forward" size={18} />
  <select
  value={selectedName}
  onChange={(event) => handleSelect(event.target.value)}
@@ -116,7 +116,7 @@ export default function EndpointPresetControl({
  className="size-8 text-text-muted hover:text-danger rounded-sm"
  title="Delete selected preset"
  >
- <span className="material-symbols-outlined text-[18px]">delete</span>
+ <Icon name="delete" size={18} />
  </button>
  )}
  </div>

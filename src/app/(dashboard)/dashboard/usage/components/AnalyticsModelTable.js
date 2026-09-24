@@ -134,7 +134,7 @@ export default function AnalyticsModelTable({
  className="inline-flex items-center gap-1 font-medium text-danger hover:underline cursor-pointer px-1.5 py-1 rounded-sm bg-danger/10 border border-danger/30"
  title="Inspect failure responses for this model"
  >
- <span className="material-symbols-outlined text-[18px]">bug_report</span>
+ <Icon name="bug_report" size={18} />
  {fmtNumber(row.failures)}
  </button>
  ) : (

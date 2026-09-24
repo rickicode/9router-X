@@ -382,14 +382,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  disabled={isFirst}
  className={`size-11 rounded-sm sm:size-8 ${isFirst ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
  >
- <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>
+ <Icon className="text-sm" name="keyboard_arrow_up" size={18} />
  </button>
  <button
  onClick={onMoveDown}
  disabled={isLast}
  className={`size-11 rounded-sm sm:size-8 ${isLast ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
  >
- <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+ <Icon className="text-sm" name="keyboard_arrow_down" size={18} />
  </button>
  </div>
  <span className="material-symbols-outlined shrink-0 text-sm text-text-muted">
@@ -422,7 +422,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  {isFreebuff && connection.isActive !== false && (
  hasModelAffinityLock ? (
  <span className="inline-flex items-center gap-1.5 rounded-sm bg-warning/10 px-2 py-1 text-xs text-warning border border-warning/30">
- <span className="material-symbols-outlined text-[18px]">lock</span>
+ <Icon name="lock" size={18} />
  <span className="font-medium">Locked: {connection.lockedToModel}</span>
  {affinityMinutesRemaining !== null && (
  <span className="opacity-75 font-mono text-[11px]">({affinityMinutesRemaining}m)</span>
@@ -437,7 +437,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  className="ml-0.5 inline-flex min-h-11 min-w-11 items-center justify-center hover:text-warning sm:min-h-0 sm:min-w-0"
  title="Release model lock"
  >
- <span className="material-symbols-outlined text-[18px]">lock_open</span>
+ <Icon name="lock_open" size={18} />
  </button>
  )}
  </span>
@@ -733,7 +733,7 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  onClick={() => autoPing.onToggle(!autoPing.on)}
  className={`flex min-h-11 w-full flex-col items-center justify-center rounded-sm px-2 hover:bg-surface-2 sm:min-h-0 sm:py-1 ${autoPing.on ? "text-primary" : "text-text-muted hover:text-primary"}`}
  >
- <span className="material-symbols-outlined text-[18px]">bolt</span>
+ <Icon name="bolt" size={18} />
  <span className="text-[11px]">Auto-ping</span>
  </button>
  </Tooltip>
@@ -760,11 +760,11 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  </Tooltip>
  )}
  <button onClick={onEdit} className="flex flex-col items-center rounded-sm px-2 py-1 text-text-muted hover:bg-surface-2 hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">edit</span>
+ <Icon name="edit" size={18} />
  <span className="text-[11px]">Edit</span>
  </button>
  <button onClick={onDelete} className="flex flex-col items-center rounded-sm px-2 py-1 text-danger hover:bg-danger/10">
- <span className="material-symbols-outlined text-[18px]">delete</span>
+ <Icon name="delete" size={18} />
  <span className="text-[11px]">Delete</span>
  </button>
  </div>

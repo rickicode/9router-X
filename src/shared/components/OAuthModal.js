@@ -782,7 +782,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
  <>
  {step === "waiting" && (
  <div className="flex items-center gap-2 px-3 h-8 border border-border rounded-sm bg-sidebar/50">
- <span className="material-symbols-outlined text-sm text-primary animate-spin">progress_activity</span>
+ <Icon className="text-sm text-primary animate-spin" name="progress_activity" size={18} />
  <span className="text-sm">Waiting for browser authorization…</span>
  </div>
  )}
@@ -941,7 +941,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
  </div>
  {polling && (
  <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
- <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  Waiting for authorization...
  </div>
  )}
@@ -952,7 +952,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
  {step === "success" && (
  <div className="flex flex-col gap-3">
  <div className="flex items-center gap-2 text-success">
- <span className="material-symbols-outlined text-[18px]">check_circle</span>
+ <Icon name="check_circle" size={18} />
  <h3 className="text-sm font-semibold">Connected Successfully!</h3>
  </div>
  <p className="text-sm text-text-muted mb-3">
@@ -968,7 +968,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
  {step === "error" && (
  <div className="flex flex-col gap-3">
  <div className="flex items-center gap-2 text-danger">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  <h3 className="text-sm font-semibold">Connection Failed</h3>
  </div>
  <p className="text-sm text-danger mb-3">{error}</p>

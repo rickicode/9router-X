@@ -157,7 +157,7 @@ export default function ApiKeysCard({
  {keys.length === 0 ? (
  <div className="text-center p-3 border border-dashed border-border rounded-sm bg-surface">
  <div className="inline-flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary">
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">vpn_key</span>
+ <Icon name="vpn_key" size={18} />
  </div>
  <p className="text-text-main font-medium text-sm mb-1">No API keys yet</p>
  <p className="text-xs text-text-muted max-w-sm mx-auto mb-3 font-mono">
@@ -247,7 +247,7 @@ export default function ApiKeysCard({
  aria-label={`Delete API key ${key.name}`}
  title={`Delete API key ${key.name}`}
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+ <Icon name="delete" size={18} />
  </button>
  </div>
  </div>

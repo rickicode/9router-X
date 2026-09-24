@@ -67,7 +67,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
  className="p-1.5 rounded-sm text-text-muted hover:bg-surface-2"
  aria-label="Close"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 
@@ -75,7 +75,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
  <div className="p-3 overflow-y-auto flex-1">
  {loading && (
  <div className="flex items-center justify-center py-3 text-text-muted">
- <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+ <Icon className="animate-spin mr-2" name="progress_activity" size={18} />
  Loading...
  </div>
  )}

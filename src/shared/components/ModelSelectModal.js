@@ -556,7 +556,7 @@ export default function ModelSelectModal({
  >
  {/* Info bar */}
  <div className="flex items-center gap-2 mb-3 px-2.5 h-8 bg-primary/8 border border-primary/30 rounded-sm text-xs text-text-muted">
- <span className="material-symbols-outlined text-primary shrink-0" style={{ fontSize: "14px" }}>info</span>
+ <Icon className="text-primary shrink-0" name="info" size={18} />
  <span>Click to add, click again to remove. Changes are saved automatically.</span>
  </div>
 
@@ -587,7 +587,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  }`}
  title="Group identical models served by many providers under one core entry"
  >
- <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>deployed_code</span>
+ <Icon name="deployed_code" size={18} />
  {dedupeView ? "Hide duplicates" : "Show all models"}
  </button>
  </div>
@@ -619,7 +619,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  {filteredCombos.length > 0 && (
  <div>
  <div className="flex items-center gap-1.5 mb-1.5 sticky top-0 bg-surface py-1">
- <span className="material-symbols-outlined text-primary text-[18px]">layers</span>
+ <Icon className="text-primary" name="layers" size={18} />
  <span className="text-xs font-medium text-primary">Combos</span>
  <span className="text-[11px] text-text-muted">({filteredCombos.length})</span>
  </div>
@@ -642,7 +642,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  `}
  >
  {addedModelValues.includes(combo.name) ? (
- <span className="material-symbols-outlined" style={{ fontSize: "11px" }}>check</span>
+ <Icon name="check" size={18} />
  ) : (
  <span
  className={`material-symbols-outlined ${isSelected ? "text-white" : badge.text}`}
@@ -696,7 +696,7 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  >
  <span className="flex items-center gap-1">
  {addedModelValues.includes(model.value) && (
- <span className="material-symbols-outlined" style={{ fontSize: "10px" }}>check</span>
+ <Icon name="check" size={18} />
  )}
  <span className="text-[11px] opacity-70 font-normal">{p.alias || p.providerId}</span>
  <span className="text-[11px]">{model.name}</span>
@@ -761,11 +761,11 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  >
  <span className="flex items-center gap-1">
  {addedModelValues.includes(model.value) && !isPlaceholder && (
- <span className="material-symbols-outlined" style={{ fontSize: "10px" }}>check</span>
+ <Icon name="check" size={18} />
  )}
  {isPlaceholder ? (
  <>
- <span className="material-symbols-outlined text-[11px]">edit</span>
+ <Icon name="edit" size={18} />
  {model.name}
  </>
  ) : model.isCustom ? (

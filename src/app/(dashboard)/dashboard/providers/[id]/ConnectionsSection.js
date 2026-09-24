@@ -89,7 +89,7 @@ function SearchFilterBar({ connectionSearch, setConnectionSearch, connectionPage
             className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-text-muted hover:text-text-main sm:min-h-9 sm:min-w-9"
             aria-label="Clear search"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" size={18} />
           </button>
         )}
  </div>
@@ -313,7 +313,7 @@ export default function ConnectionsSection(d) {
  disabled={connectionPagination.page <= 1}
 className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 min-h-11 sm:h-8 sm:min-h-0"
  title="Previous Page">
- <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+ <Icon name="chevron_left" size={18} />
  <span>Prev</span>
  </button>
  {getPaginationItems(connectionPagination.page, connectionPagination.totalPages).map((item, idx) => {
@@ -333,7 +333,7 @@ className={`min-w-11 min-h-11 rounded-sm text-xs font-medium px-1.5 flex items-c
 className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 min-h-11 sm:h-8 sm:min-h-0"
  title="Next Page">
  <span>Next</span>
- <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+ <Icon name="chevron_right" size={18} />
  </button>
  </div>
  </div>
@@ -397,17 +397,17 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  <div className="flex flex-col">
  <button onClick={handleApplyOneToOne} disabled={bulkUpdatingProxy || activePools.length === 0}
  className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-text-muted text-[18px]">sync_alt</span>
+ <Icon className="text-text-muted" name="sync_alt" size={18} />
  <span className="text-sm text-text-main">One-to-one (rotate)</span>
  </button>
  <button onClick={handleApplyRotationStrategy} disabled={bulkUpdatingProxy || bulkProxyRotationStrategy === "none" || activePools.length === 0}
  className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-text-muted text-[18px]">sync</span>
+ <Icon className="text-text-muted" name="sync" size={18} />
  <span className="text-sm text-text-main">Apply Rotation Strategy</span>
  </button>
  <button onClick={() => handleApplySinglePool(null)} disabled={bulkUpdatingProxy}
  className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-text-muted text-[18px]">link_off</span>
+ <Icon className="text-text-muted" name="link_off" size={18} />
  <span className="text-sm text-text-main">None (unbind all)</span>
  </button>
  {(() => {
@@ -431,7 +431,7 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  return (
  <button key={def.id} onClick={() => handleApplyGroup(def.key)} disabled={bulkUpdatingProxy}
  className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-primary/10 text-primary sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+ <Icon name="auto_awesome" size={18} />
  <span className="truncate text-sm font-medium">{def.name}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({cnt} active)</span>
  </button>
@@ -446,7 +446,7 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  return (
  <button key={cg.id} onClick={() => handleApplyGroup(cg.name)} disabled={bulkUpdatingProxy}
  className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-primary/10 text-primary sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-[18px]">folder_special</span>
+ <Icon name="folder_special" size={18} />
  <span className="truncate text-sm font-medium">{cg.name}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({poolCount} pools, {stickyLabel})</span>
  </button>
@@ -462,7 +462,7 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  return (
  <button key={grp} onClick={() => handleApplyGroup(grp)} disabled={bulkUpdatingProxy}
  className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 text-text-muted sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-[18px]">label</span>
+ <Icon name="label" size={18} />
  <span className="truncate text-sm font-medium">{grp}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({cnt} pools)</span>
  </button>
@@ -477,7 +477,7 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  <button key={pool.id} onClick={() => handleApplySinglePool(pool.id)}
  disabled={bulkUpdatingProxy || pool.isActive !== true}
  className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-text-muted text-[18px]">lan</span>
+ <Icon className="text-text-muted" name="lan" size={18} />
  <span className="truncate text-sm text-text-main">{pool.name}</span>
  {pool.isActive !== true && <span className="text-[11px] text-text-muted">(inactive)</span>}
  </button>

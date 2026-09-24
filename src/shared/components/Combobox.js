@@ -413,7 +413,7 @@ export default function Combobox({
 
  {error && (
  <p id={errorId} role="alert" className="text-xs text-danger flex items-center gap-1 mt-0.5">
- <span className="material-symbols-outlined text-[18px]">error</span>
+ <Icon name="error" size={18} />
  <span>{error}</span>
  </p>
  )}

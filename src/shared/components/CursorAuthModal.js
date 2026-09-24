@@ -99,7 +99,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
  {autoDetecting && (
  <div className="text-center py-3">
  <div className="flex items-center gap-2 text-primary">
- <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  </div>
  <h3 className="text-sm font-semibold mb-2">Auto-detecting tokens...</h3>
  <p className="text-sm text-text-muted">
@@ -115,7 +115,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
  {autoDetected && (
  <div className="bg-success/10 p-3 rounded-sm border border-success/30">
  <div className="flex gap-2">
- <span className="material-symbols-outlined text-success">check_circle</span>
+ <Icon className="text-success" name="check_circle" size={18} />
  <p className="text-sm text-success">
  Tokens auto-detected from Cursor IDE successfully!
  </p>
@@ -127,7 +127,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
  {windowsManual && (
  <div className="bg-warning/10 p-3 rounded-sm border border-warning/30 flex flex-col gap-2">
  <div className="flex gap-2 items-center">
- <span className="material-symbols-outlined text-warning">info</span>
+ <Icon className="text-warning" name="info" size={18} />
  <p className="text-sm font-medium text-warning">
  Could not read Cursor database automatically.
  </p>
@@ -145,7 +145,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
  {!autoDetected && !windowsManual && !error && (
  <div className="bg-primary/10 p-3 rounded-sm border border-primary/30">
  <div className="flex gap-2">
- <span className="material-symbols-outlined text-primary">info</span>
+ <Icon className="text-primary" name="info" size={18} />
  <p className="text-sm text-primary">
  Cursor IDE not detected. Please paste your tokens manually.
  </p>

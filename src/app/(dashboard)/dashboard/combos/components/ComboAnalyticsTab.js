@@ -160,7 +160,7 @@ export default function ComboAnalyticsTab() {
  <div className="flex items-center justify-between border-b border-border pb-2 h-8">
  <div className="flex items-center gap-2">
  <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-success/10 text-success">
- <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+ <Icon name="auto_awesome" size={18} />
  </div>
  <div>
  <div className="flex items-center gap-1.5">
@@ -189,7 +189,7 @@ export default function ComboAnalyticsTab() {
  <div className="rounded-sm border border-success/30 bg-surface p-3">
  <div className="flex items-center justify-between text-[11px] mb-1">
  <span className="font-medium text-success">Easy Tier Leader</span>
- <span className="material-symbols-outlined text-[18px] text-success">bolt</span>
+ <Icon className="text-success" name="bolt" size={18} />
  </div>
  {smartModelStats.tierTop.easy ? (
  <div>
@@ -206,7 +206,7 @@ export default function ComboAnalyticsTab() {
  <div className="rounded-sm border border-warning/30 bg-surface p-3">
  <div className="flex items-center justify-between text-[11px] mb-1">
  <span className="font-medium text-warning">Medium Tier Leader</span>
- <span className="material-symbols-outlined text-[18px] text-warning">psychology</span>
+ <Icon className="text-warning" name="psychology" size={18} />
  </div>
  {smartModelStats.tierTop.medium ? (
  <div>
@@ -223,7 +223,7 @@ export default function ComboAnalyticsTab() {
  <div className="rounded-sm border border-danger/30 bg-surface p-3">
  <div className="flex items-center justify-between text-[11px] mb-1">
  <span className="font-medium text-danger">Hard Tier Leader</span>
- <span className="material-symbols-outlined text-[18px] text-danger">diamond</span>
+ <Icon className="text-danger" name="diamond" size={18} />
  </div>
  {smartModelStats.tierTop.hard ? (
  <div>

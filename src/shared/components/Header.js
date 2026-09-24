@@ -204,7 +204,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
 className="flex size-10 items-center justify-center text-text-muted hover:bg-surface-2 hover:text-text-main lg:hidden"
  aria-label="Open navigation"
  >
- <span className="material-symbols-outlined text-[18px]">menu</span>
+ <Icon name="menu" size={18} />
  </button>
  )}
 
@@ -279,7 +279,7 @@ function HeaderSearch() {
  className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-1.5 rounded-sm min-size-8"
  aria-label="Clear search"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>

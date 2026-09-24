@@ -313,14 +313,14 @@ useEffect(() => {
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <span className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+ <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
  <div className="mt-4 pt-3 border-t border-border flex flex-col gap-3">
  {checkingClaude && (
  <div className="flex items-center gap-2 text-text-muted">
- <span className="material-symbols-outlined animate-spin">progress_activity</span>
+ <Icon className="animate-spin" name="progress_activity" size={18} />
  <span>Checking Claude CLI...</span>
  </div>
  )}
@@ -340,7 +340,7 @@ useEffect(() => {
  {/* Endpoint (selector) */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <BaseUrlSelect
  value={customBaseUrl || getDisplayUrl()}
  onChange={setCustomBaseUrl}
@@ -357,7 +357,7 @@ useEffect(() => {
  {claudeStatus?.settings?.env?.ANTHROPIC_BASE_URL && (
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Current</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <span className="min-w-0 truncate rounded-sm bg-surface/40 px-2 h-8 text-xs text-text-muted sm:py-2">
  {claudeStatus.settings.env.ANTHROPIC_BASE_URL}
  </span>
@@ -367,7 +367,7 @@ useEffect(() => {
  {/* API Key */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">API Key</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
  </div>
 
@@ -375,10 +375,10 @@ useEffect(() => {
  {tool.defaultModels.map((model) => (
  <div key={model.alias} className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">{model.name}</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <div className="relative w-full min-w-0">
  <input type="text" value={modelMappings[model.alias] || ""} onChange={(e) => onModelMappingChange(model.alias, e.target.value)} placeholder="provider/model-id" className="w-full min-w-0 pl-2 pr-7 h-8 bg-surface rounded-sm border border-border text-xs focus:outline-none sm:py-2" />
- {modelMappings[model.alias] && <button onClick={() => onModelMappingChange(model.alias, "")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm" title="Clear"><span className="material-symbols-outlined text-[18px]">close</span></button>}
+ {modelMappings[model.alias] && <button onClick={() => onModelMappingChange(model.alias, "")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-danger rounded-sm" title="Clear"><Icon name="close" size={18} /></button>}
  </div>
  <button onClick={() => openModelSelector(model.alias)} disabled={!hasActiveProviders} className={`w-full sm:w-auto rounded-sm border px-2 h-8 text-xs sm:py-2 whitespace-nowrap sm:shrink-0 ${hasActiveProviders ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
  </div>
@@ -387,7 +387,7 @@ useEffect(() => {
  {/* Auto-compact window */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Auto-compact</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <select value={autoCompactWindow} onChange={(e) => setAutoCompactWindow(e.target.value)} className="w-full min-w-0 px-2 h-8 bg-surface rounded-sm border border-border text-xs focus:outline-none sm:py-2">
  {CONTEXT_OPTIONS.map((opt) => (
  <option key={opt.label} value={opt.value}>{opt.label}</option>
@@ -398,12 +398,12 @@ useEffect(() => {
  {/* 1M context */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">1M context</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <label className="flex items-center gap-1.5 cursor-pointer select-none">
  <input type="checkbox" checked={oneMContext} onChange={(e) => handleOneMContextToggle(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
  <span className="text-xs text-text-muted">Append [1m] to the model name</span>
  <Tooltip text="Claude Code otherwise assumes a 200K window, which clamps the auto-compact window above. Applied to every mapped model — only enable it for models that really accept 1M.">
- <span className="material-symbols-outlined text-text-muted text-[18px] cursor-help">info</span>
+ <Icon className="text-text-muted cursor-help" name="info" size={18} />
  </Tooltip>
  </label>
  </div>
@@ -411,12 +411,12 @@ useEffect(() => {
  {/* CC Filter Naming */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Filter naming</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <label className="flex items-center gap-1.5 cursor-pointer select-none">
  <input type="checkbox" checked={ccFilterNaming} onChange={handleCcFilterNamingToggle} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
  <span className="text-xs text-text-muted">Filter naming requests</span>
  <Tooltip text="Intercepts Claude Code's topic-naming requests and returns a fake response locally, saving API tokens.">
- <span className="material-symbols-outlined text-text-muted text-[18px] cursor-help">info</span>
+ <Icon className="text-text-muted cursor-help" name="info" size={18} />
  </Tooltip>
  </label>
  </div>
@@ -424,12 +424,12 @@ useEffect(() => {
  {/* Exa MCP — ~/.claude.json mcpServers (not settings.json) */}
  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
  <span className="text-xs font-medium text-text-main sm:text-right sm:text-sm">Web Search</span>
- <span className="material-symbols-outlined hidden text-text-muted text-[18px] sm:inline">arrow_forward</span>
+ <Icon className="hidden text-text-muted sm:inline" name="arrow_forward" size={18} />
  <label className="flex items-center gap-1.5 cursor-pointer select-none">
  <input type="checkbox" checked={exaMcpEnabled} onChange={(e) => setExaMcpEnabled(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
  <span className="text-xs text-text-muted">Exa MCP</span>
  <Tooltip text="Injects Exa MCP into ~/.claude.json so non-Claude models gain web search. Restart Claude Code after Apply.">
- <span className="material-symbols-outlined text-text-muted text-[18px] cursor-help">info</span>
+ <Icon className="text-text-muted cursor-help" name="info" size={18} />
  </Tooltip>
  </label>
  </div>
@@ -444,13 +444,13 @@ useEffect(() => {
 
  <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
  <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={!hasActiveProviders} loading={applying}>
- <span className="material-symbols-outlined text-[18px] mr-1">save</span>Apply
+ <Icon className="mr-1" name="save" size={18} />Apply
  </Button>
  <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!claudeStatus?.hasAxonRouter} loading={restoring}>
- <span className="material-symbols-outlined text-[18px] mr-1">restore</span>Reset
+ <Icon className="mr-1" name="restore" size={18} />Reset
  </Button>
  <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
- <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>Manual Config
+ <Icon className="mr-1" name="content_copy" size={18} />Manual Config
  </Button>
  </div>
  </>

@@ -69,7 +69,7 @@ aria-label={`Remove custom model ${model.id}`}
 className="ml-auto rounded-sm size-11 sm:size-8 text-text-muted opacity-100 transition-opacity hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
 title="Remove custom model"
 >
-<span className="material-symbols-outlined text-sm">close</span>
+<Icon className="text-sm" name="close" size={18} />
 </button>
  ) : onDisable ? (
 <button
@@ -78,7 +78,7 @@ aria-label={`Disable model ${model.id}`}
 className="ml-auto rounded-sm size-11 sm:size-8 text-text-muted opacity-100 transition-opacity hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
 title="Disable this model"
 >
-<span className="material-symbols-outlined text-sm">close</span>
+<Icon className="text-sm" name="close" size={18} />
 </button>
  ) : null}
  </div>

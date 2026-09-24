@@ -27,7 +27,7 @@ export default function ProviderHeader({
  href="/dashboard/providers"
 className="inline-flex min-h-11 items-center gap-1 text-sm text-text-muted hover:text-primary mb-3 sm:h-8 sm:min-h-0"
  >
- <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+ <Icon name="arrow_back" size={18} />
  Back to Providers
  </Link>
  <div className="flex min-w-0 items-center gap-3 sm:gap-3">
@@ -66,7 +66,7 @@ className="inline-flex min-h-11 items-center gap-1 text-sm text-text-muted hover
  rel="noopener noreferrer"
 className="text-xs text-primary hover:underline inline-flex min-h-11 items-center gap-1 sm:min-h-0"
  >
- <span className="material-symbols-outlined text-sm">open_in_new</span>
+ <Icon className="text-sm" name="open_in_new" size={18} />
  {providerInfo.notice?.apiKeyUrl ? "Get API Key" : "Sign up / Learn more"}
  </a>
  )}
@@ -80,14 +80,14 @@ className="text-xs text-primary hover:underline inline-flex min-h-11 items-cente
 
  {providerInfo.deprecated && (
 <div className="flex items-center gap-2 px-3 min-h-11 rounded-sm bg-warning/10 border border-warning/30 sm:h-8 sm:min-h-0">
- <span className="material-symbols-outlined text-[18px] text-warning mt-0.5 shrink-0">warning</span>
+ <Icon className="text-warning mt-0.5 shrink-0" name="warning" size={18} />
  <p className="text-xs text-danger">{providerInfo.deprecationNotice}</p>
  </div>
  )}
 
  {providerInfo.notice?.text && !providerInfo.deprecated && (
  <div className="flex flex-col gap-2 rounded-sm border border-primary/30 bg-primary/10 px-3 py-2 sm:flex-row sm:items-center">
- <span className="material-symbols-outlined text-[18px] text-primary shrink-0">info</span>
+ <Icon className="text-primary shrink-0" name="info" size={18} />
  <p className="min-w-0 flex-1 text-xs text-primary">{providerInfo.notice.text}</p>
  {providerInfo.notice.apiKeyUrl && (
  <a

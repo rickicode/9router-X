@@ -110,7 +110,7 @@ export default function GitLabAuthModal({ isOpen, providerInfo, onSuccess, onClo
  onClick={() => setMode("oauth")}
  className="flex flex-col items-center gap-2 p-3 rounded-sm border border-border hover:border-primary hover:bg-primary/10 text-left"
  >
- <span className="material-symbols-outlined text-[18px] text-primary">lock_open</span>
+ <Icon className="text-primary" name="lock_open" size={18} />
  <div>
  <p className="text-sm font-medium">OAuth App</p>
  <p className="text-xs text-text-muted">Use a GitLab OAuth application</p>
@@ -120,7 +120,7 @@ export default function GitLabAuthModal({ isOpen, providerInfo, onSuccess, onClo
  onClick={() => setMode("pat")}
  className="flex flex-col items-center gap-2 p-3 rounded-sm border border-border hover:border-primary hover:bg-primary/10 text-left"
  >
- <span className="material-symbols-outlined text-[18px] text-primary">key</span>
+ <Icon className="text-primary" name="key" size={18} />
  <div>
  <p className="text-sm font-medium">Personal Access Token</p>
  <p className="text-xs text-text-muted">Use a GitLab PAT with api scope</p>

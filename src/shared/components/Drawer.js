@@ -123,7 +123,7 @@ export default function Drawer({
  aria-label="Close drawer"
 className="size-10 -mr-2 flex items-center justify-center rounded-sm text-text-muted hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/40"
  >
- <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
 

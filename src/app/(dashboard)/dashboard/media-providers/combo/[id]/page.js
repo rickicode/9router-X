@@ -255,7 +255,7 @@ export default function ComboDetailPage() {
  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
  <div className="flex items-center gap-3 min-w-0">
  <Link href={backHref} className="inline-flex size-8 items-center justify-center text-text-muted hover:text-primary">
- <span className="material-symbols-outlined">arrow_back</span>
+ <Icon name="arrow_back" size={18} />
  </Link>
  {(() => {
  const badge = getComboBadge(combo);
@@ -328,13 +328,13 @@ export default function ComboDetailPage() {
  </div>
  <div className="flex items-center gap-0.5">
  <button onClick={() => handleMove(idx, -1)} disabled={idx === 0} className={`size-8 rounded-sm ${idx === 0 ? "text-text-muted/20" : "text-text-muted hover:text-primary hover:bg-surface-2"}`} title="Move up">
- <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+ <Icon name="arrow_upward" size={18} />
  </button>
  <button onClick={() => handleMove(idx, 1)} disabled={idx === providers.length - 1} className={`size-8 rounded-sm ${idx === providers.length - 1 ? "text-text-muted/20" : "text-text-muted hover:text-primary hover:bg-surface-2"}`} title="Move down">
- <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
+ <Icon name="arrow_downward" size={18} />
  </button>
  <button onClick={() => handleRemoveProvider(idx)} className="size-8 rounded-sm text-text-muted hover:text-danger hover:bg-danger/10" title="Remove">
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
  </div>
@@ -368,7 +368,7 @@ export default function ComboDetailPage() {
  <div>
  <div className="flex items-center justify-end mb-1.5">
  <a href={testResult.imageUrl} download="image.png" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">download</span>
+ <Icon name="download" size={18} />
  Download
  </a>
  </div>
@@ -379,7 +379,7 @@ export default function ComboDetailPage() {
  <div>
  <div className="flex items-center justify-end mb-1.5">
  <a href={testResult.audioUrl} download="speech.mp3" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-[18px]">download</span>
+ <Icon name="download" size={18} />
  Download
  </a>
  </div>

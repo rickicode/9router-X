@@ -267,7 +267,7 @@ export function GenericExampleCard({ providerId, kind }) {
  useTunnel ? "border-primary/30 bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
  }`}
  >
- <span className="material-symbols-outlined text-[18px]">wifi_tethering</span>
+ <Icon name="wifi_tethering" size={18} />
  Tunnel
  </button>
  )}
@@ -318,7 +318,7 @@ export function GenericExampleCard({ providerId, kind }) {
  onClick={() => setInput("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -341,7 +341,7 @@ export function GenericExampleCard({ providerId, kind }) {
  onClick={() => setRefImage("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -376,7 +376,7 @@ export function GenericExampleCard({ providerId, kind }) {
  onClick={() => setMaskImage("")}
  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  )}
  </div>
@@ -529,7 +529,7 @@ export function GenericExampleCard({ providerId, kind }) {
  download="image.png"
  className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary"
  >
- <span className="material-symbols-outlined text-[18px]">download</span>
+ <Icon name="download" size={18} />
  Download
  </a>
  </div>

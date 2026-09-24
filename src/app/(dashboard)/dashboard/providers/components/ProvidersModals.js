@@ -61,7 +61,7 @@ function ProvidersModals({
  className="size-8 rounded-sm hover:bg-bg text-text-muted hover:text-text-main"
  aria-label="Close test results"
  >
- <span className="material-symbols-outlined text-[18px]">close</span>
+ <Icon name="close" size={18} />
  </button>
  </div>
  <div className="p-3">
