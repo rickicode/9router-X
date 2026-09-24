@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import { CardSkeleton } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { FREE_PROVIDERS, FREE_TIER_PROVIDERS } from "@/shared/constants/providers";
 import { getRelativeTime } from "@/shared/utils";
