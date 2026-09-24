@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./images/axonrouter.png?1" alt="AxonRouter Dashboard" width="800"/>
+  <img src="./screenshots/overview.png" alt="AxonRouter Dashboard" width="800"/>
   
   # AxonRouter — Enterprise-Grade AI Routing Gateway & Token Optimizer
   
