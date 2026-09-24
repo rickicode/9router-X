@@ -52,6 +52,30 @@ AxonRouter is an enterprise-grade, high-concurrency fork of [decolua/9router (9R
 
 ---
 
+## 🚀 Standalone API Gateway — Built for Speed
+
+The public LLM API (`/v1/*`) runs in a **dedicated Hono gateway process** (`axonrouter-api`, port 3778), fully separated from the dashboard (`axonrouter-web`, port 3777). Streaming traffic from dozens of concurrent coding agents never contends with the dashboard's event loop.
+
+**Measured on a 4-worker cluster, full path with auth gate + PostgreSQL lookup (not synthetic):**
+
+| Endpoint path | Throughput | Latency |
+|---|---|---|
+| `/v1/models` (loopback auth + DB) | **1.800+ req/s** | **p50 = 12 ms · p95 = 22 ms** |
+| `/v1/chat/completions` streaming | I/O-bound to upstream — gateway adds ~3 ms | p95 overhead ≤ 11 ms @ 1.000 req burst |
+| Bare `node:http` baseline (same box) | 2.700 req/s | framework overhead ≈ imperceptible once I/O involved |
+
+**Why it stays fast under load:**
+
+- **Zero-rewrite web-standard pipeline** — the chat core speaks native `Request`/`Response`; Hono hands `c.req.raw` straight to the handler. No conversion layer in the hot path.
+- **Node cluster, 1 worker per CPU** — independent Hono servers per worker; the OS load-balances accepted sockets. One stuck stream never blocks the others.
+- **Keepalive tuned for agents** — `keepAliveTimeout: 75s` (> typical LB idle 65s, no reset storms), `maxRequestsPerSocket: 0` (unlimited socket reuse → agents using keepalive get the low p50, no re-handshake).
+- **Same auth model as the dashboard** — loopback bypass, `x-axonrouter-cli-token` (machine-id derived), or dashboard-issued API keys. One key, both surfaces.
+- **Independent release cycle** — the gateway image (`Dockerfile.gateway`) ships without the Next.js build: smaller, builds in seconds, and dashboard deploys never restart your streaming traffic.
+
+**Target load:** designed and verified against 1.000 req/min sustained per node, with ~100× headroom measured at the gateway layer.
+
+---
+
 ## 🤔 Why AxonRouter?
 
 **Stop wasting budget, tokens, and hitting concurrency blocks:**
