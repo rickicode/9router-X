@@ -45,7 +45,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
   9router-x:
     build:
       context: .
@@ -106,18 +105,26 @@ services:
       - "postgres"
       - "-c"
       - "max_connections=300"
+      # Memory must fit inside the 1g mem_limit above. The previous values
+      # (shared_buffers=1024MB + work_mem=32MB x 300 conns +
+      # effective_cache_size=3072MB) exceeded the container ceiling ->
+      # OOMKilled -> WAL crash recovery -> every client pool goes stale until
+      # a manual restart. Resized for 1g: shared + per-conn memory stays
+      # bounded even at max_connections.
       - "-c"
-      - "shared_buffers=1024MB"
+      - "shared_buffers=256MB"
       - "-c"
-      - "effective_cache_size=3072MB"
+      - "effective_cache_size=768MB"
       - "-c"
-      - "work_mem=32MB"
+      - "work_mem=8MB"
       - "-c"
-      - "maintenance_work_mem=128MB"
+      - "maintenance_work_mem=64MB"
       - "-c"
       - "checkpoint_completion_target=0.9"
       - "-c"
-      - "wal_buffers=32MB"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "restart_after_crash=on"
     environment:
       POSTGRES_USER: 9router
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}

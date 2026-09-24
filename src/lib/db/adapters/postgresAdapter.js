@@ -3,13 +3,18 @@ import postgres from "postgres";
 // Singleton pool to survive Next.js dev server hot-reload
 if (!global._pgSql) {
   const connectionString = process.env.DATABASE_URL || "postgres://9router:password123@localhost:5432/9router";
+  // Postgres crashes (OOM-kill, host restart) leave idle pooled connections
+  // half-dead; postgres.js only detects them on next use. A short idle
+  // timeout + connection lifetime bound recovers the pool without a manual
+  // app restart. max_lifetime < 30min keeps the pool churning through a
+  // server reboot within one lifecycle.
   global._pgSql = postgres(connectionString, {
     // Tunable to match MAX_CONCURRENT_UPSTREAM: a 128-wide upstream semaphore
     // behind a 25-connection pool queues inside the DB layer at peak.
     max: Number(process.env.PG_POOL_MAX) || 25,
-    idle_timeout: 30,
-    connect_timeout: 10,
-    max_lifetime: 60 * 30,
+    idle_timeout: 10,
+    connect_timeout: 5,
+    max_lifetime: 60 * 10,
     types: {
       numeric: {
         to: 0,
@@ -45,7 +50,11 @@ if (!global._pgSql) {
     transform: {
       undefined: null,
     },
-    onnotice: () => {},
+    // Pool-level error hook: a connection killed mid-query (server crash,
+    // recovery restart) surfaces here. postgres.js already drops the dead
+    // socket; logging makes the recovery visible in console logs instead of
+    // surfacing as a silent 503 on the next request.
+    onnotice: (n) => { if (n.severity === "ERROR" || n.severity === "FATAL") console.warn("[pg]", n.message); },
   });
 }
 

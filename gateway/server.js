@@ -227,10 +227,16 @@ app.get("/api/health", async (c) => {
 // 404 for unknown /v1 paths
 app.notFound((c) => c.json({ error: { message: "Not found", type: "invalid_request_error" } }, 404));
 
-// ── Server ────────────────────────────────────────────────────────────────────
-// serve() is called per-cluster-worker below (primary never binds the port).
-
-// ── Cluster ───────────────────────────────────────────────────────────────────
+// ── Server timeouts: a hung upstream (free-tier queue) must not pin a socket
+// forever. keepAliveTimeout/headersTimeout guard idle keepalive clients;
+// requestTimeout bounds a slow chat completion so one stuck upstream cannot
+// hold a worker hostage; maxRequestsPerSocket=0 keeps agent sockets recyclable.
+const SERVER_TIMEOUTS = {
+  keepAliveTimeout: 75_000,
+  headersTimeout: 80_000,
+  requestTimeout: 300_000,
+  maxRequestsPerSocket: 0,
+};
 if (cluster.isPrimary) {
   // Primary only orchestrates — it must NOT bind the port (workers do).
   console.log(`[Gateway] primary ${process.pid} forking ${WORKERS} worker(s)`);
@@ -240,11 +246,19 @@ if (cluster.isPrimary) {
     cluster.fork();
   });
 } else {
-  // Worker: bind the shared listen socket (kernel round-robins accepts).
+  // Timeouts come from SERVER_TIMEOUTS: a stalled upstream (free-tier queue,
+  // dead proxy) must not hold a worker socket forever. requestTimeout is the
+  // hard ceiling for any single request incl. streaming chat completions.
   const server = serve({ fetch: app.fetch, port: PORT, hostname: process.env.HOSTNAME || "0.0.0.0" });
-  server.keepAliveTimeout = 75_000;   // > LB idle (default 65s) — avoids reset storms
-  server.headersTimeout = 80_000;
-  server.maxRequestsPerSocket = 0;    // unlimited reuse; keepalive on by default
+  server.keepAliveTimeout = SERVER_TIMEOUTS.keepAliveTimeout;   // > LB idle (default 65s) — avoids reset storms
+  server.headersTimeout = SERVER_TIMEOUTS.headersTimeout;
+  server.requestTimeout = SERVER_TIMEOUTS.requestTimeout;       // 5 min ceiling per request
+  server.maxRequestsPerSocket = SERVER_TIMEOUTS.maxRequestsPerSocket; // unlimited reuse
+  // Streaming/SSE in flight when requestTimeout fires would be destroyed with
+  // ECONNRESET; listen for it so we log the killed request instead of a crash.
+  server.on("clientError", (err, socket) => {
+    if (socket.writable) socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+  });
   console.log(`[Gateway] worker ${process.pid} listening on ${PORT} (node ${process.version})`);
   // Pipeline warm-up in the background so the first client request is fast.
   ensureInitialized().catch(() => {});
