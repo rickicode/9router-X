@@ -6,13 +6,13 @@ na_heuristics:
 p0_count: 0
 p1_count: 2
 p2_count: 3
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/app/AppPageClient.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/app/AppPageClient.js"
 target_fingerprint: "sha256:40b525ab2f5267db19e1cf2b2e55c73846706a313474928c88860dc736517889"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/app/AppPageClient.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/app/AppPageClient.js
 timestamp: 2026-09-24T10-40-00Z
 slug: dashboard-app-overview-critique
 ---
-# Assessment Report: 9router-X Dashboard Overview & Endpoint Tab
+# Assessment Report: axonrouter-X Dashboard Overview & Endpoint Tab
 
 **Target:** `src/app/(dashboard)/dashboard/app/AppPageClient.js` & `src/app/(dashboard)/dashboard/components/OverviewTab.js`  
 **Live URL:** `http://localhost:10128/dashboard/app` (`?tab=overview` / `?tab=endpoint`)  

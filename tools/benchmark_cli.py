@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-9Router Comprehensive Benchmark CLI Tool
+AxonRouter Comprehensive Benchmark CLI Tool
 Evaluates all available native models across active providers:
 - Excludes custom providers and non-chat endpoints.
 - Tests:
@@ -668,9 +668,9 @@ PROVIDER_ALIASES = {
 }
 
 def main():
-    parser = argparse.ArgumentParser(description="9Router Comprehensive Benchmark CLI")
-    parser.add_argument("--gateway", default=DEFAULT_GATEWAY, help="9Router gateway URL")
-    parser.add_argument("--key", default=DEFAULT_KEY, help="9Router API Key")
+    parser = argparse.ArgumentParser(description="AxonRouter Comprehensive Benchmark CLI")
+    parser.add_argument("--gateway", default=DEFAULT_GATEWAY, help="AxonRouter gateway URL")
+    parser.add_argument("--key", default=DEFAULT_KEY, help="AxonRouter API Key")
     parser.add_argument("--concurrency", type=int, default=5, help="Concurrent workers")
     parser.add_argument("--provider", type=str, required=True, help="Provider name or prefix to test")
     parser.add_argument("--clean", action="store_true", help="Clean database records for this provider before running")
@@ -694,7 +694,7 @@ def main():
         if k.lower().startswith(prov + "/") or k.lower().split("/")[0] == prov
     }
 
-    # Cari model yang belum terdaftar di 9router (dari upstream langsung)
+    # Cari model yang belum terdaftar di axonrouter (dari upstream langsung)
     if prov == "kc":
         try:
             req = urllib.request.Request(
@@ -723,7 +723,7 @@ def main():
                 existing = set(filtered_meta.keys())
                 missing = [u for u in upstream_models if f"kc/{u['id']}" not in existing and u["id"] not in existing]
                 if missing:
-                    print(f"\n[INFO] Ditemukan {len(missing)} model Kilo Code yang BELUM terdaftar di 9router:")
+                    print(f"\n[INFO] Ditemukan {len(missing)} model Kilo Code yang BELUM terdaftar di axonrouter:")
                     for u in missing:
                         flag = "[FREE]" if u["is_free"] else "[PAID]"
                         print(f"  - {flag} {u['id']} (ctx={u['context_length']:,}, max_out={u['max_output_tokens']:,}, upstream={u['upstream_provider']})")

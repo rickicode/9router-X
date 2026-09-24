@@ -5,11 +5,11 @@ max_score: 40
 na_heuristics: 
 p0_count: 0
 p1_count: 0
-target_identity: "file:/workspaces/9router-X/src/app/(dashboard)/dashboard/usage"
+target_identity: "file:/workspaces/axonrouter-X/src/app/(dashboard)/dashboard/usage"
 timestamp: 2026-09-15T06-00-19Z
 slug: src-app-dashboard-dashboard-usage
 ---
-# Critique Report: 9router-X Usage Dashboard (Run 2 - master 3c7f1d61)
+# Critique Report: axonrouter-X Usage Dashboard (Run 2 - master 3c7f1d61)
 
 ## Design Health Score: 29/40 (Good - 72%)
 

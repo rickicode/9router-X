@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-9router-X Comprehensive Model Benchmark Suite  (v2)
+axonrouter-X Comprehensive Model Benchmark Suite  (v2)
 ===================================================
 Run: python3 bench_all.py --run 1 --api-key KEY [--limit-models N]
 
@@ -180,7 +180,7 @@ def _req(base, key, path, data=None, timeout=60, stream=False):
     payload = json.dumps(data).encode() if data else None
     req = urllib.request.Request(url, data=payload, headers={
         "Authorization": "Bearer " + key, "Content-Type": "application/json",
-        "User-Agent": "9router-bench/2.0"})
+        "User-Agent": "axonrouter-bench/2.0"})
     return urllib.request.urlopen(req, timeout=timeout)
 
 
@@ -382,8 +382,8 @@ def chat_stream(base, key, model, prompt, max_tokens, timeout):
 def active_providers():
     try:
         out = subprocess.check_output([
-            "docker", "exec", "9router-postgres", "psql", "-U", "9router",
-            "-d", "9router", "-t", "-A", "-c",
+            "docker", "exec", "axonrouter-postgres", "psql", "-U", "axonrouter",
+            "-d", "axonrouter", "-t", "-A", "-c",
             "SELECT DISTINCT provider FROM provider_connections "
             "WHERE is_active = true AND test_status != 'disabled';"]).decode().split()
         return set(out)
@@ -563,7 +563,7 @@ def report(out, run, alive, dead, modality, sessions_done):
         print(s)
 
     p("\n" + "#" * 92)
-    p(f"   9ROUTER-X BENCHMARK REPORT — RUN {run}")
+    p(f"   AXONROUTER-X BENCHMARK REPORT — RUN {run}")
     p("#" * 92)
 
     # dead breakdown
@@ -699,7 +699,7 @@ def main():
     db = DB(os.path.join(a.out, "benchmark.db"))
 
     print("#" * 84)
-    print(f"   9ROUTER-X BENCHMARK  —  RUN {a.run}")
+    print(f"   AXONROUTER-X BENCHMARK  —  RUN {a.run}")
     print("#" * 84)
     print(f"base={a.base}  out={run_dir}")
 

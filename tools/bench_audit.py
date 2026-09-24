@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-9router-X Combo Audit + Run Comparison
+axonrouter-X Combo Audit + Run Comparison
 =====================================
 Usage:
   python3 bench_audit.py compare --out /root/bench --r1 1 --r2 2
@@ -14,7 +14,7 @@ Usage:
 import argparse, json, os, sqlite3, subprocess, sys
 from collections import Counter, defaultdict
 
-PSQL = ["docker", "exec", "9router-postgres", "psql", "-U", "9router", "-d", "9router", "-t", "-A", "-c"]
+PSQL = ["docker", "exec", "axonrouter-postgres", "psql", "-U", "axonrouter", "-d", "axonrouter", "-t", "-A", "-c"]
 
 
 def sh(args):

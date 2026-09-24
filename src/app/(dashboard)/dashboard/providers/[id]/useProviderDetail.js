@@ -778,8 +778,9 @@ export function useProviderDetail() {
  try {
  const res = await fetch(`/api/providers/${connectionId}/reset-status`, { method: "POST" });
  if (res.ok) {
- notify.success("Status and cooldown reset");
- await fetchConnections();
+      notify.success("Status and cooldown reset");
+      await fetchConnections();
+      fetchConnectionStats();
  } else {
  const d = await res.json().catch(() => ({}));
  notify.error(d.error || "Failed to reset status");
@@ -818,9 +819,10 @@ export function useProviderDetail() {
  setConfirmState(null);
  try {
  const res = await fetch(`/api/providers/${id}`, { method: "DELETE" });
- if (res.ok) {
- setConnections(prev => prev.filter(c => c.id !== id));
- }
+      if (res.ok) {
+        setConnections(prev => prev.filter(c => c.id !== id));
+        fetchConnectionStats();
+      }
  } catch (error) {
  }
  }
@@ -842,10 +844,11 @@ export function useProviderDetail() {
  headers: { "Content-Type": "application/json" },
  body: JSON.stringify({ ids: idsToDelete }),
  });
- if (res.ok) {
- setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
- setSelectedConnectionIds([]);
- notify.success(`Deleted ${idsToDelete.length} connection(s)`);
+      if (res.ok) {
+        setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
+        setSelectedConnectionIds([]);
+        notify.success(`Deleted ${idsToDelete.length} connection(s)`);
+        fetchConnectionStats();
  } else {
  notify.error("Failed to delete connections");
  }
@@ -866,9 +869,10 @@ export function useProviderDetail() {
  headers: { "Content-Type": "application/json" },
  body: JSON.stringify({ ids: targetIds, isActive }),
  });
- if (res.ok) {
- setConnections(prev => prev.map(c => targetIds.includes(c.id) ? { ...c, isActive } : c));
- notify.success(`${isActive ? "Enabled" : "Disabled"} ${targetIds.length} connection(s)`);
+      if (res.ok) {
+        setConnections(prev => prev.map(c => targetIds.includes(c.id) ? { ...c, isActive } : c));
+        notify.success(`${isActive ? "Enabled" : "Disabled"} ${targetIds.length} connection(s)`);
+        fetchConnectionStats();
  } else {
  notify.error(`Failed to ${isActive ? "enable" : "disable"} connections`);
  }
@@ -877,15 +881,17 @@ export function useProviderDetail() {
  }
  };
 
- const handleOAuthSuccess = () => {
- fetchConnections();
- setShowOAuthModal(false);
- };
+  const handleOAuthSuccess = () => {
+    fetchConnections();
+    fetchConnectionStats();
+    setShowOAuthModal(false);
+  };
 
- const handleIFlowCookieSuccess = () => {
- fetchConnections();
- setShowIFlowCookieModal(false);
- };
+  const handleIFlowCookieSuccess = () => {
+    fetchConnections();
+    fetchConnectionStats();
+    setShowIFlowCookieModal(false);
+  };
 
  const handleSaveApiKey = async (formData) => {
  setAddConnectionError("");
@@ -898,9 +904,10 @@ export function useProviderDetail() {
  let data = null;
  try { data = await res.json(); } catch { data = null; }
  if (res.ok) {
- await fetchConnections();
- setShowAddApiKeyModal(false);
- return;
+      await fetchConnections();
+      fetchConnectionStats();
+      setShowAddApiKeyModal(false);
+      return;
  }
  setAddConnectionError(data?.error || "Failed to save connection");
  } catch (error) {
@@ -930,9 +937,10 @@ export function useProviderDetail() {
  headers: { "Content-Type": "application/json" },
  body: JSON.stringify({ isActive }),
  });
- if (res.ok) {
- setConnections(prev => prev.map(c => c.id === id ? { ...c, isActive } : c));
- }
+      if (res.ok) {
+        setConnections(prev => prev.map(c => c.id === id ? { ...c, isActive } : c));
+        fetchConnectionStats();
+      }
  } catch (error) {
  }
  };

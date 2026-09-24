@@ -5,13 +5,13 @@ max_score: 40
 na_heuristics: 
 p0_count: 3
 p1_count: 5
-target_identity: "file:/workspaces/9router-X-ui/src/shared/components/RequestLogger.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/shared/components/RequestLogger.js"
 target_fingerprint: "sha256:fcf87e0486103e3d60db3603272af124d3db77dd67db7c04070da36bfa0c8f38"
-target_path: /workspaces/9router-X-ui/src/shared/components/RequestLogger.js
+target_path: /workspaces/axonrouter-X-ui/src/shared/components/RequestLogger.js
 timestamp: 2026-09-24T11-00-00Z
 slug: src-shared-components-requestlogger-js
 ---
-# Assessment Report: 9router-X Request Logs & Details Consolidation
+# Assessment Report: axonrouter-X Request Logs & Details Consolidation
 
 **Target:** `src/shared/components/RequestLogger.js` (and `src/app/(dashboard)/dashboard/usage/page.js`)
 **Live URL:** `http://192.168.90.101:10128/dashboard/usage?tab=logs`

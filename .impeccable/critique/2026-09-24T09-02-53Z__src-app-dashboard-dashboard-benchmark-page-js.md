@@ -5,13 +5,13 @@ max_score: 40
 na_heuristics: 
 p0_count: 1
 p1_count: 3
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/benchmark/page.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/benchmark/page.js"
 target_fingerprint: "sha256:5d2ade8fccbbefcb91a1eb8adcb974d50f6c4041f1a6f276c847e66f278f09de"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/benchmark/page.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/benchmark/page.js
 timestamp: 2026-09-24T09-02-53Z
 slug: src-app-dashboard-dashboard-benchmark-page-js
 ---
-# Assessment Report: 9router-X AI Model Benchmark
+# Assessment Report: axonrouter-X AI Model Benchmark
 
 **Target**: `src/app/(dashboard)/dashboard/benchmark/page.js`  
 **Live URL**: `http://192.168.90.101:10128/dashboard/benchmark`  
@@ -39,7 +39,7 @@ slug: src-app-dashboard-dashboard-benchmark-page-js
 
 ## 2. Design Specificity Verdict
 
-**Verdict**: **Authored for 9router — not generic template slop.**
+**Verdict**: **Authored for axonrouter — not generic template slop.**
 - Strong domain-specific features: PONG Gate liveness prerequisite, 429 rate limit retry queues, per-attempt account names, internal `judge-router` reviewer.
 - **Detector Scan (Evidence B)**:
   - 35 of 50 interactive targets are sub-44px on mobile (checkboxes 13x13, filter pills 24px height, search inputs 26px/32px, action buttons 22px).
@@ -69,7 +69,7 @@ A feature-dense, capable engineering tool with genuine domain depth, but it is c
 
 ### [P1] Language Inconsistency (Indonesian Island in English App)
 - **Why it matters**: Sibling pages (Usage, Providers, Combos, Endpoint) are English. Benchmark page uses Indonesian with leaked English words ("Show Logs", "Filter: Semua", "PONG Gate", "LIVE").
-- **Fix**: Standardize all copy to clean, professional English matching the rest of the 9router dashboard.
+- **Fix**: Standardize all copy to clean, professional English matching the rest of the axonrouter dashboard.
 - **Suggested command**: `$impeccable clarify`
 
 ### [P1] False-Success Feedback on Retention Settings Save

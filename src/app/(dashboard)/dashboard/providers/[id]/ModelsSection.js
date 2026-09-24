@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Button } from "@/shared/components";
+import { Card, Button, SegmentedControl } from "@/shared/components";
 import { getModelKind } from "@/shared/constants/models";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
 import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
@@ -224,18 +224,22 @@ export default function ModelsSection(d) {
  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
  <div className="flex items-center gap-3">
  <h2 className="text-sm font-semibold">Available Models</h2>
- {providerThinkingLevels && (
-<select
- value={thinkingMode}
- onChange={(e) => handleThinkingModeChange(e.target.value)}
- title="Appends (level) suffix to copied model names"
- className="rounded-sm border border-border bg-surface px-2 py-1 text-xs h-11 sm:h-8 focus:border-primary focus:outline-none"
->
- {providerThinkingLevels.map((opt) => (
- <option key={opt} value={opt}>{`Thinking: ${opt.charAt(0).toUpperCase() + opt.slice(1)}`}</option>
- ))}
-</select>
- )}
+          {providerThinkingLevels && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="text-xs text-text-muted hidden sm:inline">Thinking:</span>
+              <SegmentedControl
+                options={providerThinkingLevels.map((opt) => ({
+                  value: opt,
+                  label: opt.charAt(0).toUpperCase() + opt.slice(1),
+                }))}
+                value={thinkingMode}
+                onChange={handleThinkingModeChange}
+                size="touch"
+                snap
+                aria-label="Thinking level"
+              />
+            </div>
+          )}
  </div>
  {!isCompatible && (() => {
  return (

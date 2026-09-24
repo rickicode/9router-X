@@ -1,29 +1,29 @@
 <div align="center">
-  <img src="./images/9router.png?1" alt="9Router-X Dashboard" width="800"/>
+  <img src="./images/axonrouter.png?1" alt="AxonRouter-X Dashboard" width="800"/>
   
-  # 9Router-X — Enterprise-Grade AI Routing Gateway & Token Optimizer
+  # AxonRouter-X — Enterprise-Grade AI Routing Gateway & Token Optimizer
   
   **Never stop coding. Save 20-40% tokens with RTK + Headroom context compression + auto-fallback to FREE & cheap AI models.**
   
   **Connect all AI coding tools (Claude Code, Cursor, Codex, OpenClaw, Antigravity, Copilot, Cline...) to 40+ providers with PostgreSQL 17 concurrency, Valkey/Redis L2 caching, and zero file-lock bottlenecks.**
 
-  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/9router-X.svg?style=flat)](https://github.com/rickicode/9router-X)
+  [![GitHub Stars](https://img.shields.io/github/stars/rickicode/axonrouter-X.svg?style=flat)](https://github.com/rickicode/axonrouter-X)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
   [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_17-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![Valkey](https://img.shields.io/badge/Cache-Valkey_8_%2F_Redis_7+-CC0000?logo=redis&logoColor=white)](https://valkey.io/)
   [![Docker](https://img.shields.io/badge/Deployment-Docker_Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-[⚡ 9Router-X vs Original](#-9router-x-vs-9router-original) • [🚀 Quick Start (Docker)](#-quick-start-docker-compose---recommended) • [💡 Features](#-key-features) • [🛠️ Supported Tools](#%EF%B8%8F-supported-cli-tools) • [🌐 Providers](#-supported-providers) • [📖 Setup](#-setup-guide)
+[⚡ AxonRouter-X vs Original](#-axonrouter-x-vs-axonrouter-original) • [🚀 Quick Start (Docker)](#-quick-start-docker-compose---recommended) • [💡 Features](#-key-features) • [🛠️ Supported Tools](#%EF%B8%8F-supported-cli-tools) • [🌐 Providers](#-supported-providers) • [📖 Setup](#-setup-guide)
 
 </div>
 
 ---
 
-## ⚡ 9Router-X vs 9Router Original
+## ⚡ AxonRouter-X vs AxonRouter Original
 
-9Router-X is an enterprise-grade, high-concurrency fork of [decolua/9router](https://github.com/decolua/9router). While the original project targets single-user desktop tray setups with embedded SQLite, 9Router-X is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
+AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonrouter](https://github.com/decolua/axonrouter). While the original project targets single-user desktop tray setups with embedded SQLite, AxonRouter-X is re-architected for multi-agent workloads, heavy CLI concurrency, and production deployments.
 
-| Architectural Component | 9Router Original (Upstream) | 9Router-X (Enterprise Edition) |
+| Architectural Component | AxonRouter Original (Upstream) | AxonRouter-X (Enterprise Edition) |
 |---|---|---|
 | **Database Engine** | SQLite file-based (`data.sqlite`) / `better-sqlite3` / `sql.js` (subject to file locks under concurrency) | **Pure PostgreSQL 17** — connection pool, true ACID, row-level locking, zero file-lock contention |
 | **Caching & Cooldown (L2)** | In-memory JavaScript `Map` (wiped on server restarts or container redeploys) | **Valkey 8 / Redis Speed Layer** — persistent TTL cooldowns, distributed OAuth refresh locks, instant cross-worker failover |
@@ -32,12 +32,12 @@
 | **Quota Cooldown Behavior** | 3-day permanent freeze upon quota exhaustion | **Smart 24-Hour Cooldown Cap** — auto-recovers on rolling quotas without manual unfreeze interventions |
 | **Client Error Isolation** | Client-side 4xx errors could freeze upstream accounts | **Strict Error Isolation** — client 400/404/413 errors never trigger provider account lockout |
 | **Token Optimization Pipeline** | Local RTK tool-result compression only | **RTK + Headroom Sidecar Support** — automated context compression for OpenAI, Claude, Kiro, and Codex |
-| **Migration & Backup Compatibility** | SQLite-only backup | **Bi-Directional Migration** — seamless import of official 9Router backup JSON into PostgreSQL |
+| **Migration & Backup Compatibility** | SQLite-only backup | **Bi-Directional Migration** — seamless import of official AxonRouter backup JSON into PostgreSQL |
 | **Target Deployment** | Local Node/Bun Desktop CLI tray | **Containerized All-in-One Docker Stack** (Gateway + PostgreSQL + Valkey + Headroom) |
 
 ---
 
-## 🤔 Why 9Router-X?
+## 🤔 Why AxonRouter-X?
 
 **Stop wasting budget, tokens, and hitting concurrency blocks:**
 
@@ -47,7 +47,7 @@
 - ❌ Massive tool outputs (`git diff`, `grep`, `test` logs) burn context windows quickly
 - ❌ Upstream quota locks require manual restarts or database edits
 
-**9Router-X solves this:**
+**AxonRouter-X solves this:**
 
 - ✅ **Dual Token Savers (RTK + Headroom)** — Cut tool outputs (20-40%) and compress conversational context on the fly
 - ✅ **PostgreSQL 17 Backend** — Handle hundreds of concurrent agent requests without locked database errors
@@ -67,7 +67,7 @@
                                │ http://localhost:10128/v1
                                ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ 9Router-X Gateway Engine (Next.js 16 Standalone)            │
+│ AxonRouter-X Gateway Engine (Next.js 16 Standalone)            │
 │  • RTK Token Compression (in-flight tool_result filter)     │
 │  • Headroom Sidecar Proxy (context window compaction)       │
 │  • Format Translation (OpenAI ↔ Claude ↔ Gemini ↔ Codex)    │
@@ -95,7 +95,7 @@ Result: Continuous coding, rock-solid stability under load, minimal token costs.
 ## 🚀 Quick Start (Docker Compose - Recommended)
 
 The all-in-one Docker Compose stack orchestrates:
-- **9router-x** (Gateway & Dashboard): `http://localhost:10128`
+- **axonrouter-x** (Gateway & Dashboard): `http://localhost:10128`
 - **postgres** (PostgreSQL 17 with healthcheck): port `5432`
 - **redis** (Valkey 8 / Redis compatible): port `6381` mapped to internal `6379`
 - **headroom** (LLM Context Compression Proxy): `http://localhost:8787`
@@ -103,8 +103,8 @@ The all-in-one Docker Compose stack orchestrates:
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/rickicode/9router-X.git
-cd 9router-X
+git clone https://github.com/rickicode/axonrouter-X.git
+cd axonrouter-X
 
 cp .env.example .env
 ```
@@ -123,7 +123,7 @@ docker compose up -d --build
 ```
 
 ### 3. Open Dashboards
-- **9Router-X Dashboard**: `http://localhost:10128/dashboard`
+- **AxonRouter-X Dashboard**: `http://localhost:10128/dashboard`
 - **Headroom Dashboard**: `http://localhost:8787/dashboard` (API docs: `http://localhost:8787/docs`)
 
 ### 4. Connect a Provider & Code
@@ -135,7 +135,7 @@ docker compose up -d --build
 
 ## 🛠️ Supported CLI Tools
 
-9Router-X integrates with all major AI development tools:
+AxonRouter-X integrates with all major AI development tools:
 
 <div align="center">
   <table>
@@ -236,16 +236,16 @@ docker compose up -d --build
 | 📊 **Real-Time Quota Tracking** | Live usage tracking with auto-reset countdowns | Maximizes return on active subscriptions |
 | 🔄 **Protocol Translation** | OpenAI $\leftrightarrow$ Claude $\leftrightarrow$ Gemini $\leftrightarrow$ Codex $\leftrightarrow$ Kiro | Run any model on any client without code changes |
 | 👥 **Fair-Share Balancing** | Jitter-based account rotation across multiple credentials | Avoids synchronized rate-limit exhaustion |
-| 💾 **Data Migration** | Full compatibility with upstream 9Router backup files | Effortless transition from SQLite to PostgreSQL |
+| 💾 **Data Migration** | Full compatibility with upstream AxonRouter backup files | Effortless transition from SQLite to PostgreSQL |
 
 ---
 
-## 📦 Data Migration from Official 9Router
+## 📦 Data Migration from Official AxonRouter
 
 ### Method 1: Web Dashboard (Easiest)
-1. In your existing official 9Router, open **Profile / Settings** $\rightarrow$ click **Download Backup**.
-2. Open 9Router-X Dashboard (`http://localhost:10128/dashboard/profile`).
-3. Select the backup JSON file and click **Restore / Import Backup**. 9Router-X automatically migrates the payload into PostgreSQL.
+1. In your existing official AxonRouter, open **Profile / Settings** $\rightarrow$ click **Download Backup**.
+2. Open AxonRouter-X Dashboard (`http://localhost:10128/dashboard/profile`).
+3. Select the backup JSON file and click **Restore / Import Backup**. AxonRouter-X automatically migrates the payload into PostgreSQL.
 
 ### Method 2: CLI Migration Script
 If you have direct access to your old `data.sqlite` file:
@@ -265,20 +265,20 @@ Configure `~/.claude/config.json`:
 ```json
 {
   "anthropic_api_base": "http://localhost:10128/v1",
-  "anthropic_api_key": "your-9router-key"
+  "anthropic_api_key": "your-axonrouter-key"
 }
 ```
 
 ### Cursor IDE
 Navigate to **Settings** $\rightarrow$ **Models** $\rightarrow$ **OpenAI API**:
 - **Base URL**: `http://localhost:10128/v1`
-- **API Key**: `[paste key from 9router dashboard]`
+- **API Key**: `[paste key from axonrouter dashboard]`
 - **Model**: `cc/claude-opus-4-7` or custom combo name
 
 ### OpenAI Codex CLI
 ```bash
 export OPENAI_BASE_URL="http://localhost:10128"
-export OPENAI_API_KEY="your-9router-key"
+export OPENAI_API_KEY="your-axonrouter-key"
 
 codex "refactor authentication module"
 ```
@@ -290,15 +290,15 @@ Edit `~/.openclaw/openclaw.json`:
   "agents": {
     "defaults": {
       "model": {
-        "primary": "9router/kr/claude-sonnet-4.5"
+        "primary": "axonrouter/kr/claude-sonnet-4.5"
       }
     }
   },
   "models": {
     "providers": {
-      "9router": {
+      "axonrouter": {
         "baseUrl": "http://127.0.0.1:10128/v1",
-        "apiKey": "sk_9router",
+        "apiKey": "sk_axonrouter",
         "api": "openai-completions",
         "models": [
           {
@@ -336,7 +336,7 @@ Priority Order:
   5. kr/claude-sonnet-4.5    (Free emergency fallback via Kiro)
 ```
 
-Point your client to model `production-stack`. 9Router-X automatically traverses the priority chain if any provider returns rate limits, authentication timeouts, or service degradation.
+Point your client to model `production-stack`. AxonRouter-X automatically traverses the priority chain if any provider returns rate limits, authentication timeouts, or service degradation.
 
 </details>
 
@@ -346,8 +346,8 @@ Point your client to model `production-stack`. 9Router-X automatically traverses
 Running without Docker requires external PostgreSQL 17 and Valkey/Redis instances accessible locally.
 
 ```bash
-git clone https://github.com/rickicode/9router-X.git
-cd 9router-X
+git clone https://github.com/rickicode/axonrouter-X.git
+cd axonrouter-X
 
 cp .env.example .env
 # Configure DATABASE_URL and REDIS_URL in .env
@@ -411,9 +411,9 @@ curl http://localhost:10128/v1/models \
 
 ## 🙏 Acknowledgments & Credits
 
-9Router-X is built upon outstanding open-source projects:
+AxonRouter-X is built upon outstanding open-source projects:
 
-- **[decolua/9router](https://github.com/decolua/9router)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
+- **[decolua/axonrouter](https://github.com/decolua/axonrouter)** — The foundational AI router and dashboard architecture created by [@decolua](https://github.com/decolua).
 - **[RTK](https://github.com/rtk-ai/rtk)** — High-efficiency lossless token-saver algorithm.
 - **[Headroom](https://github.com/chopratejas/headroom)** — Context compression proxy for large conversation histories.
 - **[Caveman](https://github.com/JuliusBrussee/caveman)** by [@JuliusBrussee](https://github.com/JuliusBrussee) — Concise prompt efficiency methodology.

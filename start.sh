@@ -1,4 +1,4 @@
-docker stop 9router
-docker rm 9router
-docker build -t 9router .
-docker run -d --name 9router -p 10128:10128 --env-file .env -v 9router-data:/app/data 9router
+docker stop axonrouter
+docker rm axonrouter
+docker build -t axonrouter .
+docker run -d --name axonrouter -p 10128:10128 --env-file .env -v axonrouter-data:/app/data axonrouter

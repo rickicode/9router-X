@@ -33,7 +33,7 @@ export default function ProviderDetailPage() {
 
  return (
 <div className="flex min-w-0 flex-col gap-3 px-1 sm:gap-3 sm:px-0">
- <ProviderHeader {...d} connectionCount={d.connections.length} />
+    <ProviderHeader {...d} connectionCount={d.connectionStats?.total || d.connectionPagination?.total || d.connections.length} />
  <ConnectionsSection {...d} />
  <ModelsSection {...d} />
  <ProviderModals {...d} />

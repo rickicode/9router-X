@@ -1,7 +1,7 @@
 # MIBP selective port + CodeBuddy Intl scope (2026-09-10)
 
 ## Orientation
-Target /workspaces/9router-X: Next.js JS, PostgreSQL SSOT, registry-driven providers. Read CLAUDE.md and open-sse/AGENTS.md. Basic Memory and OpenLore unavailable; this file records orientation. Reference /workspaces/9router-mibp-version at 8b34cfaa. Do NOT wholesale merge: target already includes newer decolua and custom Freebuff executor, DB/cache changes.
+Target /workspaces/axonrouter-X: Next.js JS, PostgreSQL SSOT, registry-driven providers. Read CLAUDE.md and open-sse/AGENTS.md. Basic Memory and OpenLore unavailable; this file records orientation. Reference /workspaces/axonrouter-mibp-version at 8b34cfaa. Do NOT wholesale merge: target already includes newer decolua and custom Freebuff executor, DB/cache changes.
 Existing dirty mobile analytics/Card/.serena changes are unrelated and must remain untouched.
 
 ## Scope

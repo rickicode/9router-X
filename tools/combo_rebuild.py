@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-9router-X Combo Rebuilder
+axonrouter-X Combo Rebuilder
 =========================
 Reads benchmark output (benchmark.db + session jsonl) and produces:
   1. New built-in auto/* combos (difficulty strategy, tiered by measured capability).
@@ -14,7 +14,7 @@ Usage:
 """
 import argparse, json, os, sqlite3, subprocess
 
-PSQL = ["docker", "exec", "9router-postgres", "psql", "-U", "9router", "-d", "9router", "-t", "-A", "-c"]
+PSQL = ["docker", "exec", "axonrouter-postgres", "psql", "-U", "axonrouter", "-d", "axonrouter", "-t", "-A", "-c"]
 
 # ── model families used as fallback aliases inside tier lists ────────────────
 DEEPSEEK_FAMILY = ["deepseek-flash-latest", "deepseek-v4.1-flash"]

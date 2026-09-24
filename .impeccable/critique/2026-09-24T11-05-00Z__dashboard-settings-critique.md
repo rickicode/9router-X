@@ -6,9 +6,9 @@ na_heuristics:
 p0_count: 0
 p1_count: 2
 p2_count: 2
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/settings/page.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/settings/page.js"
 target_fingerprint: "sha256:653ce2ea95da7d9750cac6682b7f12c645d59ee96a158843089872c816c3e2b4"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/settings/page.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/settings/page.js
 timestamp: 2026-09-24T11-05-00Z
 slug: dashboard-settings-critique
 ---

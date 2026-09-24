@@ -5,9 +5,9 @@ max_score: 40
 na_heuristics: 
 p0_count: 2
 p1_count: 2
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/console-log/ConsoleLogClient.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/console-log/ConsoleLogClient.js"
 target_fingerprint: "sha256:bc2c2cfd0da65bdcab08523657dea792dcc9eb20c631cf4431cee57165f5b16f"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/console-log/ConsoleLogClient.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/console-log/ConsoleLogClient.js
 timestamp: 2026-09-24T11-35-00Z
 slug: dashboard-console-log-critique
 ---

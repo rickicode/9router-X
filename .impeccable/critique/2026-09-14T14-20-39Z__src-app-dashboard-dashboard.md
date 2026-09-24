@@ -5,11 +5,11 @@ max_score: 40
 na_heuristics: 
 p0_count: 0
 p1_count: 3
-target_identity: "file:/workspaces/9router-X/src/app/(dashboard)/dashboard"
+target_identity: "file:/workspaces/axonrouter-X/src/app/(dashboard)/dashboard"
 timestamp: 2026-09-14T14-20-39Z
 slug: src-app-dashboard-dashboard
 ---
-# Critique Report: 9router-X Dashboard (Run 2 - Post Distill/Harden/Polish)
+# Critique Report: axonrouter-X Dashboard (Run 2 - Post Distill/Harden/Polish)
 
 ## Design Health Score: 28/40 (Good)
 

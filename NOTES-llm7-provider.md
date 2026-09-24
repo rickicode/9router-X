@@ -1,6 +1,6 @@
 # Catatan Analisis & Rencana Integrasi Provider LLM7
 
-Dokumen ini mencatat hasil pengujian komprehensif seluruh model pada LLM7.io (`https://api.llm7.io/v1`) untuk dasar implementasi/pembaruan provider di 9Router.
+Dokumen ini mencatat hasil pengujian komprehensif seluruh model pada LLM7.io (`https://api.llm7.io/v1`) untuk dasar implementasi/pembaruan provider di AxonRouter.
 
 ---
 
@@ -44,7 +44,7 @@ Model image/video yang tidak mendukung endpoint chat:
 
 ---
 
-## 3. Rencana Tindak Lanjut untuk 9Router
+## 3. Rencana Tindak Lanjut untuk AxonRouter
 1. **Dua Mode Integrasi**:
    * **`llm7` (API Key Mode)**: Bagi user yang memasukkan API key dari dashboard `llm7.io`.
    * **`llm7-free` (Anonymous Mode)**: Endpoint `/v1/chat/completions` juga mendukung 500k token/hari tanpa API key untuk model free (`GLM-5.3-Flash`, `codestral-latest`, `mistral-Nemo-Instruct-2407`).
@@ -85,7 +85,7 @@ Model image/video yang tidak mendukung endpoint chat:
 
 ---
 
-## 5. Ringkasan Akhir & Rencana Aksi Lanjutan untuk 9Router
+## 5. Ringkasan Akhir & Rencana Aksi Lanjutan untuk AxonRouter
 1. **VLM Run, OVHcloud, dan LLM Tech** semuanya terbukti berjalan dan dapat diakses langsung dari server kita tanpa login (Anonymous), sehingga sangat layak untuk dijadikan provider fallback berbasis IP seperti `kilocode-free`.
 2. **LLM7** akan diintegrasikan dalam dua mode:
    * **`llm7-free` (Anonymous Mode)**: 500k token/hari tanpa API key untuk model `GLM-5.3-Flash`, `codestral-latest`, `mistral-Nemo-Instruct-2407`.

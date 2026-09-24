@@ -1,4 +1,4 @@
-# BLUEPRINT RESMI: Refactor Arsitektur Database 9Router-X (PostgreSQL-Only + Redis L2 Speed Layer + Docker First)
+# BLUEPRINT RESMI: Refactor Arsitektur Database AxonRouter-X (PostgreSQL-Only + Redis L2 Speed Layer + Docker First)
 
 Dokumen ini merupakan hasil konsensus dari sesi grilling design tree (12 keputusan final terkonfirmasi).
 
@@ -10,7 +10,7 @@ Dokumen ini merupakan hasil konsensus dari sesi grilling design tree (12 keputus
 |---|---|---|---|
 | **1** | **Database Engine** | **PostgreSQL Only (Clean Cut)** | Hapus SQLite/sql.js total. Tidak ada dual-engine overhead. |
 | **2** | **Redis Role** | **Soft Dependency (L2 Speed Layer)** | Wajib kencang, tapi jika Redis down sistem otomatis fallback ke Postgres tanpa outage. |
-| **3** | **Format Kredensial** | **Native JSONB (Plaintext)** | Tetap ikuti standar 9Router (plaintext JSONB). Nol overhead enkripsi/dekripsi, query fleksibel. |
+| **3** | **Format Kredensial** | **Native JSONB (Plaintext)** | Tetap ikuti standar AxonRouter (plaintext JSONB). Nol overhead enkripsi/dekripsi, query fleksibel. |
 | **4** | **Logging Architecture**| **Table Partitioning Bulanan** | Partisi native per bulan. Drop partisi lama instan O(1) tanpa bloating/lock table. |
 | **5** | **Schema Migration** | **Embedded Self-Healing Bootstrap** | Auto-run DDL + cek kolom + auto-create partisi saat container start via `_meta`. |
 | **6** | **Anti-Collision Router**| **Optimistic Fair-Share + Jitter** | Top 5 akun tersehat via SQL $\rightarrow$ jitter pick $\rightarrow$ update `last_used_at`. Non-blocking. |
@@ -249,7 +249,7 @@ Di Node.js:
    - Menggantikan 50+ request individual menjadi 1 request tunggal.
 3. **Live UI Synchronization via SSE Stream (`/api/usage/stream`)**:
    - Saat request AI selesai atau background healthcheck mendeteksi perubahan kuota:
-     Backend publish event `quota_updated` ke Redis channel `9router:events`.
+     Backend publish event `quota_updated` ke Redis channel `axonrouter:events`.
    - Dashboard menerima update real-time via SSE dan menganimasikan progress bar kuota secara mulus tanpa perlu reload halaman (F5).
 4. **Komponen UI Interaktif di Dashboard**:
    - **Smart Countdown Badge**: Menampilkan sisa waktu reset dinamis (`Reset in 2j 15m`).
@@ -324,7 +324,7 @@ Di Node.js:
 ### Tahap 5: Docker Verification & End-to-End Test
 - Update `docker-compose.yml` dengan tuning RAM Redis (`--maxmemory 512mb --maxmemory-policy allkeys-lru`) dan Postgres params.
 - Jalankan stack Docker Compose (`docker compose up -d`).
-- Verifikasi healthcheck (`postgres`, `redis`, `headroom`, `9router-x`).
+- Verifikasi healthcheck (`postgres`, `redis`, `headroom`, `axonrouter-x`).
 - Uji routing request inferensi ke endpoint `/v1/chat/completions`.
 - Uji failover Redis crash (sistem tetap jalan via Postgres).
 - Uji UX Quota Tracker di browser: instant load, batch sync, live progress bar.

@@ -5,7 +5,7 @@ Status: accepted
 
 ## Decision
 
-Benchmark runs as a server job inside 9router. The dashboard starts the job and shows progress. The browser does not call models itself.
+Benchmark runs as a server job inside axonrouter. The dashboard starts the job and shows progress. The browser does not call models itself.
 
 Each selected model is called through `POST /v1/chat/completions` on the local gateway, once per active account of that model's provider. The gateway chooses nothing by rotation for this test: the job pins the account. A dead model does not change `provider_connections.test_status`.
 

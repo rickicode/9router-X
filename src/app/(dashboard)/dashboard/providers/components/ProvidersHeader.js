@@ -1,7 +1,7 @@
 "use client";
 
 import PropTypes from "prop-types";
-import { Badge } from "@/shared/components";
+import { Badge, SegmentedControl } from "@/shared/components";
 import { STATUS_FILTER_OPTIONS } from "../utils";
 
 function ProvidersHeader({ globalSummary, statusFilter, onStatusFilterChange }) {
@@ -24,18 +24,15 @@ function ProvidersHeader({ globalSummary, statusFilter, onStatusFilterChange }) 
  </Badge>
  )}
  </div>
- <div className="flex items-center gap-2 self-end sm:self-auto">
- <select
- value={statusFilter}
- onChange={(e) => onStatusFilterChange(e.target.value)}
- className="min-h-11 rounded-sm border border-border bg-surface px-3 py-2.5 text-xs text-text-main outline-none hover:bg-surface-2 sm:min-h-9 sm:px-2 sm:py-2"
- aria-label="Filter providers by connection status"
- >
- {STATUS_FILTER_OPTIONS.map((option) => (
- <option key={option.value} value={option.value}>{option.label}</option>
- ))}
- </select>
- </div>
+      <div className="flex items-center gap-2 self-start sm:self-auto overflow-x-auto no-scrollbar">
+        <SegmentedControl
+          options={STATUS_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={onStatusFilterChange}
+          size="touch"
+          aria-label="Filter providers by connection status"
+        />
+      </div>
  </div>
  );
 }

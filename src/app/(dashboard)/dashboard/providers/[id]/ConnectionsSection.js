@@ -222,32 +222,32 @@ export default function ConnectionsSection(d) {
  )}
  </div>
  </div>
- <div className="flex gap-2">
- {hasDualAuthModes ? (
- <>
- <Button size="sm" icon="lock" variant="secondary" onClick={triggerOAuthConnection}>{oauthConnectionLabel}</Button>
- <Button size="sm" icon="key" onClick={triggerApiKeyConnection}>{apiKeyConnectionLabel}</Button>
- </>
- ) : (
- <>
- {!isCompatible && providerId === "iflow" && (
- <Button size="sm" icon="cookie" variant="secondary" onClick={() => setShowIFlowCookieModal(true)}>Cookie</Button>
- )}
- {providerId === "codex" && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportCodex(true)}>{translate("Bulk Add")}</Button>
- )}
- {providerId === "grok-cli" && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportGrokCli(true)}>{translate("Bulk Add")}</Button>
- )}
- {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)}>{translate("Bulk Add")}</Button>
- )}
- <Button size="sm" icon="add" onClick={triggerAddConnection}>
- {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
- </Button>
- </>
- )}
- </div>
+          <div className="flex flex-wrap gap-2">
+            {hasDualAuthModes ? (
+              <>
+                <Button size="sm" icon="lock" variant="secondary" onClick={triggerOAuthConnection} className="min-h-11 sm:min-h-7">{oauthConnectionLabel}</Button>
+                <Button size="sm" icon="key" onClick={triggerApiKeyConnection} className="min-h-11 sm:min-h-7">{apiKeyConnectionLabel}</Button>
+              </>
+            ) : (
+              <>
+                {!isCompatible && providerId === "iflow" && (
+                  <Button size="sm" icon="cookie" variant="secondary" onClick={() => setShowIFlowCookieModal(true)} className="min-h-11 sm:min-h-7">Cookie</Button>
+                )}
+                {providerId === "codex" && (
+                  <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportCodex(true)} className="min-h-11 sm:min-h-7">{translate("Bulk Add")}</Button>
+                )}
+                {providerId === "grok-cli" && (
+                  <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportGrokCli(true)} className="min-h-11 sm:min-h-7">{translate("Bulk Add")}</Button>
+                )}
+                {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
+                  <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)} className="min-h-11 sm:min-h-7">{translate("Bulk Add")}</Button>
+                )}
+                <Button size="sm" icon="add" onClick={triggerAddConnection} className="min-h-11 sm:min-h-7">
+                  {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
+                </Button>
+              </>
+            )}
+          </div>
  </div>
  ) : (
  <>
@@ -339,30 +339,30 @@ className="inline-flex items-center gap-1 rounded-sm border border-border bg-sur
  </div>
  )}
  {!isCompatible && (
- <div className="mt-4 grid grid-cols-1 gap-2 sm:flex">
- {providerId === "iflow" && (
- <Button size="sm" icon="cookie" variant="secondary" onClick={() => setShowIFlowCookieModal(true)} className="w-full sm:w-auto">Cookie</Button>
- )}
- {providerId === "codex" && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportCodex(true)} className="w-full sm:w-auto">Bulk Add</Button>
- )}
- {providerId === "grok-cli" && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportGrokCli(true)} className="w-full sm:w-auto">Bulk Add</Button>
- )}
- {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
- <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)} className="w-full sm:w-auto">Bulk Add</Button>
- )}
- {hasDualAuthModes ? (
- <>
- <Button size="sm" icon="lock" variant="secondary" onClick={triggerOAuthConnection} className="w-full sm:w-auto">{oauthConnectionLabel}</Button>
- <Button size="sm" icon="key" onClick={triggerApiKeyConnection} className="w-full sm:w-auto">{apiKeyConnectionLabel}</Button>
- </>
- ) : (
- <Button size="sm" icon="add" onClick={triggerAddConnection} className="w-full sm:w-auto">Add</Button>
- )}
- </div>
- )}
- </>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {providerId === "iflow" && (
+                <Button size="sm" icon="cookie" variant="secondary" onClick={() => setShowIFlowCookieModal(true)} className="w-full sm:w-auto min-h-11 sm:min-h-7">Cookie</Button>
+              )}
+              {providerId === "codex" && (
+                <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportCodex(true)} className="w-full sm:w-auto min-h-11 sm:min-h-7">Bulk Add</Button>
+              )}
+              {providerId === "grok-cli" && (
+                <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportGrokCli(true)} className="w-full sm:w-auto min-h-11 sm:min-h-7">Bulk Add</Button>
+              )}
+              {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
+                <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportJwt(true)} className="w-full sm:w-auto min-h-11 sm:min-h-7">Bulk Add</Button>
+              )}
+              {hasDualAuthModes ? (
+                <>
+                  <Button size="sm" icon="lock" variant="secondary" onClick={triggerOAuthConnection} className="w-full sm:w-auto min-h-11 sm:min-h-7">{oauthConnectionLabel}</Button>
+                  <Button size="sm" icon="key" onClick={triggerApiKeyConnection} className="w-full sm:w-auto min-h-11 sm:min-h-7">{apiKeyConnectionLabel}</Button>
+                </>
+              ) : (
+                <Button size="sm" icon="add" onClick={triggerAddConnection} className="w-full sm:w-auto min-h-11 sm:min-h-7">Add</Button>
+              )}
+            </div>
+          )}
+        </>
  )}
  </Card>
  )}

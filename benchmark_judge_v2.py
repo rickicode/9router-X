@@ -6,7 +6,7 @@ import re
 URL = "http://192.168.90.101:10128/v1/chat/completions"
 KEY = "sk-1913e25d85487647-bkjq1z-e0b63207"
 
-# Exact prompt used by 9router open-sse/services/combo.js
+# Exact prompt used by axonrouter open-sse/services/combo.js
 DIFFICULTY_JUDGE_PROMPT = """Classify this task. Reply with ONLY JSON, no markdown:
 {"difficulty":"easy|medium|hard","ambiguity":"low|medium|high","domain":"general|summary|coding|design|data","confidence":0.0-1.0}
 Task: """

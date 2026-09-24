@@ -249,7 +249,16 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
  <p className="text-xs text-danger break-words">{parseError}</p>
  )}
 
- {result && result.failed > 0 && (
+      {result && result.success > 0 && (
+        <div className="flex items-center gap-1.5 text-xs text-success font-medium bg-success/10 border border-success/30 px-2.5 py-2 rounded-sm">
+          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <span>
+            ✓ {result.success} {translate("account(s) added successfully")}
+            {result.failed > 0 ? `, ✗ ${result.failed} ${translate("failed")}` : ""}
+          </span>
+        </div>
+      )}
+{result && result.failed > 0 && (
  <div className="flex flex-col gap-2">
  <div className="text-sm font-medium text-warning">
  ✗ {result.failed} {translate("failed")}

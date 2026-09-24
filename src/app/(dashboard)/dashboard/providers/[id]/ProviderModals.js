@@ -31,7 +31,7 @@ export default function ProviderModals(d) {
  providerDisplayAlias, proxyPools, connections,
  handleOAuthSuccess, handleIFlowCookieSuccess, handleSaveApiKey,
  handleUpdateConnection, handleUpdateNode, handleAddCustomModel, handleAgRiskConfirm,
- fetchConnections,
+  fetchConnections, fetchConnectionStats,
  } = d;
 
  return (
@@ -65,7 +65,7 @@ export default function ProviderModals(d) {
  authHint={providerInfo?.authHint} website={providerInfo?.website}
  proxyPools={proxyPools} error={addConnectionError}
  existingNames={connections.map((c) => c.name).filter(Boolean)}
- onSave={handleSaveApiKey} onBulkDone={fetchConnections}
+  onSave={handleSaveApiKey} onBulkDone={() => { fetchConnections(); fetchConnectionStats(); }}
  onClose={() => { setAddConnectionError(""); setShowAddApiKeyModal(false); }}
  />
 
@@ -97,17 +97,17 @@ export default function ProviderModals(d) {
 
  {providerId === "codex" && (
  <BulkImportCodexModal isOpen={showBulkImportCodex}
- onClose={() => setShowBulkImportCodex(false)} onSuccess={fetchConnections} />
+  onClose={() => setShowBulkImportCodex(false)} onSuccess={() => { fetchConnections(); fetchConnectionStats(); }} />
  )}
 
  {providerId === "grok-cli" && (
  <BulkImportGrokCliModal isOpen={showBulkImportGrokCli}
- onClose={() => setShowBulkImportGrokCli(false)} onSuccess={fetchConnections} />
+  onClose={() => setShowBulkImportGrokCli(false)} onSuccess={() => { fetchConnections(); fetchConnectionStats(); }} />
  )}
 
  {(providerId === "codebuddy-intl" || providerId === "codebuddy-cn" || providerId === "workbuddy") && (
  <BulkImportJwtModal providerId={providerId} isOpen={showBulkImportJwt}
- onClose={() => setShowBulkImportJwt(false)} onSuccess={fetchConnections} />
+  onClose={() => setShowBulkImportJwt(false)} onSuccess={() => { fetchConnections(); fetchConnectionStats(); }} />
  )}
 
  <ConfirmModal

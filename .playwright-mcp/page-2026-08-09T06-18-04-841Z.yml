@@ -1,11 +1,11 @@
 - generic [ref=e1]:
   - generic [ref=e2]:
     - complementary [ref=e4]:
-      - link "hub 9Router Proxy v0.5.50" [ref=e10] [cursor=pointer]:
+      - link "hub AxonRouter Proxy v0.5.50" [ref=e10] [cursor=pointer]:
         - /url: /dashboard
         - generic [ref=e11]: hub
         - generic [ref=e13]:
-          - heading "9Router Proxy" [level=1] [ref=e14]
+          - heading "AxonRouter Proxy" [level=1] [ref=e14]
           - generic [ref=e15]: v0.5.50
       - navigation [ref=e16]:
         - link "api Endpoint & Key" [ref=e17] [cursor=pointer]:
@@ -70,7 +70,7 @@
             - generic [ref=e63]: settings
             - generic [ref=e64]: Settings
       - link "MIBP Edition · GitHub" [ref=e66] [cursor=pointer]:
-        - /url: https://github.com/mhiqrambg/9router-mibp-version
+        - /url: https://github.com/mhiqrambg/axonrouter-mibp-version
     - main [ref=e67]:
       - generic [ref=e68]:
         - button "menu" [ref=e70] [cursor=pointer]
@@ -79,7 +79,7 @@
           - heading "Providers" [level=1] [ref=e76]
         - generic [ref=e77]:
           - link "MIBP Edition" [ref=e78] [cursor=pointer]:
-            - /url: https://github.com/mhiqrambg/9router-mibp-version
+            - /url: https://github.com/mhiqrambg/axonrouter-mibp-version
             - generic [ref=e79]: code
           - button "Switch to dark mode" [ref=e81] [cursor=pointer]:
             - generic [ref=e82]: dark_mode

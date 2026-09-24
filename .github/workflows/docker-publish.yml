@@ -22,9 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Registry refs MUST be lowercase. The repo slug `rickicode/9router-X`
+      # Registry refs MUST be lowercase. The repo slug `rickicode/axonrouter-X`
       # carries an uppercase X, and buildx rejects it outright:
-      #   invalid reference format: repository name (rickicode/9router-X)
+      #   invalid reference format: repository name (rickicode/axonrouter-X)
       #   must be lowercase
       # Fail fast here (before buildx) instead of 27s into a docker build.
       - name: Resolve lowercase GHCR image ref

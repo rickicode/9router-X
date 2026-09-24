@@ -40,7 +40,7 @@ async function backup() {
     pruneOldBackups(backupDir, 7);
   } catch (err) {
     console.warn(`! pg_dump not available in host environment or failed: ${err.message}`);
-    console.log(`[BACKUP] For Docker container deployment, run: docker exec -t 9router-postgres pg_dump -U 9router 9router | gzip > backup.sql.gz`);
+    console.log(`[BACKUP] For Docker container deployment, run: docker exec -t axonrouter-postgres pg_dump -U axonrouter axonrouter | gzip > backup.sql.gz`);
   }
 }
 

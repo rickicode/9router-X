@@ -263,16 +263,22 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  const hasAnyModelLockKey = Object.keys(connection).some((k) => k.startsWith("modelLock_"));
 
  useEffect(() => {
- const checkCooldown = () => {
- const now = Date.now();
- const flatLocks = Object.entries(connection)
- .filter(([k]) => k.startsWith("modelLock_"))
- .filter(([, v]) => v && new Date(v).getTime() > now)
- .map(([k, v]) => ({
- model: k.slice("modelLock_".length) || "__all",
- until: v,
- }));
+  const checkCooldown = () => {
+    const now = Date.now();
+    const flatLocks = Object.entries(connection)
+      .filter(([k]) => k.startsWith("modelLock_"))
+      .filter(([, v]) => v && new Date(v).getTime() > now)
+      .map(([k, v]) => ({
+        model: k.slice("modelLock_".length) || "__all",
+        until: v,
+      }));
 
+    // Account-wide locks (rate-limit / rolling-window cooldowns, e.g. grok-cli
+    // rolling 24h cap) previously showed no countdown — only a status badge.
+    const accountUntil = connection.lockedAllUntil || connection.rateLimitedUntil;
+    if (accountUntil && new Date(accountUntil).getTime() > now) {
+      flatLocks.push({ model: "__all", until: accountUntil });
+    }
  const dictLocks = Object.entries(connection.modelLocks || {})
  .filter(([, v]) => v && new Date(v).getTime() > now)
  .map(([k, v]) => ({

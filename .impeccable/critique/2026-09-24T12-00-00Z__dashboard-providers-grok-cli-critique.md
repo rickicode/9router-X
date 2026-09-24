@@ -6,13 +6,13 @@ na_heuristics:
 p0_count: 0
 p1_count: 2
 p2_count: 3
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/providers/[id]/page.js?provider=grok-cli"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/providers/[id]/page.js?provider=grok-cli"
 target_fingerprint: "sha256:b713cd407039a31550dd9a3c31ab698e556e7666d6c105d352d3e879cfcec735"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/providers/[id]/page.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/providers/[id]/page.js
 timestamp: 2026-09-24T12-00-00Z
 slug: dashboard-providers-grok-cli-critique
 ---
-# Assessment Report: 9router-X Provider Detail — Grok CLI (Grok Build)
+# Assessment Report: axonrouter-X Provider Detail — Grok CLI (Grok Build)
 
 **Target:** `http://192.168.90.101:10128/dashboard/providers/grok-cli`  
 **Components Evaluated:**  

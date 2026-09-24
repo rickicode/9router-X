@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-9router-X Production Benchmark: Professional & Advanced
+axonrouter-X Production Benchmark: Professional & Advanced
 Filters models with active accounts in production, tests speed & liveness (>=50%),
 runs professional coding + reasoning + tool-calling benchmarks.
 """
@@ -73,7 +73,7 @@ def get_active_providers_from_prod():
     """Query production DB to get providers with active, healthy accounts."""
     try:
         cmd = [
-            "docker", "exec", "9router-postgres", "psql", "-U", "9router", "-d", "9router", "-t", "-A", "-c",
+            "docker", "exec", "axonrouter-postgres", "psql", "-U", "axonrouter", "-d", "axonrouter", "-t", "-A", "-c",
             "SELECT provider FROM provider_connections WHERE is_active = true AND test_status = 'active' GROUP BY provider;"
         ]
         out = subprocess.check_output(cmd, timeout=15).decode().split()

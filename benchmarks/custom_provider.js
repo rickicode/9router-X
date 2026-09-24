@@ -34,7 +34,7 @@ class CustomOpenAiProvider {
         res.on('data', chunk => body += chunk);
         res.on('end', () => {
           try {
-            // Bersihkan chunk SSE 'data: [DONE]' jika tertinggal di body non-stream 9router
+            // Bersihkan chunk SSE 'data: [DONE]' jika tertinggal di body non-stream axonrouter
             if (body.includes('data: [DONE]')) {
               body = body.split('data: [DONE]')[0].trim();
             }

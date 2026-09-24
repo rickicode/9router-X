@@ -89,7 +89,7 @@ Dokumen ini mencatat hasil analisis mendalam mengenai perbandingan limit akses t
 
 ---
 
-## Rekomendasi Strategi untuk 9Router
+## Rekomendasi Strategi untuk AxonRouter
 
 ### Prioritas 1: Mode Dual (Anonymous + Authenticated)
 Untuk setiap provider, implementasikan dua mode:

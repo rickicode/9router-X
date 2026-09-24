@@ -1,6 +1,6 @@
 # Analytics mobile fix orientation and scope
 
-Repo: /workspaces/9router-X. Next.js plain JS dashboard. Existing CLAUDE.md documents project. OpenLore unavailable; Basic Memory unavailable. Git clean at start. Production: https://9router-x.hijinetwork.net/dashboard/usage?tab=analytics.
+Repo: /workspaces/axonrouter-X. Next.js plain JS dashboard. Existing CLAUDE.md documents project. OpenLore unavailable; Basic Memory unavailable. Git clean at start. Production: https://axonrouter-x.hijinetwork.net/dashboard/usage?tab=analytics.
 
 User reports analytics unusable on mobile. Scope: responsive CSS/UI only, preserve analytics logic, API contracts, search/provider work. Inspect usage/page.js, usage/components/AnalyticsTab.js, GlobalAnalyticsChart.js, AnalyticsTrendChart.js, shared Card/SegmentedControl and dashboard parent sizing. Existing fixed minimum input widths and nonwrapping headers may contribute; verify root cause.
 

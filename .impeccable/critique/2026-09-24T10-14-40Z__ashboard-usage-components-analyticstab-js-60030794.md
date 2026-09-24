@@ -5,13 +5,13 @@ max_score: 40
 na_heuristics: 
 p0_count: 0
 p1_count: 2
-target_identity: "file:/workspaces/9router-X-ui/src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js"
+target_identity: "file:/workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js"
 target_fingerprint: "sha256:3f3f10a69d371b745f89ffb6b70492cc046732b726d1246b4687c3acd120c265"
-target_path: /workspaces/9router-X-ui/src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js
+target_path: /workspaces/axonrouter-X-ui/src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js
 timestamp: 2026-09-24T10-14-40Z
 slug: ashboard-usage-components-analyticstab-js-60030794
 ---
-# Assessment Report: 9router-X Usage Analytics Tab
+# Assessment Report: axonrouter-X Usage Analytics Tab
 
 **Target:** `src/app/(dashboard)/dashboard/usage/components/AnalyticsTab.js`
 **Live URL:** `http://192.168.90.101:10128/dashboard/usage?tab=analytics`

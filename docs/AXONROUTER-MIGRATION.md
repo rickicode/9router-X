@@ -1,6 +1,6 @@
 # AxonRouter — Rebrand & Migration Specification (v0.1.2)
 
-> Dokumen spesifikasi rebrand sistem dari **9router-X** ke **AxonRouter**, peningkatan versi ke **v1.0.0**, identitas visual berbasis Cyan, dan integrasi pemantau upstream `decolua/9router`.
+> Dokumen spesifikasi rebrand sistem dari **axonrouter-X** ke **AxonRouter**, peningkatan versi ke **v1.0.0**, identitas visual berbasis Cyan, dan integrasi pemantau upstream `decolua/axonrouter`.
 
 ---
 
@@ -38,22 +38,22 @@ Sistem warna menggunakan tema gelap murni (Pitch Black & Slate Base) dengan akse
 
 ---
 
-## 2. Pemantauan Upstream (`decolua/9router`)
+## 2. Pemantauan Upstream (`decolua/axonrouter`)
 
 ### 2.1 Prinsip Kerja
 - Versi aplikasi kita mandiri di **`v1.0.0`**.
-- Sistem memiliki **Upstream Tracker internal** yang secara berkala memantau versi rilis resmi, tag git, dan commit master dari repo upstream `decolua/9router`.
+- Sistem memiliki **Upstream Tracker internal** yang secara berkala memantau versi rilis resmi, tag git, dan commit master dari repo upstream `decolua/axonrouter`.
 - Tidak ada auto-update yang menimpa container; tracker hanya bersifat observabilitas & notifikasi bagi admin.
 
 ### 2.2 Sumber Data Upstream
 ```javascript
 export const UPSTREAM_CONFIG = {
-  upstreamRepo: "decolua/9router",
-  npmPackage: "9router",
-  githubReleasesApi: "https://api.github.com/repos/decolua/9router/releases/latest",
-  npmRegistryApi: "https://registry.npmjs.org/9router/latest",
-  githubCommitsApi: "https://api.github.com/repos/decolua/9router/commits/master",
-  changelogUrl: "https://raw.githubusercontent.com/decolua/9router/master/CHANGELOG.md",
+  upstreamRepo: "decolua/axonrouter",
+  npmPackage: "axonrouter",
+  githubReleasesApi: "https://api.github.com/repos/decolua/axonrouter/releases/latest",
+  npmRegistryApi: "https://registry.npmjs.org/axonrouter/latest",
+  githubCommitsApi: "https://api.github.com/repos/decolua/axonrouter/commits/master",
+  changelogUrl: "https://raw.githubusercontent.com/decolua/axonrouter/master/CHANGELOG.md",
   cacheTtlMs: 3600000, // 1 jam cache in-memory untuk hindari rate limit GitHub API
 };
 ```
@@ -64,10 +64,10 @@ Response JSON:
 {
   "axonVersion": "1.0.0",
   "upstream": {
-    "package": "9router",
+    "package": "axonrouter",
     "latestVersion": "0.5.83",
     "publishedAt": "2026-09-24T00:00:00Z",
-    "releaseUrl": "https://github.com/decolua/9router/releases/tag/v0.5.83",
+    "releaseUrl": "https://github.com/decolua/axonrouter/releases/tag/v0.5.83",
     "hasUpdate": true,
     "lastChecked": "2026-09-24T17:00:00Z"
   }
@@ -88,17 +88,17 @@ Response JSON:
 
 | Komponen | Status Saat Ini | Rencana Perubahan | Strategi & Mitigasi |
 |---|---|---|---|
-| **package.json** | `name: "9router-app"`, `version: "0.5.81"` | `name: "axonrouter"`, `version: "1.0.0"` | Aman, sinkronkan lockfile |
-| **UI Metadata & Title** | `9Router - AI Infrastructure...` | `AxonRouter - AI Infrastructure...` | Aman, ubah di `layout.js` & static headers |
-| **DATA_DIR & Fallback** | `~/.9router`, `/app/data` | Default `/app/data`, fallback `~/.axonrouter` | Tetap periksa folder lama `~/.9router` jika ada |
-| **CLI Detection** | `has9RouterConfig` di 11 tool | `hasRouterConfig` | **Wajib Dual-Check**: deteksi `axonrouter` dan `9router` |
-| **Default CLI Key** | `sk_9router` | `sk_axonrouter` | **Wajib Dual-Support**: terima `sk_axonrouter` dan `sk_9router` di auth gate |
-| **OpenCode / Codex Provider** | `[model_providers.9router]` | `[model_providers.axonrouter]` | Tool generator tulis nama baru, parser baca keduanya |
-| **Docker Compose Services** | `9router-x`, `9router-api` | `axonrouter-web`, `axonrouter-api` | Container rename saat deploy terencana |
-| **Docker Volumes** | `9router-data`, `9router-pgdata` | Pertahankan nama fisik volume | **JANGAN GANTI NAMA FISIK VOLUME** di prod tanpa migrasi data live |
-| **PostgreSQL Database** | `postgres://9router:.../9router` | Pertahankan connection string prod | Ubah label koneksi saja di docs, pertahankan kredensial live |
-| **Header Internal** | `x-9router-test-request`, `x-9router-connection-id` | `x-axon-test-request`, `x-axon-connection-id` | Middleware baca header baru dengan fallback header lama |
-| **Pub/Sub Redis Event** | `9router:events` | `axonrouter:events` | Ubah event channel untuk isolasi pesan bersih |
+| **package.json** | `name: "axonrouter-app"`, `version: "0.5.81"` | `name: "axonrouter"`, `version: "1.0.0"` | Aman, sinkronkan lockfile |
+| **UI Metadata & Title** | `AxonRouter - AI Infrastructure...` | `AxonRouter - AI Infrastructure...` | Aman, ubah di `layout.js` & static headers |
+| **DATA_DIR & Fallback** | `~/.axonrouter`, `/app/data` | Default `/app/data`, fallback `~/.axonrouter` | Tetap periksa folder lama `~/.axonrouter` jika ada |
+| **CLI Detection** | `hasAxonRouterConfig` di 11 tool | `hasRouterConfig` | **Wajib Dual-Check**: deteksi `axonrouter` dan `axonrouter` |
+| **Default CLI Key** | `sk_axonrouter` | `sk_axonrouter` | **Wajib Dual-Support**: terima `sk_axonrouter` dan `sk_axonrouter` di auth gate |
+| **OpenCode / Codex Provider** | `[model_providers.axonrouter]` | `[model_providers.axonrouter]` | Tool generator tulis nama baru, parser baca keduanya |
+| **Docker Compose Services** | `axonrouter-x`, `axonrouter-api` | `axonrouter-web`, `axonrouter-api` | Container rename saat deploy terencana |
+| **Docker Volumes** | `axonrouter-data`, `axonrouter-pgdata` | Pertahankan nama fisik volume | **JANGAN GANTI NAMA FISIK VOLUME** di prod tanpa migrasi data live |
+| **PostgreSQL Database** | `postgres://axonrouter:.../axonrouter` | Pertahankan connection string prod | Ubah label koneksi saja di docs, pertahankan kredensial live |
+| **Header Internal** | `x-axonrouter-test-request`, `x-axonrouter-connection-id` | `x-axon-test-request`, `x-axon-connection-id` | Middleware baca header baru dengan fallback header lama |
+| **Pub/Sub Redis Event** | `axonrouter:events` | `axonrouter:events` | Ubah event channel untuk isolasi pesan bersih |
 
 ---
 
@@ -115,7 +115,7 @@ Response JSON:
 3. Pasang visual indicator badge pada Sidebar/Header.
 
 ### Tahap 3: CLI Tools Dual-Compatibility
-1. Update `src/app/api/cli-tools/*` agar mendeteksi konfigurasi lama (`9router`) maupun baru (`axonrouter`).
+1. Update `src/app/api/cli-tools/*` agar mendeteksi konfigurasi lama (`axonrouter`) maupun baru (`axonrouter`).
 2. Generate setup script baru dengan prefix `axonrouter` dan default key `sk_axonrouter`.
 3. Pastikan resolver API key gateway memvalidasi kedua default key lokal.
 
