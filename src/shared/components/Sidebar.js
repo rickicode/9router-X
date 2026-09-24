@@ -26,24 +26,17 @@ const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
 // Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
-// Core Features
-const coreItems = [
+// Core & Routing
+const coreRoutingItems = [
   { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
-];
-
-// Routing & Performance
-const routingItems = [
-  { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
-  { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
+  { href: "/dashboard/combos", label: "Combo", icon: "layers" },
   { href: "/dashboard/proxy-fitness", label: "Proxy Fitness", icon: "network_check" },
 ];
-
 // Monitoring
 const monitoringItems = [
   { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
   { href: "/dashboard/usage", label: "Usage & Analytics", icon: "bar_chart" },
-  { href: "/dashboard/benchmark", label: "Benchmark", icon: "speed" },
 ];
 
 // Tools & Integration
@@ -53,12 +46,10 @@ const toolsItems = [
 
 const systemItems = [
   { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: "lan" },
-  { href: "/dashboard/skills", label: "Skills", icon: "extension" },
 ];
 
 const debugItems = [
   { href: "/dashboard/console-log", label: "Console Log", icon: "terminal" },
-  { href: "/dashboard/translator", label: "Translator", icon: "translate" },
 ];
 
 export default function Sidebar({ onClose }) {
@@ -192,44 +183,12 @@ export default function Sidebar({ onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {/* Core Section */}
+        {/* Core & Routing Section */}
         <div className="mb-4">
           <div className="px-3 mb-2">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Core</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Core & Routing</span>
           </div>
-          {coreItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              prefetch={false}
-              onClick={onClose}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
-                isActive(item.href)
-                  ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </div>
-
-        {/* Routing & Performance Section */}
-        <div className="mb-4">
-          <div className="px-3 mb-2">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Routing & Performance</span>
-          </div>
-          {routingItems.map((item) => (
+          {coreRoutingItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -288,10 +247,10 @@ export default function Sidebar({ onClose }) {
           ))}
         </div>
 
-        {/* Tools Section */}
-        <div className="mb-4">
+        {/* System & Tools Section */}
+        <div className="pt-2 border-t border-border/50">
           <div className="px-3 mb-2">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Tools</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">System & Tools</span>
           </div>
           {toolsItems.map((item) => (
             <Link
@@ -318,13 +277,6 @@ export default function Sidebar({ onClose }) {
               <span>{item.label}</span>
             </Link>
           ))}
-        </div>
-
-        {/* System Section */}
-        <div className="pt-2 border-t border-border/50">
-          <div className="px-3 mb-2">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">System</span>
-          </div>
 
           {/* Media Providers accordion */}
           <button
@@ -411,38 +363,32 @@ export default function Sidebar({ onClose }) {
             </Link>
           ))}
 
-          {/* Debug items */}
-          <div className="px-3 mb-2">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Debug</span>
-          </div>
-          {debugItems.map((item) => {
-            const show = item.href !== "/dashboard/translator" || enableTranslator;
-            return show ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={false}
-                onClick={onClose}
-                aria-current={isActive(item.href) ? "page" : undefined}
+
+          {debugItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={false}
+              onClick={onClose}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+              )}
+            >
+              <span
                 className={cn(
-                  "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                  "material-symbols-outlined text-[18px]",
+                  isActive(item.href) ? "fill-1" : ""
                 )}
               >
-                <span
-                  className={cn(
-                    "material-symbols-outlined text-[18px]",
-                    isActive(item.href) ? "fill-1" : ""
-                  )}
-                >
-                  {item.icon}
-                </span>
-                <span>{item.label}</span>
-              </Link>
-            ) : null;
-          })}
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
 
 
           {/* Settings */}

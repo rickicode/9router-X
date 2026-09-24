@@ -80,7 +80,6 @@ services:
       PROXY_DISPATCHERS_MAX_SIZE: "128"
       DATABASE_URL: postgres://9router:${POSTGRES_PASSWORD:-password123}@postgres:5432/9router
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      HEADROOM_URL: http://headroom:8787
       # Opt-in: return unredacted request-details payloads (default redacted).
       # Only enable while dashboard login is enforced (requireLogin !== false).
       REQUEST_DETAILS_SHOW_RAW: ${REQUEST_DETAILS_SHOW_RAW:-false}
@@ -143,23 +142,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Opt-in only: start with `docker compose --profile headroom up -d`.
-  # Disabled by default (owner does not use headroom compression).
-  headroom:
-    image: ghcr.io/chopratejas/headroom:latest
-    container_name: headroom
-    profiles:
-      - headroom
-    restart: "no"
-    mem_limit: 1g
-    memswap_limit: 1g
-    ports:
-      - "8787:8787"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
 
 volumes:
   9router-data:
