@@ -37,6 +37,7 @@ const coreRoutingItems = [
 const monitoringItems = [
   { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
   { href: "/dashboard/usage", label: "Usage & Analytics", icon: "bar_chart" },
+  { href: "/dashboard/benchmark", label: "Benchmark", icon: "speed" },
 ];
 
 // Tools & Integration
