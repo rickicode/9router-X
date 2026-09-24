@@ -2,7 +2,6 @@
 
 import PropTypes from "prop-types";
 import Link from "next/link";
-import Tooltip from "@/shared/components/Tooltip";
 import { formatTokens, formatTokensExact } from "@/shared/utils/formatTokens";
 
 const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
@@ -82,8 +81,6 @@ export default function OverviewCards({ stats }) {
   const outputCost = totalTokens > 0 ? (totalCompletion * totalCost) / totalTokens : 0;
   const failed = Number(stats.totalFailedRequests || 0);
 
-  const costTip = `Input ${fmtCost(inputCost)} · Cached ${fmtCost(cachedCost)} · Output ${fmtCost(outputCost)}. Token-share split of the estimated total. Rates come from Settings > Pricing.`;
-
   return (
     <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
       <Metric
@@ -119,12 +116,8 @@ export default function OverviewCards({ stats }) {
         valueClass="text-amber-400"
         extra={
           <div className="flex flex-col gap-1 text-[11px] text-text-muted">
-            <span className="flex items-center gap-1">
-              Estimated, not billed
-              <Tooltip text={costTip} position="top" />
-            </span>
             <span className="truncate">
-              In {fmtCost(inputCost)} · Cache {fmtCost(cachedCost)} · Out {fmtCost(outputCost)}
+              Estimated, not billed · In {fmtCost(inputCost)} · Cache {fmtCost(cachedCost)} · Out {fmtCost(outputCost)}
             </span>
             <Link
               href="/dashboard/settings/pricing"

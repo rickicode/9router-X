@@ -374,14 +374,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <button
  onClick={onMoveUp}
  disabled={isFirst}
- className={`size-8 rounded-sm ${isFirst ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
+ className={`size-11 rounded-sm sm:size-8 ${isFirst ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
  >
  <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>
  </button>
  <button
  onClick={onMoveDown}
  disabled={isLast}
- className={`size-8 rounded-sm ${isLast ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
+ className={`size-11 rounded-sm sm:size-8 ${isLast ? "text-text-muted/30 cursor-not-allowed" : "hover:bg-surface-2 text-text-muted hover:text-primary"}`}
  >
  <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
  </button>
@@ -428,7 +428,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  e.stopPropagation();
  onUnlockModel();
  }}
- className="ml-0.5 hover:text-warning"
+ className="ml-0.5 inline-flex min-h-11 min-w-11 items-center justify-center hover:text-warning sm:min-h-0 sm:min-w-0"
  title="Release model lock"
  >
  <span className="material-symbols-outlined text-[18px]">lock_open</span>
@@ -502,14 +502,14 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  href={connection.providerSpecificData.validationUrl}
  target="_blank"
  rel="noopener noreferrer"
- className="inline-flex items-center gap-1 font-medium underline hover:text-warning"
+ className="inline-flex min-h-11 items-center gap-1 font-medium underline hover:text-warning sm:min-h-0"
  >
  Verify ↗
  </a>
  <button
  type="button"
  onClick={() => copy(connection.providerSpecificData.validationUrl, `val-${connection.id}`)}
- className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-1 text-[11px] font-medium text-warning hover:bg-warning/10"
+ className="inline-flex min-h-11 items-center gap-0.5 rounded-sm px-1.5 text-[11px] font-medium text-warning hover:bg-warning/10 sm:min-h-0"
  title="Copy validation URL"
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -529,7 +529,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <div className={`relative ${showProxyDropdown ? "z-50" : ""}`} ref={proxyDropdownRef}>
  <button
  onClick={() => setShowProxyDropdown((v) => !v)}
- className={`flex w-full flex-col items-center rounded-sm px-2 py-1 hover:bg-surface-2 ${hasAnyProxy ? "text-primary" : "text-text-muted hover:text-primary"}`}
+className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-surface-2 sm:min-h-0 sm:py-1 ${hasAnyProxy ? "text-primary" : "text-text-muted hover:text-primary"}`}
  disabled={updatingProxy}
  >
  <span className="material-symbols-outlined text-[18px]">
@@ -538,7 +538,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <span className="text-[11px]">Proxy</span>
  </button>
  {showProxyDropdown && (
- <div className="absolute left-0 top-full z-50 mt-1 max-w-[calc(100vw-2rem)] min-w-[280px] rounded-sm border border-border bg-bg sm:left-auto sm:right-0">
+<div className="fixed left-1/2 top-full z-50 mt-1 w-[calc(100vw-1.5rem)] -translate-x-1/2 min-w-[280px] rounded-sm border border-border bg-bg sm:static sm:left-auto sm:right-0 sm:translate-x-0 sm:w-auto sm:max-w-[calc(100vw-2rem)]">
  {/* Group Selector */}
  <div className="border-b border-border p-3 bg-surface">
  <label className="block text-xs font-medium text-text-muted mb-1.5">Proxy Group</label>
@@ -552,7 +552,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  if (rotationStrategy === "none") setRotationStrategy("round-robin");
  }
  }}
- className="w-full rounded-sm border border-border bg-bg px-2 py-2 text-sm text-text-main focus:border-primary focus:outline-none"
+ className="w-full rounded-sm border border-border bg-bg px-2 py-2 min-h-11 text-sm text-text-main focus:border-primary focus:outline-none sm:min-h-9"
  >
  <option value="">None (Select individual proxies)</option>
 
@@ -609,7 +609,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <select
  value={rotationStrategy}
  onChange={(e) => handleStrategyChange(e.target.value)}
- className="w-full rounded-sm border border-border bg-bg px-2 py-2 text-sm text-text-main focus:border-primary focus:outline-none"
+ className="w-full rounded-sm border border-border bg-bg px-2 py-2 min-h-11 text-sm text-text-main focus:border-primary focus:outline-none sm:min-h-9"
  >
  <option value="none">None (Single Proxy)</option>
  <option value="random">Random</option>
@@ -635,7 +635,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  setSelectedGroup("");
  setRotationStrategy("none");
  }}
- className={`w-full text-left px-3 h-8 text-sm hover:bg-surface-2 ${selectedProxyIds.length === 0 && !selectedGroup ? "text-primary font-medium" : "text-text-main"}`}
+ className={`w-full text-left px-3 min-h-11 text-sm hover:bg-surface-2 sm:h-8 sm:min-h-0 ${selectedProxyIds.length === 0 && !selectedGroup ? "text-primary font-medium" : "text-text-main"}`}
  >
  <div className="flex items-center gap-2">
  <span className="material-symbols-outlined text-[18px]">
@@ -661,7 +661,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  setSelectedProxyIds(activePoolIds);
  }
  }}
- className={`w-full text-left px-3 h-8 text-sm border-b border-border hover:bg-surface-2 ${selectedProxyIds.length === (proxyPools || []).filter(p => p.isActive).length ? "bg-surface-2" : ""}`}
+ className={`w-full text-left px-3 min-h-11 text-sm border-b border-border hover:bg-surface-2 sm:h-8 sm:min-h-0 ${selectedProxyIds.length === (proxyPools || []).filter(p => p.isActive).length ? "bg-surface-2" : ""}`}
  >
  <div className="flex items-center gap-2">
  <span className="material-symbols-outlined text-[18px]">
@@ -688,7 +688,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  handleToggleProxySelection(pool.id);
  }
  }}
- className={`w-full text-left px-3 h-8 text-sm hover:bg-surface-2 ${isSelected ? "bg-surface-2" : ""}`}
+ className={`w-full text-left px-3 min-h-11 text-sm hover:bg-surface-2 sm:h-8 sm:min-h-0 ${isSelected ? "bg-surface-2" : ""}`}
  >
  <div className="flex items-center gap-2">
  <span className="material-symbols-outlined text-[18px]">
@@ -712,7 +712,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <button
  onClick={handleApplyProxyChanges}
  disabled={updatingProxy}
- className="w-full rounded-sm bg-primary px-3 h-8 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+ className="w-full rounded-sm bg-primary px-3 min-h-11 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed sm:h-8 sm:min-h-0"
  >
  {updatingProxy ? "Applying..." : "Apply"}
  </button>
@@ -725,7 +725,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <Tooltip text={autoPingTooltip}>
  <button
  onClick={() => autoPing.onToggle(!autoPing.on)}
- className={`flex w-full flex-col items-center rounded-sm px-2 py-1 hover:bg-surface-2 ${autoPing.on ? "text-primary" : "text-text-muted hover:text-primary"}`}
+ className={`flex min-h-11 w-full flex-col items-center justify-center rounded-sm px-2 hover:bg-surface-2 sm:min-h-0 sm:py-1 ${autoPing.on ? "text-primary" : "text-text-muted hover:text-primary"}`}
  >
  <span className="material-symbols-outlined text-[18px]">bolt</span>
  <span className="text-[11px]">Auto-ping</span>

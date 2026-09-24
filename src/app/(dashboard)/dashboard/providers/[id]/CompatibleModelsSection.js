@@ -34,31 +34,31 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  <div className="flex items-center gap-1 mt-1">
  <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-1 rounded-sm">{fullModel}</code>
  <div className="relative group/btn">
- <button
- onClick={() => onCopy(fullModel, `model-${modelId}`)}
- aria-label={`Copy model id ${modelId}`}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
- >
- <span className="material-symbols-outlined text-sm">
- {copied === `model-${modelId}` ? "check" : "content_copy"}
- </span>
- </button>
+<button
+onClick={() => onCopy(fullModel, `model-${modelId}`)}
+aria-label={`Copy model id ${modelId}`}
+className="size-11 sm:size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
+>
+<span className="material-symbols-outlined text-sm">
+{copied === `model-${modelId}` ? "check" : "content_copy"}
+</span>
+</button>
  <span className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {copied === `model-${modelId}` ? "Copied!" : "Copy"}
  </span>
  </div>
  {onTest && (
  <div className="relative group/btn">
- <button
- onClick={onTest}
- disabled={isTesting}
- aria-label={isTesting ? `Testing model ${modelId}` : `Test model ${modelId}`}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
- >
- <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
- {isTesting ? "progress_activity" : "science"}
- </span>
- </button>
+<button
+onClick={onTest}
+disabled={isTesting}
+aria-label={isTesting ? `Testing model ${modelId}` : `Test model ${modelId}`}
+className="size-11 sm:size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
+>
+<span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
+{isTesting ? "progress_activity" : "science"}
+</span>
+</button>
  <span className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {isTesting ? "Testing..." : "Test"}
  </span>
@@ -66,14 +66,14 @@ function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias,
  )}
  </div>
  </div>
- <button
- onClick={onDeleteAlias}
- aria-label={`Remove model ${modelId}`}
- className="size-8 hover:bg-danger/10 rounded-sm text-danger"
- title="Remove model"
- >
- <span className="material-symbols-outlined text-sm">delete</span>
- </button>
+<button
+onClick={onDeleteAlias}
+aria-label={`Remove model ${modelId}`}
+className="size-11 sm:size-8 hover:bg-danger/10 rounded-sm text-danger"
+title="Remove model"
+>
+<span className="material-symbols-outlined text-sm">delete</span>
+</button>
  </div>
  );
 }
@@ -189,7 +189,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
  onChange={(e) => setNewModel(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
  placeholder={isAnthropic ? "claude-3-opus-20240229" : "gpt-4o"}
- className="h-8 w-full border border-border bg-surface px-2 text-sm text-text-main outline-none focus:border-primary"
+className="h-11 sm:h-8 w-full border border-border bg-surface px-2 text-sm text-text-main outline-none focus:border-primary"
  />
  </div>
  <Button size="sm" icon="add" onClick={handleAdd} disabled={!newModel.trim() || adding}>

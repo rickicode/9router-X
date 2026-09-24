@@ -66,14 +66,14 @@ export default function AnalyticsFilterBar({ analytics, period }) {
  </div>
 
  {/* Granularity */}
- <div className="flex items-center gap-1 bg-surface rounded-sm size-8 border border-border h-8">
+<div className="flex items-center gap-1 bg-surface rounded-sm size-11 min-h-11 border border-border sm:size-8 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px] text-text-muted ml-1.5">
  schedule
  </span>
  <select
  value={timeBucket}
  onChange={(e) => setTimeBucket(e.target.value)}
- className="bg-transparent text-xs text-text-main font-medium py-1 px-1.5 outline-none cursor-pointer"
+className="h-full w-full bg-transparent text-xs text-text-main font-medium px-1.5 outline-none cursor-pointer"
  aria-label="Timeline granularity"
  >
  <option value="">
@@ -88,14 +88,14 @@ export default function AnalyticsFilterBar({ analytics, period }) {
  </div>
 
  {/* Auto Refresh */}
- <div className="flex items-center gap-1 bg-surface rounded-sm size-8 border border-border h-8">
+<div className="flex items-center gap-1 bg-surface rounded-sm size-11 min-h-11 border border-border sm:size-8 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px] text-text-muted ml-1.5">
  timer
  </span>
  <select
  value={autoRefreshInterval}
  onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
- className="bg-transparent text-xs text-text-main font-medium py-1 px-1.5 outline-none cursor-pointer"
+className="h-full w-full bg-transparent text-xs text-text-main font-medium px-1.5 outline-none cursor-pointer"
  aria-label="Auto refresh interval"
  >
  <option value={0}>Auto: Off</option>

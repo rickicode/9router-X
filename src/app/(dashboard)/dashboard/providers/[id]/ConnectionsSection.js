@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Button, Toggle } from "@/shared/components";
+import { Card, Button, Toggle, SegmentedControl } from "@/shared/components";
 import dynamic from "next/dynamic";
 import ConnectionRow from "./ConnectionRow";
 import { translate } from "@/i18n/runtime";
@@ -46,20 +46,20 @@ function ConnectionsCardHeader({
  )}
  </div>
  )}
- <div className="flex items-center gap-2 border-l border-border pl-2 h-8">
- <span className="text-xs text-text-muted font-medium whitespace-nowrap">Round Robin</span>
- <Toggle checked={providerStrategy === "round-robin"} onChange={handleRoundRobinToggle} />
- {providerStrategy === "round-robin" && (
- <div className="flex items-center gap-1">
- <span className="text-xs text-text-muted">Sticky:</span>
- <input
- type="number" min={1} value={providerStickyLimit}
- onChange={(e) => handleStickyLimitChange(e.target.value)} placeholder="1"
- className="w-12 px-1.5 py-1 text-xs border border-border rounded-sm bg-surface focus:outline-none focus:border-primary"
- />
- </div>
- )}
- </div>
+      <div className="flex flex-wrap items-center gap-2 border-l border-border pl-2">
+        <span className="text-xs text-text-muted font-medium whitespace-nowrap">Round Robin</span>
+        <Toggle checked={providerStrategy === "round-robin"} onChange={handleRoundRobinToggle} />
+        {providerStrategy === "round-robin" && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-text-muted">Sticky:</span>
+            <input
+              type="number" min={1} value={providerStickyLimit}
+              onChange={(e) => handleStickyLimitChange(e.target.value)} placeholder="1"
+              className="w-14 px-1.5 min-h-11 text-xs border border-border rounded-sm bg-surface focus:outline-none focus:border-primary sm:min-h-9"
+            />
+          </div>
+        )}
+      </div>
  </div>
  </div>
  );
@@ -72,55 +72,45 @@ function SearchFilterBar({ connectionSearch, setConnectionSearch, connectionPage
  <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
  search
  </span>
- <input
- type="text" value={connectionSearch}
- onChange={(e) => {
- const val = e.target.value;
- setConnectionSearch(val);
- setConnectionPage(1);
- fetchConnections(1, val, connectionStatusFilter);
- }}
- placeholder="Search account name or email..."
- className="w-full rounded-sm border border-border bg-surface py-2 pl-8 pr-8 text-xs text-text-main placeholder-text-muted focus:border-primary focus:outline-none"
- />
- {connectionSearch && (
- <button type="button"
- onClick={() => { setConnectionSearch(""); setConnectionPage(1); fetchConnections(1, "", connectionStatusFilter); }}
- className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main text-xs">
- <span className="material-symbols-outlined text-[18px]">close</span>
- </button>
- )}
+        <input
+          type="text" value={connectionSearch}
+          onChange={(e) => {
+            const val = e.target.value;
+            setConnectionSearch(val);
+            setConnectionPage(1);
+            fetchConnections(1, val, connectionStatusFilter);
+          }}
+          placeholder="Search account name or email..."
+          className="w-full rounded-sm border border-border bg-surface min-h-11 pl-8 pr-8 text-xs text-text-main placeholder-text-muted focus:border-primary focus:outline-none sm:min-h-9"
+        />
+        {connectionSearch && (
+          <button type="button"
+            onClick={() => { setConnectionSearch(""); setConnectionPage(1); fetchConnections(1, "", connectionStatusFilter); }}
+            className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-text-muted hover:text-text-main sm:min-h-9 sm:min-w-9"
+            aria-label="Clear search"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        )}
  </div>
- <div className="flex flex-wrap items-center gap-1.5">
- {[
- { key: "all", label: "All", count: connectionStats.total },
- { key: "active", label: "Active", count: connectionStats.active },
- { key: "exhausted", label: "Exhausted", count: connectionStats.exhausted },
- { key: "unavailable", label: "Unavailable", count: connectionStats.unavailable },
- { key: "disabled", label: "Disabled", count: connectionStats.disabled },
- ].map((tab) => {
- const isSelected = connectionStatusFilter === tab.key;
- return (
- <button key={tab.key} type="button"
- onClick={() => {
- setConnectionStatusFilter(tab.key);
- setConnectionPage(1);
- fetchConnections(1, connectionSearch, tab.key);
- }}
- className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium ${
- isSelected
- ? "bg-primary text-white"
- : "bg-surface-2 text-text-muted hover:bg-surface-2 hover:text-text-main/[0.08]"
- }`}
- >
- <span>{tab.label}</span>
-                <span className={`rounded-sm px-1.5 py-0.5 text-[11px] ${isSelected ? "bg-surface text-primary" : "bg-surface-2 text-text-muted"}`}>
- {tab.count}
- </span>
- </button>
- );
- })}
- </div>
+      <SegmentedControl
+        options={[
+          { key: "all", label: `All (${connectionStats.total ?? 0})` },
+          { key: "active", label: `Active (${connectionStats.active ?? 0})` },
+          { key: "exhausted", label: `Exhausted (${connectionStats.exhausted ?? 0})` },
+          { key: "unavailable", label: `Unavailable (${connectionStats.unavailable ?? 0})` },
+          { key: "disabled", label: `Disabled (${connectionStats.disabled ?? 0})` },
+        ].map((t) => ({ value: t.key, label: t.label }))}
+        value={connectionStatusFilter}
+        onChange={(key) => {
+          setConnectionStatusFilter(key);
+          setConnectionPage(1);
+          fetchConnections(1, connectionSearch, key);
+        }}
+        size="touch"
+        snap
+        aria-label="Filter connections by status"
+      />
  </div>
  );
 }
@@ -321,7 +311,7 @@ export default function ConnectionsSection(d) {
  <div className="flex flex-wrap items-center gap-1">
  <button type="button" onClick={() => setConnectionPage((page) => Math.max(1, page - 1))}
  disabled={connectionPagination.page <= 1}
- className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 h-8"
+className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 min-h-11 sm:h-8 sm:min-h-0"
  title="Previous Page">
  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
  <span>Prev</span>
@@ -333,14 +323,14 @@ export default function ConnectionsSection(d) {
  const isCurrent = item === connectionPagination.page;
  return (
  <button key={item} type="button" onClick={() => setConnectionPage(item)}
- className={`min-w-8 h-8 rounded-sm text-xs font-medium px-1.5 flex items-center justify-center ${isCurrent ? "bg-primary text-white " : "border border-border bg-surface text-text-main hover:bg-surface-2"}`}>
+className={`min-w-11 min-h-11 rounded-sm text-xs font-medium px-1.5 flex items-center justify-center sm:min-w-8 sm:h-8 sm:min-h-0 ${isCurrent ? "bg-primary text-white " : "border border-border bg-surface text-text-main hover:bg-surface-2"}`}>
  {item}
  </button>
  );
  })}
  <button type="button" onClick={() => setConnectionPage((page) => Math.min(connectionPagination.totalPages, page + 1))}
  disabled={connectionPagination.page >= connectionPagination.totalPages}
- className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 h-8"
+className="inline-flex items-center gap-1 rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-text-main hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 min-h-11 sm:h-8 sm:min-h-0"
  title="Next Page">
  <span>Next</span>
  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
@@ -392,7 +382,7 @@ export default function ConnectionsSection(d) {
  <div className="rounded-sm border border-border bg-bg p-3">
  <label className="mb-2 block text-xs font-medium text-text-muted">Rotation Strategy</label>
  <select value={bulkProxyRotationStrategy} onChange={(e) => setBulkProxyRotationStrategy(e.target.value)}
- className="w-full rounded-sm border border-border bg-bg px-2 py-2 text-sm text-text-main focus:border-primary focus:outline-none"
+ className="w-full rounded-sm border border-border bg-bg px-2 py-2 min-h-11 text-sm text-text-main focus:border-primary focus:outline-none sm:min-h-9"
  disabled={bulkUpdatingProxy}>
  <option value="none">None (Single Proxy)</option>
  <option value="random">Random</option>
@@ -406,17 +396,17 @@ export default function ConnectionsSection(d) {
  </div>
  <div className="flex flex-col">
  <button onClick={handleApplyOneToOne} disabled={bulkUpdatingProxy || activePools.length === 0}
- className="flex items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50">
+ className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-text-muted text-[18px]">sync_alt</span>
  <span className="text-sm text-text-main">One-to-one (rotate)</span>
  </button>
  <button onClick={handleApplyRotationStrategy} disabled={bulkUpdatingProxy || bulkProxyRotationStrategy === "none" || activePools.length === 0}
- className="flex items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50">
+ className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-text-muted text-[18px]">sync</span>
  <span className="text-sm text-text-main">Apply Rotation Strategy</span>
  </button>
  <button onClick={() => handleApplySinglePool(null)} disabled={bulkUpdatingProxy}
- className="flex items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50">
+ className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-text-muted text-[18px]">link_off</span>
  <span className="text-sm text-text-main">None (unbind all)</span>
  </button>
@@ -440,7 +430,7 @@ export default function ConnectionsSection(d) {
  const cnt = (proxyPools || []).filter(p => p.type === def.type && p.isActive).length;
  return (
  <button key={def.id} onClick={() => handleApplyGroup(def.key)} disabled={bulkUpdatingProxy}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-primary/10 text-primary">
+ className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-primary/10 text-primary sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
  <span className="truncate text-sm font-medium">{def.name}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({cnt} active)</span>
@@ -455,7 +445,7 @@ export default function ConnectionsSection(d) {
  const stickyLabel = cg.isSticky ? `Sticky ${cg.stickyLimit || 3}x` : "Round Robin";
  return (
  <button key={cg.id} onClick={() => handleApplyGroup(cg.name)} disabled={bulkUpdatingProxy}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-primary/10 text-primary">
+ className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-primary/10 text-primary sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px]">folder_special</span>
  <span className="truncate text-sm font-medium">{cg.name}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({poolCount} pools, {stickyLabel})</span>
@@ -471,7 +461,7 @@ export default function ConnectionsSection(d) {
  const cnt = (proxyPools || []).filter(p => p.group && p.group.toLowerCase() === grp.toLowerCase()).length;
  return (
  <button key={grp} onClick={() => handleApplyGroup(grp)} disabled={bulkUpdatingProxy}
- className="flex w-full items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-surface-2 text-text-muted">
+ className="flex w-full items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 text-text-muted sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px]">label</span>
  <span className="truncate text-sm font-medium">{grp}</span>
  <span className="ml-auto text-xs opacity-75 font-mono">({cnt} pools)</span>
@@ -486,7 +476,7 @@ export default function ConnectionsSection(d) {
  {proxyPools.map((pool) => (
  <button key={pool.id} onClick={() => handleApplySinglePool(pool.id)}
  disabled={bulkUpdatingProxy || pool.isActive !== true}
- className="flex items-center gap-2 rounded-sm px-3 h-8 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50">
+ className="flex items-center gap-2 rounded-sm px-3 min-h-11 text-left hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-text-muted text-[18px]">lan</span>
  <span className="truncate text-sm text-text-main">{pool.name}</span>
  {pool.isActive !== true && <span className="text-[11px] text-text-muted">(inactive)</span>}

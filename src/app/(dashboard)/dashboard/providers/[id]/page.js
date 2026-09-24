@@ -24,7 +24,7 @@ export default function ProviderDetailPage() {
  return (
  <div className="text-center py-20">
  <p className="text-text-muted">Provider not found</p>
- <Link href="/dashboard/providers" className="text-primary mt-4 inline-block">
+<Link href="/dashboard/providers" className="text-primary mt-4 inline-flex min-h-11 items-center sm:min-h-0">
  Back to Providers
  </Link>
  </div>
@@ -32,7 +32,7 @@ export default function ProviderDetailPage() {
  }
 
  return (
- <div className="flex min-w-0 flex-col gap-3 px-1 sm:gap-3 sm:px-0">
+<div className="flex min-w-0 flex-col gap-3 px-1 sm:gap-3 sm:px-0">
  <ProviderHeader {...d} connectionCount={d.connections.length} />
  <ConnectionsSection {...d} />
  <ModelsSection {...d} />

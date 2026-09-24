@@ -10,9 +10,9 @@ import { cn } from "@/shared/utils/cn";
 const LOGS_POLL_MS = 3000;
 
 const STATUS_FILTERS = [
- { value: "all", label: "Semua", icon: "list" },
+ { value: "all", label: "All", icon: "list" },
  { value: "ok", label: "OK", icon: "check_circle" },
- { value: "failed", label: "Gagal", icon: "cancel" },
+ { value: "failed", label: "Failed", icon: "cancel" },
  { value: "pending", label: "Pending", icon: "hourglass_empty" },
 ];
 
@@ -26,7 +26,7 @@ function classifyStatus(status) {
 
 const STATUS_META = {
  ok: { label: "OK", icon: "check_circle", chip: "bg-success/10 text-success border-success/30", row: "", badge: "success" },
- failed: { label: "GAGAL", icon: "cancel", chip: "bg-danger/10 text-danger border-danger/30", row: "row-failed", badge: "error" },
+  failed: { label: "FAILED", icon: "cancel", chip: "bg-danger/10 text-danger border-danger/30", row: "row-failed", badge: "error" },
  pending: { label: "PENDING", icon: "hourglass_empty", chip: "bg-warning/10 text-warning border-warning/30", row: "row-pending", badge: "warning" },
  other: { label: "-", icon: "help", chip: "bg-surface-3 text-text-muted border-border", row: "", badge: "default" },
 };
@@ -60,10 +60,10 @@ function relativeTime(datetimeStr) {
  const d = new Date(datetimeStr.replace(/-/g, "/"));
  if (Number.isNaN(d.getTime())) return "";
  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
- if (diff < 60) return "baru saja";
- if (diff < 3600) return `${Math.floor(diff / 60)}m lalu`;
- if (diff < 86400) return `${Math.floor(diff / 3600)}j lalu`;
- return `${Math.floor(diff / 86400)}h lalu`;
+ if (diff < 60) return "just now";
+ if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+ if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+ return `${Math.floor(diff / 86400)}d ago`;
 }
 
 function StatusChip({ status, size = "md" }) {
@@ -240,7 +240,7 @@ export default function RequestLogger() {
  <div className="w-full sm:max-w-xs">
  <Input
  type="search"
- placeholder="Cari model, provider, akun…"
+placeholder="Search model, provider, account…"
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  icon="search"
@@ -299,14 +299,14 @@ export default function RequestLogger() {
  {loading && logs.length === 0 ? (
  <div className="p-3 text-center text-text-muted text-xs flex flex-col items-center gap-2">
  <span className="material-symbols-outlined text-[18px] text-text-muted animate-spin">progress_activity</span>
- Memuat log…
+Loading logs…
  </div>
  ) : filtered.length === 0 ? (
  <div className="p-3 text-center text-text-muted text-xs flex flex-col items-center gap-2">
  <span className="material-symbols-outlined text-[18px] text-text-muted">
  {logs.length === 0 ? "receipt_long" : "search_off"}
  </span>
- {logs.length === 0 ? "Belum ada log tercatat." : `Tidak ada log yang cocok dengan filter${search ? ` "${search}"` : ""}.`}
+{logs.length === 0 ? "No logs recorded yet." : `No logs match the filter${search ? ` "${search}"` : ""}.`}
  </div>
  ) : (
  <>
@@ -423,12 +423,12 @@ export default function RequestLogger() {
  {/* Footer summary */}
  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-muted">
  <span>
- Menampilkan <span className="font-medium text-text-main">{filtered.length}</span> dari {logs.length} log · dimuat dari database riwayat request
+Showing <span className="font-medium text-text-main">{filtered.length}</span> of {logs.length} logs · loaded from the request history database
  </span>
  {autoRefresh && (
  <span className="inline-flex items-center gap-1.5">
  <span className="inline-block size-1.5 rounded-full bg-success animate-pulse" aria-hidden="true" />
- Auto-refresh aktif (3s)
+Auto-refresh active (3s)
  </span>
  )}
  </div>
@@ -436,7 +436,7 @@ export default function RequestLogger() {
  <Modal
  isOpen={isModalOpen}
  onClose={handleCloseModal}
- title={selectedLog?.status?.includes("FAILED") || selectedLog?.status?.includes("ERROR") ? "Detail Error Request" : "Detail Log Request"}
+title={selectedLog?.status?.includes("FAILED") || selectedLog?.status?.includes("ERROR") ? "Request Error Details" : "Request Log Details"}
  size="full"
  >
  {selectedLog && (
@@ -445,7 +445,7 @@ export default function RequestLogger() {
 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
  <div className="flex flex-col gap-1">
- <span className="text-[11px] font-medium text-text-muted">Waktu</span>
+<span className="text-[11px] font-medium text-text-muted">Time</span>
  <span className="font-mono text-text-main text-sm">{selectedLog.datetime}</span>
  </div>
  <div className="flex flex-col gap-1">
@@ -457,11 +457,11 @@ export default function RequestLogger() {
  <span className="font-mono font-medium text-text-main break-all text-sm">{selectedLog.model}</span>
  </div>
  <div className="flex flex-col gap-1">
- <span className="text-[11px] font-medium text-text-muted">Akun</span>
+<span className="text-[11px] font-medium text-text-muted">Account</span>
  <span className="font-mono text-text-main break-all text-sm" title={selectedLog.account}>{selectedLog.account}</span>
  </div>
  <div className="flex flex-col gap-1">
- <span className="text-[11px] font-medium text-text-muted">Token In / Out</span>
+<span className="text-[11px] font-medium text-text-muted">Tokens In / Out</span>
  <span className="font-mono text-sm">
  <span className="text-primary font-medium">{selectedLog.sent}↑</span>
  <span className="text-text-muted mx-1">/</span>
@@ -478,7 +478,7 @@ export default function RequestLogger() {
  onClick={() => navigator.clipboard?.writeText(selectedLog.raw || "")}
  className="text-[11px] text-primary hover:underline"
  >
- Salin
+Copy
  </button>
  </div>
  <pre className="rounded-sm border border-border -subtle p-3 text-xs font-mono text-text-main whitespace-pre-wrap break-all bg-surface">
@@ -488,7 +488,7 @@ export default function RequestLogger() {
 
  {(selectedLog.status.includes("FAILED") || selectedLog.status.includes("ERROR")) && (
  <p className="text-xs text-text-muted">
- Tip: Cek <span className="font-mono">/dashboard/providers</span> untuk kesehatan provider dan coba ulang request-nya. Gunakan timestamp log untuk korelasi dengan console server.
+Tip: Check <span className="font-mono">/dashboard/providers</span> for provider health and retry the request. Use the log timestamp to correlate with server console output.
  </p>
  )}
  </div>

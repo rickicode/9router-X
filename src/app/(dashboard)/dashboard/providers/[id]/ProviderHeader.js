@@ -25,7 +25,7 @@ export default function ProviderHeader({
  <div className="min-w-0">
  <Link
  href="/dashboard/providers"
- className="inline-flex h-8 items-center gap-1 text-sm text-text-muted hover:text-primary mb-3"
+className="inline-flex min-h-11 items-center gap-1 text-sm text-text-muted hover:text-primary mb-3 sm:h-8 sm:min-h-0"
  >
  <span className="material-symbols-outlined text-[18px]">arrow_back</span>
  Back to Providers
@@ -64,7 +64,7 @@ export default function ProviderHeader({
  href={providerInfo.notice?.apiKeyUrl || providerInfo.notice?.signupUrl || providerInfo.website}
  target="_blank"
  rel="noopener noreferrer"
- className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+className="text-xs text-primary hover:underline inline-flex min-h-11 items-center gap-1 sm:min-h-0"
  >
  <span className="material-symbols-outlined text-sm">open_in_new</span>
  {providerInfo.notice?.apiKeyUrl ? "Get API Key" : "Sign up / Learn more"}
@@ -79,7 +79,7 @@ export default function ProviderHeader({
  </div>
 
  {providerInfo.deprecated && (
- <div className="flex items-center gap-2 px-3 h-8 rounded-sm bg-warning/10 border border-warning/30">
+<div className="flex items-center gap-2 px-3 min-h-11 rounded-sm bg-warning/10 border border-warning/30 sm:h-8 sm:min-h-0">
  <span className="material-symbols-outlined text-[18px] text-warning mt-0.5 shrink-0">warning</span>
  <p className="text-xs text-danger">{providerInfo.deprecationNotice}</p>
  </div>
@@ -94,7 +94,7 @@ export default function ProviderHeader({
  href={providerInfo.notice.apiKeyUrl}
  target="_blank"
  rel="noopener noreferrer"
- className="inline-flex justify-center rounded-sm bg-primary px-2 py-1 text-xs font-medium text-white hover:bg-primary-hover sm:py-1"
+className="inline-flex justify-center rounded-sm bg-primary px-2 min-h-11 text-xs font-medium text-white hover:bg-primary-hover sm:min-h-9 sm:py-1"
  >
  Get API Key →
  </a>

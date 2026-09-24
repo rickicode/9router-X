@@ -113,32 +113,31 @@ export default function ModelsSection(d) {
  />
  );
  })}
- <button
+<button
  onClick={() => setShowAddCustomModel(true)}
-      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
- >
+      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto transition-colors"
+>
  <span className="material-symbols-outlined text-sm">add</span>
  Add Model
- </button>
+</button>
 
  {providerId === "qoder" && connections.some((conn) => conn.isActive !== false) && (
- <button
+<button
  onClick={handleImportQoderModels}
  disabled={importingQoderModels}
-        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
- >
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+>
  <span className="material-symbols-outlined text-sm" style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingQoderModels ? "progress_activity" : "download"}
  </span>
  {importingQoderModels ? translate("Fetching...") : translate("Fetch Qoder Models")}
- </button>
- )}
-
+</button>
+)}
  {(providerId === "cline" || providerId === "clinepass") && connections.some((conn) => conn.isActive !== false) && (
  <button
  onClick={handleImportClineModels}
  disabled={importingClineModels}
-        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingClineModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingClineModels ? "progress_activity" : "download"}
@@ -151,7 +150,7 @@ export default function ModelsSection(d) {
  <button
  onClick={handleImportLiveModels}
  disabled={importingLiveModels}
-        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  <span className="material-symbols-outlined text-sm" style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined}>
  {importingLiveModels ? "progress_activity" : "download"}
@@ -180,7 +179,7 @@ export default function ModelsSection(d) {
  onClick={async () => {
  await handleAddCustomModel(m.id, "llm", providerStorageAlias);
  }}
- className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
+ className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-11 sm:min-h-0 rounded-sm border border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
  >
  <span className="material-symbols-outlined text-[18px]">add</span>
@@ -200,7 +199,7 @@ export default function ModelsSection(d) {
  <button
  key={m.id}
  onClick={() => handleEnableModel(m.id)}
- className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
+ className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-11 sm:min-h-0 rounded-sm border border-dashed border-border text-xs text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-colors"
  title="Restore model"
  >
  <span className="material-symbols-outlined text-[18px]">add</span>
@@ -226,16 +225,16 @@ export default function ModelsSection(d) {
  <div className="flex items-center gap-3">
  <h2 className="text-sm font-semibold">Available Models</h2>
  {providerThinkingLevels && (
- <select
+<select
  value={thinkingMode}
  onChange={(e) => handleThinkingModeChange(e.target.value)}
  title="Appends (level) suffix to copied model names"
- className="rounded-sm border border-border bg-surface px-2 py-1 text-xs focus:border-primary focus:outline-none"
- >
+ className="rounded-sm border border-border bg-surface px-2 py-1 text-xs h-11 sm:h-8 focus:border-primary focus:outline-none"
+>
  {providerThinkingLevels.map((opt) => (
  <option key={opt} value={opt}>{`Thinking: ${opt.charAt(0).toUpperCase() + opt.slice(1)}`}</option>
  ))}
- </select>
+</select>
  )}
  </div>
  {!isCompatible && (() => {

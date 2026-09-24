@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
+import SegmentedControl from "@/shared/components/SegmentedControl";
 import BlockGrid, { buildColumns, GridLegend } from "./BlockGrid";
 import { formatTokens } from "@/shared/utils/formatTokens";
 
@@ -63,24 +64,14 @@ export default function UsageChart({ period = "7d" }) {
       padding="md"
       className="flex min-w-0 flex-col gap-4 p-4 sm:p-4"
       action={
-        <div className="flex items-center gap-1.5">
-          {MODES.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setViewMode(option.value)}
-              aria-pressed={viewMode === option.value}
-              className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium transition-colors ${
-                viewMode === option.value
-                  ? "border-border bg-surface-3 font-semibold text-text-main"
-                  : "border-transparent text-text-muted hover:text-text-main"
-              }`}
-            >
-              <span className={`size-2 rounded-[2px] ${option.color}`} />
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          options={MODES.map((m) => ({ value: m.value, label: m.label }))}
+          value={viewMode}
+          onChange={setViewMode}
+          size="touch"
+          snap
+          aria-label="Volume grid metric"
+        />
       }
     >
       {error ? (

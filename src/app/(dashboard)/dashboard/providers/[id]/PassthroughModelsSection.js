@@ -34,29 +34,29 @@ function PassthroughModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias
  <div className="flex items-center gap-1 mt-1">
  <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-1 rounded-sm">{fullModel}</code>
  <div className="relative group/btn">
- <button
- onClick={() => onCopy(fullModel, `model-${modelId}`)}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
- >
- <span className="material-symbols-outlined text-sm">
- {copied === `model-${modelId}` ? "check" : "content_copy"}
- </span>
- </button>
+<button
+onClick={() => onCopy(fullModel, `model-${modelId}`)}
+className="size-11 sm:size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
+>
+<span className="material-symbols-outlined text-sm">
+{copied === `model-${modelId}` ? "check" : "content_copy"}
+</span>
+</button>
  <span className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {copied === `model-${modelId}` ? "Copied!" : "Copy"}
  </span>
  </div>
  {onTest && (
  <div className="relative group/btn">
- <button
- onClick={onTest}
- disabled={isTesting}
- className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
- >
- <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
- {isTesting ? "progress_activity" : "science"}
- </span>
- </button>
+<button
+onClick={onTest}
+disabled={isTesting}
+className="size-11 sm:size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary"
+>
+<span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
+{isTesting ? "progress_activity" : "science"}
+</span>
+</button>
  <span className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {isTesting ? "Testing..." : "Test"}
  </span>
@@ -66,13 +66,13 @@ function PassthroughModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias
  </div>
 
  {/* Delete button */}
- <button
- onClick={onDeleteAlias}
- className="size-8 hover:bg-danger/10 rounded-sm text-danger"
- title="Remove model"
- >
- <span className="material-symbols-outlined text-sm">delete</span>
- </button>
+<button
+onClick={onDeleteAlias}
+className="size-11 sm:size-8 hover:bg-danger/10 rounded-sm text-danger"
+title="Remove model"
+>
+<span className="material-symbols-outlined text-sm">delete</span>
+</button>
  </div>
  );
 }
@@ -136,7 +136,7 @@ export default function PassthroughModelsSection({ providerAlias, modelAliases, 
  onChange={(e) => setNewModel(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
  placeholder="anthropic/claude-3-opus"
- className="h-8 w-full border border-border bg-surface px-2 text-sm text-text-main outline-none focus:border-primary"
+className="h-11 sm:h-8 w-full border border-border bg-surface px-2 text-sm text-text-main outline-none focus:border-primary"
  />
  </div>
  <Button size="sm" icon="add" onClick={handleAdd} disabled={!newModel.trim() || adding}>

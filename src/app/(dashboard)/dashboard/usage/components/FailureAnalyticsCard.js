@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
+import SegmentedControl from "@/shared/components/SegmentedControl";
 import { cn } from "@/shared/utils/cn";
 import FailureResponseModal from "./FailureResponseModal";
 
@@ -183,48 +184,18 @@ export default function FailureAnalyticsCard({
  padding="none"
  className={cn("flex min-w-0 flex-col overflow-hidden", className)}
  action={
- <div className="flex flex-wrap items-center gap-2">
- {/* View Mode Toggle */}
- <div className="inline-flex rounded-sm border border-border bg-surface p-0.5 text-xs font-medium">
- <button
- type="button"
- onClick={() => setViewMode("models")}
- className={cn(
- "px-2.5 py-1 rounded-sm cursor-pointer",
- viewMode === "models"
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main",
- )}
- >
- Failed Models
- </button>
- <button
- type="button"
- onClick={() => setViewMode("providers")}
- className={cn(
- "px-2.5 py-1 rounded-sm cursor-pointer",
- viewMode === "providers"
- ? "bg-surface text-text-main"
- : "text-text-muted hover:text-text-main",
- )}
- >
- Failed Providers
- </button>
- <button
- type="button"
- onClick={() => setViewMode("recent")}
- className={cn(
- "px-2.5 py-1 rounded-sm cursor-pointer flex items-center gap-1",
- viewMode === "recent"
- ? "bg-surface text-danger"
- : "text-text-muted hover:text-text-main",
- )}
- >
- <span className="material-symbols-outlined text-[18px]">terminal</span>
- Recent Responses
- </button>
- </div>
- </div>
+        <SegmentedControl
+          options={[
+            { value: "models", label: "Failed Models" },
+            { value: "providers", label: "Failed Providers" },
+            { value: "recent", label: "Recent Responses", icon: "terminal" },
+          ]}
+          value={viewMode}
+          onChange={setViewMode}
+          size="touch"
+          snap
+          aria-label="Failure analytics view"
+        />
  }
  >
  {/* Controls Bar */}
@@ -251,39 +222,24 @@ export default function FailureAnalyticsCard({
  </div>
 
  {viewMode !== "recent" && (
- <div className="flex items-center gap-2 text-xs">
- <span className="text-text-muted text-[11px] font-medium">Sort:</span>
- <div className="inline-flex rounded-sm border border-border bg-surface p-0.5">
- <button
- type="button"
- onClick={() => setSortBy("failures")}
- className={cn(
- "px-2 py-1 rounded-sm text-xs cursor-pointer",
- sortBy === "failures"
- ? "bg-surface font-semibold text-text-main"
- : "text-text-muted hover:text-text-main",
- )}
- >
- Most Failures
- </button>
- <button
- type="button"
- onClick={() => setSortBy("rate")}
- className={cn(
- "px-2 py-1 rounded-sm text-xs cursor-pointer",
- sortBy === "rate"
- ? "bg-surface font-semibold text-text-main"
- : "text-text-muted hover:text-text-main",
- )}
- >
- Highest Failure %
- </button>
- </div>
- </div>
- )}
- </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-text-muted text-[11px] font-medium">Sort:</span>
+          <SegmentedControl
+            options={[
+              { value: "failures", label: "Most Failures" },
+              { value: "rate", label: "Highest Failure %" },
+            ]}
+            value={sortBy}
+            onChange={setSortBy}
+            size="touch"
+            snap
+            aria-label="Sort failures"
+          />
+        </div>
+)}
+</div>
 
- {/* Content Body */}
+{/* Content Body */}
  {totalFailures === 0 && viewMode !== "recent" ? (
  <div className="p-3 text-center flex flex-col items-center justify-center gap-2">
  <span className="material-symbols-outlined text-success text-[18px]">
