@@ -59,7 +59,7 @@ function addToCounter(target, key, values) {
   target[key].promptTokens += values.promptTokens || 0;
   target[key].completionTokens += values.completionTokens || 0;
   target[key].cachedTokens += values.cachedTokens || 0;
-  target[key].cost += values.cost || 0;
+  target[key].cost = (Number(target[key].cost) || 0) + (Number(values.cost) || 0);
   if (values.meta) Object.assign(target[key], values.meta);
 }
 
@@ -645,7 +645,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
     stats.totalPromptTokens += Number(dayData.promptTokens || 0);
     stats.totalCompletionTokens += Number(dayData.completionTokens || 0);
     stats.totalCachedTokens += Number(dayData.cachedTokens || 0);
-    stats.totalCost += Number(dayData.cost || 0);
+    stats.totalCost += Number(dayData.cost) || 0;
     stats.totalFailedRequests += Number(dayData.failedRequests || 0);
 
     for (const [provider, p] of Object.entries(dayData.byProvider || {})) {
@@ -655,7 +655,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       stats.byProvider[provider].promptTokens += Number(p.promptTokens || 0);
       stats.byProvider[provider].completionTokens += Number(p.completionTokens || 0);
       stats.byProvider[provider].cachedTokens += Number(p.cachedTokens || 0);
-      stats.byProvider[provider].cost += Number(p.cost || 0);
+      stats.byProvider[provider].cost += Number(p.cost) || 0;
     }
 
     for (const [modelKey, m] of Object.entries(dayData.byModel || {})) {
@@ -665,7 +665,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       stats.byModel[modelKey].promptTokens += Number(m.promptTokens || 0);
       stats.byModel[modelKey].completionTokens += Number(m.completionTokens || 0);
       stats.byModel[modelKey].cachedTokens += Number(m.cachedTokens || 0);
-      stats.byModel[modelKey].cost += Number(m.cost || 0);
+      stats.byModel[modelKey].cost += Number(m.cost) || 0;
       if (dayData.dateKey > (stats.byModel[modelKey].lastUsed || "")) stats.byModel[modelKey].lastUsed = dayData.dateKey;
     }
 
@@ -675,7 +675,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       stats.byAccount[accountKey].promptTokens += Number(a.promptTokens || 0);
       stats.byAccount[accountKey].completionTokens += Number(a.completionTokens || 0);
       stats.byAccount[accountKey].cachedTokens += Number(a.cachedTokens || 0);
-      stats.byAccount[accountKey].cost += Number(a.cost || 0);
+      stats.byAccount[accountKey].cost += Number(a.cost) || 0;
       if (dayData.dateKey > (stats.byAccount[accountKey].lastUsed || "")) stats.byAccount[accountKey].lastUsed = dayData.dateKey;
     }
 
@@ -685,7 +685,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       stats.byApiKey[apiKeyKey].promptTokens += Number(ak.promptTokens || 0);
       stats.byApiKey[apiKeyKey].completionTokens += Number(ak.completionTokens || 0);
       stats.byApiKey[apiKeyKey].cachedTokens += Number(ak.cachedTokens || 0);
-      stats.byApiKey[apiKeyKey].cost += Number(ak.cost || 0);
+      stats.byApiKey[apiKeyKey].cost += Number(ak.cost) || 0;
       if (dayData.dateKey > (stats.byApiKey[apiKeyKey].lastUsed || "")) stats.byApiKey[apiKeyKey].lastUsed = dayData.dateKey;
     }
 
@@ -695,7 +695,7 @@ function buildAggregatesFromDays(dayRows, connectionMap = {}, providerNodeNameMa
       stats.byEndpoint[endpointKey].promptTokens += Number(ep.promptTokens || 0);
       stats.byEndpoint[endpointKey].completionTokens += Number(ep.completionTokens || 0);
       stats.byEndpoint[endpointKey].cachedTokens += Number(ep.cachedTokens || 0);
-      stats.byEndpoint[endpointKey].cost += Number(ep.cost || 0);
+      stats.byEndpoint[endpointKey].cost += Number(ep.cost) || 0;
       if (dayData.dateKey > (stats.byEndpoint[endpointKey].lastUsed || "")) stats.byEndpoint[endpointKey].lastUsed = dayData.dateKey;
     }
   }
