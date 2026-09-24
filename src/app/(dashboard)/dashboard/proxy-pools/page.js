@@ -94,9 +94,7 @@ function ProxyPoolsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTabState] = useState(
-    tabParam === "groups" ? "groups" : tabParam === "fitness" ? "fitness" : "pools"
-  );
+  const activeTab = tabParam && ["pools", "groups", "fitness"].includes(tabParam) ? tabParam : "pools";
 
   useEffect(() => {
     if (tabParam && ["pools", "groups", "fitness"].includes(tabParam)) {
@@ -106,20 +104,16 @@ function ProxyPoolsContent() {
 
   const handleTabChange = (value) => {
     if (value === activeTab) return;
-    setActiveTabState(value);
     const params = new URLSearchParams(searchParams);
     params.set("tab", value);
     router.push(`/dashboard/proxy-pools?${params.toString()}`, { scroll: false });
   };
 
   const setActiveTab = (tabOrFn) => {
-    setActiveTabState((prev) => {
-      const nextTab = typeof tabOrFn === "function" ? tabOrFn(prev) : tabOrFn;
-      const params = new URLSearchParams(searchParams);
-      params.set("tab", nextTab);
-      router.push(`/dashboard/proxy-pools?${params.toString()}`, { scroll: false });
-      return nextTab;
-    });
+    const nextTab = typeof tabOrFn === "function" ? tabOrFn(activeTab) : tabOrFn;
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", nextTab);
+    router.push(`/dashboard/proxy-pools?${params.toString()}`, { scroll: false });
   };
 
   const tabsRef = useRef(null);
