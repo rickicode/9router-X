@@ -1,6 +1,7 @@
 "use client";
 
 import Card from "./Card";
+import Icon from "@/shared/components/Icon";
 
 // Only show fields user actually cares about
 const FIELD_SCHEMA = {

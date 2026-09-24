@@ -1,3 +1,4 @@
+import Icon from "@/shared/components/Icon";
 "use client";
 
 export default function Footer() {

@@ -233,9 +233,9 @@ export default function Combobox({
 
  <div className="relative flex items-center">
  {icon && (
- <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-muted">
- <span className="material-symbols-outlined text-[18px]">{icon}</span>
- </div>
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-muted">
+              <Icon name={icon} size={18} />
+            </div>
  )}
 
  <input
@@ -317,14 +317,14 @@ export default function Combobox({
  tabIndex={-1}
  className="size-8 text-text-muted hover:text-text-main rounded-sm hover:bg-surface-2 cursor-pointer"
  >
- <span
- className={cn(
- "material-symbols-outlined text-[18px] block transition-transform",
- isOpen && "rotate-180",
- )}
- >
- expand_more
- </span>
+            <Icon
+              name="expand_more"
+              size={18}
+              className={cn(
+                "block transition-transform",
+                isOpen && "rotate-180",
+              )}
+            />
  </button>
  </div>
  </div>
@@ -369,11 +369,9 @@ export default function Combobox({
  )}
  >
  <div className="flex items-center gap-2 min-w-0 flex-1">
- {opt.icon ? (
- <span className="material-symbols-outlined text-[18px] text-text-muted shrink-0">
- {opt.icon}
- </span>
- ) : opt.isCustom ? (
+              {opt.icon ? (
+                <Icon name={opt.icon} size={18} className="text-text-muted shrink-0" />
+              ) : opt.isCustom ? (
  <Icon name="edit_note" size={18} className="text-primary shrink-0" />
  ) : null}
 

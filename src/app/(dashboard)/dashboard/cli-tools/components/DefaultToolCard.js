@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card, ModelSelectModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Image from "next/image";
@@ -83,9 +84,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  onClick={() => handleCopy(modelValue, "model")}
  className="shrink-0 px-3 h-8 bg-surface hover:bg-surface-2 rounded-sm border border-border"
  >
- <span className="material-symbols-outlined text-[18px]">
- {copiedField === "model" ? "check" : "content_copy"}
- </span>
+ <Icon name={copiedField === "model" ? "check" : "content_copy"} size={18} />
  </button>
  <button
  onClick={() => setModelValue("")}
@@ -130,7 +129,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  
  return (
  <div key={index} className={`flex items-start gap-3 p-3 rounded-sm border ${bgClass}`}>
- <span className={`material-symbols-outlined text-[18px] ${iconClass}`}>{icon}</span>
+ <Icon name={icon} size={18} className={iconClass} />
  <p className={`text-sm ${textClass}`}>{note.text}</p>
  </div>
  );
@@ -182,9 +181,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  onClick={() => handleCopy(item.value, `${item.step}-${item.title}`)}
  className="shrink-0 px-3 h-8 bg-surface hover:bg-surface-2 rounded-sm border border-border"
  >
- <span className="material-symbols-outlined text-[18px]">
- {copiedField === `${item.step}-${item.title}` ? "check" : "content_copy"}
- </span>
+ <Icon name={copiedField === `${item.step}-${item.title}` ? "check" : "content_copy"} size={18} />
  </button>
  )}
  </div>
@@ -201,9 +198,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  onClick={() => handleCopy(tool.codeBlock.code, "codeblock")}
  className="flex items-center gap-1 px-2 text-xs bg-surface hover:bg-surface-2 rounded-sm border border-border h-8"
  >
- <span className="material-symbols-outlined text-sm">
- {copiedField === "codeblock" ? "check" : "content_copy"}
- </span>
+ <Icon name={copiedField === "codeblock" ? "check" : "content_copy"} size={14} />
  {copiedField === "codeblock" ? "Copied!" : "Copy"}
  </button>
  </div>
@@ -233,7 +228,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  );
  }
  if (tool.icon) {
- return <span className="material-symbols-outlined text-[18px]" style={{ color: tool.color }}>{tool.icon}</span>;
+ return <Icon name={tool.icon} size={18} style={{ color: tool.color }} />;
  }
  const iconSrc = getProviderIconSrc(toolId);
  if (!iconSrc) {
@@ -269,7 +264,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
+ <Icon className={`text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (

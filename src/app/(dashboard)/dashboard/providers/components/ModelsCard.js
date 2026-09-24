@@ -6,6 +6,7 @@ import { Card, Button, Modal } from "@/shared/components";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getProviderAlias } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import Icon from "@/shared/components/Icon";
 
 // ── ModelRow ───────────────────────────────────────────────────
 export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCustom, isFree, onDeleteAlias, onTest, isTesting }) {
@@ -16,9 +17,12 @@ export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCusto
  <div className={`group min-w-0 w-full rounded-sm border px-3 h-8 sm:w-auto ${borderColor} bg-surface hover:bg-surface-2`}>
  <div className="flex min-w-0 items-center justify-between gap-2">
  <div className="flex min-w-0 flex-1 items-center gap-2">
- <span className="material-symbols-outlined shrink-0 text-sm" style={iconColor ? { color: iconColor } : undefined}>
- {testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"}
- </span>
+ <Icon
+ name={testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"}
+ size={14}
+ className="shrink-0"
+ style={iconColor ? { color: iconColor } : undefined}
+ />
  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
  <code className="w-full truncate text-xs text-text-muted font-mono bg-sidebar px-1.5 py-1 rounded-sm select-all" title={fullModel}>{fullModel}</code>
  {model.name && <span className="w-full truncate text-[11px] text-text-muted/70 italic pl-0.5" title={model.name}>{model.name}</span>}
@@ -30,9 +34,7 @@ export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCusto
  {onTest && (
  <div className="relative group/btn">
  <button onClick={onTest} disabled={isTesting} aria-label="Test model" className={`size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary transition-opacity ${isTesting ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"}`}>
- <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
- {isTesting ? "progress_activity" : "science"}
- </span>
+ <Icon name={isTesting ? "progress_activity" : "science"} size={14} style={isTesting ? { animation: "spin 1s linear infinite" } : undefined} />
  </button>
  <span className="pointer-events-none absolute mt-1 top-6 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {isTesting ? "Testing..." : "Test"}
@@ -41,7 +43,7 @@ export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCusto
  )}
  <div className="relative group/btn">
  <button onClick={() => onCopy(fullModel, `model-${model.id}`)} aria-label="Copy model name" className="size-8 hover:bg-surface-2 rounded-sm text-text-muted hover:text-primary">
- <span className="material-symbols-outlined text-sm">{copied === `model-${model.id}` ? "check" : "content_copy"}</span>
+ <Icon name={copied === `model-${model.id}` ? "check" : "content_copy"} size={14} />
  </button>
  <span className="pointer-events-none absolute mt-1 top-6 left-1/2 -translate-x-1/2 text-[11px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
  {copied === `model-${model.id}` ? "Copied!" : "Copy"}

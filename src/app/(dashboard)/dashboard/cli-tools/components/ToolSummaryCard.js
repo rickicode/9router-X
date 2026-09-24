@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Card } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 export default function ToolSummaryCard({ toolId, tool }) {
   const isGuide = tool.configType === "guide";
@@ -27,9 +28,7 @@ export default function ToolSummaryCard({ toolId, tool }) {
                   decoding="async"
                 />
               ) : tool.icon ? (
-                <span className="material-symbols-outlined text-[18px]" style={{ color: tool.color }}>
-                  {tool.icon}
-                </span>
+                <Icon name={tool.icon} size={18} style={{ color: tool.color }} />
               ) : null}
             </div>
             <div className="min-w-0 flex-1">

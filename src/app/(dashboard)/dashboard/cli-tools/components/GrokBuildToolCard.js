@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
@@ -279,7 +280,7 @@ export default function GrokBuildToolCard({
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
+ <Icon className={`text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
@@ -301,7 +302,7 @@ export default function GrokBuildToolCard({
  <div className="mb-2 flex flex-col gap-2">
  {tool.notes.map((note, index) => (
  <div key={index} className={`flex items-start gap-2 rounded-sm p-3 text-xs ${note.type === "warning" ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary"}`}>
- <span className="material-symbols-outlined mt-0.5 text-[18px]">{note.type === "warning" ? "warning" : "info"}</span>
+ <Icon className="mt-0.5" name={note.type === "warning" ? "warning" : "info"} size={18} />
  <span>{note.text}</span>
  </div>
  ))}
@@ -353,7 +354,7 @@ export default function GrokBuildToolCard({
  ))}
  </div>
 
- {message && <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}><span className="material-symbols-outlined text-[18px]">{message.type === "success" ? "check_circle" : "error"}</span><span>{message.text}</span></div>}
+ {message && <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}><Icon name={message.type === "success" ? "check_circle" : "error"} size={18} /><span>{message.text}</span></div>}
 
  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
  <Button variant="primary" size="sm" onClick={handleApply} disabled={!selectedModel} loading={applying} className="w-full sm:w-auto"><Icon className="mr-1" name="save" size={18} />Apply</Button>

@@ -2,6 +2,7 @@
 
 import { cn } from "@/shared/utils/cn";
 import Button from "./Button";
+import Icon from "@/shared/components/Icon";
 
 export default function Pagination({
  currentPage,

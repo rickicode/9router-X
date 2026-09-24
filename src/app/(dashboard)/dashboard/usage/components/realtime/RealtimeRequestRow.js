@@ -30,9 +30,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  className="inline-flex items-center justify-center size-5 rounded-sm bg-success/10 text-success"
  title="Success (200 OK)"
  >
- <span className="material-symbols-outlined !text-[18px]">
- check
- </span>
+<Icon name="check" size={18} />
  </span>
  )}
  </td>
@@ -41,16 +39,12 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  <td className="h-8 px-3 text-sm">
  {r.isStream ? (
  <span className="inline-flex items-center gap-1 rounded-sm bg-info/10 border border-info/30 px-2 py-1 text-[11px] font-medium text-info">
- <span className="material-symbols-outlined !text-[11px]">
- wifi_tethering
- </span>
+<Icon name="wifi_tethering" size={11} />
  STREAM
  </span>
  ) : (
  <span className="inline-flex items-center gap-1 rounded-sm bg-primary/10 border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary">
- <span className="material-symbols-outlined !text-[11px]">
- code
- </span>
+<Icon name="code" size={11} />
  JSON
  </span>
  )}
@@ -87,9 +81,7 @@ export default function RealtimeRequestRow({ req, onOpenError }) {
  {/* Client API Key */}
  <td className="h-8 px-3 truncate max-w-[150px] text-sm" title={r.rawApiKey || r.apiKey}>
  <span className="inline-flex items-center gap-1 text-text-muted">
- <span className="material-symbols-outlined !text-[18px]">
- key
- </span>
+<Icon name="key" size={18} />
  <span className="font-mono text-[11px] text-text-main truncate">
  {r.clientApiKey || r.apiKey || "Default Key"}
  </span>
@@ -160,9 +152,11 @@ export function RealtimeRequestCardMobile({ req, onOpenError }) {
           {hasError && (
             <Icon name="error" size={15} className="shrink-0 text-danger" />
           )}
-          <span className="material-symbols-outlined ml-auto shrink-0 text-[15px] text-text-muted" aria-hidden="true">
-            {expanded ? "expand_less" : "expand_more"}
-          </span>
+<Icon
+  name={expanded ? "expand_less" : "expand_more"}
+  size={15}
+  className="ml-auto shrink-0 text-text-muted"
+/>
         </span>
         <span className="flex min-w-0 items-center gap-2 text-[11px] text-text-muted">
           <span className="truncate">{r.provider || "unknown"}</span>

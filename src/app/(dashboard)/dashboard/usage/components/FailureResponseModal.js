@@ -205,9 +205,7 @@ className={cn(
  }
  className="inline-flex items-center gap-1 px-2.5 text-xs font-medium rounded-sm border border-border bg-surface hover:bg-surface-2 text-text-main cursor-pointer h-8"
  >
- <span className="material-symbols-outlined text-[18px]">
- {copied ? "check" : "content_copy"}
- </span>
+<Icon name={copied ? "check" : "content_copy"} size={18} />
  {copied ? "Copied!" : "Copy Payload"}
  </button>
  </div>

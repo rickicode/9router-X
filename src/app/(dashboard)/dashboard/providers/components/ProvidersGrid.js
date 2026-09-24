@@ -6,6 +6,7 @@ import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components";
 import { MemoProviderCard, MemoApiKeyProviderCard } from "./BaseProviderCard";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import Icon from "@/shared/components/Icon";
 
 const ModelAvailabilityBadge = dynamic(
   () => import("./ModelAvailabilityBadge"),
@@ -383,7 +384,7 @@ function TestAllButton({ mode, testingMode, onBatchTest }) {
       title={label}
       aria-label={label}
     >
-      <Icon className={`material-symbols-outlined text-[18px]${active ? " animate-spin" : ""} name="play_arrow" size={18} />
+      <Icon name="play_arrow" size={18} className={active ? "animate-spin" : undefined} />
       {active ? "Testing..." : "Test All"}
     </button>
   );

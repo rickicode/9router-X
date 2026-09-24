@@ -5,6 +5,7 @@ import Card from "./Card";
 import Button from "./Button";
 import Modal from "./Modal";
 import Input from "./Input";
+import Icon from "@/shared/components/Icon";
 import { cn } from "@/shared/utils/cn";
 
 const LOGS_POLL_MS = 3000;
@@ -76,10 +77,10 @@ function StatusChip({ status, size = "md" }) {
  size === "sm" ? "px-1.5 py-1 text-[11px]" : "px-2 py-1 text-[11px]",
  meta.chip
  )}
- >
- <span className={cn("material-symbols-outlined", size === "sm" ? "!text-[18px]" : "!text-[18px]")}>{meta.icon}</span>
- {String(status || meta.label).toUpperCase()}
- </span>
+      >
+        <Icon name={meta.icon} size={18} />
+        {String(status || meta.label).toUpperCase()}
+      </span>
  );
 }
 
@@ -278,9 +279,9 @@ placeholder="Search model, provider, account…"
  ? "bg-primary/10 border-primary/30 text-primary"
  : "bg-surface border-border text-text-muted hover:text-text-main hover:bg-surface-2"
  )}
- >
- <span className="material-symbols-outlined !text-[18px]">{f.icon}</span>
- {f.label}
+              >
+                <Icon name={f.icon} size={18} />
+                {f.label}
  {count > 0 && (
  <span className={cn(
  "rounded-sm px-1 text-[11px] font-mono",
@@ -317,10 +318,8 @@ placeholder="Search model, provider, account…"
 Loading logs…
  </div>
  ) : filtered.length === 0 ? (
- <div className="p-3 text-center text-text-muted text-xs flex flex-col items-center gap-2">
- <span className="material-symbols-outlined text-[18px] text-text-muted">
- {logs.length === 0 ? "receipt_long" : "search_off"}
- </span>
+          <div className="p-3 text-center text-text-muted text-xs flex flex-col items-center gap-2">
+            <Icon name={logs.length === 0 ? "receipt_long" : "search_off"} size={18} className="text-text-muted" />
 {logs.length === 0 ? "No logs recorded yet." : `No logs match the filter${search ? ` "${search}"` : ""}.`}
  </div>
  ) : (

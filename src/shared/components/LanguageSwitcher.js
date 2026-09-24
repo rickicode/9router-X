@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { LOCALES, LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
 import { reloadTranslations } from "@/i18n/runtime";
+import Icon from "@/shared/components/Icon";
 
 function getLocaleFromCookie() {
  if (typeof document === "undefined") return "en";

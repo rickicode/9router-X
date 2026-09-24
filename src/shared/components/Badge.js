@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 const variants = {
  default: "bg-surface text-text-muted",
@@ -47,11 +48,9 @@ export default function Badge({
  )}
  />
  )}
- {icon && (
- <span className="material-symbols-outlined text-[18px] shrink-0">
- {icon}
- </span>
- )}
+{icon && (
+<Icon name={icon} size={18} className="shrink-0" />
+)}
  {children}
  </span>
  );

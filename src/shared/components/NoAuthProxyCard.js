@@ -6,6 +6,7 @@ import Card from "./Card";
 import Select from "./Select";
 import Badge from "./Badge";
 import { FREE_PROVIDERS } from "@/shared/constants/providers";
+import Icon from "@/shared/components/Icon";
 
 const NONE_PROXY_POOL_VALUE = "__none__";
 
@@ -269,10 +270,10 @@ export default function NoAuthProxyCard({ providerId }) {
  : "bg-surface text-text-main border-border hover:border-primary/30 hover:bg-surface-2"
  } disabled:opacity-50`}
  >
- <div className="flex items-center gap-1.5 w-full justify-center">
- <span className="material-symbols-outlined text-[18px]">{mode.icon}</span>
- <span className="text-xs font-medium">{mode.label}</span>
- </div>
+                  <div className="flex items-center gap-1.5 w-full justify-center">
+                    <Icon name={mode.icon} size={18} />
+                    <span className="text-xs font-medium">{mode.label}</span>
+                  </div>
  <span className="text-[11px] text-text-muted">{mode.desc}</span>
  </button>
  );

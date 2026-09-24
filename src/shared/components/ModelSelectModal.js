@@ -643,13 +643,12 @@ className="w-full pl-8 pr-3 h-8 bg-surface border border-border rounded-sm text-
  {addedModelValues.includes(combo.name) ? (
  <Icon name="check" size={18} />
  ) : (
- <span
- className={`material-symbols-outlined ${isSelected ? "text-white" : badge.text}`}
- style={{ fontSize: "13px" }}
- title={badge.title}
- >
- {badge.icon}
- </span>
+                      <Icon
+                        name={badge.icon}
+                        size={13}
+                        className={isSelected ? "text-white" : badge.text}
+                        title={badge.title}
+                      />
  )}
  {combo.name}
  </button>

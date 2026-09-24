@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function Input({
   label,
@@ -35,7 +36,7 @@ export default function Input({
       <div className="relative">
         {icon && (
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-muted">
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{icon}</span>
+            <Icon name={icon} size={18} />
           </div>
         )}
         <input

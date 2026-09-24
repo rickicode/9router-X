@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { getStatusVariant as getConnectionStatusVariant } from "@/shared/utils/connectionStatus";
 import PropTypes from "prop-types";
 import { Card, Badge, Button, Modal, Select, Toggle, EditConnectionModal, ConfirmModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 // ── CooldownTimer ──────────────────────────────────────────────
 function CooldownTimer({ until }) {
@@ -187,7 +188,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
  <Icon className="text-sm" name="keyboard_arrow_down" size={18} />
  </button>
  </div>
- <span className="material-symbols-outlined text-sm text-text-muted">{isOAuth ? "lock" : "key"}</span>
+ <Icon name={isOAuth ? "lock" : "key"} size={14} className="text-text-muted" />
  <div className="flex-1 min-w-0">
  <p className="text-sm font-medium truncate">{displayName}</p>
  <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -234,7 +235,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
  className={`flex flex-col items-center px-2 py-1 rounded-sm hover:bg-surface-2 ${hasAnyProxy ? "text-primary" : "text-text-muted hover:text-primary"}`}
  disabled={updatingProxy}
  >
- <span className="material-symbols-outlined text-[18px]">{updatingProxy ? "progress_activity" : "lan"}</span>
+ <Icon name={updatingProxy ? "progress_activity" : "lan"} size={18} />
  <span className="text-[11px]">Proxy</span>
  </button>
  {showProxyDropdown && (

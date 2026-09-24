@@ -7,6 +7,7 @@ import Drawer from "@/shared/components/Drawer";
 import Pagination from "@/shared/components/Pagination";
 import { cn } from "@/shared/utils/cn";
 import { AI_PROVIDERS, getProviderByAlias } from "@/shared/constants/providers";
+import Icon from "@/shared/components/Icon";
 
 let providerNameCache = null;
 let providerNodesCache = null;
@@ -62,15 +63,17 @@ function CollapsibleSection({ title, children, defaultOpen = false, icon = null 
  className="w-full flex items-center justify-between p-3 bg-surface hover:bg-surface-2 h-8"
  >
  <div className="flex items-center gap-2">
- {icon && <span className="material-symbols-outlined text-[18px] text-text-muted">{icon}</span>}
+          {icon && <Icon name={icon} size={18} className="text-text-muted" />}
  <span className="font-semibold text-sm text-text-main">{title}</span>
  </div>
- <span className={cn(
- "material-symbols-outlined text-[18px] text-text-muted transition-transform",
- isOpen ? "rotate-90" : ""
- )}>
- chevron_right
- </span>
+          <Icon
+            name="chevron_right"
+            size={18}
+            className={cn(
+              "text-text-muted transition-transform",
+              isOpen ? "rotate-90" : ""
+            )}
+          />
  </button>
  
  {isOpen && (
@@ -364,9 +367,10 @@ export default function RequestDetailsTab({ initialFilters }) {
  : "bg-danger/10 text-danger border-danger/30"
  )}
  >
- <span className="material-symbols-outlined !text-[18px]">
- {isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
- </span>
+          <Icon
+            name={isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
+            size={18}
+          />
  {badge.label}
  </span>
  <span className="px-1.5 py-1 rounded-sm bg-surface border border-border text-[11px] font-medium text-text-muted">
@@ -504,9 +508,10 @@ export default function RequestDetailsTab({ initialFilters }) {
  : "bg-danger/10 text-danger border-danger/30"
  )}
  >
- <span className="material-symbols-outlined !text-[18px]">
- {isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
- </span>
+          <Icon
+            name={isSuccess ? "check_circle" : badge.color === "amber" ? "warning" : "error"}
+            size={18}
+          />
  {badge.label}
  </span>
  </td>

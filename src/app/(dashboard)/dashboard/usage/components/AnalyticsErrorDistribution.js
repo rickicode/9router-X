@@ -85,14 +85,14 @@ export default function AnalyticsErrorDistribution({
  <div>
  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
  <div className="flex items-center gap-2 min-w-0">
- <span
- className={cn(
- "material-symbols-outlined text-[18px] shrink-0 inline-flex items-center justify-center",
- meta.color,
- )}
- >
- {meta.icon}
- </span>
+<Icon
+name={meta.icon}
+size={18}
+className={cn(
+"shrink-0 inline-flex items-center justify-center",
+meta.color,
+)}
+/>
  <span className="font-semibold text-sm text-text-main break-words">
  {meta.label}
  </span>

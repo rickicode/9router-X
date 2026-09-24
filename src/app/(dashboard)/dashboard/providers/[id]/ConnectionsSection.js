@@ -212,7 +212,7 @@ export default function ConnectionsSection(d) {
  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
  <div className="flex items-center gap-3">
  <div className="inline-flex items-center justify-center w-9 h-8 rounded-sm bg-primary/10 text-primary shrink-0">
- <span className="material-symbols-outlined text-[18px]">{d.isOAuth ? "lock" : "key"}</span>
+ <Icon name={d.isOAuth ? "lock" : "key"} size={18} />
  </div>
  <div className="min-w-0">
  <p className="text-sm text-text-muted">No connections yet</p>

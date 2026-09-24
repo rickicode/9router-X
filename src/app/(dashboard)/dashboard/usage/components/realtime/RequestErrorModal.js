@@ -3,6 +3,7 @@
 import Modal from "@/shared/components/Modal";
 import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
+import Icon from "@/shared/components/Icon";
 
 export default function RequestErrorModal({ selectedError, fetchedError, loading, onClose }) {
  return (

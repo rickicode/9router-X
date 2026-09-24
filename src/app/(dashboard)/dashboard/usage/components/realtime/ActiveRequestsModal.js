@@ -3,6 +3,7 @@
 import Modal from "@/shared/components/Modal";
 import Badge from "@/shared/components/Badge";
 import { TimeAgo } from "./realtimeHelpers";
+import Icon from "@/shared/components/Icon";
 
 export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = [] }) {
  return (
@@ -63,9 +64,7 @@ export default function ActiveRequestsModal({ isOpen, onClose, activeRequests = 
  >
  <td className="px-3 h-8 text-sm">
  <span className="inline-flex items-center gap-1 rounded-sm bg-primary/10 text-primary px-2 py-1 text-[11px] font-medium animate-pulse">
- <span className="material-symbols-outlined !text-[18px]">
- {req.isStream ? "wifi_tethering" : "code"}
- </span>
+<Icon name={req.isStream ? "wifi_tethering" : "code"} size={18} />
  {req.isStream ? "STREAM" : "JSON"}
  </span>
  </td>

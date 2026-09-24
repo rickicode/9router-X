@@ -108,9 +108,7 @@ export default function ModelAvailabilityBadge() {
  : "bg-warning/10 border-warning/30 text-warning hover:bg-warning/10"
  }`}
  >
- <span className="material-symbols-outlined text-[18px]">
- {isHealthy ? "verified" : "warning"}
- </span>
+ <Icon name={isHealthy ? "verified" : "warning"} size={18} />
  {isHealthy
  ? "All models operational"
  : `${unavailableCount} model${unavailableCount !== 1 ? "s" : ""} with issues`}
@@ -120,12 +118,7 @@ export default function ModelAvailabilityBadge() {
  <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-border rounded-sm z-50 overflow-hidden">
  <div className="flex items-center justify-between h-8 px-3 border-b border-border bg-bg">
  <div className="flex items-center gap-2">
- <span
- className="material-symbols-outlined text-[18px]"
- style={{ color: isHealthy ? "#22c55e" : "#f59e0b" }}
- >
- {isHealthy ? "verified" : "warning"}
- </span>
+ <Icon name={isHealthy ? "verified" : "warning"} size={18} style={{ color: isHealthy ? "#22c55e" : "#f59e0b" }} />
  <span className="text-sm font-semibold text-text-main">
  Model Status
  </span>
@@ -167,12 +160,7 @@ export default function ModelAvailabilityBadge() {
  className="flex items-center justify-between px-2.5 py-2 rounded-sm bg-surface/30"
  >
  <div className="flex items-center gap-1.5 min-w-0">
- <span
- className="material-symbols-outlined text-[18px] shrink-0"
- style={{ color: status.color }}
- >
- {status.icon}
- </span>
+ <Icon name={status.icon} size={18} className="shrink-0" style={{ color: status.color }} />
  <div className="flex flex-col min-w-0">
  <span className="font-mono text-xs text-text-main truncate">
  {m.model}

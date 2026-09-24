@@ -563,9 +563,7 @@ export default function FailureAnalyticsCard({
  disabled={recentLoading}
  className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
  >
- <span className={cn("material-symbols-outlined text-[18px]", recentLoading && "animate-spin")}>
- refresh
- </span>
+<Icon name="refresh" size={18} className={recentLoading ? "animate-spin" : undefined} />
  Refresh
  </button>
  </div>

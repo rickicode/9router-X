@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import { useTheme } from "@/shared/hooks/useTheme";
 import ChangelogModal from "./ChangelogModal";
 import { ConfirmModal } from "./Modal";
+import Icon from "@/shared/components/Icon";
 
 function MenuItem({ icon, label, onClick, trailing, danger }) {
  return (
@@ -16,9 +17,7 @@ function MenuItem({ icon, label, onClick, trailing, danger }) {
  : "text-text-main hover:bg-surface-2"
  }`}
  >
- <span className={`material-symbols-outlined text-[18px] ${danger ? "" : "text-text-muted"}`}>
- {icon}
- </span>
+<Icon name={icon} size={18} className={danger ? "" : "text-text-muted"} />
  <span className="flex-1 text-left">{label}</span>
  {trailing && <span className="text-sm">{trailing}</span>}
  </button>

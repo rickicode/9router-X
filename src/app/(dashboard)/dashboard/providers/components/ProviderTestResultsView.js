@@ -39,9 +39,7 @@ function ProviderTestResultsView({ results }) {
  key={r.connectionId || i}
  className="flex min-w-0 flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-xs sm:flex-nowrap"
  >
- <span className={`material-symbols-outlined text-[18px] ${r.valid ? "text-success" : "text-danger"}`}>
- {r.valid ? "check_circle" : "error"}
- </span>
+ <Icon name={r.valid ? "check_circle" : "error"} size={18} className={r.valid ? "text-success" : "text-danger"} />
  <div className="min-w-0 flex-[1_1_160px]">
  <span className="block truncate font-medium sm:inline">{r.connectionName}</span>
  <span className="block truncate text-text-muted sm:ml-1.5 sm:inline">({r.provider})</span>

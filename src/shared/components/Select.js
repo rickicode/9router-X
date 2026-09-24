@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function Select({
   label,

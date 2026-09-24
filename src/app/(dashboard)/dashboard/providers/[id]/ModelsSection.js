@@ -7,6 +7,7 @@ import { isFreeModel, sortModelsByFree } from "@/shared/utils/modelHelpers";
 import { translate } from "@/i18n/runtime";
 import CompatibleModelsSection from "./CompatibleModelsSection";
 import ModelRow from "./ModelRow";
+import Icon from "@/shared/components/Icon";
 
 export default function ModelsSection(d) {
  const {
@@ -127,9 +128,7 @@ export default function ModelsSection(d) {
  disabled={importingQoderModels}
         className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 >
- <span className="material-symbols-outlined text-sm" style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined}>
- {importingQoderModels ? "progress_activity" : "download"}
- </span>
+ <Icon name={importingQoderModels ? "progress_activity" : "download"} size={14} style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined} />
  {importingQoderModels ? translate("Fetching...") : translate("Fetch Qoder Models")}
 </button>
 )}
@@ -139,9 +138,7 @@ export default function ModelsSection(d) {
  disabled={importingClineModels}
         className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
- <span className="material-symbols-outlined text-sm" style={importingClineModels ? { animation: "spin 1s linear infinite" } : undefined}>
- {importingClineModels ? "progress_activity" : "download"}
- </span>
+ <Icon name={importingClineModels ? "progress_activity" : "download"} size={14} style={importingClineModels ? { animation: "spin 1s linear infinite" } : undefined} />
  {importingClineModels ? translate("Fetching...") : translate("Import from /models")}
  </button>
  )}
@@ -152,9 +149,7 @@ export default function ModelsSection(d) {
  disabled={importingLiveModels}
         className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-xs text-primary hover:border-primary hover:bg-primary/10 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
- <span className="material-symbols-outlined text-sm" style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined}>
- {importingLiveModels ? "progress_activity" : "download"}
- </span>
+ <Icon name={importingLiveModels ? "progress_activity" : "download"} size={14} style={importingLiveModels ? { animation: "spin 1s linear infinite" } : undefined} />
  {importingLiveModels ? translate("Fetching...") : translate("Import from /models")}
  </button>
  )}

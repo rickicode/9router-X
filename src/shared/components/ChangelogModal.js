@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import PropTypes from "prop-types";
 import { marked } from "marked";
 import { GITHUB_CONFIG } from "@/shared/constants/config";
+import Icon from "@/shared/components/Icon";
 
 marked.setOptions({ gfm: true, breaks: true });
 

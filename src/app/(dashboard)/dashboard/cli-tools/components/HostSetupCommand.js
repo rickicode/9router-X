@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import Icon from "@/shared/components/Icon";
 
 export default function HostSetupCommand({
  toolId,
@@ -128,9 +129,7 @@ export default function HostSetupCommand({
  onClick={() => copy(activeCommand)}
  className="absolute right-2 top-2 px-2.5 bg-surface/90 hover:bg-surface-2 border border-border text-text-main text-[11px] font-medium rounded-sm flex items-center gap-1 h-8"
  >
- <span className="material-symbols-outlined text-[18px]">
- {copied ? "check" : "content_copy"}
- </span>
+ <Icon name={copied ? "check" : "content_copy"} size={18} />
  <span>{copied ? "Copied!" : "Copy"}</span>
  </button>
  </div>

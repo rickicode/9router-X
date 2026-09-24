@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
@@ -224,7 +225,7 @@ model = "${selectedModel || "provider/model-id"}"
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
+ <Icon className={`text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
@@ -255,9 +256,7 @@ model = "${selectedModel || "provider/model-id"}"
  note.type === "error" ? "bg-danger/10 text-danger" :
  "bg-primary/10 text-primary"
  }`}>
- <span className="material-symbols-outlined text-[18px] mt-0.5">
- {note.type === "warning" ? "warning" : note.type === "error" ? "error" : "info"}
- </span>
+ <Icon className="mt-0.5" name={note.type === "warning" ? "warning" : note.type === "error" ? "error" : "info"} size={18} />
  <span>{note.text}</span>
  </div>
  ))}
@@ -308,7 +307,7 @@ model = "${selectedModel || "provider/model-id"}"
 
  {message && (
  <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
- <span className="material-symbols-outlined text-[18px]">{message.type === "success" ? "check_circle" : "error"}</span>
+ <Icon name={message.type === "success" ? "check_circle" : "error"} size={18} />
  <span>{message.text}</span>
  </div>
  )}

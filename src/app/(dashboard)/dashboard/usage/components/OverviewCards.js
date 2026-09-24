@@ -3,6 +3,7 @@
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { formatTokens, formatTokensExact } from "@/shared/utils/formatTokens";
+import Icon from "@/shared/components/Icon";
 
 const fmt = (n) => new Intl.NumberFormat().format(Number(n) || 0);
 const fmtCost = (n) => `$${(Number(n) || 0).toFixed(2)}`;
@@ -52,7 +53,7 @@ function Metric({ label, icon, tone, value, valueClass, note, exact, spanTwo = f
           {label}
         </span>
         <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${tone}`}>
-          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{icon}</span>
+          <Icon name={icon} size={14} />
         </span>
       </div>
       <div className="mt-1 flex min-w-0 flex-col">

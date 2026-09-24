@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { readKeyPresets, upsertKeyPreset, deleteKeyPreset, subscribeKeyPresets } from "./cliEndpointPresets";
+import Icon from "@/shared/components/Icon";
 
 const CUSTOM_VALUE = "__custom__";
 const SAVE_VALUE = "__save_key__";

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
@@ -196,7 +197,7 @@ export default function ClineToolCard({ tool, isExpanded, onToggle, baseUrl, api
  <p className="text-xs text-text-muted truncate">{tool.description}</p>
  </div>
  </div>
- <Icon className={`material-symbols-outlined text-text-muted text-[18px] transition-transform ${isExpanded ? "rotate-180" : ""} name="expand_more" size={18} />
+ <Icon className={`text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} name="expand_more" size={18} />
  </button>
 
  {isExpanded && (
@@ -263,7 +264,7 @@ export default function ClineToolCard({ tool, isExpanded, onToggle, baseUrl, api
 
  {message && (
  <div className={`flex items-center gap-2 px-2 py-2 rounded-sm text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
- <span className="material-symbols-outlined text-[18px]">{message.type === "success" ? "check_circle" : "error"}</span>
+ <Icon name={message.type === "success" ? "check_circle" : "error"} size={18} />
  <span>{message.text}</span>
  </div>
  )}

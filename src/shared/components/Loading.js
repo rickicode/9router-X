@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 // Spinner loading
 export function Spinner({ size = "md", className }) {
@@ -12,15 +13,15 @@ export function Spinner({ size = "md", className }) {
  };
 
  return (
- <span
- className={cn(
- "material-symbols-outlined animate-spin text-primary",
- sizes[size],
- className
- )}
- >
- progress_activity
- </span>
+  <Icon
+    name="progress_activity"
+    size={18}
+    className={cn(
+      "animate-spin text-primary",
+      sizes[size],
+      className
+    )}
+  />
  );
 }
 

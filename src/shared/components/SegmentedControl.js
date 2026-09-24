@@ -2,6 +2,7 @@
 
 import { useRef, useCallback } from "react";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function SegmentedControl({
   options = [],
@@ -27,10 +28,10 @@ export default function SegmentedControl({
   };
 
   const iconSizes = {
-    sm: "text-[16px]",
-    md: "text-[18px]",
-    lg: "text-[18px]",
-    touch: "text-[16px]",
+    sm: 16,
+    md: 18,
+    lg: 18,
+    touch: 16,
   };
 
  const selectedIndex = options.findIndex((opt) => opt.value === value);
@@ -103,16 +104,12 @@ type="button"
   : "text-text-muted hover:text-text-main hover:bg-surface-2"
   )}
  >
- {option.icon && (
- <span
- className={cn(
- "material-symbols-outlined shrink-0 inline-flex items-center justify-center",
- iconSizes[size] || "text-[18px]"
- )}
- >
- {option.icon}
- </span>
- )}
+{option.icon && (
+<Icon
+name={option.icon}
+size={iconSizes[size] || 18}
+className="shrink-0 inline-flex items-center justify-center"
+/>)}
  <span className="whitespace-nowrap">{option.label}</span>
  </button>
  );

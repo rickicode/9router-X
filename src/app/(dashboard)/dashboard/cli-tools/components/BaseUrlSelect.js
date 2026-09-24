@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { readPresets, upsertPreset, deletePreset, subscribePresets, stripSlash } from "./cliEndpointPresets";
+import Icon from "@/shared/components/Icon";
 
 const CUSTOM_VALUE = "__custom__";
 const SAVE_VALUE = "__save__";

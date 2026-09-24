@@ -2,6 +2,7 @@
 
 import PropTypes from "prop-types";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 /**
  * Switch control.
@@ -27,9 +28,9 @@ export default function Toggle({
   "aria-labelledby": ariaLabelledby,
 }) {
   const sizes = {
-    sm: { track: "w-9 h-5", thumb: "size-3.5", travel: "translate-x-4", icon: "!text-[9px]", pad: "px-0.75" },
-    md: { track: "w-11 h-6", thumb: "size-4.5", travel: "translate-x-5", icon: "!text-[11px]", pad: "px-0.75" },
-    lg: { track: "w-14 h-7", thumb: "size-5.5", travel: "translate-x-7", icon: "!text-[13px]", pad: "px-1" },
+    sm: { track: "w-9 h-5", thumb: "size-3.5", travel: "translate-x-4", icon: 9, pad: "px-0.75" },
+    md: { track: "w-11 h-6", thumb: "size-4.5", travel: "translate-x-5", icon: 11, pad: "px-0.75" },
+    lg: { track: "w-14 h-7", thumb: "size-5.5", travel: "translate-x-7", icon: 13, pad: "px-1" },
   };
   const s = sizes[size];
 
@@ -89,16 +90,14 @@ export default function Toggle({
               checked ? s.travel : "translate-x-0"
             )}
           >
-            <span
-              aria-hidden="true"
+            <Icon
+              name={checked ? "check" : "close"}
+              size={s.icon}
               className={cn(
-                "material-symbols-outlined leading-none",
-                s.icon,
+                "leading-none",
                 checked ? "text-primary" : "text-text-muted"
               )}
-            >
-              {checked ? "check" : "close"}
-            </span>
+            />
           </span>
         </span>
       </button>

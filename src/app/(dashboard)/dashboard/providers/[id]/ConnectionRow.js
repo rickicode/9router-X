@@ -393,9 +393,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  <Icon className="text-sm" name="keyboard_arrow_down" size={18} />
  </button>
  </div>
- <span className="material-symbols-outlined shrink-0 text-sm text-text-muted">
- {authIcon}
- </span>
+ <Icon name={authIcon} size={14} className="shrink-0 text-text-muted" />
  <div className="flex-1 min-w-0">
  <p className="text-sm font-medium truncate">{displayName}</p>
  {secondaryDisplayName && (
@@ -519,9 +517,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
  className="inline-flex min-h-11 items-center gap-0.5 rounded-sm px-1.5 text-[11px] font-medium text-warning hover:bg-warning/10 sm:min-h-0"
  title="Copy validation URL"
  >
- <span className="material-symbols-outlined text-[18px]">
- {copied === `val-${connection.id}` ? "check" : "content_copy"}
- </span>
+ <Icon name={copied === `val-${connection.id}` ? "check" : "content_copy"} size={18} />
  <span>{copied === `val-${connection.id}` ? "Copied" : "Copy Link"}</span>
  </button>
  </div>
@@ -539,9 +535,7 @@ export default function ConnectionRow({ connection, proxyPools, proxyGroups = nu
 className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-surface-2 sm:min-h-0 sm:py-1 ${hasAnyProxy ? "text-primary" : "text-text-muted hover:text-primary"}`}
  disabled={updatingProxy}
  >
- <span className="material-symbols-outlined text-[18px]">
- {updatingProxy ? "progress_activity" : "lan"}
- </span>
+ <Icon name={updatingProxy ? "progress_activity" : "lan"} size={18} />
  <span className="text-[11px]">Proxy</span>
  </button>
  {showProxyDropdown && (
@@ -645,9 +639,7 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  className={`w-full text-left px-3 min-h-11 text-sm hover:bg-surface-2 sm:h-8 sm:min-h-0 ${selectedProxyIds.length === 0 && !selectedGroup ? "text-primary font-medium" : "text-text-main"}`}
  >
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px]">
- {selectedProxyIds.length === 0 && !selectedGroup ? "check_box" : "check_box_outline_blank"}
- </span>
+ <Icon name={selectedProxyIds.length === 0 && !selectedGroup ? "check_box" : "check_box_outline_blank"} size={18} />
  <span>None</span>
  </div>
  </button>
@@ -671,12 +663,14 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  className={`w-full text-left px-3 min-h-11 text-sm border-b border-border hover:bg-surface-2 sm:h-8 sm:min-h-0 ${selectedProxyIds.length === (proxyPools || []).filter(p => p.isActive).length ? "bg-surface-2" : ""}`}
  >
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px]">
- {selectedProxyIds.length === (proxyPools || []).filter(p => p.isActive).length && selectedProxyIds.length > 0
+ <Icon
+ name={
+ selectedProxyIds.length === (proxyPools || []).filter(p => p.isActive).length && selectedProxyIds.length > 0
  ? "check_box"
  : "check_box_outline_blank"
  }
- </span>
+ size={18}
+ />
  <span className="font-medium">Select All Active</span>
  </div>
  </button>
@@ -698,12 +692,14 @@ className={`flex min-h-11 w-full flex-col items-center rounded-sm px-2 hover:bg-
  className={`w-full text-left px-3 min-h-11 text-sm hover:bg-surface-2 sm:h-8 sm:min-h-0 ${isSelected ? "bg-surface-2" : ""}`}
  >
  <div className="flex items-center gap-2">
- <span className="material-symbols-outlined text-[18px]">
- {rotationStrategy === "none" 
+ <Icon
+ name={
+ rotationStrategy === "none"
  ? (isSelected ? "radio_button_checked" : "radio_button_unchecked")
  : (isSelected ? "check_box" : "check_box_outline_blank")
  }
- </span>
+ size={18}
+ />
  <span className={isSelected ? "text-primary font-medium" : "text-text-main"}>{pool.name}</span>
  {!isActive && (
  <span className="ml-auto text-[11px] text-danger">(inactive)</span>

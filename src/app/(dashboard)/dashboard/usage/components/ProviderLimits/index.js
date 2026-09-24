@@ -1150,9 +1150,7 @@ export default function ProviderLimits() {
  >
  <span className="flex min-w-0 items-center gap-1.5">
  {providerFilter === "all" ? (
- <span className="material-symbols-outlined text-[18px] text-text-muted">
- apps
- </span>
+<Icon name="apps" size={18} className="text-text-muted" />
  ) : (
  <ProviderIcon
  src={`/providers/${providerFilter}.png`}
@@ -1326,13 +1324,11 @@ export default function ProviderLimits() {
               className="flex shrink-0 items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-2.5 text-xs font-medium min-h-11 sm:min-h-9 sm:px-2.5 text-text-main hover:bg-surface-2 transition-colors"
  title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
  >
- <span
- className={`material-symbols-outlined text-[18px] ${
- autoRefresh ? "text-primary" : "text-text-muted"
- }`}
- >
- {autoRefresh ? "toggle_on" : "toggle_off"}
- </span>
+<Icon
+name={autoRefresh ? "toggle_on" : "toggle_off"}
+size={18}
+className={autoRefresh ? "text-primary" : "text-text-muted"}
+/>
  <span>Auto-refresh</span>
  {autoRefresh && (
  <span className="text-[11px] text-text-muted tabular-nums">
@@ -1465,9 +1461,11 @@ export default function ProviderLimits() {
  aria-label={`Use one Codex reset credit. ${resetCreditCount} available.`}
                   className="flex min-w-9 items-center justify-center gap-1 rounded-sm border border-primary/30 bg-primary/10 px-1.5 py-1.5 text-[11px] font-medium tabular-nums text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
  >
- <span className={`material-symbols-outlined text-[18px] ${isResettingLimit ? "animate-spin" : ""}`}>
- {isResettingLimit ? "progress_activity" : "restart_alt"}
- </span>
+<Icon
+name={isResettingLimit ? "progress_activity" : "restart_alt"}
+size={18}
+className={isResettingLimit ? "animate-spin" : undefined}
+/>
  <span>{resetCreditCount}</span>
  </button>
  </Tooltip>
@@ -1653,9 +1651,7 @@ export default function ProviderLimits() {
  className="inline-flex items-center gap-0.5 rounded-sm px-1 py-0.5 text-[11px] text-warning hover:bg-warning/20"
  title="Copy validation URL"
  >
- <span className="material-symbols-outlined text-[16px]">
- {copied === `val-${conn.id}` ? "check" : "content_copy"}
- </span>
+<Icon name={copied === `val-${conn.id}` ? "check" : "content_copy"} size={16} />
  <span>{copied === `val-${conn.id}` ? "Copied" : "Copy"}</span>
  </button>
  </div>
@@ -1667,9 +1663,7 @@ export default function ProviderLimits() {
  title={conn.providerSpecificData.profileArn}
  className="inline-flex max-w-full items-center gap-1 rounded-sm border border-border px-2 py-1 text-[11px] text-text-muted hover:text-primary hover:border-primary/30"
  >
- <span className="material-symbols-outlined text-[16px]">
- {copied === conn.id ? "check" : "content_copy"}
- </span>
+<Icon name={copied === conn.id ? "check" : "content_copy"} size={16} />
  <code className="truncate font-mono">
  {conn.providerSpecificData.profileArn}
  </code>

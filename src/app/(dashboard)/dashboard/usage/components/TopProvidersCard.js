@@ -5,6 +5,7 @@ import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
 import { formatTokens } from "@/shared/utils/formatTokens";
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 const ERROR_CATEGORY_LABELS = {
  upstream: { label: "Upstream 5xx", color: "bg-danger", textColor: "text-danger" },

@@ -6,6 +6,7 @@ import Card from "@/shared/components/Card";
 import SegmentedControl from "@/shared/components/SegmentedControl";
 import BlockGrid, { buildColumns, GridLegend } from "./BlockGrid";
 import { formatTokens } from "@/shared/utils/formatTokens";
+import Icon from "@/shared/components/Icon";
 
 const fmtTokens = formatTokens;
 

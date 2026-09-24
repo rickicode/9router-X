@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import PropTypes from "prop-types";
 import { GITHUB_CONFIG } from "@/shared/constants/config";
+import Icon from "@/shared/components/Icon";
 
 export default function DonateModal({ isOpen, onClose }) {
  const [data, setData] = useState(null);
@@ -99,7 +100,7 @@ function DonateChannelCard({ channel }) {
  className="w-12 h-12 rounded-sm flex items-center justify-center mb-3"
  style={{ backgroundColor: `${color}20`, color }}
  >
- <span className="material-symbols-outlined text-[26px]">{icon}</span>
+<Icon name={icon} size={26} />
  </div>
  <div className="font-medium text-text-main mb-1">{label}</div>
  {description && (

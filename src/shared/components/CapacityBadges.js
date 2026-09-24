@@ -1,6 +1,7 @@
 "use client";
 
 import { CAPACITY_META } from "@/shared/constants/models";
+import Icon from "@/shared/components/Icon";
 
 // Render small icon badges for a model's capabilities (only those set true).
 //
@@ -22,16 +23,16 @@ export default function CapacityBadges({ caps, className = "", colorOverride, si
       {active.map((k) => {
         const meta = CAPACITY_META[k];
         return (
-          <span
+          <Icon
             key={k}
+            name={meta.icon}
+            size={size}
             title={`${meta.label} — ${meta.desc}`}
-            className={`material-symbols-outlined cursor-help ${colorOverride || meta.color}`}
-            style={{ fontSize: `${size}px` }}
+            className={`cursor-help ${colorOverride || meta.color}`}
             role="img"
             aria-label={`${meta.label}: ${meta.desc}`}
-          >
-            {meta.icon}
-          </span>
+            aria-hidden={false}
+          />
         );
       })}
     </span>

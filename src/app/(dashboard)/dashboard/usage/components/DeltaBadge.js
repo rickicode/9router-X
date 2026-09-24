@@ -1,4 +1,5 @@
 import { cn } from "@/shared/utils/cn";
+import Icon from "@/shared/components/Icon";
 
 export default function DeltaBadge({
  diff,
@@ -39,9 +40,7 @@ export default function DeltaBadge({
  )}
  title={`Yesterday delta: ${hasPct ? pct.toFixed(1) + "%" : diff ?? ""}`}
  >
- <span className="material-symbols-outlined text-[18px]">
- {icon}
- </span>
+<Icon name={icon} size={18} />
  <span>{formattedText}</span>
  <span className="text-text-muted text-[11px] ml-0.5">{label}</span>
  </span>

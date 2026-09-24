@@ -243,9 +243,10 @@ export default function RealtimeRequestsCard({
               onClick={() => setShowAllMobile((prev) => !prev)}
               className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-border text-xs font-medium text-primary"
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                {showAllMobile ? "expand_less" : "expand_more"}
-              </span>
+              <Icon
+                name={showAllMobile ? "expand_less" : "expand_more"}
+                size={16}
+              />
               {showAllMobile
                 ? "Show fewer"
                 : `Show ${filteredRecents.length - MOBILE_ROW_CAP} more of ${filteredRecents.length}`}

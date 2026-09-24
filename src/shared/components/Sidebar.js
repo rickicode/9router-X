@@ -91,14 +91,11 @@ export default function Sidebar({ onClose }) {
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
+              <Icon
+                name={item.icon}
+                size={18}
+                className={isActive(item.href) ? "fill-current" : ""}
+              />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -123,14 +120,11 @@ export default function Sidebar({ onClose }) {
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
+              <Icon
+                name={item.icon}
+                size={18}
+                className={isActive(item.href) ? "fill-current" : ""}
+              />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -155,14 +149,11 @@ export default function Sidebar({ onClose }) {
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
+              <Icon
+                name={item.icon}
+                size={18}
+                className={isActive(item.href) ? "fill-current" : ""}
+              />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -198,7 +189,7 @@ export default function Sidebar({ onClose }) {
                       : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                   )}
                 >
-                  <span className="material-symbols-outlined text-[16px]">{kind.icon}</span>
+                  <Icon name={kind.icon} size={16} />
                   <span>{kind.label}</span>
                 </Link>
               ))}
@@ -215,7 +206,7 @@ export default function Sidebar({ onClose }) {
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                 )}
               >
-                <span className="material-symbols-outlined text-[16px]">{COMBINED_WEB_ITEM.icon}</span>
+                <Icon name={COMBINED_WEB_ITEM.icon} size={16} />
                 <span>{COMBINED_WEB_ITEM.label}</span>
               </Link>
             </div>
@@ -235,14 +226,11 @@ export default function Sidebar({ onClose }) {
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
+              <Icon
+                name={item.icon}
+                size={18}
+                className={isActive(item.href) ? "fill-current" : ""}
+              />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -261,14 +249,11 @@ export default function Sidebar({ onClose }) {
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : ""
-                )}
-              >
-                {item.icon}
-              </span>
+              <Icon
+                name={item.icon}
+                size={18}
+                className={isActive(item.href) ? "fill-current" : ""}
+              />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -285,14 +270,11 @@ export default function Sidebar({ onClose }) {
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"
             )}
           >
-            <span
-              className={cn(
-                "material-symbols-outlined text-[18px]",
-                isActive("/dashboard/settings") ? "fill-1" : ""
-              )}
-            >
-              settings
-            </span>
+            <Icon
+              name="settings"
+              size={18}
+              className={isActive("/dashboard/settings") ? "fill-current" : ""}
+            />
             <span>Settings</span>
           </Link>
         </div>

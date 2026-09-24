@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Icon from "@/shared/components/Icon";
 
 /**
  * OAuth Callback Page Content

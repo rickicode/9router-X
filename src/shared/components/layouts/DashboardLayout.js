@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
+import Icon from "@/shared/components/Icon";
 
 function getToastStyle(type) {
  if (type === "success") {
@@ -124,10 +125,8 @@ export default function DashboardLayout({ children }) {
  key={n.id}
  className={`rounded-sm border px-3 min-h-8 py-1.5 ${style.wrapper}`}
  >
- <div className="flex items-start gap-2">
- <span className="material-symbols-outlined text-[18px] leading-5" aria-hidden="true">
- {style.icon}
- </span>
+            <div className="flex items-start gap-2">
+              <Icon name={style.icon} size={18} className="leading-5" />
  <div className="min-w-0 flex-1">
  {n.title ? <p className="text-xs font-medium mb-0.5">{n.title}</p> : null}
  <p className="text-xs whitespace-pre-wrap break-words">{n.message}</p>

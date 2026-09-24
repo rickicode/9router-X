@@ -1,6 +1,7 @@
 "use client";
 
  import { useMemo, useState } from "react";
+import Icon from "@/shared/components/Icon";
 
 const STORAGE_KEY = "axonrouter.cliToolEndpointPresets";
 

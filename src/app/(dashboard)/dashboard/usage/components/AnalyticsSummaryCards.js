@@ -1,6 +1,7 @@
 import { cn } from "@/shared/utils/cn";
 import { fmtNumber, formatMetric, fmtTokens } from "./analyticsData";
 import DeltaBadge from "./DeltaBadge";
+import Icon from "@/shared/components/Icon";
 
 function SummaryCard({
   label,
@@ -19,7 +20,7 @@ function SummaryCard({
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">{label}</span>
         <span className={cn("flex size-7 items-center justify-center rounded-md border", iconTone)}>
-          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">{icon}</span>
+          <Icon name={icon} size={16} />
         </span>
       </div>
       <span className={cn("truncate text-2xl font-semibold tabular-nums", valueColor)}>{value}</span>
