@@ -121,7 +121,7 @@ export default function AnalyticsBrickTimeline({ data = [] }) {
                   const timeLabel = point.timestampLabel || compactLabel(point.timestamp);
 
                   return Array.from({ length: STREAM_ROWS }, (_, rowIndex) => {
-                    const filled = rowIndex < blocks;
+                    const filled = rowIndex >= STREAM_ROWS - blocks;
                     return (
                       <span
                         key={`${columnIndex}-${rowIndex}`}

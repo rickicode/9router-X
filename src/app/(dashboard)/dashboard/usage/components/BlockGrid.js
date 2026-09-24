@@ -103,7 +103,7 @@ export default function BlockGrid({
           >
             {visible.map((column, columnIndex) =>
               Array.from({ length: rows }, (_, rowIndex) => {
-                const filled = rowIndex < column.blocks;
+                const filled = rowIndex >= rows - column.blocks;
                 return (
                   <span
                     key={`${columnIndex}-${rowIndex}`}
