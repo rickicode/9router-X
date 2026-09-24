@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Button, Modal, Toggle } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { CAPACITY_META } from "@/shared/constants/models";
 
 const defaultCaps = () => Object.fromEntries(Object.keys(CAPACITY_META).map((key) => [key, false]));

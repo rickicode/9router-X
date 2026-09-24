@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function GlobalError({ error, reset }) {
@@ -44,16 +45,22 @@ export default function GlobalError({ error, reset }) {
           </p>
         </div>
 
-        {error?.stack && (
-          <details className="text-xs text-text-muted">
+        {error?.stack ? (
+          <details open className="text-xs text-text-muted">
             <summary className="cursor-pointer font-medium hover:text-text-main transition-colors select-none py-1 flex items-center gap-1">
               <Icon name="terminal" size={18} />
-              <span>View Error Stack Trace</span>
+              <span>Error Stack Trace</span>
             </summary>
-            <pre className="mt-2 max-h-60 overflow-y-auto custom-scrollbar rounded-sm border border-border bg-bg p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all select-all">
+            <pre className="mt-2 max-h-96 overflow-y-auto custom-scrollbar rounded-sm border border-border bg-bg p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all select-all">
               {error.stack}
             </pre>
           </details>
+        ) : (
+          <p className="text-xs text-text-muted">
+            No client stack available (production bundle is minified). Digest{" "}
+            <code className="font-mono bg-surface px-1 rounded">{error?.digest || "n/a"}</code> — server-side
+            stack is captured in the server console log.
+          </p>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border">

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Modal, Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { translate } from "@/i18n/runtime";
 
 const PLACEHOLDER = `[

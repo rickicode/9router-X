@@ -4,6 +4,7 @@ import { useState, useMemo, useSyncExternalStore } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { Card, Button, Badge, Modal, CardSkeleton } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { formatTokens } from "@/shared/utils/formatTokens";

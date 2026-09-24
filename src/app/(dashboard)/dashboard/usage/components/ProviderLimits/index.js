@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import QuotaTable from "./QuotaTable";
 import Toggle from "@/shared/components/Toggle";
@@ -42,7 +43,7 @@ import {
  QUOTA_SORT_OPTIONS,
 } from "./utils";
 import Card from "@/shared/components/Card";
-import { ConfirmModal, EditConnectionModal, Badge, CardSkeleton } from "@/shared/components";
+import { ConfirmModal, EditConnectionModal, Badge, CardSkeleton, Button } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
 import { getStatusVariant } from "@/shared/utils/connectionStatus";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
@@ -984,21 +985,73 @@ export default function ProviderLimits() {
  const isCustomPageSize = !ACCOUNT_PAGE_SIZE_OPTIONS.includes(pageSize);
  const pageSizeLabel = getPageSizeLabel(pageSize, isCustomPageSize);
 
- if (!connectionsLoading && !hasEligibleConnections) {
- return (
- <Card padding="lg">
- <div className="flex flex-col gap-2 py-2">
- <h3 className="mt-4 text-sm font-semibold text-text-main">
- No Providers Connected
- </h3>
- <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
- Connect to providers with OAuth to track your API quota limits and
- usage.
- </p>
- </div>
- </Card>
- );
- }
+	if (!connectionsLoading && !hasEligibleConnections) {
+		return (
+			<Card padding="none" className="border-border bg-surface overflow-hidden">
+				<div className="flex flex-col items-center justify-center text-center px-4 py-12 sm:py-16 max-w-lg mx-auto">
+					{/* Icon Badge */}
+					<div className="relative mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+						<Icon name="data_usage" size={28} />
+						<span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-surface border border-border text-text-muted">
+							<Icon name="cloud_off" size={12} />
+						</span>
+					</div>
+
+					{/* Title & Description */}
+					<h3 className="text-base sm:text-lg font-semibold text-text-main tracking-tight">
+						No Providers Connected
+					</h3>
+					<p className="mt-2 text-xs sm:text-sm text-text-muted max-w-md leading-relaxed">
+						Connect your provider accounts via OAuth or API key to monitor real-time quota limits, 5-hour rolling reset windows, and credit balances.
+					</p>
+
+					{/* Action Buttons */}
+					<div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+						<Link href="/dashboard/providers">
+							<Button variant="primary" size="sm" icon="dns" className="font-medium shadow-xs">
+								Connect Providers
+							</Button>
+						</Link>
+						<Button
+							variant="outline"
+							size="sm"
+							icon="refresh"
+							onClick={() => fetchConnections(1)}
+							disabled={connectionsLoading}
+						>
+							Check Again
+						</Button>
+					</div>
+
+					{/* Supported Quota Providers Showcase */}
+					<div className="mt-8 pt-6 border-t border-border/50 w-full">
+						<span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block mb-3">
+							Supported Quota Tracking Providers
+						</span>
+						<div className="flex flex-wrap items-center justify-center gap-2">
+							{[
+								{ id: "codex", name: "Codex", note: "5h window & credits" },
+								{ id: "claude", name: "Claude", note: "5h rate limit" },
+								{ id: "kiro", name: "Kiro", note: "Daily & monthly" },
+								{ id: "antigravity", name: "Antigravity", note: "Per-model locks" },
+								{ id: "grok-cli", name: "Grok CLI", note: "Live rate limits" },
+								{ id: "github", name: "Copilot", note: "Premium quotas" },
+							].map((p) => (
+								<div
+									key={p.id}
+									className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-surface-2 border border-border/60 text-xs"
+								>
+									<ProviderIcon providerId={p.id} size={15} />
+									<span className="font-medium text-text-main text-[11px]">{p.name}</span>
+									<span className="text-[10px] text-text-muted">· {p.note}</span>
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+			</Card>
+		);
+	}
 
 
  return (
@@ -1366,36 +1419,42 @@ className={autoRefresh ? "text-primary" : "text-text-muted"}
  <CardSkeleton />
  </div>
  ) : !hasVisibleConnections ? (
- <Card padding="lg">
- <div className="flex flex-col gap-2 py-2">
- <h3 className="mt-3 text-sm font-semibold text-text-main">
- {emptyState.title}
- </h3>
- <p className="mt-1.5 text-xs text-text-muted max-w-md mx-auto">
- {emptyState.description}
- </p>
- {(debouncedSearch || accountFilter !== "all" || providerFilter !== "all" || expiringFirst) && (
- <div className="mt-4">
- <button
- type="button"
- onClick={() => {
- setSearchQuery("");
- setDebouncedSearch("");
- setHeaderSearchQuery("");
- setAccountFilter("all");
- setProviderFilter("all");
- setExpiringFirst(false);
- setPage(1);
- }}
-              className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main hover:bg-surface-2 transition-colors"
- >
- <Icon name="restart_alt" size={18} />
- <span>Reset all filters</span>
- </button>
- </div>
- )}
- </div>
- </Card>
+					<Card padding="none" className="border-border bg-surface overflow-hidden">
+						<div className="flex flex-col items-center justify-center text-center py-10 px-4 max-w-md mx-auto">
+							<div className="flex size-12 items-center justify-center rounded-xl bg-surface-2 border border-border text-text-muted mb-3 shadow-xs">
+								<Icon name={emptyState.icon || "filter_alt_off"} size={22} />
+							</div>
+							<h3 className="text-sm font-semibold text-text-main">
+								{emptyState.title}
+							</h3>
+							<p className="mt-1.5 text-xs text-text-muted leading-relaxed">
+								{emptyState.description}
+							</p>
+							{(debouncedSearch ||
+								accountFilter !== "all" ||
+								providerFilter !== "all" ||
+								expiringFirst) && (
+								<div className="mt-4">
+									<Button
+										variant="outline"
+										size="sm"
+										icon="restart_alt"
+										onClick={() => {
+											setSearchQuery("");
+											setDebouncedSearch("");
+											setHeaderSearchQuery("");
+											setAccountFilter("all");
+											setProviderFilter("all");
+											setExpiringFirst(false);
+											setPage(1);
+										}}
+									>
+										Reset all filters
+									</Button>
+								</div>
+							)}
+						</div>
+					</Card>
  ) : (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {sortedConnections.map((conn) => {

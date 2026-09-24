@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { Card, Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function DashboardError({ error, reset }) {
@@ -41,17 +42,33 @@ export default function DashboardError({ error, reset }) {
             </p>
           </div>
 
-          {/* Stack trace detail */}
-          {error?.stack && (
-            <details className="text-xs text-text-muted">
+          {/* Stack trace detail — always rendered when a stack exists */}
+          {error?.stack ? (
+            <details open className="text-xs text-text-muted">
               <summary className="cursor-pointer font-medium hover:text-text-main transition-colors select-none py-1 flex items-center gap-1">
                 <Icon name="terminal" size={18} />
-                <span>View Error Stack Trace</span>
+                <span>Error Stack Trace</span>
               </summary>
-              <pre className="mt-2 max-h-64 overflow-y-auto custom-scrollbar rounded-sm border border-border bg-bg p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all select-all">
+              <pre className="mt-2 max-h-96 overflow-y-auto custom-scrollbar rounded-sm border border-border bg-bg p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all select-all">
                 {error.stack}
               </pre>
+              <p className="mt-1.5 text-[11px] text-text-muted">
+                Server-side stack (if the error happened during SSR) is also captured in{" "}
+                <Link href="/dashboard/console-log" className="text-primary hover:underline">
+                  Console Log
+                </Link>{" "}
+                under the same timestamp.
+              </p>
             </details>
+          ) : (
+            <p className="text-[11px] text-text-muted">
+              No client stack available (production bundle is minified). Check the{" "}
+              <Link href="/dashboard/console-log" className="text-primary hover:underline">
+                Console Log
+              </Link>{" "}
+              for the server-side stack trace matching digest{" "}
+              <code className="font-mono bg-surface px-1 rounded">{error?.digest || "n/a"}</code>.
+            </p>
           )}
 
           {/* Actions */}

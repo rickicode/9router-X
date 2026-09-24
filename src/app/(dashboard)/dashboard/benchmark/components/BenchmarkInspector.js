@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, Button, Modal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 export default function BenchmarkInspector({ attempt, onClose }) {

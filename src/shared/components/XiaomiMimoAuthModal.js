@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 /**
  * Xiaomi MiMo Auth Modal

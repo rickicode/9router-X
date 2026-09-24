@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 import { Card, Button } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 export default function ProviderHeader({
  providerInfo, providerId, providerNode, isCompatible, isOpenAICompatible, isAnthropicCompatible,

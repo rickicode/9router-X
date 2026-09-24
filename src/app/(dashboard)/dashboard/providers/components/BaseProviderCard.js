@@ -4,6 +4,7 @@ import { memo } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { Card, Badge, Toggle } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { OPENAI_COMPATIBLE_PREFIX, ANTHROPIC_COMPATIBLE_PREFIX } from "@/shared/constants/providers";

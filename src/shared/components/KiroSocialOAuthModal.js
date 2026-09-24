@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 /**

@@ -53,8 +53,8 @@ export default function Sidebar({ onClose }) {
 
   return (
     <aside className="flex w-64 flex-col border-r border-border bg-sidebar min-h-full">
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        <Link href="/dashboard" prefetch={false} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
+      <div className="flex h-16 min-h-16 items-center justify-between px-3.5 border-b border-border">
+        <Link href="/dashboard" prefetch={false} className="flex min-w-0 items-center gap-2.5 rounded-sm" aria-label="Dashboard">
           <Image src="/favicon.svg" alt="AxonRouter logo" width={36} height={36} className="size-9 shrink-0" priority />
           <span className="truncate text-sm font-semibold text-text-main">{APP_CONFIG.name}</span>
         </Link>
@@ -71,10 +71,10 @@ export default function Sidebar({ onClose }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-2.5 py-2 space-y-0.5 overflow-y-auto custom-scrollbar">
         {/* Core & Routing Section */}
-        <div className="mb-4">
-          <div className="px-3 mb-2">
+        <div className="mb-2.5">
+          <div className="px-2.5 mb-1">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Core & Routing</span>
           </div>
           {coreRoutingItems.map((item) => (
@@ -85,7 +85,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -102,8 +102,8 @@ export default function Sidebar({ onClose }) {
         </div>
 
         {/* Monitoring Section */}
-        <div className="mb-4">
-          <div className="px-3 mb-2">
+        <div className="mb-2.5">
+          <div className="px-2.5 mb-1">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">Monitoring</span>
           </div>
           {monitoringItems.map((item) => (
@@ -114,7 +114,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -131,8 +131,8 @@ export default function Sidebar({ onClose }) {
         </div>
 
         {/* System & Tools Section */}
-        <div className="pt-2 border-t border-border/50">
-          <div className="px-3 mb-2">
+        <div className="pt-1.5 border-t border-border/50">
+          <div className="px-2.5 mb-1">
             <span className="text-[9px] font-medium uppercase tracking-wider text-text-muted opacity-70">System & Tools</span>
           </div>
           {toolsItems.map((item) => (
@@ -143,7 +143,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -162,7 +162,7 @@ export default function Sidebar({ onClose }) {
           <button
             onClick={() => setMediaOpen((v) => !v)}
             className={cn(
-              "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
               pathname.startsWith("/dashboard/media-providers")
                 ? "bg-primary/10 text-primary"
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -183,7 +183,7 @@ export default function Sidebar({ onClose }) {
                   onClick={onClose}
                   aria-current={pathname.startsWith(`/dashboard/media-providers/${kind.id}`) ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                    "flex h-7.5 items-center gap-2 pl-8 pr-2.5 rounded-sm text-[12.5px] transition-colors",
                     pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
                       ? "bg-primary/10 text-primary"
                       : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -200,7 +200,7 @@ export default function Sidebar({ onClose }) {
                 onClick={onClose}
                 aria-current={pathname.startsWith(COMBINED_WEB_ITEM.href) ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 pl-9 pr-3 rounded-sm text-[13px] transition-colors",
+                  "flex h-7.5 items-center gap-2 pl-8 pr-2.5 rounded-sm text-[12.5px] transition-colors",
                   pathname.startsWith(COMBINED_WEB_ITEM.href)
                     ? "bg-primary/10 text-primary"
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -220,7 +220,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -243,7 +243,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+                "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -264,7 +264,7 @@ export default function Sidebar({ onClose }) {
             prefetch={false}
             onClick={onClose}
             className={cn(
-              "flex min-h-11 items-center gap-3 px-3 rounded-sm text-[13px] font-medium transition-colors",
+              "flex h-8 items-center gap-2.5 px-2.5 rounded-sm text-[13px] font-medium transition-colors",
               isActive("/dashboard/settings")
                 ? "bg-primary/10 text-primary"
                 : "text-text-muted hover:bg-surface-2 hover:text-text-main"

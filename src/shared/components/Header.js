@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
@@ -197,7 +197,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
  };
 
  return (
- <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-border bg-bg px-3 z-20">
+    <header className="flex h-16 min-h-16 shrink-0 items-center gap-3 border-b border-border bg-bg px-3.5 z-20">
  {showMenuButton && (
  <button
  type="button"
@@ -254,35 +254,82 @@ className="flex size-10 items-center justify-center text-text-muted hover:bg-sur
 }
 
 function HeaderSearch() {
- const visible = useHeaderSearchStore((s) => s.visible);
- const query = useHeaderSearchStore((s) => s.query);
- const placeholder = useHeaderSearchStore((s) => s.placeholder);
- const setQuery = useHeaderSearchStore((s) => s.setQuery);
+	const visible = useHeaderSearchStore((s) => s.visible);
+	const query = useHeaderSearchStore((s) => s.query);
+	const placeholder = useHeaderSearchStore((s) => s.placeholder);
+	const setQuery = useHeaderSearchStore((s) => s.setQuery);
+	const inputRef = useRef(null);
 
- if (!visible) return null;
+	// Global "/" keyboard shortcut to focus search
+	useEffect(() => {
+		if (!visible) return;
 
- return (
- <div className="relative w-[140px] sm:w-[200px]">
- <Icon name="search" size={18} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
- <input
- type="text"
- value={query}
- onChange={(e) => setQuery(e.target.value)}
- placeholder={placeholder}
- className="h-11 w-full border border-border bg-surface pl-7 pr-7 text-sm text-text-main outline-none focus:border-primary"
- />
- {query && (
- <button
- type="button"
- onClick={() => setQuery("")}
- className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-1.5 rounded-sm min-size-8"
- aria-label="Clear search"
- >
- <Icon name="close" size={18} />
- </button>
- )}
- </div>
- );
+		const handleKeyDown = (e) => {
+			if (
+				e.key === "/" &&
+				!["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName) &&
+				!document.activeElement?.isContentEditable
+			) {
+				e.preventDefault();
+				inputRef.current?.focus();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [visible]);
+
+	if (!visible) return null;
+
+	const handleInputKeyDown = (e) => {
+		if (e.key === "Escape") {
+			if (query) {
+				setQuery("");
+			} else {
+				inputRef.current?.blur();
+			}
+		}
+	};
+
+	return (
+		<div
+			role="search"
+			className="group relative flex items-center w-36 sm:w-52 md:w-64 transition-all duration-200 ease-out focus-within:w-48 sm:focus-within:w-64 md:focus-within:w-76"
+		>
+			<Icon
+				name="search"
+				size={16}
+				className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted/70 group-focus-within:text-primary transition-colors"
+			/>
+			<input
+				ref={inputRef}
+				type="text"
+				value={query}
+				onChange={(e) => setQuery(e.target.value)}
+				onKeyDown={handleInputKeyDown}
+				placeholder={placeholder || "Search..."}
+				className="h-8 w-full rounded-sm border border-border/80 bg-surface-2/50 pl-8 pr-7 text-xs sm:text-sm text-text-main placeholder:text-text-muted/60 outline-none transition-all hover:bg-surface-2 hover:border-border focus:border-primary/60 focus:bg-surface focus:ring-2 focus:ring-primary/15"
+				aria-label={placeholder || "Search"}
+			/>
+			{query ? (
+				<button
+					type="button"
+					onClick={() => {
+						setQuery("");
+						inputRef.current?.focus();
+					}}
+					className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded-sm text-text-muted/70 hover:bg-surface-3 hover:text-text-main transition-colors"
+					aria-label="Clear search"
+				>
+					<Icon name="close" size={13} />
+				</button>
+			) : (
+				<kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-[3px] border border-border/70 bg-surface text-[10px] font-mono text-text-muted/70 select-none shadow-2xs">
+					/
+				</kbd>
+			)}
+		</div>
+	);
 }
 
 Header.propTypes = {

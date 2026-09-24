@@ -3,6 +3,7 @@
 import PropTypes from "prop-types";
 import dynamic from "next/dynamic";
 import { ConfirmModal } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import ProviderTestResultsView from "./ProviderTestResultsView";
 
 const AddCompatibleModal = dynamic(

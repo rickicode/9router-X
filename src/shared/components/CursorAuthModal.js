@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 
 /**
  * Cursor Auth Modal

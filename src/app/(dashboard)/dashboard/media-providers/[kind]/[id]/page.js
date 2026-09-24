@@ -4,6 +4,7 @@ import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, Badge, Button, AddCustomEmbeddingModal, NoAuthProxyCard, ProviderInfoCard } from "@/shared/components";
+import Icon from "@/shared/components/Icon";
 import { ConfirmModal } from "@/shared/components/Modal";
 import { useNotificationStore } from "@/store/notificationStore";
 import ProviderIcon from "@/shared/components/ProviderIcon";
