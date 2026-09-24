@@ -10,9 +10,6 @@ services:
     image: 9router-api:latest
     container_name: 9router-api
     restart: always
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     mem_limit: 2g
     memswap_limit: 2g
     ports:
@@ -52,9 +49,6 @@ services:
       dockerfile: Dockerfile
     image: 9router-x:latest
     container_name: 9router-x
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     restart: always
     mem_limit: 2500m
     memswap_limit: 2500m

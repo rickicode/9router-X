@@ -10,9 +10,6 @@ services:
     image: axonrouter-api:latest
     container_name: axonrouter-api
     restart: always
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     mem_limit: 2g
     memswap_limit: 2g
     ports:
@@ -53,9 +50,6 @@ services:
       dockerfile: Dockerfile
     image: axonrouter-web:latest
     container_name: axonrouter-web
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     restart: always
     # Box max is 4GB total: app 2.5g + postgres 1g leaves ~0.5g for the
     # host/docker. OOM kills recycle just this container (restart: always).
