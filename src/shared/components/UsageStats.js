@@ -199,20 +199,20 @@ function RequestStream({ buckets = [] }) {
  return (
  <div
  key={`${bucket.timestamp || index}`}
- className="flex h-full min-w-0 flex-1 flex-col justify-end gap-[3px]"
+ className="flex h-full min-w-0 flex-1 flex-col gap-[3px]"
  title={`${timeLabel}: ${requests} requests`}
  >
- <span className="text-center text-[10px] leading-none tabular-nums text-text-muted">
- {requests || ""}
- </span>
  <div className="grid flex-1 content-end gap-[3px]" style={{ gridTemplateRows: "repeat(10, minmax(0,1fr))" }}>
  {Array.from({ length: 10 }, (_, row) => (
  <span
  key={row}
- className={`rounded-[2px] ${row < filled ? "bg-primary/80" : "bg-surface-2"}`}
+ className={`rounded-[2px] ${row >= 10 - filled ? "bg-primary/80" : "bg-surface-2"}`}
  />
  ))}
  </div>
+ <span className="text-center text-[10px] leading-none tabular-nums text-text-muted">
+ {requests || ""}
+ </span>
  </div>
  );
  })}

@@ -74,7 +74,7 @@ function aggregateEntryToDay(day, entry) {
   day.promptTokens = (day.promptTokens || 0) + promptTokens;
   day.completionTokens = (day.completionTokens || 0) + completionTokens;
   day.cachedTokens = (day.cachedTokens || 0) + cachedTokens;
-  day.cost = (day.cost || 0) + cost;
+  day.cost = (Number(day.cost) || 0) + cost;
 
   day.byProvider ||= {};
   day.byModel ||= {};
@@ -154,6 +154,15 @@ async function flushUsageQueue() {
   const batch = usageWriteQueue.items.splice(0, Math.max(usageWriteQueue.items.length, USAGE_FLUSH_MAX));
   if (batch.length === 0) return;
   try {
+    // Success rows carry a cost PROMISE (pricing lookup kicked off at enqueue).
+    // Settle it before the transaction so the daily rollup and the history
+    // insert see a plain number; the un-awaited promise used to serialize
+    // usage_daily.cost as garbage/null.
+    for (const item of batch) {
+      if (item.cost && typeof item.cost.then === "function") {
+        try { item.cost = (await item.cost) || 0; } catch { item.cost = 0; }
+      }
+    }
     const db = await getAdapter();
     await db.transaction(async (tx) => {
       // Per-row insert preserves ON CONFLICT idempotency (requestId path) while
@@ -187,6 +196,12 @@ async function flushUsageQueue() {
         );
       }
 
+      // Raw per-request rows: getLast10Minutes, the today/24h stats path,
+      // recent-ring hydration and the request log all read usage_history. The
+      // batcher originally wrote only usage_daily and silently dropped this
+      // insert, freezing usage_history (and every view over it).
+      await insertHistoryChunk(tx, aggregated);
+
       await tx.run(
         `INSERT INTO _meta (key, value) VALUES ('totalRequestsLifetime', $1::text)
          ON CONFLICT (key) DO UPDATE SET value = ((COALESCE(_meta.value, '0')::bigint) + ($2::text)::bigint)::text`,
@@ -195,6 +210,7 @@ async function flushUsageQueue() {
     });
     for (const item of batch) item.resolve?.();
   } catch (err) {
+    console.error("[usage] flush failed:", err);
     for (const item of batch) item.reject?.(err);
   }
 }
@@ -506,7 +522,7 @@ export async function saveFailedRequest({ provider, model, connectionId, apiKey,
       status,
       tokens: {},
       meta: { isStream: isStreamBool, failed: true, error: errorMsg, account: account || undefined, ...(comboName ? { comboName } : {}) },
-    });
+    }).catch(() => {}); // fire-and-forget: flush errors are logged in flushUsageQueue
 
     pushToRing({
       timestamp: ts,
@@ -563,7 +579,7 @@ export async function saveRequestUsage(entry) {
       meta: entryMeta,
       requestId: entry.requestId || null,
       _rawEntry: entry,
-    });
+    }).catch(() => {}); // fire-and-forget: flush errors are logged in flushUsageQueue
 
     pushToRing(entry);
     scheduleStatsEvent("update", 250);
@@ -783,54 +799,16 @@ export async function getLast10Minutes(dbArg) {
      WHERE timestamp >= $1 AND timestamp <= $2`,
     [tenMinutesAgo.toISOString(), now.toISOString()],
   );
-  if (recent10.length > 0) {
-    for (const row of recent10) {
-      const tt = new Date(row.timestamp).getTime();
-      const minuteStart = Math.floor(tt / 60000) * 60000;
-      if (bucketMap[minuteStart]) {
-        bucketMap[minuteStart].requests++;
-        bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
-        bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
-        bucketMap[minuteStart].cost += row.cost || 0;
-      }
+  for (const row of recent10) {
+    const tt = new Date(row.timestamp).getTime();
+    const minuteStart = Math.floor(tt / 60000) * 60000;
+    if (bucketMap[minuteStart]) {
+      bucketMap[minuteStart].requests++;
+      bucketMap[minuteStart].promptTokens += row.prompt_tokens || 0;
+      bucketMap[minuteStart].completionTokens += row.completion_tokens || 0;
+      bucketMap[minuteStart].cost += row.cost || 0;
     }
-    return buckets;
   }
-
-  // If the server is currently idle (no requests in the last 10 minutes), anchor
-  // to the 10-minute window of latest activity so the dashboard is not blank.
-  try {
-    const latestRows = await db.all(`SELECT timestamp FROM usage_history ORDER BY id DESC LIMIT 1`);
-    if (latestRows.length > 0 && latestRows[0].timestamp) {
-      const latestTime = new Date(latestRows[0].timestamp);
-      const anchorMinuteEnd = new Date(Math.ceil(latestTime.getTime() / 60000) * 60000);
-      const anchorStart = new Date(anchorMinuteEnd.getTime() - 9 * 60 * 1000);
-      const histMap = {};
-      const histBuckets = [];
-      for (let i = 0; i < 10; i++) {
-        const ts = anchorMinuteEnd.getTime() - (9 - i) * 60 * 1000;
-        histMap[ts] = { timestamp: ts, requests: 0, promptTokens: 0, completionTokens: 0, cost: 0, isHistorical: true };
-        histBuckets.push(histMap[ts]);
-      }
-      const histRows = await db.all(
-        `SELECT timestamp, prompt_tokens, completion_tokens, cost FROM usage_history
-         WHERE timestamp >= $1 AND timestamp <= $2`,
-        [anchorStart.toISOString(), anchorMinuteEnd.toISOString()],
-      );
-      for (const row of histRows) {
-        const tt = new Date(row.timestamp).getTime();
-        const minuteStart = Math.floor(tt / 60000) * 60000;
-        if (histMap[minuteStart]) {
-          histMap[minuteStart].requests++;
-          histMap[minuteStart].promptTokens += row.prompt_tokens || 0;
-          histMap[minuteStart].completionTokens += row.completion_tokens || 0;
-          histMap[minuteStart].cost += row.cost || 0;
-        }
-      }
-      return histBuckets;
-    }
-  } catch {}
-
   return buckets;
 }
 
@@ -944,10 +922,10 @@ export async function getUsageStats(period = "all") {
 
   stats.last10Minutes = await getLast10Minutes(db);
 
-  const useDailySummary = period !== "24h" && period !== "today";
+  const useDailySummary = period !== "24h";
 
   if (useDailySummary) {
-    const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
+    const periodDays = { "today": 1, "7d": 7, "30d": 30, "60d": 60 };
     const maxDays = periodDays[period] || null;
 
     const today = new Date();
