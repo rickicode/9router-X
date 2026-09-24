@@ -23,7 +23,7 @@ export default function SegmentedControl({
     sm: "px-2 py-1.5 text-[11px]",
     md: "px-2.5 py-2 text-xs",
     lg: "px-3 py-2 text-sm",
-    touch: "px-2.5 py-1 text-xs min-h-7 min-w-7 sm:min-h-7",
+    touch: "px-3 py-1.5 text-xs min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 sm:px-2.5 sm:py-1",
   };
 
   const iconSizes = {

@@ -83,7 +83,7 @@ function StatusChip({ status, size = "md" }) {
  );
 }
 
-export default function RequestLogger({ detailsOpen = false, onToggleDetails }) {
+export default function RequestLogger({ detailsOpen = false, onToggleDetails, initialStatus = "all" }) {
  const [logs, setLogs] = useState([]);
  const [loading, setLoading] = useState(true);
  const [autoRefresh, setAutoRefresh] = useState(true);
@@ -91,7 +91,9 @@ export default function RequestLogger({ detailsOpen = false, onToggleDetails }) 
  const [selectedLog, setSelectedLog] = useState(null);
  const [isModalOpen, setIsModalOpen] = useState(false);
  const [search, setSearch] = useState("");
- const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() =>
+    initialStatus === "failed" ? "failed" : initialStatus === "success" || initialStatus === "ok" ? "ok" : "all"
+  );
  const abortRef = useRef(null);
 
  const fetchLogs = useCallback(async (showLoading = true) => {
@@ -233,12 +235,13 @@ export default function RequestLogger({ detailsOpen = false, onToggleDetails }) 
             <Button
               variant="secondary"
               size="sm"
-              icon="manage_search"
+              icon={detailsOpen ? "expand_less" : "manage_search"}
               onClick={onToggleDetails}
-              aria-pressed={detailsOpen}
+              aria-expanded={detailsOpen}
+              aria-controls="request-details-panel"
               className={detailsOpen ? "border-primary/40 bg-primary/10 text-primary" : ""}
             >
-              Details
+              {detailsOpen ? "Hide Trace Details" : "Detailed Traces"}
             </Button>
           )}
  <Button variant="ghost" size="sm" onClick={() => fetchLogs(true)} icon="refresh" aria-label="Refresh logs">
@@ -378,10 +381,10 @@ Loading logs…
  <table className="data-table w-full text-left" aria-label="Request logs">
  <thead>
  <tr>
- <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Waktu</th>
- <th scope="col" className="px-3 h-8 text-xs font-medium text-text-muted">Model</th>
- <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Provider</th>
- <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Akun</th>
+                <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Time</th>
+                <th scope="col" className="px-3 h-8 text-xs font-medium text-text-muted">Model</th>
+                <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Provider</th>
+                <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Account</th>
  <th scope="col" className="px-3 h-8 text-right whitespace-nowrap text-xs font-medium text-text-muted">Token In/Out</th>
  <th scope="col" className="px-3 h-8 whitespace-nowrap text-xs font-medium text-text-muted">Status</th>
  </tr>

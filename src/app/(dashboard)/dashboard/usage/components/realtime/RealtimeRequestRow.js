@@ -155,7 +155,7 @@ export function RealtimeRequestCardMobile({ req, onOpenError }) {
         <span className="flex min-w-0 items-center gap-2">
 <span className={`flex shrink-0 items-center gap-1.5 ${isOk ? "text-success" : "text-danger"}`} aria-label={isOk ? "Success" : "Failed"}>
   <span className={`size-2 rounded-full ${isOk ? "bg-success" : "bg-danger"}`} />
-  <span className="hidden font-medium sm:inline">{isOk ? "OK" : "Failed"}</span>
+  <span className="text-[10px] font-medium sm:text-xs">{isOk ? "OK" : "Failed"}</span>
 </span>
           <span className="truncate font-mono text-xs font-medium text-text-main" title={r.model}>
             {r.model}

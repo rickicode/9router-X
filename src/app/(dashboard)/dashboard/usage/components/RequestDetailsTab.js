@@ -221,6 +221,10 @@ export default function RequestDetailsTab({ initialFilters }) {
 
  return (
  <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-col gap-1 pt-2">
+        <h3 className="text-sm font-semibold text-text-main">Archived Request Traces</h3>
+        <p className="text-xs text-text-muted">Full request/response payloads, latency metrics, and upstream error details.</p>
+      </div>
  <Card padding="md">
  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
  <div className="flex min-w-0 flex-col gap-1.5">

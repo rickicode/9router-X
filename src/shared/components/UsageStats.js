@@ -797,46 +797,37 @@ export default function UsageStats({
  <>
  {activeSubTab === "breakdown" && (
  <div className="flex flex-col gap-3">
- <UsageChart period={period} />
- <div className="flex flex-col gap-3">
- <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
- <select
- value={tableView}
- onChange={(e) => setTableView(e.target.value)}
- aria-label="Usage table dimension"
- className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm font-medium text-text-main focus:outline-none sm:w-auto"
- >
- {TABLE_OPTIONS.map((opt) => (
- <option key={opt.value} value={opt.value}>
- {opt.label}
- </option>
- ))}
- </select>
-  <div className="grid grid-cols-2 items-center gap-1 rounded-sm border border-border bg-surface p-1 sm:flex">
-  <button
-  onClick={() => setViewMode("costs")}
-  aria-pressed={viewMode === "costs"}
-  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${
-  viewMode === "costs"
-  ? "bg-primary text-white"
-  : "text-text-muted hover:text-text-main hover:bg-surface-2"
-  }`}
-  >
-  Costs
-  </button>
-  <button
-  onClick={() => setViewMode("tokens")}
-  aria-pressed={viewMode === "tokens"}
-  className={`px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors ${
-  viewMode === "tokens"
-  ? "bg-primary text-white"
-  : "text-text-muted hover:text-text-main hover:bg-surface-2"
-  }`}
-  >
-  Tokens
-  </button>
-  </div>
- </div>
+            <UsageChart
+              period={period}
+              viewMode={viewMode === "costs" ? "cost" : viewMode}
+              onViewModeChange={(m) => setViewMode(m === "cost" ? "costs" : m)}
+            />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <select
+                  value={tableView}
+                  onChange={(e) => setTableView(e.target.value)}
+                  aria-label="Usage table dimension"
+                  className="w-full min-h-11 sm:min-h-8 rounded-sm border border-border bg-surface px-3 py-2 text-sm font-medium text-text-main focus:outline-none sm:w-auto sm:py-1"
+                >
+                  {TABLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <SegmentedControl
+                  options={[
+                    { value: "costs", label: "Costs" },
+                    { value: "tokens", label: "Tokens" },
+                  ]}
+                  value={viewMode}
+                  onChange={setViewMode}
+                  size="touch"
+                  snap
+                  aria-label="Usage table view mode"
+                />
+              </div>
  {activeTableConfig && (
  <UsageTable
  title=""

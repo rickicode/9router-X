@@ -16,12 +16,14 @@ const MODES = [
   { value: "cost", label: "Cost", color: "bg-amber-500", hover: "hover:bg-amber-400", fmt: fmtCost },
 ];
 
-export default function UsageChart({ period = "7d" }) {
+export default function UsageChart({ period = "7d", viewMode: controlledViewMode, onViewModeChange }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState("tokens");
+  const [internalViewMode, setInternalViewMode] = useState("tokens");
 
+  const viewMode = controlledViewMode !== undefined ? controlledViewMode : internalViewMode;
+  const setViewMode = onViewModeChange || setInternalViewMode;
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);

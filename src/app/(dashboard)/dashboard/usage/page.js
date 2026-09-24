@@ -94,6 +94,12 @@ function UsageContent() {
     else params.set("details", "1");
     router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
   };
+  const detailsRef = useRef(null);
+  useEffect(() => {
+    if (showDetails && detailsRef.current) {
+      detailsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showDetails]);
 
   const copy = TAB_COPY[activeTab];
   const showPeriod = activeTab === "overview" || activeTab === "analytics";
@@ -166,13 +172,22 @@ function UsageContent() {
       )}
       {activeTab === "logs" && (
         <>
-          <RequestLogger detailsOpen={showDetails} onToggleDetails={toggleDetails} />
+          <RequestLogger
+            detailsOpen={showDetails}
+            onToggleDetails={toggleDetails}
+            initialStatus={searchParams.get("status") || "all"}
+          />
           {showDetails && (
-            <Suspense fallback={<CardSkeleton />}>
-              <RequestDetailsTab
-                initialFilters={{ status: searchParams.get("status") || "" }}
-              />
-            </Suspense>
+            <div id="request-details-panel" ref={detailsRef}>
+              <Suspense fallback={<CardSkeleton />}>
+                <RequestDetailsTab
+                  initialFilters={{
+                    status: searchParams.get("status") || "",
+                    provider: searchParams.get("provider") || "",
+                  }}
+                />
+              </Suspense>
+            </div>
           )}
         </>
       )}

@@ -57,7 +57,7 @@ function Metric({ label, icon, tone, value, valueClass, note, exact, spanTwo = f
       </div>
       <div className="mt-1 flex min-w-0 flex-col">
         <span
-          title={exact ? `${exact} · exact count` : undefined}
+          title={exact ? (exact.includes("·") || exact.startsWith("Estimated") ? exact : `${exact} · exact count`) : undefined}
           className={`text-lg font-semibold tabular-nums whitespace-nowrap sm:text-xl leading-tight ${valueClass || "text-text-main"}`}
         >
           {value}
@@ -123,11 +123,12 @@ export default function OverviewCards({ stats }) {
       <Metric
         {...CARDS[4]}
         value={`~${fmtCost(stats.totalCost)}`}
+        exact="Estimated from configured pricing, not billed invoices"
         valueClass="text-amber-400"
         spanTwo
         note={
           <div className="flex items-center justify-between w-full">
-            <span className="truncate" title={`In ${fmtCost(inputCost)} · Cache ${fmtCost(cachedCost)} · Out ${fmtCost(outputCost)}`}>
+            <span className="truncate" title={`In ${fmtCost(inputCost)} · Cache ${fmtCost(cachedCost)} · Out ${fmtCost(outputCost)} (Estimated, not billed)`}>
               In {fmtCost(inputCost)} · Out {fmtCost(outputCost)}
             </span>
             <Link
