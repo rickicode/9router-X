@@ -23,7 +23,7 @@ export default function SegmentedControl({
     sm: "px-2 py-1.5 text-[11px]",
     md: "px-2.5 py-2 text-xs",
     lg: "px-3 py-2 text-sm",
-    touch: "px-3 py-2 text-xs min-h-9 min-w-9",
+    touch: "px-2.5 py-1 text-xs min-h-7 min-w-7 sm:min-h-7",
   };
 
   const iconSizes = {
@@ -71,7 +71,7 @@ export default function SegmentedControl({
  aria-label={ariaLabelProp || ariaLabel || "Options"}
  onKeyDown={handleKeyDown}
   className={cn(
-  "inline-flex items-center gap-1 rounded-sm border border-border bg-surface p-1",
+  "inline-flex items-center gap-0.5 rounded-sm border border-border bg-surface p-0.5",
   "max-w-full overflow-x-auto no-scrollbar",
   className
   )}

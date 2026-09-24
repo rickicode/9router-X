@@ -12,10 +12,10 @@ const variants = {
 };
 
 const sizes = {
-  xs: "h-10 min-w-10 px-2 text-xs gap-1.5 sm:h-7 sm:min-w-7",
-  sm: "h-10 min-w-10 px-3 text-xs sm:px-2.5",
-  md: "h-10 min-w-10 px-3 text-sm",
-  lg: "h-11 px-4 text-sm",
+  xs: "h-6 min-w-6 px-2 text-[11px] gap-1",
+  sm: "h-7 min-w-7 px-2.5 text-xs gap-1.5",
+  md: "h-8 min-w-8 px-3 text-xs gap-1.5",
+  lg: "h-9 px-3.5 text-sm gap-2",
 };
 
 export default function Button({
