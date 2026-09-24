@@ -1,4 +1,4 @@
-import { cleanupProviderConnections, getSettings } from "@/lib/localDb";
+import { cleanupProviderConnections } from "@/lib/localDb";
 
 process.setMaxListeners(20);
 
@@ -6,9 +6,9 @@ process.setMaxListeners(20);
 const STARTUP_DEFER_MS = 2000;
 
 // Survive Next.js hot reload
-const g = global.__appSingleton ??= {
+const g = (global.__appSingleton ??= {
   initialized: false,
-};
+});
 
 export async function initializeApp() {
   if (g.initialized) return;
@@ -47,3 +47,8 @@ async function runHeavyStartup() {
     .then(({ startStateSweeper }) => startStateSweeper())
     .catch((e) => console.log("[StateSweeper] scheduler start failed:", e.message));
 }
+
+// No-op for tunnel route compatibility in Docker
+export function configureTunnelMonitoring() {}
+
+export default initializeApp;
