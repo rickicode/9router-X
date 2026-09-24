@@ -331,7 +331,7 @@ useEffect(() => {
  baseUrl={getEffectiveBaseUrl()}
  apiKey={selectedApiKey}
  models={modelMappings}
- maxContextTokens={maxContextTokens}
+                  maxContextTokens={autoCompactWindow}
  />
 
  {!checkingClaude && (
