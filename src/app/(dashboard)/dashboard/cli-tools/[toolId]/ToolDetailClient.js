@@ -109,7 +109,7 @@ export default function ToolDetailClient({ toolId, machineId }) {
  const getBaseUrl = () => {
  if (cloudEnabled && CLOUD_URL) return CLOUD_URL;
  if (typeof window !== "undefined") return window.location.origin;
- return "http://localhost:10128";
+ return "http://localhost:3777";
  };
 
  const renderToolCard = () => {

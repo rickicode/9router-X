@@ -56,7 +56,7 @@ ${fileOperations}
 ${verifySection}
 
 printf "\\033[0;32m[AxonRouter] ✓ Configuration for %s applied successfully!\\033[0m\\n" "${toolName}"
-printf "\\033[0;32m[AxonRouter] Gateway Target: %s\\033[0m\\n" "${params.baseUrl || "http://localhost:10128"}"
+printf "\\033[0;32m[AxonRouter] Gateway Target: %s\\033[0m\\n" "${params.baseUrl || "http://localhost:3777"}"
 `;
 }
 

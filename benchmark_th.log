@@ -3,7 +3,7 @@
 Ditemukan 41 model untuk provider 'th' (th).
 =============================================================================================================================
 BENCHMARK COMPREHENSIVE (TOTAL 41 MODELS)
-Gateway: http://192.168.90.101:10128 | Concurrency: 2
+Gateway: http://192.168.90.101:3777 | Concurrency: 2
 Test Suites: 1. Ping | 2. Coding + Tool Call | 3. Horror Story | 4. Logic Puzzle
 =============================================================================================================================
 

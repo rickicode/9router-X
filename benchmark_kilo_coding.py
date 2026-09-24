@@ -2,7 +2,7 @@ import urllib.request
 import json
 import time
 
-URL = "http://192.168.90.101:10128/v1/chat/completions"
+URL = "http://192.168.90.101:3777/v1/chat/completions"
 KEY = "sk-1913e25d85487647-bkjq1z-e0b63207"
 
 CODING_PROMPT = """Tuliskan implementasi class LRUCache di Python dengan kapasitas `capacity`.

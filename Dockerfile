@@ -31,7 +31,7 @@ FROM runtime-deps AS runner
 LABEL org.opencontainers.image.title="axonrouter"
 
 ENV NODE_ENV=production
-ENV PORT=10128
+ENV PORT=3777
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATA_DIR=/app/data
@@ -52,11 +52,11 @@ RUN mkdir -p /app/data /app/data-home && chown -R node:node /app/data /app/data-
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 10128
+EXPOSE 3777
 
 # Health: Next serves /api/health (dashboardGuard public path).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:10128/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:3777/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "--max-old-space-size=4096", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "custom-server.js"]

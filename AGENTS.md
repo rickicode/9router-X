@@ -3,7 +3,7 @@
 ## What this is
 Enterprise fork of decolua/axonrouter: AI routing gateway + dashboard.
 Next.js (webpack) app with custom Express server, PostgreSQL 17 (SSOT),
-Valkey/Redis L2 cache. Deployed at `http://192.168.90.101:10128`.
+Valkey/Redis L2 cache. Deployed at `http://192.168.90.101:3777`.
 
 ## Stack
 - Runtime: Node.js (ES modules), Next.js 15 App Router (`--webpack`)
@@ -19,7 +19,7 @@ Valkey/Redis L2 cache. Deployed at `http://192.168.90.101:10128`.
 - `open-sse/config/errorConfig.js` — error rules: cooldown per error text, `MAX_RATE_LIMIT_COOLDOWN_MS` (7d cap)
 - `open-sse/utils/error.js` — `extractQuotaResetMs` ("Try again in N" parsing)
 - `src/app/dashboard/` — usage/providers UI
-- `custom-server.js` — entrypoint (`npm start` → port 20127; prod runs 10128)
+- `custom-server.js` — entrypoint (`npm start` → port 20127; prod runs 3777)
 
 ## Graft — MANDATORY code navigation (strict rules)
 A `graft/` context graph (wiring graph + per-file cards, exact `file:line`) is committed at the repo root. Code search MUST go through graft, not raw rg/grep/Read-first:

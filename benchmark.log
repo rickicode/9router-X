@@ -1,8 +1,8 @@
-Menghubungi gateway http://192.168.90.101:10128...
+Menghubungi gateway http://192.168.90.101:3777...
 Ditemukan 494 model native chat aktif (custom provider dikecualikan).
 ===================================================================================================================
 PHASE 1: HEALTH & LATENCY SCREENING (494 Models)
-Gateway: http://192.168.90.101:10128 | Concurrency: 10
+Gateway: http://192.168.90.101:3777 | Concurrency: 10
 ===================================================================================================================
 [  1/494] ERR 400  |  2.74s | ag/gemini-3.5-flash-extra-low                    | Gemini 3.5 Flash is no longer available.
 [  2/494] ERR 400  |  2.82s | ag/gemini-3-flash-agent                          | Gemini 3.5 Flash is no longer available.

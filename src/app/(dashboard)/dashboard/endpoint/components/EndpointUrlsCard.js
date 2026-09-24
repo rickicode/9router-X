@@ -101,7 +101,7 @@ export default function EndpointUrlsCard({
                   </h4>
                 </div>
                 <p className="text-[11px] font-mono text-text-muted">
-                  Port 10128 · Dashboard Runtime
+                  Port 3777 · Dashboard Runtime
                 </p>
               </div>
             </div>
@@ -111,7 +111,7 @@ export default function EndpointUrlsCard({
           </div>
 
           <p className="text-xs text-text-muted leading-relaxed">
-            Direct route through the Next.js application server. Convenient for single-port deployments or reverse proxies that forward to port 10128.
+            Direct route through the Next.js application server. Convenient for single-port deployments or reverse proxies that forward to port 3777.
           </p>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-sm border border-border bg-bg p-2.5 sm:px-3 sm:py-2">

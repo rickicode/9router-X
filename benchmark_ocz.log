@@ -3,7 +3,7 @@
 Ditemukan 69 model untuk provider 'ocz' (ocz).
 =============================================================================================================================
 BENCHMARK COMPREHENSIVE (TOTAL 69 MODELS)
-Gateway: http://192.168.90.101:10128 | Concurrency: 3
+Gateway: http://192.168.90.101:3777 | Concurrency: 3
 Test Suites: 1. Ping | 2. Coding + Tool Call | 3. Horror Story | 4. Logic Puzzle
 =============================================================================================================================
 

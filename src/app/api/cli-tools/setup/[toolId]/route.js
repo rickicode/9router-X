@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * pointing to this AxonRouter instance.
  *
  * Example usage:
- *   curl -fsSL "http://localhost:10128/api/cli-tools/setup/claude?baseUrl=http://localhost:10128&apiKey=sk_xxx&sonnet=cc/claude-sonnet-5" | bash
- *   irm "http://localhost:10128/api/cli-tools/setup/claude?format=ps1&baseUrl=http://localhost:10128&apiKey=sk_xxx" | iex
+ *   curl -fsSL "http://localhost:3777/api/cli-tools/setup/claude?baseUrl=http://localhost:3777&apiKey=sk_xxx&sonnet=cc/claude-sonnet-5" | bash
+ *   irm "http://localhost:3777/api/cli-tools/setup/claude?format=ps1&baseUrl=http://localhost:3777&apiKey=sk_xxx" | iex
  */
 export async function GET(request, { params }) {
   try {
@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
     }
 
     const format = searchParams.get("format") === "ps1" ? "ps1" : "bash";
-    const hostHeader = request.headers.get("host") || "localhost:10128";
+    const hostHeader = request.headers.get("host") || "localhost:3777";
     const protocol = request.headers.get("x-forwarded-proto") || (hostHeader.includes("localhost") ? "http" : "https");
     const inferredBaseUrl = `${protocol}://${hostHeader}`;
 

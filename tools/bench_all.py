@@ -678,7 +678,7 @@ def report(out, run, alive, dead, modality, sessions_done):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--api-key", default="sk-1913e25d85487647-bkjq1z-e0b63207")
-    ap.add_argument("--base", default="http://localhost:10128")
+    ap.add_argument("--base", default="http://localhost:3777")
     ap.add_argument("--out", default="/root/bench")
     ap.add_argument("--run", type=int, default=1)
     ap.add_argument("--reps", type=int, default=3)

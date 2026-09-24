@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.request
 
-GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://192.168.90.101:10128")
+GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://192.168.90.101:3777")
 GATEWAY_KEY = os.environ.get("GATEWAY_KEY", "sk-1913e25d85487647-bkjq1z-e0b63207")
 DB_PATH = os.environ.get("DB_PATH", "benchmark_active.db")
 

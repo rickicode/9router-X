@@ -64,7 +64,7 @@ AxonRouter-X is an enterprise-grade, high-concurrency fork of [decolua/axonroute
 │ Your CLI Coding Tools                                       │
 │ (Claude Code, Codex, OpenClaw, Cursor, Cline, Antigravity)  │
 └──────────────────────────────┬──────────────────────────────┘
-                               │ http://localhost:10128/v1
+                               │ http://localhost:3777/v1
                                ↓
 ┌─────────────────────────────────────────────────────────────┐
 │ AxonRouter-X Gateway Engine (Next.js 16 Standalone)            │
@@ -95,7 +95,7 @@ Result: Continuous coding, rock-solid stability under load, minimal token costs.
 ## 🚀 Quick Start (Docker Compose - Recommended)
 
 The all-in-one Docker Compose stack orchestrates:
-- **axonrouter-x** (Gateway & Dashboard): `http://localhost:10128`
+- **axonrouter-x** (Gateway & Dashboard): `http://localhost:3777`
 - **postgres** (PostgreSQL 17 with healthcheck): port `5432`
 - **redis** (Valkey 8 / Redis compatible): port `6381` mapped to internal `6379`
 - **headroom** (LLM Context Compression Proxy): `http://localhost:8787`
@@ -123,13 +123,13 @@ docker compose up -d --build
 ```
 
 ### 3. Open Dashboards
-- **AxonRouter-X Dashboard**: `http://localhost:10128/dashboard`
+- **AxonRouter-X Dashboard**: `http://localhost:3777/dashboard`
 - **Headroom Dashboard**: `http://localhost:8787/dashboard` (API docs: `http://localhost:8787/docs`)
 
 ### 4. Connect a Provider & Code
-1. Open `http://localhost:10128/dashboard` $\rightarrow$ **Providers**.
+1. Open `http://localhost:3777/dashboard` $\rightarrow$ **Providers**.
 2. Connect **Kiro AI** (free tier: Claude 4.5 + GLM-5 + MiniMax) or paste your API keys.
-3. Configure your CLI tool to use `http://localhost:10128/v1`.
+3. Configure your CLI tool to use `http://localhost:3777/v1`.
 
 ---
 
@@ -244,7 +244,7 @@ AxonRouter-X integrates with all major AI development tools:
 
 ### Method 1: Web Dashboard (Easiest)
 1. In your existing official AxonRouter, open **Profile / Settings** $\rightarrow$ click **Download Backup**.
-2. Open AxonRouter-X Dashboard (`http://localhost:10128/dashboard/profile`).
+2. Open AxonRouter-X Dashboard (`http://localhost:3777/dashboard/profile`).
 3. Select the backup JSON file and click **Restore / Import Backup**. AxonRouter-X automatically migrates the payload into PostgreSQL.
 
 ### Method 2: CLI Migration Script
@@ -264,20 +264,20 @@ node scripts/migrate-sqlite-to-pg.mjs --sqlite /path/to/data.sqlite
 Configure `~/.claude/config.json`:
 ```json
 {
-  "anthropic_api_base": "http://localhost:10128/v1",
+  "anthropic_api_base": "http://localhost:3777/v1",
   "anthropic_api_key": "your-axonrouter-key"
 }
 ```
 
 ### Cursor IDE
 Navigate to **Settings** $\rightarrow$ **Models** $\rightarrow$ **OpenAI API**:
-- **Base URL**: `http://localhost:10128/v1`
+- **Base URL**: `http://localhost:3777/v1`
 - **API Key**: `[paste key from axonrouter dashboard]`
 - **Model**: `cc/claude-opus-4-7` or custom combo name
 
 ### OpenAI Codex CLI
 ```bash
-export OPENAI_BASE_URL="http://localhost:10128"
+export OPENAI_BASE_URL="http://localhost:3777"
 export OPENAI_API_KEY="your-axonrouter-key"
 
 codex "refactor authentication module"
@@ -297,7 +297,7 @@ Edit `~/.openclaw/openclaw.json`:
   "models": {
     "providers": {
       "axonrouter": {
-        "baseUrl": "http://127.0.0.1:10128/v1",
+        "baseUrl": "http://127.0.0.1:3777/v1",
         "apiKey": "sk_axonrouter",
         "api": "openai-completions",
         "models": [
@@ -315,7 +315,7 @@ Edit `~/.openclaw/openclaw.json`:
 
 ### Cline / RooCode / Continue
 - **API Provider**: OpenAI Compatible
-- **Base URL**: `http://localhost:10128/v1`
+- **Base URL**: `http://localhost:3777/v1`
 - **API Key**: `[from dashboard]`
 - **Model**: `cc/claude-opus-4-7` or combo name
 
@@ -377,7 +377,7 @@ npx vitest run unit/postgres-e2e.test.js
 
 ### OpenAI-Compatible Chat Completions
 ```bash
-curl -X POST http://localhost:10128/v1/chat/completions \
+curl -X POST http://localhost:3777/v1/chat/completions \
   -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -391,7 +391,7 @@ curl -X POST http://localhost:10128/v1/chat/completions \
 
 ### List Available Models & Combos
 ```bash
-curl http://localhost:10128/v1/models \
+curl http://localhost:3777/v1/models \
   -H "Authorization: Bearer your-api-key"
 ```
 

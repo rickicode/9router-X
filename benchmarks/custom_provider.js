@@ -21,7 +21,7 @@ class CustomOpenAiProvider {
     return new Promise((resolve, reject) => {
       const req = http.request({
         hostname: '192.168.90.101',
-        port: 10128,
+        port: 3777,
         path: '/v1/chat/completions',
         method: 'POST',
         headers: {

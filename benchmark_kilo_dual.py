@@ -3,7 +3,7 @@ import json
 import time
 import sys
 
-URL = "http://192.168.90.101:10128/v1/chat/completions"
+URL = "http://192.168.90.101:3777/v1/chat/completions"
 KEY = "sk-1913e25d85487647-bkjq1z-e0b63207"
 
 PROMPT_CODING = """Implementasikan sistem TokenBucketRateLimiter di Python yang thread-safe menggunakan threading.Lock.

@@ -41,7 +41,7 @@ Write-Host "[AxonRouter] Configuring ${toolName} for AxonRouter host gateway..."
 ${fileOperations}
 
 Write-Host "[AxonRouter] ✓ Configuration for ${toolName} applied successfully!" -ForegroundColor Green
-Write-Host "[AxonRouter] Gateway Target: ${params.baseUrl || "http://localhost:10128"}" -ForegroundColor Green
+Write-Host "[AxonRouter] Gateway Target: ${params.baseUrl || "http://localhost:3777"}" -ForegroundColor Green
 `;
 }
 

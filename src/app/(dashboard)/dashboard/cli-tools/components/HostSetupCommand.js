@@ -21,7 +21,7 @@ export default function HostSetupCommand({
  if (typeof window !== "undefined") {
  return window.location.origin;
  }
- return "http://localhost:10128";
+ return "http://localhost:3777";
  }, []);
 
  const effectiveBaseUrl = baseUrl || currentOrigin;

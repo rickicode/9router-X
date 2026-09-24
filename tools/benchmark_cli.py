@@ -25,7 +25,7 @@ import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-DEFAULT_GATEWAY = os.environ.get("ROUTER_URL", "http://192.168.90.101:10128")
+DEFAULT_GATEWAY = os.environ.get("ROUTER_URL", "http://192.168.90.101:3777")
 DEFAULT_KEY = os.environ.get("ROUTER_API_KEY", "sk-1913e25d85487647-bkjq1z-e0b63207")
 OUTPUT_JSON = "benchmark_results.json"
 REPORT_MD = "BENCHMARK_REPORT.md"
